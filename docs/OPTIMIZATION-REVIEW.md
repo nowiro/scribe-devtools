@@ -1,7 +1,7 @@
 # Przegląd wydajności `browser-inspector` — v0.1.0
 
-Data przeglądu: 2026-09-02. Stan kodu: `scribe-devtools` od `a5bbd5f` (stan wyjściowy) do `632e7a8`+ (HEAD w chwili
-zamknięcia); tag `v0.1.0` wskazuje wydanie sprzed tej rundy. Numery linii odnoszą się do stanu HEAD; ścieżki
+Data przeglądu: 2026-09-02. Stan kodu: `scribe-devtools` od `a5bbd5f` (stan wyjściowy) do `29c3119` (HEAD w chwili
+zamknięcia); tag `v0.1.0` wskazuje wydanie sprzed tej rundy. Numery linii odnoszą się do stanu `29c3119` i zostały przy tym commicie zweryfikowane po symbolach, nie przepisane; ścieżki
 `src/…` i `test/…` oznaczają `packages/browser-inspector/src/…` i `…/test/…`. W trakcie przeglądu drzewo przesunęło się
 o pięć commitów — refaktor silnika na moduły (`646bfad`), pakiet wydajnościowy (`7bcc9c0`), dwie naprawy liczników
 (`a439a6f`), sam ten dokument (`30dc3e6`) i wdrożenie punktów 3 i 5 planu (`a6ecf98`) — więc część ustaleń jest już
@@ -9,6 +9,12 @@ o pięć commitów — refaktor silnika na moduły (`646bfad`), pakiet wydajnoś
 
 Przegląd prowadzono w dwóch rundach po cztery niezależne soczewki. Runda druga dostała listę ustaleń rundy pierwszej z
 zakazem odkrywania ich ponownie, więc numeracja nie ma dziur po duplikatach.
+
+Po zamknięciu tych dwóch rund przez repozytorium przeszedł **osobny audyt poprawności i sekretów** (`29c3119`, 24
+naprawy, w tym trzy wycieki hasła do artefaktów). Nie był to przegląd wydajności i nie zmienia tez tego dokumentu, ale
+zamknął jedno z jego ustaleń (LIFE-7) i przesunął numery linii w połowie plików — dlatego cytowania zostały przy tym
+commicie przeliczone po symbolach. To, czego audyt **nie** zamknął, mimo że dotykał sąsiedniego kodu, jest przy
+odpowiednich ustaleniach powiedziane wprost.
 
 ## 1. Zakres i metoda
 
@@ -62,8 +68,9 @@ zamiatanie sesji — oba przeżyły, bo testy sprawdzały własne atrapy zamiast
 Największy pojedynczy zysk czasowy, jaki został do wzięcia, to zrzuty `fullPage` idące wolną ścieżką Playwrighta zamiast
 CDP (808 ms wobec 17–66 ms), a największy tokenowy — pozycyjne ścieżki CSS w `elements.md`, które zjadają 63 % pliku
 droższego niż cały `report.md`. Dwie pozycje z planu — czytanie ciał odpowiedzi w batchu i przydział lane'ów po kolei —
-są już zamknięte i zmierzone (`a6ecf98`): razem ze zmianami wcześniejszymi ciepła ścieżka zeszła z 348 na 304 ms, a
-iloraz wobec MCP naive z 8,3× na 10,1×. Nic z tego nie wymaga zmiany architektury: wszystkie otwarte pozycje to zmiany
+są już zamknięte i zmierzone: razem ze wszystkimi zmianami tej rundy i audytu poprawności ciepła ścieżka zeszła
+z **348 na 275 ms**, a iloraz wobec domyślnego MCP z 8,3× na **10,6×** (`bench/RAPORT.md`, przeliczone przy `29c3119`).
+Tokeny nie drgnęły — 414 na przebieg batcha — bo żadna z tych zmian nie dotykała tego, co agent czyta. Nic z tego nie wymaga zmiany architektury: wszystkie otwarte pozycje to zmiany
 punktowe, a trzy z nich wymagają decyzji właściciela wyłącznie dlatego, że dotykają kontraktu raportu albo obietnic
 zapisanych w DESIGN.md.
 
@@ -82,51 +89,51 @@ w kodzie pewny, wielkość zysku niezmierzona. Kolumna „zysk” podaje jednost
 | CONFIG-1 | high   | `fixtures/app-factory.config.json` | CONFIRMED        | 3,5–4,0 s / przebieg       | do decyzji    | Siedem kroków `wait ms` = 4248 ms zmierzonego snu, 54 % przebiegu app-factory; `waitFor` robi to samo w 28 ms.         |
 | CLIENT-1 | high   | `src/cli.mjs:49` (był)             | CONFIRMED, A/B   | 13 ms / wywołanie          | **zamknięte** | `new Intl.DateTimeFormat` w ciele modułu — 12 ms ICU w każdym procesie klienta, który stempla nie używa.               |
 | ENGINE-4 | medium | `src/keeper.requests.mjs:284`      | CONFIRMED, repro | −10 % zmierzone            | **zamknięte** | `lane = k % parallel` sadzał dwa najdłuższe snapshoty na jednym lane'ie; `planLanes` (offline LPT) to naprawia.        |
-| TOKENS-1 | medium | `src/capture.mjs:150`              | MEASURED         | 2982 tok. (−63 %)          | otwarte       | Pozycyjne ścieżki CSS w `elements.md`; 43 ze 100 wpisów to bezimienne linki, dla których ścieżka jest całą treścią.    |
+| TOKENS-1 | medium | `src/capture.mjs:190`              | MEASURED         | 2982 tok. (−63 %)          | otwarte       | Pozycyjne ścieżki CSS w `elements.md`; 43 ze 100 wpisów to bezimienne linki, dla których ścieżka jest całą treścią.    |
 | TOKENS-2 | medium | `src/report.mjs:42`                | MEASURED         | do 1750 tok.               | otwarte       | `extract` wchodzi inline do `report.md` do 5000 znaków ≈ 1950 tokenów w pliku projektowanym na 190.                    |
-| STEPS-1  | medium | `src/session.mjs:277`              | MEASURED         | 2–3 ms × komenda           | otwarte       | `resolveRef` i `durableSelector` rozwiązują ten sam ref dwa razy: 5 komunikatów CDP zamiast 2.                         |
+| STEPS-1  | medium | `src/session.mjs:285`              | MEASURED         | 2–3 ms × komenda           | otwarte       | `resolveRef` i `durableSelector` rozwiązują ten sam ref dwa razy: 5 komunikatów CDP zamiast 2.                         |
 | STEPS-4  | medium | `src/snapshot.mjs:345`             | MEASURED         | 187 ms @ 4000 węzłów       | otwarte       | `namesContext` × `firstLabelUnder` jest kwadratowe w jednym nienazwanym kontenerze.                                    |
-| STEPS-5  | medium | `src/snapshot.mjs:908`             | MEASURED         | 54 ms @ 2000 węzłów        | otwarte       | `boxJoin` degraduje do kwadratowego, gdy boxy dryfują między `ariaSnapshot` a `walkInteractive`.                       |
-| LIFE-2   | medium | `src/paths.mjs:98`                 | MEASURED         | —                          | otwarte       | Każda edycja `src/` to nowa tożsamość i nowy keeper; `status`/`stop` widzą tylko bieżącą.                              |
-| LIFE-3   | medium | `src/recorder.mjs:299`             | MEASURED, repro  | 225 MB / 8 h               | otwarte       | W sesji `console`/`network` zamarzają na 500, a `bodies` rośnie bez capa — 1200 ciał, 700 nieosiągalnych.              |
-| LIFE-7   | medium | `src/flow.mjs:119`                 | CONFIRMED        | —                          | otwarte       | Kontekst `fresh` wycieka przy każdym wyjątku między utworzeniem a `close()` — brak `try/finally`.                      |
-| CORR-1   | medium | `src/client.mjs:667`               | MEASURED         | —                          | otwarte       | `status`/`stop`/`doctor` liczą tożsamość bez `config.browser` — nie widzą keepera batcha z własną przeglądarką.        |
+| STEPS-5  | medium | `src/snapshot.mjs:925`             | MEASURED         | 54 ms @ 2000 węzłów        | otwarte       | `boxJoin` degraduje do kwadratowego, gdy boxy dryfują między `ariaSnapshot` a `walkInteractive`.                       |
+| LIFE-2   | medium | `src/paths.mjs:105`                | MEASURED         | —                          | otwarte       | Każda edycja `src/` to nowa tożsamość i nowy keeper; `status`/`stop` widzą tylko bieżącą.                              |
+| LIFE-3   | medium | `src/recorder.mjs:292`             | MEASURED, repro  | 225 MB / 8 h               | otwarte       | W sesji `console`/`network` zamarzają na 500, a `bodies` rośnie bez capa — 1200 ciał, 700 nieosiągalnych.              |
+| LIFE-7   | medium | `src/flow.mjs:119` (był)           | CONFIRMED        | —                          | **zamknięte** | Kontekst `fresh` wyciekał przy każdym wyjątku przed `close()`; zamknięte w audycie `29c3119` razem z lane'em busy.     |
+| CORR-1   | medium | `src/client.mjs:705`               | MEASURED         | —                          | otwarte       | `status`/`stop`/`doctor` liczą tożsamość bez `config.browser` — nie widzą keepera batcha z własną przeglądarką.        |
 | GATE-1   | medium | `package.json:16` (był)            | CONFIRMED        | ~30 s Chrome / bramkę      | **zamknięte** | `vitest run` uruchamiał `smoke`, a `verify` wołał go zaraz drugi raz.                                                  |
 | GATE-2   | medium | `test/keeper.test.mjs` (był)       | CONFIRMED        | `unit` 17,5 → 8,75 s       | **zamknięte** | Jeden plik testowy był 70 % czasu projektu `unit`; vitest zrównolegla po plikach.                                      |
-| GATE-3   | medium | `src/client.mjs:716`               | CONFIRMED        | —                          | otwarte       | `PROTOCOL_VERSION` w trzech kopiach (keeper, klient ×2, test) — podbicie wersji nie zapala żadnej bramki.              |
+| GATE-3   | medium | `src/client.mjs:765`               | CONFIRMED        | —                          | otwarte       | `PROTOCOL_VERSION` w trzech kopiach (keeper, klient ×2, test) — podbicie wersji nie zapala żadnej bramki.              |
 | ENGINE-5 | low    | `src/flow.mjs:253`                 | CONFIRMED        | —                          | **zamknięte** | `writeMs` rozbity na `shotsMs`/`settleMs`; etykieta wiersza budżetu mówiła o zapisach, których tam nie ma.             |
 | CLIENT-2 | low    | `src/client.mjs:51`                | MEASURED         | do 25 ms na `first`        | otwarte       | `CONNECT_RETRY_MS = 25` kwantyzuje oczekiwanie: keeper gotowy o ~60 ms jest odbierany o 75 ms.                         |
 | CLIENT-3 | low    | `src/keeper.mjs:25`                | MEASURED         | 22–26 ms na `first`        | otwarte       | Cały graf `keeper.requests.mjs` ładuje się przed `listen`, choć przed pierwszym żądaniem jest zbędny.                  |
 | CLIENT-4 | low    | `src/client.mjs:17`                | MEASURED         | 2,4 ms / wywołanie         | otwarte       | `node:child_process` i `config.mjs` statyczne w kliencie, nieużywane na ciepłej ścieżce sesyjnej.                      |
-| ENGINE-6 | low    | `src/report.mjs:624`               | CONFIRMED        | 1–3 ms / snapshot          | otwarte       | Trzy ostatnie zapisy w `writeArtifacts` są szeregowe, choć nie mają zależności.                                        |
+| ENGINE-6 | low    | `src/report.mjs:652`               | CONFIRMED        | 1–3 ms / snapshot          | otwarte       | Trzy ostatnie zapisy w `writeArtifacts` są szeregowe, choć nie mają zależności.                                        |
 | ENGINE-7 | low    | `src/lanes.mjs:556`                | CONFIRMED        | ~25 ms na lane app-factory | otwarte       | `resetContext` to osiem szeregowych `await` bez wzajemnych zależności.                                                 |
 | STEPS-2  | low    | `src/steps.run.mjs:258`            | MEASURED         | 2,35 ms / `snap`           | otwarte       | `snapshotLines` liczy kompakt drugi raz, choć `writeSnapshotFiles` właśnie go zapisało do `ctx.lastSnapshot`.          |
 | STEPS-3  | low    | `src/steps.run.mjs:580`            | MEASURED         | 7 ms + 102 KB I/O          | otwarte       | `find` parsuje YAML czterokrotnie i przepisuje trzy pliki, które `open` właśnie zapisało.                              |
 | STEPS-6  | low    | `src/steps.ctx.mjs:84`             | CONFIRMED        | 1–3 ms + stabilność        | otwarte       | `ariaSnapshot` i `walkInteractive` sekwencyjnie — ta przerwa produkuje dryf boxów z STEPS-5.                           |
 | STEPS-7  | low    | `src/snapshot.mjs:463`             | MEASURED         | ~30 % renderu              | otwarte       | Fold w `renderTree` liczy poddrzewa dwa razy: O(n × głębokość).                                                        |
 | STEPS-8  | low    | `src/snapshot.mjs:222`             | MEASURED         | 3,7 ms / `snap --grep`     | otwarte       | Ten sam YAML parsowany 3–4 razy na komendę; brak cache po tekście.                                                     |
-| STEPS-9  | low    | `src/session.mjs:339`              | HYPOTHESIS       | 2–6 ms / komenda           | otwarte       | `probePage` to trzeci przelot po dokumencie w komendach, które już go przeszły.                                        |
+| STEPS-9  | low    | `src/session.mjs:347`              | HYPOTHESIS       | 2–6 ms / komenda           | otwarte       | `probePage` to trzeci przelot po dokumencie w komendach, które już go przeszły.                                        |
 | STEPS-10 | low    | `src/steps.run.mjs:1025`           | CONFIRMED        | 3 komunikaty               | otwarte       | `RUNNERS.locator` liczy trwały selektor dwa razy; `tabs` czyta tytuły sekwencyjnie.                                    |
-| STEPS-11 | low    | `src/session.mjs:146`              | HYPOTHESIS       | koszt strony               | do decyzji    | `__bi_dom` obserwuje cały dokument z `attributes` i `characterData` dla jednego booleana.                              |
+| STEPS-11 | low    | `src/session.mjs:148`              | HYPOTHESIS       | koszt strony               | do decyzji    | `__bi_dom` obserwuje cały dokument z `attributes` i `characterData` dla jednego booleana.                              |
 | TOKENS-3 | low    | `src/snapshot.mjs:327`             | MEASURED         | 99 tok. (−25 %)            | otwarte       | Generowane `#mat-*` w kompakcie; nietrwałe (numeracja idzie za kolejnością instancjonowania).                          |
 | TOKENS-4 | low    | `src/snapshot.mjs:582`             | MEASURED         | 86 tok. (−72 %)            | otwarte       | `find` nie zwija identycznych linii; limit 10 trafień wyczerpują klony — to też błąd użyteczności.                     |
 | TOKENS-5 | low    | `AGENTS.md:27`                     | MEASURED         | 15 tok. / sesję            | otwarte       | Blok INSTRUCTION: 158 → 143 bez utraty faktu (nazwa dwa razy zamiast sześciu).                                         |
-| TOKENS-6 | low    | `src/print.mjs:225`                | CONFIRMED        | 40 tok. / `console`        | otwarte       | `formatConsoleEntry` nie przyjmuje `baseOrigin`, choć bliźniacze `formatNetEntry` tak; plus duplikat linii Chrome.     |
-| TOKENS-7 | low    | `src/report.mjs:275`               | MEASURED         | 6–12 tok. / raport         | otwarte       | Nagłówek dopisuje `final:`, a linia niżej i tak drukuje tę samą nazwę w `shots`.                                       |
+| TOKENS-6 | low    | `src/print.mjs:240`                | CONFIRMED        | 40 tok. / `console`        | otwarte       | `formatConsoleEntry` nie przyjmuje `baseOrigin`, choć bliźniacze `formatNetEntry` tak; plus duplikat linii Chrome.     |
+| TOKENS-7 | low    | `src/report.mjs:289`               | MEASURED         | 6–12 tok. / raport         | otwarte       | Nagłówek dopisuje `final:`, a linia niżej i tak drukuje tę samą nazwę w `shots`.                                       |
 | TOKENS-8 | info   | `docs/ACCEPTANCE.md:10`            | CONFIRMED        | —                          | otwarte       | AC-6 dopuszcza 420 tokenów, zmierzone 414 — jeden dodatkowy `console.error` wywala bramkę.                             |
 | LIFE-4   | low    | `src/lanes.mjs:706`                | MEASURED         | —                          | otwarte       | Lista pidów zamrożona w chwili launchu — próg RSS z czasem mierzy coraz mniejszą część przeglądarki.                   |
-| LIFE-5   | low    | `src/keeper.mjs:33`                | MEASURED         | —                          | otwarte       | Progi 200 zadań / 1024 MB bez uzasadnienia pomiarowego; przy otwartej sesji recykling nie zachodzi nigdy.              |
+| LIFE-5   | low    | `src/keeper.mjs:34`                | MEASURED         | —                          | otwarte       | Progi 200 zadań / 1024 MB bez uzasadnienia pomiarowego; przy otwartej sesji recykling nie zachodzi nigdy.              |
 | LIFE-6   | low    | `src/keeper.mjs:372`               | MEASURED         | —                          | do decyzji    | Unia sekretów z całego życia procesu maskuje tekst w każdej późniejszej sesji.                                         |
 | LIFE-8   | low    | `src/lanes.mjs:659`                | CONFIRMED        | —                          | otwarte       | Lane'y zbierane tylko po przebiegu batcha; lane 0 nigdy — `laneIdleMs` jest deklaracją bez zegara.                     |
 | LIFE-9   | low    | —                                  | MEASURED         | ~64 MB / dzień             | otwarte       | Brak retencji w `.scribe-devtools/`: 3,0–3,4 MB na przebieg bramki, PNG to 94 % objętości.                             |
 | LIFE-10  | low    | `src/session-log.mjs:125`          | MEASURED         | 10–50 ms / `open`          | otwarte       | `journalLineCount` czyta cały dziennik synchronicznie; dziennik przeżywa zamknięcie sesji.                             |
-| LIFE-11  | low    | `src/keeper.mjs:639`               | MEASURED         | 0,16 ms / linia            | otwarte       | Log keepera: 3 syscalle synchroniczne na linię, kasowanie do zera przy 1 MB — i to jedyne miejsce sygnałów degradacji. |
+| LIFE-11  | low    | `src/keeper.mjs:655`               | MEASURED         | 0,16 ms / linia            | otwarte       | Log keepera: 3 syscalle synchroniczne na linię, kasowanie do zera przy 1 MB — i to jedyne miejsce sygnałów degradacji. |
 | GATE-4   | low    | `src/keeper.mjs:375`               | CONFIRMED        | —                          | otwarte       | Dwa parsery tej samej zmiennej: `MAX_JOBS=0` daje keeperowi 0, a `status` pokaże 200.                                  |
-| GATE-5   | low    | `src/capture.mjs:255`              | CONFIRMED        | —                          | otwarte       | Siedem eksportów bez ani jednego użytkownika; część trzyma przy życiu tabela w ACCEPTANCE.md.                          |
+| GATE-5   | low    | `src/capture.mjs:368`              | CONFIRMED        | —                          | otwarte       | Siedem eksportów bez ani jednego użytkownika; część trzyma przy życiu tabela w ACCEPTANCE.md.                          |
 | GATE-6   | low    | `src/session.mjs:18`               | CONFIRMED        | —                          | otwarte       | `session.mjs → client.mjs` to jedyna krawędź wskazująca w złą stronę; strażnik jest jednokierunkowy.                   |
 | GATE-7   | low    | `scripts/index-code.mjs:69`        | CONFIRMED        | —                          | otwarte       | CODE-INDEX liczy importy typów JSDoc jako krawędzie runtime — pokazuje cykl, którego nie ma.                           |
 | GATE-8   | low    | `tsconfig.json:39`                 | CONFIRMED        | —                          | otwarte       | `test/fixtures/**` wypada spod prettiera i `tsc`, a mieszka tam `fake-engine.mjs` i harness.                           |
-| CORR-2   | low    | `src/client.mjs:436`               | MEASURED         | —                          | otwarte       | `exchange` po cichu zjada nieparsowalną linię — keeper spoza NDJSON daje 10-minutowy timeout zamiast błędu.            |
+| CORR-2   | low    | `src/client.mjs:428`               | MEASURED         | —                          | otwarte       | `exchange` po cichu zjada nieparsowalną linię — keeper spoza NDJSON daje 10-minutowy timeout zamiast błędu.            |
 
 ## 4. Ustalenia szczegółowo
 
@@ -271,9 +278,11 @@ naprawą LIFE-1 nie działo się nigdy, a po niej działa dopiero po 30 minutach
 bieżącą tożsamość; nie ma enumeracji plików pid w `os.tmpdir()`. Dzień pracy nad `src/` to N keeperów × (~40 MB Node +
 150–960 MB Chrome), diagnoza wymaga Menedżera zadań.
 
-**LIFE-7 — kontekst `fresh` wycieka przy wyjątku.** `flow.mjs` tworzy kontekst i zamyka go ~220 linii dalej, bez
-`try/finally` między nimi. Każdy rzut po drodze zostawia otwarty kontekst i jego renderer na całe życie keepera.
-`auth.mjs` robi to poprawnie — wzorzec jest w repozytorium, tylko nie w tym miejscu.
+**LIFE-7 — kontekst `fresh` wyciekał przy wyjątku (zamknięte w `29c3119`).** `flow.mjs` tworzył kontekst i zamykał go
+~220 linii dalej, bez `try/finally` między nimi; każdy rzut po drodze zostawiał otwarty kontekst i jego renderer na całe
+życie keepera. Audyt poprawności zamknął to trzema klamrami `try/finally` i przy okazji znalazł cięższą siostrę tego
+ustalenia, której ten przegląd nie zobaczył: lane **współdzielony** nie oddawał `busy`, gdy rzucił scrub albo
+`setViewportSize` — czyli zablokowany lane, nie tylko wyciek pamięci.
 
 **CORR-1 — `status`/`stop`/`doctor` nie widzą keepera batcha z własną przeglądarką.** `control()`, `runSessionLike()` i
 `doctor()` wołają `computeIdentity({ env })` **bez** `config.browser`, a `runBatchLike()` przekazuje `config.browser`.
@@ -389,7 +398,7 @@ Punkty 3, 4 i 5 przeszły do §8.1 — została jedna pozycja, i to poza tym rep
 | 7   | `durableSelector` z sidecaru zamiast live `evaluate`; `RUNNERS.locator` i `tabs` bez podwójnej pracy       | STEPS-1, STEPS-10              | S     |
 | 8   | Cache parsowania YAML po tekście; `snapshotLines` z `ctx.lastSnapshot.compact`; `find` bez przepisywania   | STEPS-2, STEPS-3, STEPS-8      | S     |
 | 9   | Memoizacja `firstLabelUnder`, indeks po zaokrąglonym `(x,y)` w `boxJoin`, `Promise.all` na snapshot+walk   | STEPS-4, STEPS-5, STEPS-6      | M     |
-| 10  | `try/finally` wokół kontekstu `fresh`; cap na `recorder.bodies`; `net --all` z markerem obcięcia           | LIFE-7, LIFE-3                 | S     |
+| 10  | Cap na `recorder.bodies`; `net --all` z markerem obcięcia (`try/finally` zamknięte w `29c3119`)            | LIFE-3                         | S     |
 | 11  | Ścieżki pozycyjne w `elements.md` przycięte albo pomijane dla wpisów bez nazwy; próg `extract` 600 znaków  | TOKENS-1, TOKENS-2             | S     |
 | 12  | `find` zwija klony; generowane `#id` pomijane w kompakcie; `formatConsoleEntry` z `baseOrigin`             | TOKENS-3, TOKENS-4, TOKENS-6   | S     |
 | 13  | `PROTOCOL_VERSION` i limity z jednego miejsca; martwe eksporty; `command-line.mjs` zamiast krawędzi wstecz | GATE-3, GATE-4, GATE-5, GATE-6 | S     |

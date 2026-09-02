@@ -5,31 +5,31 @@ DESIGN.md §9 i przez serwer MCP Playwrighta w trzech wariantach, zmierzone dwie
 `exit` prawdziwego procesu klienta i **ile tokenów** wchodzi do okna kontekstu agenta. Raport generuje `npm run bench` —
 każda liczba niżej pochodzi z przebiegu, żadna nie jest wpisana ręcznie.
 
-Środowisko: 2026-09-02T13:42:29.870Z · 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 rdzeni, 32 GB) · win32 10.0.26200 · Node 26.5.0 · browser-inspector 0.1.0 · playwright-core 1.62.1 · Chrome/152 · @playwright/mcp 0.0.80 (24 narzędzi w `tools/list`).
+Środowisko: 2026-09-02T16:16:09.687Z · 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 rdzeni, 32 GB) · win32 10.0.26200 · Node 26.5.0 · browser-inspector 0.1.0 · playwright-core 1.62.1 · Chrome/152 · @playwright/mcp 0.0.80 (24 narzędzi w `tools/list`).
 Powtórzenia: cold/first ×3, warm n=10 po obu stronach, przerwa 300 ms po obu stronach.
 
 ## Tabela nagłówkowa
 
 | wariant | mediana | p90 | n · tryb | × vs MCP naive | × vs MCP lean | × vs MCP lean `--timeout-settle 100` |
 | --- | ---: | ---: | --- | ---: | ---: | ---: |
-| browser-inspector-warm | **315 ms** | 429 ms | 10 · `warm` | **9,2×** | **10,7×** | **3,0×** |
-| browser-inspector-warm-tight | **317 ms** | 327 ms | 10 · `warm` | **9,1×** | **10,6×** | **3,0×** |
-| browser-inspector-first | **1603 ms** | 1605 ms | 3 · `first` | **2,3×** (vs 1. przebieg) | **2,6×** (vs 1. przebieg) | **1,1×** (vs 1. przebieg) |
-| browser-inspector-cold | **1694 ms** | 1696 ms | 3 · `no-daemon` | **2,2×** (vs 1. przebieg) | **2,5×** (vs 1. przebieg) | **1,1×** (vs 1. przebieg) |
-| browser-inspector-warm-fresh | **852 ms** | 880 ms | 10 · `warm` | **3,4×** | **4,0×** | **1,1×** |
-| browser-inspector-first, first-ever (pierwsze w tym przebiegu benchu, n=1, poza ilorazami) | 1581 ms | — | 1 · `first` | — | — | — |
-| MCP naive (agent poznaje ekran) | 2886 ms (warm) | 2890 ms | 10 · 1. przebieg 3761 ms | — | — | — |
-| MCP lean (agent zna selektory) | 3372 ms (warm) | 3399 ms | 10 · 1. przebieg 4207 ms | — | — | — |
-| MCP lean `--timeout-settle 100` | 958 ms (warm) | 976 ms | 10 · 1. przebieg 1799 ms | — | — | — |
+| browser-inspector-warm | **275 ms** | 285 ms | 10 · `warm` | **10,6×** | **12,4×** | **3,6×** |
+| browser-inspector-warm-tight | **265 ms** | 269 ms | 10 · `warm` | **11,0×** | **12,8×** | **3,8×** |
+| browser-inspector-first | **1336 ms** | 1351 ms | 3 · `first` | **2,8×** (vs 1. przebieg) | **3,1×** (vs 1. przebieg) | **1,3×** (vs 1. przebieg) |
+| browser-inspector-cold | **1432 ms** | 1448 ms | 3 · `no-daemon` | **2,6×** (vs 1. przebieg) | **2,9×** (vs 1. przebieg) | **1,3×** (vs 1. przebieg) |
+| browser-inspector-warm-fresh | **710 ms** | 714 ms | 10 · `warm` | **4,1×** | **4,8×** | **1,4×** |
+| browser-inspector-first, first-ever (pierwsze w tym przebiegu benchu, n=1, poza ilorazami) | 1342 ms | — | 1 · `first` | — | — | — |
+| MCP naive (agent poznaje ekran) | 2913 ms (warm) | 2957 ms | 10 · 1. przebieg 3679 ms | — | — | — |
+| MCP lean (agent zna selektory) | 3403 ms (warm) | 3431 ms | 10 · 1. przebieg 4112 ms | — | — | — |
+| MCP lean `--timeout-settle 100` | 1003 ms (warm) | 1013 ms | 10 · 1. przebieg 1802 ms | — | — | — |
 
-**Wniosek z tabeli:** ścieżka ciepła `browser-inspector-warm` (mediana 315 ms, p90 429 ms) jest **9,2× vs domyślne** ustawienia MCP (naive warm 2886 ms), 10,7× vs MCP lean i **~3,0× vs zestrojony settle 100** (958 ms) — dwie trzecie różnicy to domyślna polityka `--timeout-settle 500` serwera po każdej akcji, nie architektura. 5× jest własnością **każdego wywołania po pierwszym**; `browser-inspector-first` (1603 ms) i `browser-inspector-cold` (1694 ms) to fizyka startu Chrome i są raportowane osobno, poza progiem 5×.
+**Wniosek z tabeli:** ścieżka ciepła `browser-inspector-warm` (mediana 275 ms, p90 285 ms) jest **10,6× vs domyślne** ustawienia MCP (naive warm 2913 ms), 12,4× vs MCP lean i **~3,6× vs zestrojony settle 100** (1003 ms) — dwie trzecie różnicy to domyślna polityka `--timeout-settle 500` serwera po każdej akcji, nie architektura. 5× jest własnością **każdego wywołania po pierwszym**; `browser-inspector-first` (1336 ms) i `browser-inspector-cold` (1432 ms) to fizyka startu Chrome i są raportowane osobno, poza progiem 5×.
 
 ```mermaid
 xychart-beta
     title "Czas zadania (ms, mediany, cieplo)"
     x-axis ["browser-inspector-warm", "browser-inspector-warm-tight", "browser-inspector-warm-fresh", "MCP naive", "MCP lean", "MCP lean settle 100"]
     y-axis "ms" 0 --> 4000
-    bar [315, 317, 852, 2886, 3372, 958]
+    bar [275, 265, 710, 2913, 3403, 1003]
 ```
 
 ```mermaid
@@ -37,7 +37,7 @@ xychart-beta
     title "Czas zadania na zimno (ms, mediany)"
     x-axis ["browser-inspector-first", "browser-inspector-cold", "MCP naive 1. przebieg", "MCP lean 1. przebieg"]
     y-axis "ms" 0 --> 5000
-    bar [1603, 1694, 3761, 4207]
+    bar [1336, 1432, 3679, 4112]
 ```
 
 ## Tokeny (o200k)
@@ -132,15 +132,15 @@ pierwszym kliku (`browser-inspector snap --diff`).
 
 | wariant | komend | czas całej sesji | komenda: mediana / p90 | tokeny | bramka |
 | --- | ---: | ---: | ---: | ---: | --- |
-| browser-inspector-interactive-naive | 17 | 2913 ms | 137 / 180 ms | 799 | ok |
-| browser-inspector-interactive-lean | 17 | 2837 ms | 133 / 182 ms | 612 | ok |
+| browser-inspector-interactive-naive | 17 | 2326 ms | 107 / 146 ms | 799 | ok |
+| browser-inspector-interactive-lean | 17 | 2125 ms | 95 / 130 ms | 612 | ok |
 
 <details><summary>browser-inspector-interactive-naive — komendy i stdout</summary>
 
 ```
-$ browser-inspector open http://localhost:4300/   # 639 ms, exit 0
+$ browser-inspector open http://localhost:4300/   # 548 ms, exit 0
 ok open "Zgłoszenie serwisowe" · el 12 · err 0 · .scribe-devtools/browser-inspector/session/bench-naive/snap.md
-$ browser-inspector snap   # 179 ms, exit 0
+$ browser-inspector snap   # 111 ms, exit 0
 h1 "Zgłoszenie serwisowe"
 e6 link "Na górę" → #top [data-testid=nav-top]
 e7 link "Formularz" → #form [data-testid=nav-form]
@@ -156,37 +156,37 @@ e22 radio "Krytyczny" [data-testid=priority-krytyczny]
 e24 textbox "Opis" [data-testid=field-description]
 e26 checkbox "Zgadzam się na przetwarzanie danych" [data-testid=field-consent]
 e28 button "Wyślij zgłoszenie" [data-testid=submit]
-$ browser-inspector click e28   # 180 ms, exit 0
+$ browser-inspector click e28   # 146 ms, exit 0
 ok click e28 · dom Δ
-$ browser-inspector snap --diff   # 137 ms, exit 0
+$ browser-inspector snap --diff   # 103 ms, exit 0
 0 changed · .scribe-devtools/browser-inspector/session/bench-naive/snap.md
-$ browser-inspector get [data-testid=error-email]   # 121 ms, exit 0
+$ browser-inspector get [data-testid=error-email]   # 97 ms, exit 0
 Podaj poprawny adres e-mail.
-$ browser-inspector shot walidacja   # 137 ms, exit 0
+$ browser-inspector shot walidacja   # 104 ms, exit 0
 ok shot .scribe-devtools/browser-inspector/session/bench-naive/shots/001-walidacja.png 1280x720
-$ browser-inspector form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 179 ms, exit 0
+$ browser-inspector form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 118 ms, exit 0
 ok form 3 fields · dom Δ
-$ browser-inspector select e14 zmiana   # 136 ms, exit 0
+$ browser-inspector select e14 zmiana   # 100 ms, exit 0
 ok select e14 = zmiana
-$ browser-inspector click e22   # 161 ms, exit 0
+$ browser-inspector click e22   # 124 ms, exit 0
 ok click e22 · dom Δ
-$ browser-inspector click e26   # 162 ms, exit 0
+$ browser-inspector click e26   # 126 ms, exit 0
 ok click e26 · dom Δ
-$ browser-inspector click e28   # 175 ms, exit 0
+$ browser-inspector click e28   # 142 ms, exit 0
 ok click e28 · dom Δ
-$ browser-inspector wait --sel [data-testid=confirmation]   # 146 ms, exit 0
+$ browser-inspector wait --sel [data-testid=confirmation]   # 115 ms, exit 0
 ok wait [data-testid=confirmation]
-$ browser-inspector get [data-testid=ticket-id]   # 120 ms, exit 0
+$ browser-inspector get [data-testid=ticket-id]   # 107 ms, exit 0
 ALM-1001
-$ browser-inspector get [data-testid=ticket-category]   # 112 ms, exit 0
+$ browser-inspector get [data-testid=ticket-category]   # 97 ms, exit 0
 zmiana
-$ browser-inspector get [data-testid=ticket-priority]   # 104 ms, exit 0
+$ browser-inspector get [data-testid=ticket-priority]   # 93 ms, exit 0
 krytyczny
-$ browser-inspector console --errors   # 105 ms, exit 0
+$ browser-inspector console --errors   # 91 ms, exit 0
 2 new:
 error Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:4300/api/zgloszenia:0)
 error [zgloszenia] zapis nie powiodl sie: HTTP 404 (http://localhost:4300/:125)
-$ browser-inspector shot potwierdzenie   # 115 ms, exit 0
+$ browser-inspector shot potwierdzenie   # 101 ms, exit 0
 ok shot .scribe-devtools/browser-inspector/session/bench-naive/shots/002-potwierdzenie.png 1280x720
 ```
 
@@ -195,41 +195,41 @@ ok shot .scribe-devtools/browser-inspector/session/bench-naive/shots/002-potwier
 <details><summary>browser-inspector-interactive-lean — komendy i stdout</summary>
 
 ```
-$ browser-inspector open http://localhost:4300/   # 619 ms, exit 0
+$ browser-inspector open http://localhost:4300/   # 532 ms, exit 0
 ok open "Zgłoszenie serwisowe" · el 12 · err 0 · .scribe-devtools/browser-inspector/session/bench-lean/snap.md
-$ browser-inspector find Wyślij   # 177 ms, exit 0
+$ browser-inspector find Wyślij   # 109 ms, exit 0
 e28 button "Wyślij zgłoszenie" [data-testid=submit]
-$ browser-inspector click e28   # 182 ms, exit 0
+$ browser-inspector click e28   # 128 ms, exit 0
 ok click e28 · dom Δ
-$ browser-inspector snap --diff   # 131 ms, exit 0
+$ browser-inspector snap --diff   # 89 ms, exit 0
 0 changed · .scribe-devtools/browser-inspector/session/bench-lean/snap.md
-$ browser-inspector get [data-testid=error-email]   # 118 ms, exit 0
+$ browser-inspector get [data-testid=error-email]   # 82 ms, exit 0
 Podaj poprawny adres e-mail.
-$ browser-inspector shot walidacja   # 132 ms, exit 0
+$ browser-inspector shot walidacja   # 98 ms, exit 0
 ok shot .scribe-devtools/browser-inspector/session/bench-lean/shots/001-walidacja.png 1280x720
-$ browser-inspector form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 153 ms, exit 0
+$ browser-inspector form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 103 ms, exit 0
 ok form 3 fields · dom Δ
-$ browser-inspector select #category zmiana   # 133 ms, exit 0
+$ browser-inspector select #category zmiana   # 88 ms, exit 0
 ok select #category = zmiana
-$ browser-inspector click [data-testid=priority-krytyczny]   # 151 ms, exit 0
+$ browser-inspector click [data-testid=priority-krytyczny]   # 109 ms, exit 0
 ok click [data-testid=priority-krytyczny] · dom Δ
-$ browser-inspector click #consent   # 153 ms, exit 0
+$ browser-inspector click #consent   # 119 ms, exit 0
 ok click #consent · dom Δ
-$ browser-inspector click e28   # 161 ms, exit 0
+$ browser-inspector click e28   # 130 ms, exit 0
 ok click e28 · dom Δ
-$ browser-inspector wait --sel [data-testid=confirmation]   # 138 ms, exit 0
+$ browser-inspector wait --sel [data-testid=confirmation]   # 92 ms, exit 0
 ok wait [data-testid=confirmation]
-$ browser-inspector get [data-testid=ticket-id]   # 122 ms, exit 0
+$ browser-inspector get [data-testid=ticket-id]   # 90 ms, exit 0
 ALM-1001
-$ browser-inspector get [data-testid=ticket-category]   # 119 ms, exit 0
+$ browser-inspector get [data-testid=ticket-category]   # 87 ms, exit 0
 zmiana
-$ browser-inspector get [data-testid=ticket-priority]   # 113 ms, exit 0
+$ browser-inspector get [data-testid=ticket-priority]   # 86 ms, exit 0
 krytyczny
-$ browser-inspector console --errors   # 108 ms, exit 0
+$ browser-inspector console --errors   # 86 ms, exit 0
 2 new:
 error Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:4300/api/zgloszenia:0)
 error [zgloszenia] zapis nie powiodl sie: HTTP 404 (http://localhost:4300/:125)
-$ browser-inspector shot potwierdzenie   # 122 ms, exit 0
+$ browser-inspector shot potwierdzenie   # 95 ms, exit 0
 ok shot .scribe-devtools/browser-inspector/session/bench-lean/shots/002-potwierdzenie.png 1280x720
 ```
 
@@ -242,9 +242,9 @@ ok shot .scribe-devtools/browser-inspector/session/bench-lean/shots/002-potwierd
 
 | powłoka | przeżył | `browser-inspector up` w powłoce | `browser-inspector status` po wyjściu | uwaga |
 | --- | --- | ---: | ---: | --- |
-| cmd | **yes** | 705 ms | 151 ms |  |
-| bash | **yes** | 695 ms | 139 ms |  |
-| pwsh | **yes** | 974 ms | 142 ms |  |
+| cmd | **yes** | 605 ms | 127 ms |  |
+| bash | **yes** | 592 ms | 106 ms |  |
+| pwsh | **yes** | 827 ms | 102 ms |  |
 
 ## app-factory (6 snapshotów, buildy na 4311–4314)
 
@@ -252,10 +252,10 @@ Config: `D:\github\app-factory\read.config.browser-inspector.json` (kopia z wła
 
 | config | parallel | przebiegi (ms) | completed | tryb |
 | --- | ---: | --- | ---: | --- |
-| bez zmian | 1 | 11 811 · 9460 | 6/6 | warm, warm |
-| bez zmian | 3 | 5752 · 3920 | 6/6 | warm, warm |
-| po migracji `settled` | 1 | 8699 · 8142 | 6/6 | warm, warm |
-| po migracji `settled` | 3 | 3575 · 3557 | 6/6 | warm, warm |
+| bez zmian | 1 | 11 517 · 8979 | 6/6 | warm, warm |
+| bez zmian | 3 | 4722 · 3376 | 6/6 | warm, warm |
+| po migracji `settled` | 1 | 8452 · 8120 | 6/6 | warm, warm |
+| po migracji `settled` | 3 | 2996 · 2975 | 6/6 | warm, warm |
 
 ## Parytet z @playwright/mcp (macierz DESIGN.md §7)
 

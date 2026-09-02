@@ -5,6 +5,20 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Changed
+
+- **Bench przeliczony przy `29c3119`**: ciepła ścieżka **315 → 275 ms**, `warm-tight` 296 → 265 ms, iloraz wobec
+  domyślnego MCP **9,2× → 10,6×**, wobec zestrojonego (`--timeout-settle 100`) 3,0× → 3,6×; `first` 1603 → 1336 ms,
+  `cold` 1694 → 1432 ms. Tokeny bez zmian (414 na przebieg batcha) — żadna z napraw audytu nie dotykała tego, co agent
+  czyta. Artefakty `RAPORT.md`, `WYNIKI.md`, `BUDGET.md` i blok BENCH w README odpowiadają teraz wypchniętemu kodowi.
+- **`docs/OPTIMIZATION-REVIEW.md` zaktualizowany po audycie**: LIFE-7 przeniesione do zamkniętych (audyt domknął je
+  trzema klamrami `try/finally` i znalazł przy okazji cięższą siostrę, której przegląd nie zobaczył — lane
+  współdzielony nie oddawał `busy`), werdykt §2 podaje nowy pomiar, a **16 cytowań `plik:linia` przeliczono po
+  symbolach**, bo audyt przesunął numery w połowie plików. Sprawdzone i zapisane jako dalej otwarte mimo sąsiedniego
+  kodu: LIFE-3 (`recorder.bodies` nadal bez capa), TOKENS-2 (próg inline `extract` nadal 5000 znaków), CORR-1
+  (`status`/`stop` dalej liczą tożsamość bez `config.browser`), CORR-2 (`exchange` dalej po cichu zjada nieparsowalną
+  linię).
+
 ### Fixed
 
 - **Wartość pola hasła zostawała jawnie w `snap.full.yml`, gdy etykieta pola zawierała dwukropek.**
