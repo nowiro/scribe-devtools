@@ -181,6 +181,11 @@ export interface NetEntry {
   url: string;
   status?: number;
   contentType?: string;
+  /** Response body size in bytes ON THE WIRE (compressed, framed): `Content-Length` when the server
+   * sent one, otherwise `encodedDataLength` through `request.sizes()`. Absent when the request was
+   * still in flight when the run ended (`ms` is absent then too — both are filled on
+   * `requestfinished`, and a batch does not wait for it), or when a cached response reports no
+   * usable length. */
   size?: number;
   ms?: number;
   failure?: string;

@@ -20,6 +20,7 @@ import { DEFAULT_VIEWPORT, needsFreshContext } from './isolation.mjs';
 import { DEFAULT_TIMEOUT_MS } from './lanes.mjs';
 import { attachRecorder, errorMessage, summarize } from './recorder.mjs';
 import { buildManifest, buildReport, formatStepError, renderJUnit, writeArtifacts } from './report.mjs';
+import { estimateSnapshot } from './schedule.mjs';
 import { makeStepContext, navigate, runStep } from './steps.ctx.mjs';
 import { RUNNERS } from './steps.run.mjs';
 import { resolveStepName } from './steps.schema.mjs';
@@ -153,7 +154,9 @@ export function createFlowRunner(input) {
     }
     const recorder = lane.recorder;
     recorder.reset();
-    recorder.captureBodies = snapshot.captureBodies !== false;
+    // `=== true`, not `!== false`: a snapshot that never went through `loadConfig` (a direct engine
+    // call, a test) must get the batch default, not the recorder's.
+    recorder.captureBodies = snapshot.captureBodies === true;
     recorder.dialogPolicy = { action: snapshot.dialogs === 'accept' ? 'accept' : 'dismiss' };
     const tab = lane.tab;
     lane.tab = 'kept';
@@ -523,12 +526,20 @@ export function createFlowRunner(input) {
         log,
       });
     }
+    // Longest first (`schedule.mjs`), same rule the keeper's queue uses — a lane that finishes early
+    // must not be left with the cheap tail while another chews the heaviest flow. `results[i]` keeps
+    // the config's order regardless of the order the workers took them in.
+    const order = wanted
+      .map((snapshot, i) => ({ i, cost: estimateSnapshot(snapshot) }))
+      .sort((a, b) => b.cost - a.cost || a.i - b.i)
+      .map((entry) => entry.i);
     let next = 0;
     const worker = async (/** @type {number} */ laneIndex) => {
       for (;;) {
-        const i = next;
-        if (i >= wanted.length) return;
+        const taken = next;
+        if (taken >= order.length) return;
         next += 1;
+        const i = order[taken];
         const snapshot = wanted[i];
         const dir = path.join(runDir, snapshot.name);
         const flow = await runFlow(snapshot, dir, {

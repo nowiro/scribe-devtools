@@ -46,7 +46,7 @@ przeglądarki, nieznana flaga).
 Pola snapshotu poza `name`/`type`/`url`/`steps`: `waitUntil` (`load` domyślnie; `settled` = load +
 100 ms ciszy w sieci, szybsze od `networkidle`, które jest honorowane 1:1), `fullPage`, `viewport`,
 `stepTimeoutMs` (10 000), `navTimeoutMs` (30 000), `captureElements` (`elements.md`),
-`captureSnapshot` (`snap.md` + `snap.json`), `captureBodies` (ciała odpowiedzi ≤ 64 KB),
+`captureSnapshot` (`snap.md` + `snap.json`), `captureBodies` (ciała odpowiedzi ≤ 64 KB — w batchu domyślnie WYŁĄCZONE, bo raport ich nie renderuje),
 `isolation: "reuse" | "fresh"` (świeży kontekst zamiast szorowanej karty), `finalScreenshot:
 "auto" | "always" | "never"`, `dialogs: "dismiss" | "accept"`, `routes[]` (blokady/podmiany
 odpowiedzi przed pierwszym `goto`), `trace`, `video`, `auth: false`. `type: "page"` = samo wejście

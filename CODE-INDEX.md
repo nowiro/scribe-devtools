@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 39.
+Modules: 40.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
@@ -89,7 +89,7 @@ Modules: 39.
 
 ## packages/browser-inspector/src/flow.mjs
 - exports: `createFlowRunner`
-- imports: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/isolation.mjs`, `packages/browser-inspector/src/lanes.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/types.js`
+- imports: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/isolation.mjs`, `packages/browser-inspector/src/lanes.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/schedule.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/engine.mjs`
 
 ## packages/browser-inspector/src/isolation.mjs
@@ -104,7 +104,7 @@ Modules: 39.
 
 ## packages/browser-inspector/src/keeper.requests.mjs
 - exports: `EngineUnavailableError`, `PROTOCOL_VERSION`, `done`, `handleRequest`, `messageOf`, `statusOf`
-- imports: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/types.js`
+- imports: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/schedule.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.mjs`
 
 ## packages/browser-inspector/src/lanes.mjs
@@ -132,6 +132,10 @@ Modules: 39.
 ## packages/browser-inspector/src/report.mjs
 - exports: `CAPS`, `SCRIPT`, `SOURCE`, `artifactFiles`, `buildManifest`, `buildReport`, `buildSnapshotManifest`, `failureOf`, `formatStepError`, `renderElementsMd`, `renderJUnit`, `renderReportMd`, `writeArtifacts`
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/types.js`
+- imported by: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`
+
+## packages/browser-inspector/src/schedule.mjs
+- exports: `estimateSnapshot`, `planLanes`
 - imported by: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`
 
 ## packages/browser-inspector/src/session-log.mjs

@@ -54,7 +54,9 @@ describe('app-factory fixture', () => {
     expect(page.isolation).toBe('reuse');
     expect(page.captureElements).toBe(true);
     expect(page.captureSnapshot).toBe(false);
-    expect(page.captureBodies).toBe(true);
+    // Opt-in for a batch: nothing in a report renders a response body (`net <n> --body` is the
+    // session's), and reading them anyway put the tail of every late response into the run.
+    expect(page.captureBodies).toBe(false);
     expect(page.dialogs).toBe('dismiss');
     expect(page.finalScreenshot).toBe('auto');
     expect(page.settleMs).toBe(2000);
@@ -93,7 +95,7 @@ describe('new fields (DESIGN.md §3.3 sample)', () => {
           isolation: 'reuse',
           finalScreenshot: 'auto',
           captureSnapshot: false,
-          captureBodies: true,
+          captureBodies: false,
           dialogs: 'dismiss',
           routes: [{ url: '**/api/recommendations', block: true }],
           stepTimeoutMs: 8000,

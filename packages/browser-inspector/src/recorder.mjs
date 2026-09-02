@@ -6,7 +6,9 @@
 // tab visited survive it until the scrub has cleared them (`resetOrigins()`).
 //
 // Bodies: a `browser-inspector net <n> --body` needs the response body of a request that is long gone, so the
-// recorder keeps json/text bodies up to 64 KB as they arrive (`captureBodies: false` turns it off).
+// recorder keeps json/text bodies up to 64 KB as they arrive — in a SESSION, where `net <n> --body`
+// reads them. A batch turns them off (`captureBodies` is opt-in there): nothing in a report renders a
+// body, and `size` comes from `request.sizes()` instead.
 // Secrets never enter here — the keeper redacts on the way OUT (`redact.mjs`), one place for all.
 
 /** @typedef {import('./types.js').PageLike} PageLike */
@@ -100,7 +102,8 @@ export function originOf(url) {
 
 /**
  * @typedef {object} RecorderOptions
- * @property {boolean} [captureBodies] keep json/text response bodies (default true)
+ * @property {boolean} [captureBodies] keep json/text response bodies (default true; the batch half
+ *   passes `false` — see `flow.mjs`, and `config.mjs` for the snapshot default)
  * @property {number} [bodyLimit] bytes per body (default 64 KB)
  * @property {number} [bodyReadMs] cap on one body read and on `settle()` (default `BODY_READ_MS`)
  * @property {Recorder} [into] an existing recorder to attach a second page (popup, `tab new`) to
@@ -300,7 +303,33 @@ export function attachRecorder(page, options = {}) {
   page.on('requestfinished', (request) => {
     recorder.inFlight = Math.max(0, recorder.inFlight - 1);
     const entry = byRequest.get(request);
-    if (entry) entry.ms = now() - entry.startedAt;
+    if (!entry) return;
+    entry.ms = now() - entry.startedAt;
+    // `size` WITHOUT reading the body. `Content-Length` covers the easy case, but a `chunked`
+    // response has none — and that used to leave `Buffer.byteLength(text)` from the body read as the
+    // only source, which is why a batch that renders no body still waited for every one of them.
+    // `request.sizes()` reads `Network.loadingFinished.encodedDataLength`, which playwright-core
+    // already has in memory by the time this handler runs: no extra round trip. It rides
+    // `recorder.pending` (bounded by `settle()`), never a bare await, because `internalSizes()` also
+    // waits for the raw response headers and a missing `responseReceivedExtraInfo` would hang it.
+    // Bytes ON THE WIRE, so compressed and framed — `types.d.ts` says so on `NetEntry.size`. Lands
+    // only for a request that FINISHED during the run: one still in flight when the report is built
+    // keeps neither `ms` nor `size`, and that is the tail a batch deliberately stopped waiting for.
+    if (entry.size !== undefined || typeof request.sizes !== 'function') return;
+    recorder.pending.push(
+      Promise.resolve()
+        .then(() => request.sizes())
+        .then((sizes) => {
+          const bytes = Number(sizes?.responseBodySize);
+          // A response served from cache reports `encodedDataLength - headersSize` without a floor,
+          // so it can come out zero or negative: no number is better than a wrong one.
+          if (Number.isFinite(bytes) && bytes > 0 && entry.size === undefined) entry.size = bytes;
+        })
+        .catch(() => {
+          // A request Chrome dropped, or an engine whose `Request` has no `sizes()` — the entry
+          // simply keeps no size, exactly as before this line existed.
+        }),
+    );
   });
 
   page.on('requestfailed', (request) => {

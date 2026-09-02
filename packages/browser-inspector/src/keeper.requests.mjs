@@ -20,6 +20,7 @@ import { E_AUTH, ensureSession, storageStateFor } from './auth.mjs';
 import { CliError, formatStamp, parseArgs } from './cli.mjs';
 import { ConfigError, loadConfig } from './config.mjs';
 import { DEFAULT_OUTPUT_DIR } from './paths.mjs';
+import { planLanes } from './schedule.mjs';
 import { formatMs, relPath } from './print.mjs';
 import { redact } from './redact.mjs';
 import { buildManifest, failureOf, renderJUnit, writeArtifacts } from './report.mjs';
@@ -205,7 +206,7 @@ async function statusLines(ctx) {
 
 /**
  * `browser-inspector <config.json>`: the config is loaded HERE too (the client validated it already — cheap), the
- * snapshots go round-robin to `parallel` lanes, each lane is a queue key, so two batches from two
+ * snapshots are spread over `parallel` lanes by `planLanes` (longest first), each lane is a queue key, so two batches from two
  * shells serialize per lane and report the wait as `queuedMs`.
  * @param {Extract<import('./cli.mjs').ParsedArgs, { mode: 'batch' }>} parsed
  * @param {KeeperRequest} request
@@ -278,9 +279,15 @@ async function runBatch(parsed, request, ctx, secretValues) {
     }
   }
 
+  // Lane numbers from the planner (`schedule.mjs`), not `k % parallel`: the assignment follows the
+  // estimated cost, the ORDER of results and of everything built from them stays the config's.
+  const plan = planLanes(
+    selected.map((s) => s.snapshot),
+    parallel,
+  );
   const results = await Promise.all(
     selected.map(({ snapshot, index }, k) => {
-      const lane = k % parallel;
+      const lane = plan[k];
       const key = `lane:${String(lane)}`;
       return ctx
         .runJob(key, async ({ queuedMs, engine, mode }) => {

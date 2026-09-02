@@ -30,7 +30,11 @@ export const DEFAULTS = Object.freeze({
     captureElements: true,
     captureNetwork: true,
     captureSnapshot: false,
-    captureBodies: true,
+    // Opt-in for a batch, unlike the session: NOTHING in a batch renders a response body — the one
+    // reader of `recorder.bodies` in the whole tree is the session's `net <n> --body`. Reading them
+    // anyway cost the run the tail of every late response (`settleMs` 41–57 ms of a 232 ms run,
+    // measured), and `size` no longer depends on it (see `request.sizes()` in `recorder.mjs`).
+    captureBodies: false,
     render: Object.freeze(['json', 'markdown']),
     isolation: 'reuse',
     finalScreenshot: 'auto',

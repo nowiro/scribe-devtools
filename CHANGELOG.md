@@ -5,6 +5,38 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Changed
+
+- **Batch przestał czytać ciała odpowiedzi (`captureBodies` jest tam opt-in) — przebieg zadania
+  referencyjnego 232 → 187 ms (−19 %).** Rejestrator czytał `response.text()` dla każdej odpowiedzi
+  json/text, a **nic w batchu ciała nie renderuje**: jedynym czytelnikiem `recorder.bodies` w całym
+  drzewie jest sesyjne `net <n> --body`. Czekanie na te odczyty było mierzonym `settleMs` 41–57 ms
+  z 232 ms przebiegu; teraz jest 0. Sesja bez zmian — tam ciała dalej są domyślnie czytane, bo tam
+  ktoś o nie pyta. `auth` też przestał (jego kontekst jest wyrzucany zaraz po logowaniu i nikt nie
+  woła na nim `settle()`, więc odczyt zostawał wiszący w kontekście, którego już nie ma).
+- **`size` wpisu sieciowego nie zależy już od odczytu ciała**: bierze się z `Content-Length`, a przy
+  `chunked` z `request.sizes()` — czyli z `encodedDataLength`, który playwright-core ma w pamięci od
+  `Network.loadingFinished`, **bez dodatkowego obiegu**. Zmienia się znaczenie pola: bajty **na
+  łączu** (skompresowane, z ramkowaniem) zamiast zdekodowanych — zmierzone na tym samym żądaniu 39
+  zamiast 28. Granica, którą trzeba znać: żądanie **wciąż w locie** w chwili budowania raportu nie
+  ma ani `ms`, ani `size` (oba wypełnia `requestfinished`, a batch na niego nie czeka) — status, URL
+  i wpis w `## errors` są, bo przyszły z odpowiedzi. Opisane w `types.d.ts` i DESIGN §2.2.
+- **Przydział snapshotów do lane'ów według kosztu, nie po kolei** (`src/schedule.mjs`, nowy moduł).
+  `lane = k % parallel` sadzał snapshoty 0 i 3 na jednym lane'ie niezależnie od tego, ile trwają — na
+  configu app-factory z `parallel: 3` daje to makespan 4,35 s przy optimum 3,22 s, choć DESIGN §2.3
+  obiecuje „czas ≈ max(lane), nie sum(flow)”. `planLanes` robi offline LPT (najdroższe najpierw, do
+  najmniej obciążonego lane'u) po szacunku liczonym **czystą funkcją z configu**
+  (`Σ wait.ms + 100 × liczba kroków`) — nigdy z historii na dysku, bo to uczyniłoby `outputDir`
+  wejściem planera. Policzone na prawdziwych medianach: 4,35 → 3,24 s (−26 %); **zmierzone** w benchu
+  na app-factory `settled` + `parallel: 3`: **4279 · 4147 → 3805 · 3751 ms** (−10 %) — mniej niż
+  rachunek, bo szacunek porządkuje snapshoty dobrze, ale nie zna ich prawdziwych czasów; cela
+  `parallel: 1` jest z definicji nietknięta (plan jednego lane'u to identyczność). Zmienia się
+  **wyłącznie numer lane'u**: kolejność wyników, `_manifest.json.snapshots[]`, JUnit i adresy
+  `snapshots[i]` zostają kolejnością configu, a kolejność w obrębie lane'u też — dlatego scrub
+  między snapshotami dalej jest w `scrubMs`, nie w `queuedMs` (własność, którą złamała odrzucona
+  wcześniej próba z modelem „worker pull”). Przy równych szacunkach plan degeneruje się dokładnie do
+  round-robin, więc wszystkie istniejące asercje o lane'ach zostały nietknięte.
+
 ### Fixed
 
 - **Keeper wychodził z bezczynności dopiero po zabiciu procesu — timer był resetowany co 30 s.**

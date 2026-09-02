@@ -11,12 +11,20 @@ const message = (/** @type {string} */ type, /** @type {string} */ text, url = '
   location: () => ({ url, lineNumber: line }),
 });
 
-/** @param {Partial<{ method: string, url: string, resourceType: string, failure: string }>} spec */
+/** @param {Partial<{ method: string, url: string, resourceType: string, failure: string, bodySize: number }>} spec */
 const request = (spec = {}) => ({
   method: () => spec.method ?? 'GET',
   url: () => spec.url ?? 'http://localhost:4300/api',
   resourceType: () => spec.resourceType ?? 'fetch',
   failure: () => (spec.failure ? { errorText: spec.failure } : null),
+  // The real `Request` has this; the fake must too, or the test proves nothing about the path that
+  // replaced the body read (`recorder.mjs`, `requestfinished`).
+  sizes: async () => ({
+    requestBodySize: 0,
+    requestHeadersSize: 0,
+    responseBodySize: spec.bodySize ?? 0,
+    responseHeadersSize: 0,
+  }),
 });
 
 /** @param {any} req @param {Partial<{ status: number, headers: Record<string, string>, body: string }>} spec */
@@ -153,6 +161,24 @@ describe('attachRecorder', () => {
       'timeout',
     ]);
     expect(recorder.bodies.has(6)).toBe(false);
+  });
+
+  it('without captureBodies the entry still gets a size — from request.sizes(), not from the body', async () => {
+    // Both halves of the batch default in one assertion: the body is NOT read (that read was the
+    // 41-57 ms tail of every run measured), and `size` survives anyway. The response deliberately
+    // carries no `content-length` — that is the `chunked` case, where the body read used to be the
+    // only source of the number. `requestfinished` is emitted here because that is when the number
+    // lands; a request still in flight when a run ends keeps neither `ms` nor `size`, which is the
+    // documented boundary of the batch not waiting (`types.d.ts`, DESIGN §2.2).
+    const page = createFakePage();
+    const recorder = attachRecorder(page, { captureBodies: false });
+    const api = request({ method: 'POST', url: 'http://localhost:4300/api/zgloszenia', bodySize: 132 });
+    page.emit('request', api);
+    page.emit('response', response(api, { status: 404, headers: { 'content-type': 'application/json' } }));
+    page.emit('requestfinished', api);
+    await recorder.settle();
+    expect(recorder.bodies.size).toBe(0);
+    expect(recorder.network[0]).toMatchObject({ method: 'POST', status: 404, failure: 'HTTP 404', size: 132 });
   });
 
   it('keeps json/text bodies up to 64 KB, skips binaries, honours captureBodies: false', async () => {

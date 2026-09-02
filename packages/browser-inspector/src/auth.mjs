@@ -504,7 +504,9 @@ async function loginSession(login, statePath, run) {
       page,
       context,
       cdp,
-      recorder: attachRecorder(page),
+      // No bodies: the login context is thrown away right after and nobody ever calls `settle()`
+      // on this recorder, so a body read would be left dangling in a context that no longer exists.
+      recorder: attachRecorder(page, { captureBodies: false }),
       dir: path.dirname(statePath),
       timeoutMs: login.stepTimeoutMs ?? LOGIN_STEP_TIMEOUT_MS,
       mode: 'batch',
