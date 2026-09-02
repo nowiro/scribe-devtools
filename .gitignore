@@ -14,8 +14,10 @@ Thumbs.db
 # The benchmark's raw results; RAPORT.md/WYNIKI.md/BUDGET.md are committed, the JSON behind them is not.
 bench/out/
 
-# The portable zip is a Release asset, never a tracked file.
+# The portable zip IS tracked — every version lives in download/ (built by the pre-commit hook,
+# deterministic bytes, .sha256 sidecar). A zip anywhere else is a stray build.
 *-portable-*.zip
+!download/*-portable-*.zip
 
 # A read config carries the URLs, selectors and flows of the app it inspects — yours, not the
 # template's. The negations must name their directories: a slash-less pattern matches at every depth.

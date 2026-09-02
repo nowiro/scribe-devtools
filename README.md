@@ -51,10 +51,13 @@ W innym projekcie (np. app-factory) dodaj skrypt
 Przeglądarkę wybiera `browser.channel` w configu albo `BI_CHANNEL` (`chrome` → `msedge`, pierwszy
 znaleziony); `BI_BROWSER_PATH` wskazuje plik wykonywalny wprost.
 
-Wersja **portable** (bez npm, bez builda): `npm run portable` → `scribe-devtools-portable-<wersja>.zip`;
-po rozpakowaniu `bi.cmd` / `./bi` albo `node packages/browser-inspector/bin/bi.mjs help`. Zip
-zawiera pakiet, `node_modules/playwright-core` i marker `PORTABLE` (keeper pomija wtedy stempel
-mtime źródeł w hashu tożsamości).
+Wersja **portable** (bez npm, bez builda): każda wydana wersja leży w repo jako
+[`download/scribe-devtools-portable-<wersja>.zip`](download/) z sumą kontrolną w sidecarze `.sha256`
+(ten sam plik jest assetem Release'a). Po rozpakowaniu `bi.cmd` / `./bi` albo
+`node packages/browser-inspector/bin/bi.mjs help`. Zip zawiera pakiet, `node_modules/playwright-core`
+i marker `PORTABLE` (keeper pomija wtedy stempel mtime źródeł w hashu tożsamości). Buduje go
+`npm run portable` i hook pre-commit; wersja pochodzi wyłącznie z `package.json`, a build jest
+deterministyczny (ten sam stan drzewa → te same bajty).
 
 ## Batch: `bi <config.json>`
 

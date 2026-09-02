@@ -12,7 +12,16 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { PORTABLE_MARKER, stagePortable, zipDirectory, zipEntries } from './portable-zip.mjs';
+import {
+  PORTABLE_MARKER,
+  buildPortable,
+  readVersion,
+  sha256,
+  stagePortable,
+  zipDirectory,
+  zipEntries,
+  zipName,
+} from './portable-zip.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = 'packages/browser-inspector';
@@ -122,6 +131,54 @@ describe('portable staging', () => {
     },
     120_000,
   );
+
+  it('the version is read from package.json — and the root must agree', () => {
+    expect(readVersion(REPO)).toBe(staged.version);
+    expect(zipName(staged.version)).toBe(`scribe-devtools-portable-${staged.version}.zip`);
+    // A root that disagrees is a release mistake, not a warning.
+    const root = mkdtempSync(path.join(tmpdir(), 'bi-version-'));
+    try {
+      mkdirSync(path.join(root, PACKAGE), { recursive: true });
+      writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '9.9.9' }));
+      writeFileSync(path.join(root, PACKAGE, 'package.json'), JSON.stringify({ version: staged.version }));
+      expect(() => readVersion(root)).toThrow(/podbij obie/u);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('two builds of the same tree are byte-identical — the tracked zip must not churn', () => {
+    const a = path.join(tmpdir(), `bi-portable-det-a-${String(process.pid)}.zip`);
+    const b = path.join(tmpdir(), `bi-portable-det-b-${String(process.pid)}.zip`);
+    try {
+      zipDirectory(staging, a);
+      zipDirectory(staging, b);
+      expect(sha256(a)).toBe(sha256(b));
+      // Sorted entries, forward slashes, no directory entries, the shim keeps its mode bits.
+      const entries = zipEntries(a);
+      expect(entries).toEqual([...entries].sort());
+      expect(entries.every((name) => !name.endsWith('/'))).toBe(true);
+    } finally {
+      rmSync(a, { force: true });
+      rmSync(b, { force: true });
+    }
+  });
+
+  it('buildPortable writes download/<name>.zip + .sha256 and reports `changed` only when bytes moved', () => {
+    const out = mkdtempSync(path.join(tmpdir(), 'bi-portable-out-'));
+    try {
+      const first = buildPortable(REPO, out);
+      expect(first.zipPath).toBe(path.join(out, zipName(first.version)));
+      expect(first.changed).toBe(true);
+      const sidecar = readFileSync(first.shaPath, 'utf8');
+      expect(sidecar).toBe(`${sha256(first.zipPath)}  ${zipName(first.version)}\n`);
+      const second = buildPortable(REPO, out);
+      expect(second.changed).toBe(false);
+      expect(sha256(second.zipPath)).toBe(sidecar.split(/\s+/u)[0]);
+    } finally {
+      rmSync(out, { recursive: true, force: true, maxRetries: 3 });
+    }
+  }, 120_000);
 
   it('zip → unpack → `bi help` — the release asset runs without npm install', () => {
     const zipPath = path.join(tmpdir(), `bi-portable-test-${String(process.pid)}.zip`);

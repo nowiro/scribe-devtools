@@ -22,6 +22,7 @@ bench/RAPORT.md
 bench/WYNIKI.md
 bench/BUDGET.md
 bench/out/
+download/
 
 # Pages under test and a committed app build — not this repository's code style.
 **/fixtures/**

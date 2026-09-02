@@ -5,7 +5,17 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
-_Brak zmian od ostatniego wydania._
+### Changed
+
+- Zip portable jest **śledzony w repo**: `download/scribe-devtools-portable-<wersja>.zip` + sidecar
+  `.sha256` (format `sha256sum`), budowany przez hook pre-commit po `CODE-INDEX.md` i `docs/STEPS.md`
+  oraz przez `npm run portable`; każda wydana wersja zostaje w `download/`. Build jest
+  deterministyczny (własny zapis zipa w Node: stały znacznik czasu, posortowane wpisy, deflate 9,
+  bez pól extra — bsdtar i `zip` zapisują atime/ctime, więc dwa buildy się różniły), dzięki czemu
+  niezmieniony pakiet nie dokłada bloba do historii; `zipEntries` czyta katalog centralny bez
+  zewnętrznego `tar`. Wersja pochodzi wyłącznie z `packages/browser-inspector/package.json`, a build
+  odmawia, gdy korzeń podaje inną (`readVersion`). Testy: determinizm (dwa buildy → jeden hash),
+  `buildPortable` z `changed`, separatory `/`, round-trip zip → unpack → `bi help`.
 
 ## 0.1.0 — 2026-09-02
 

@@ -51,9 +51,11 @@ fixture'ów (smoke WP2: 4501–4519, WP3 generator: 4531–4533, sesja WP6: 4541
 4561–4564, compat WP8: 4571–4579) i unikalny pipe (`keeper-harness.makeEnv()` daje `BI_SOCKET`
 + `BI_TMPDIR`), żeby równoległe agenty nie dzieliły keepera.
 
-Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md` i `docs/STEPS.md`. Uzbraja go
-`npm run prepare` — **jawnie**, bo `.npmrc` ma `ignore-scripts=true` i `npm install` skryptu
-`prepare` nie uruchamia.
+Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md`, `docs/STEPS.md` i zip portable
+w `download/` (w tej kolejności, przed każdym commitem). Uzbraja go `npm run prepare` —
+**jawnie**, bo `.npmrc` ma `ignore-scripts=true` i `npm install` skryptu `prepare` nie uruchamia.
+Build zipa wymaga `node_modules` (`npm ci`) i jest deterministyczny: ten sam stan drzewa daje te
+same bajty, więc commit, który nie rusza pakietu, nie dokłada bloba do historii.
 
 ## Artefakty GENEROWANE — nigdy nie edytuj ręcznie
 
@@ -63,7 +65,7 @@ Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md` i `docs/STEPS.md`. Uzbraj
 | `docs/STEPS.md` | `npm run docs` (albo hook) | każda zmiana `packages/browser-inspector/src/steps.schema.mjs` (także `help`/`config`/`flags` kroku) |
 | `bench/RAPORT.md`, `bench/WYNIKI.md`, `bench/BUDGET.md`, blok `BENCH:START/END` w `README.md` | `npm run bench` | zmiana czegokolwiek w pomiarze, silniku albo kliencie |
 | `fixtures/snapshots/*.yml`, `walk.json` | `node packages/browser-inspector/fixtures/snapshots/generate.mjs` | zmiana buildów app-factory albo wersji playwright-core |
-| zip portable | `npm run portable` | tylko przy wydaniu |
+| `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` | `npm run portable` (albo hook) | każdy commit; wersja z `packages/browser-inspector/package.json` (korzeń musi się zgadzać), bajty deterministyczne — każda wydana wersja zostaje w repo |
 
 Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo obleje bramkę.
 Żadna liczba w README/RAPORT nie jest wpisywana ręcznie: „5×" to iloraz z pomiaru.
@@ -100,16 +102,20 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 1. Dopisuj do `CHANGELOG.md` sekcji `Unreleased` RAZEM ze zmianą, nie przy tagowaniu;
    odwołuj się do numerów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `WPn` z `docs/PLAN.md`.
-2. Wydanie: podbij `version` w `packages/browser-inspector/package.json` (i w korzeniu) →
-   przenieś `Unreleased` do nowej sekcji z datą → `npm run verify` (z buildami app-factory obok,
-   żeby `compat` nie był pominięty) → `npm run bench -- --assert-speedup 5` (RAPORT.md z kolumną
-   `mcp-lean --timeout-settle 100` i `bi-warm-tight`; blok BENCH w README) → commit →
-   tag `vX.Y.Z` → push z tagiem → `npm run portable` →
-   `gh release create vX.Y.Z <zip> --title ... --notes ...`.
+2. Wydanie: podbij `version` w `packages/browser-inspector/package.json` **i w korzeniu** (build
+   zipa odmawia, gdy się różnią; wersję czyta się wyłącznie z `package.json`) → przenieś
+   `Unreleased` do nowej sekcji z datą → `npm run verify` (z buildami app-factory obok, żeby
+   `compat` nie był pominięty) → `npm run bench -- --assert-speedup 5` (RAPORT.md z kolumną
+   `mcp-lean --timeout-settle 100` i `bi-warm-tight`; blok BENCH w README) → commit (hook buduje
+   `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` i dodaje je do commita) →
+   tag `vX.Y.Z` → push z tagiem →
+   `gh release create vX.Y.Z download/scribe-devtools-portable-<wersja>.zip download/…zip.sha256 --title ... --notes ...`.
 3. Bramka app-factory: `pnpm smoke:browser` z `CI=true` (bez keepera) i lokalnie z keeperem
    **dwa razy z rzędu**, wszystkie 6 snapshotów `completed` — dopiero potem PR w app-factory
    (`findRunner`, skrypt `bi`, dwa zdania w AGENTS.md) jest scalany.
-4. Zip portable NIE jest commitowany — żyje jako asset Release'a.
+4. Zip portable JEST commitowany: każda wersja zostaje w `download/` (asset Release'a to ten sam
+   plik, sumę kontrolną niesie sidecar `.sha256`). Starych zipów nie usuwaj — „każda wersja
+   istnieje w repo" to reguła, nie wygoda.
 
 ## Czego nie robić
 
