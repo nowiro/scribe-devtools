@@ -1,0 +1,50 @@
+--- a/read.config.browser-inspector.json
++++ b/read.config.browser-inspector.json
+@@ -16,7 +16,7 @@
+       "steps": [
+         { "do": "extract", "name": "naglowek-pl", "selector": "h1" },
+         { "do": "click", "selector": "[data-testid=lang-en]" },
+-        { "do": "wait", "ms": 500 },
++        { "do": "waitFor", "selector": "html[lang=en]" },
+         { "do": "extract", "name": "naglowek-en", "selector": "h1" },
+         {
+           "do": "evaluate",
+@@ -34,7 +34,7 @@
+       "stepTimeoutMs": 8000,
+       "steps": [
+         { "do": "click", "selector": "[data-testid=dashboard-tile-1]" },
+-        { "do": "wait", "ms": 600 },
++        { "do": "wait", "text": "krok 1 / 6" },
+         {
+           "do": "evaluate",
+           "name": "krok-przed",
+@@ -47,14 +47,14 @@
+         { "do": "fill", "selector": "#mat-input-5", "value": "2010" },
+         { "do": "fill", "selector": "#mat-input-6", "value": "https://nowiro.eu" },
+         { "do": "click", "selector": "#cdk-stepper-0-label-1" },
+-        { "do": "wait", "ms": 700 },
++        { "do": "wait", "text": "krok 2 / 6" },
+         {
+           "do": "evaluate",
+           "name": "krok-po",
+           "expression": "document.body.innerText.match(/krok \\d \\/ 6/)[0]"
+         },
+         { "do": "click", "selector": "[data-testid=shell-back-to-dashboard]" },
+-        { "do": "wait", "ms": 700 },
++        { "do": "wait", "text": "Gotowe" },
+         {
+           "do": "evaluate",
+           "name": "status-kroku-1",
+@@ -71,10 +71,10 @@
+       "steps": [
+         { "do": "fill", "selector": "#mat-input-0", "value": "Harry" },
+         { "do": "click", "selector": "[data-testid=search-submit]" },
+-        { "do": "wait", "ms": 700 },
++        { "do": "waitFor", "selector": "ais-shop-product-card" },
+         { "do": "extract", "name": "pierwsza-karta", "selector": "ais-shop-product-card" },
+         { "do": "click", "selector": "[data-testid=card-add-to-cart]" },
+-        { "do": "wait", "ms": 400 },
++        { "do": "waitFor", "selector": "[data-testid=header-cart-button]:has-text('1')" },
+         {
+           "do": "extract",
+           "name": "przycisk-koszyka",
