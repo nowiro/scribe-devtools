@@ -37,6 +37,8 @@ export class ExportError extends Error {
  * @typedef {object} JournalEntry
  * @property {string} [at] ISO timestamp (always present once written by `appendJournal`)
  * @property {number} [seq] 1-based position in the journal (assigned by `appendJournal` when absent)
+ * @property {string} [sid] id of the session that wrote the line — the journal outlives `close`
+ *   (and a TTL recycle, and yesterday), so this is what tells `exportFlow` where THIS session starts
  * @property {string} command the canonical step name (`goto`, not `open`)
  * @property {Step} step the step in config shape — `valueFromEnv`, never a resolved secret
  * @property {string} [description]
@@ -77,6 +79,7 @@ export function normalizeEntry(entry, secretValues = []) {
   const normalized = {
     at: entry.at ?? new Date().toISOString(),
     ...(entry.seq !== undefined ? { seq: entry.seq } : {}),
+    ...(entry.sid !== undefined ? { sid: entry.sid } : {}),
     command,
     step,
     description: entry.description ?? describeStep(step),
@@ -246,10 +249,16 @@ function replaceRef(object, fieldPath, selector) {
  * @returns {ExportResult}
  */
 export function exportFlow(entries, options = {}) {
-  const opened = entries.find((entry) => entry.ok && resolveStepName(entry.step?.do) === 'goto');
+  // ONE session, the current one. The journal is per session NAME and outlives `close`, a TTL
+  // recycle and yesterday, so an export that started from the first `open` in the file replayed a
+  // flow nobody ran: the URL of a previous session and its steps in front of the real ones.
+  // Lines without `sid` come from an older format — they belong to whatever ran before.
+  const sid = [...entries].reverse().find((entry) => typeof entry.sid === 'string')?.sid;
+  const current = sid === undefined ? entries : entries.filter((entry) => entry.sid === sid);
+  const opened = current.find((entry) => entry.ok && resolveStepName(entry.step?.do) === 'goto');
   if (!opened)
     throw new ExportError('nothing to export: the journal has no successful "open" (browser-inspector open <url>)');
-  const startIndex = entries.indexOf(opened);
+  const startIndex = current.indexOf(opened);
 
   /** @type {Record<string, any>[]} */
   const steps = [];
@@ -263,7 +272,7 @@ export function exportFlow(entries, options = {}) {
     return `${prefix}-${String(n)}`;
   };
 
-  entries.slice(startIndex + 1).forEach((entry, offset) => {
+  current.slice(startIndex + 1).forEach((entry, offset) => {
     const seq = entry.seq ?? startIndex + offset + 2;
     const name = resolveStepName(entry.step?.do);
     const command = name ?? String(entry.step?.do ?? entry.command);

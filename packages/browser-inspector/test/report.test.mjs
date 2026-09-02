@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { STAMP_PATTERN } from '../src/cli.mjs';
 import {
   CAPS,
+  artifactFiles,
   buildManifest,
   buildReport,
   buildSnapshotManifest,
@@ -282,14 +283,40 @@ describe('report.md — conditional header and sections', () => {
   });
 
   it('fences multi-line values and points long ones at values/<name>.txt', () => {
-    const long = 'x'.repeat(CAPS.extract + 1);
+    const long = 'x'.repeat(12_000);
     const { report, files } = buildReport(sampleInput({ extracts: { multi: 'a\nb', long, tick: 'has ``` inside' } }));
     const text = renderReportMd(report);
     expect(text).toContain('multi:\n```\na\nb\n```\n');
-    expect(text).toContain('long: values/long.txt (5 000+ chars)');
+    // The file holds the WHOLE value, so report.md can say how much is there — not "5 000+".
+    expect(text).toContain('long: values/long.txt (12 000 chars)');
     expect(text).toContain('tick: has ``` inside');
     expect(files['values/long.txt']).toBe(long);
-    expect(report.extracts.long).toEqual({ value: 'x'.repeat(CAPS.extract), truncated: true });
+    expect(report.extracts.long).toEqual({ value: 'x'.repeat(CAPS.extract), truncated: true, length: 12_000 });
+  });
+
+  it('the engine path fills values/<name>.txt with the whole value, not with the head report.json keeps', () => {
+    // The shape `emit()` hands over: the value is NOT capped before the report sees it, or the file
+    // report.md points at would be a copy of the head — and the rest would exist nowhere.
+    const long = 'y'.repeat(12_000);
+    const { report, files } = buildReport(sampleInput({ extracts: { duzy: { value: long, truncated: false } } }));
+    expect(files['values/duzy.txt']).toHaveLength(12_000);
+    expect(report.extracts.duzy.value).toHaveLength(CAPS.extract);
+    expect(report.extracts.duzy.truncated).toBe(true);
+    // …and what `artifactFiles` would derive on its own is only that head — `buildReport` wins.
+    expect(artifactFiles(report)['values/duzy.txt']).toHaveLength(CAPS.extract);
+  });
+
+  it('a cap that lands inside an emoji cuts before it, never between the two halves', () => {
+    const lonely = (/** @type {string} */ s) =>
+      [...s].some((ch) => {
+        const code = ch.charCodeAt(0);
+        return ch.length === 1 && code >= 0xd800 && code <= 0xdfff;
+      });
+    const value = `${'a'.repeat(CAPS.extract - 1)}😀tail`;
+    const { report } = buildReport(sampleInput({ extracts: { emoji: value } }));
+    expect(lonely(report.extracts.emoji.value)).toBe(false);
+    const { report: withText } = buildReport(sampleInput({ text: `${'b'.repeat(CAPS.text - 1)}😀tail` }));
+    expect(lonely(withText.text.content)).toBe(false);
   });
 
   it('caps the error lists and counts the rest', () => {
@@ -432,6 +459,47 @@ describe('report.json — superset of the old shapes (AC-1)', () => {
     expect(report.text.truncated).toBe(true);
     expect(report.elements?.entries).toHaveLength(CAPS.elements);
     expect(report.elements?.truncated).toBe(true);
+  });
+
+  it('takes the failures from the recorder, so one past the network cap is still in the report', () => {
+    // The recorder caps `network` at 500 ENTRIES but keeps every failure in its own list; the
+    // report used to derive the failures from the capped list, so a 500 on the 521st request
+    // vanished — and `failedRequests.truncated` said the empty list was complete.
+    const { report } = buildReport(
+      sampleInput({
+        network: Array.from({ length: 500 }, (_, i) => ({ id: i, method: 'GET', url: `http://x/${String(i)}` })),
+        networkTotal: 521,
+        failed: [{ id: 520, method: 'POST', url: 'http://x/api/broken', status: 500 }],
+        failedTotal: 1,
+      }),
+    );
+    expect(report.network.total).toBe(521);
+    expect(report.network.failed).toEqual([
+      { id: 520, method: 'POST', url: 'http://x/api/broken', status: 500, failure: 'HTTP 500' },
+    ]);
+    expect(report.failedRequests).toEqual({
+      entries: [{ url: 'http://x/api/broken', failure: 'HTTP 500' }],
+      truncated: false,
+    });
+    const md = renderReportMd(report);
+    expect(md).toContain('net 521 (1 failed)');
+    expect(md).toContain('- POST http://x/api/broken → 500');
+  });
+
+  it('failedRequests.truncated counts the failures the recorder saw, not the ones that fit', () => {
+    const { report } = buildReport(
+      sampleInput({
+        failed: Array.from({ length: CAPS.failedRequests }, (_, i) => ({
+          id: i,
+          method: 'GET',
+          url: `http://x/${String(i)}`,
+          failure: 'net::ERR',
+        })),
+        failedTotal: 150,
+      }),
+    );
+    expect(report.failedRequests.entries).toHaveLength(CAPS.failedRequests);
+    expect(report.failedRequests.truncated).toBe(true);
   });
 });
 

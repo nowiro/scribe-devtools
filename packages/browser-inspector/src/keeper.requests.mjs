@@ -603,17 +603,28 @@ async function runSession(parsed, request, ctx, secretValues) {
 async function runScript(parsed, request, ctx, secretValues) {
   const name = sessionName(request, {});
   const cwd = request.cwd;
-  const entry = request.files?.[parsed.file];
-  if (!entry) return done(2, [`script: the client sent no content for ${parsed.file}`]);
+  const fileEntry = request.files?.[parsed.file];
+  if (!fileEntry) return done(2, [`script: the client sent no content for ${parsed.file}`]);
   const text =
-    entry.base64 !== undefined ? Buffer.from(entry.base64, 'base64').toString('utf8') : readFileOr(entry.path);
-  if (text === undefined) return done(2, [`script: cannot read ${String(entry.path ?? parsed.file)}`]);
+    fileEntry.base64 !== undefined
+      ? Buffer.from(fileEntry.base64, 'base64').toString('utf8')
+      : readFileOr(fileEntry.path);
+  if (text === undefined) return done(2, [`script: cannot read ${String(fileEntry.path ?? parsed.file)}`]);
   const lines = text.split(/\r?\n/u);
   const redactor = ctx.redactAll;
   const job = ctx.runJob(`session:${name}`, async ({ queuedMs, engine, mode }) => {
     if (!engine.runScript) return done(2, ['FAIL keeper: this engine has no script runner (runScript)']);
     const outFlag = request.out ?? parsed.options.out;
-    const out = path.resolve(cwd, outFlag ?? DEFAULT_OUTPUT_DIR);
+    // A script's lines are session commands (`open`, `fill`, `close`), so the session it leaves
+    // open is the keeper's to hold — exactly like `runSession`. Without this the engine had a
+    // session the registry knew nothing about: `status` said `sessions 0`, the idle timer took the
+    // browser down after IDLE_MS instead of the session's TTL (§2.5), a due recycle was not
+    // deferred under it, and `script` never refreshed the session it was driving. `out` comes from
+    // the entry, so a `script` without `--out` cannot overwrite the directory `open --out DIR` set.
+    const entry = ctx.touchSession(name, {
+      cwd,
+      ...(outFlag !== undefined ? { out: path.resolve(cwd, outFlag) } : {}),
+    });
     const t0 = performance.now();
     /** @type {JobResult} */
     let result;
@@ -621,7 +632,7 @@ async function runScript(parsed, request, ctx, secretValues) {
       result = await engine.runScript(lines, {
         session: name,
         cwd,
-        out,
+        out: entry.out,
         values: request.values ?? {},
         secretValues,
         files: request.files ?? {},

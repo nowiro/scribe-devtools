@@ -386,7 +386,8 @@ describe('runFlow — evaluate through CDP', () => {
         if (params.expression === 'document.title') return { result: { type: 'string', value: 'Koszyk' } };
         return { result: { type: 'object', objectId: 'o1', className: 'Object' } };
       },
-      cdp: (method) => (method === 'Runtime.callFunctionOn' ? { result: { type: 'object', value: { a: 1 } } } : {}),
+      // What Chrome answers now that the value is serialized in the page: a string, not an object.
+      cdp: (method) => (method === 'Runtime.callFunctionOn' ? { result: { type: 'string', value: '{"a":1}' } } : {}),
     });
     const result = await engine.runFlow(
       flow([
@@ -407,6 +408,27 @@ describe('runFlow — evaluate through CDP', () => {
     expect(sent[1].timeout).toBe(150);
     expect(callsOf(calls, 'cdp:Runtime.callFunctionOn')).toHaveLength(1);
     expect(callsOf(calls, 'cdp:Runtime.releaseObject')).toHaveLength(1);
+    // The value is read with `JSON.stringify` IN THE PAGE — `returnByValue` alone flattens a Date,
+    // an Error and every other object with internal slots to `{}` (DESIGN.md §2.2).
+    expect(callsOf(calls, 'cdp:Runtime.callFunctionOn')[0][0].functionDeclaration).toContain('JSON.stringify(this)');
+  });
+
+  it('an "Internal error" from the serializing round trip is not reported as a timeout', async () => {
+    const dir = await tmp();
+    const { engine } = harness({
+      runtimeEvaluate: () => ({ result: { type: 'object', objectId: 'o1', className: 'Object' } }),
+      cdp: (method) => {
+        // What Chrome answers for a value whose getter throws while the result is read.
+        if (method === 'Runtime.callFunctionOn')
+          throw new Error('cdpSession.send: Protocol error (Runtime.callFunctionOn): Internal error');
+        return {};
+      },
+    });
+    const result = await engine.runFlow(flow([{ do: 'evaluate', name: 'stan', expression: 'window.__app' }]), dir);
+    expect(result.completed).toBe(false);
+    const error = String(result.report.steps[0].error);
+    expect(error).not.toContain('timed out');
+    expect(error).toContain('evaluate result is not serializable (Object)');
   });
 
   it('a thrown value fails the step as `Error: <first line>`, a DOM node fails it, a pending promise hits the deadline', async () => {
@@ -585,6 +607,23 @@ describe('lanes, scrub, isolation', () => {
     expect(forced.timing.ctx).toBe('fresh');
   });
 
+  it('gives the lane back even when the run throws: a fresh context is closed, a reused lane is not left busy', async () => {
+    // The one await between taking the context and the tail that releases it: a target that died
+    // in between used to leak the context for the keeper's whole life.
+    const fresh = harness({ fail: { newCDPSession: new Error('Target page, context or browser has been closed') } });
+    await expect(fresh.engine.runFlow(flow([]), await tmp(), { fresh: true })).rejects.toThrow(/has been closed/u);
+    expect(callsOf(fresh.calls, 'newContext')).toHaveLength(1);
+    expect(callsOf(fresh.calls, 'context.close')).toHaveLength(1);
+
+    // …and on the shared lane the same throw used to leave `busy: true` forever, which parks the
+    // keeper's recycle and the idle reaper on that lane for good.
+    const reused = harness({ fail: { setViewportSize: new Error('Target page, context or browser has been closed') } });
+    await expect(
+      reused.engine.runFlow(flow([], { viewport: { width: 800, height: 600 } }), await tmp()),
+    ).rejects.toThrow(/has been closed/u);
+    expect(reused.engine.status().lanes.every((/** @type {any} */ lane) => lane.busy === false)).toBe(true);
+  });
+
   it('runs --parallel lanes as persistent contexts and returns results in config order', async () => {
     const { engine, calls } = harness();
     const outputDir = await tmp();
@@ -669,6 +708,71 @@ describe('waits, routes, dialogs', () => {
     expect(result.report.verifications[0]).toMatchObject({ kind: 'text', ok: false, soft: true });
     expect(result.report.verifications[0].detail).toContain('expected #cart to contain "1"');
     expect(await readFile(path.join(dir, 'report.md'), 'utf8')).toContain('## verify');
+  });
+
+  it('values/<name>.txt holds the WHOLE extracted value, report.json only the head', async () => {
+    const dir = await tmp();
+    const long = 'z'.repeat(12_000);
+    const { engine } = harness({ texts: { '#regulamin': long } });
+    const result = await engine.runFlow(flow([{ do: 'extract', name: 'tresc', selector: '#regulamin' }]), dir);
+    expect(result.completed).toBe(true);
+    const file = await readFile(path.join(dir, 'values', 'tresc.txt'), 'utf8');
+    expect(file).toHaveLength(12_000);
+    const json = await readJson(dir);
+    expect(json.extracts.tresc).toEqual({ value: 'z'.repeat(5000), truncated: true, length: 12_000 });
+    // report.md points at the file and says how much is in it — `5 000+` was all it could say while
+    // the value was capped before the report ever saw it.
+    expect(await readFile(path.join(dir, 'report.md'), 'utf8')).toContain('tresc: values/tresc.txt (12 000 chars)');
+  });
+
+  it('a target that does not resolve is a verify VERDICT, not an exception — soft keeps the flow going', async () => {
+    const { engine } = harness({ counts: { 'aria-ref=e42': 0 } });
+    const soft = await engine.runFlow(
+      flow(
+        [
+          { do: 'verify', kind: 'hidden', ref: 'e42', soft: true },
+          { do: 'wait', ms: 1 },
+        ],
+        { stepTimeoutMs: 120 },
+      ),
+      await tmp(),
+    );
+    expect(soft.completed).toBe(true);
+    expect(soft.report.steps.map((/** @type {any} */ s) => s.ok)).toEqual([true, true]);
+    expect(soft.report.verifications[0]).toMatchObject({ index: 0, kind: 'hidden', ok: false, soft: true });
+    expect(soft.report.verifications[0].detail).toContain('ref not found');
+
+    // Hard still fails the step — but the verdict is in `verifications[]` either way, and a dead
+    // ref never becomes a green `hidden` (a typo in the ref would pass every assertion).
+    const hard = await engine.runFlow(
+      flow([{ do: 'verify', kind: 'hidden', ref: 'e42' }], { stepTimeoutMs: 120 }),
+      await tmp(),
+    );
+    expect(hard.completed).toBe(false);
+    expect(hard.report.verifications[0]).toMatchObject({ kind: 'hidden', ok: false, soft: false });
+    expect(String(hard.report.steps[0].error)).toContain('ref not found');
+  });
+
+  it('verify text and list are about VISIBLE text: a hidden element never passes on its textContent', async () => {
+    // `innerText` falls back to `textContent` on a node the page does not render, so the assertion
+    // used to go green on an error banner nobody could see.
+    const { engine } = harness({ counts: { '#banner': 0 }, texts: { '#banner': 'Podaj poprawny adres e-mail.' } });
+    const result = await engine.runFlow(
+      flow(
+        [
+          { do: 'verify', kind: 'text', selector: '#banner', text: 'Podaj poprawny', soft: true },
+          { do: 'verify', kind: 'list', selector: '#banner', items: ['Podaj'], soft: true },
+        ],
+        { stepTimeoutMs: 120 },
+      ),
+      await tmp(),
+    );
+    expect(result.completed).toBe(true);
+    expect(result.report.verifications.map((/** @type {any} */ v) => [v.kind, v.ok])).toEqual([
+      ['text', false],
+      ['list', false],
+    ]);
+    expect(result.report.verifications[0].detail).toContain('the element is hidden');
   });
 });
 

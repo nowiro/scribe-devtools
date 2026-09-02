@@ -18,7 +18,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { EXTRACT_CAP, capExtract, evaluateWithTimeout, saveScreenshot, stringifyResult } from './capture.mjs';
+import { EXTRACT_CAP, evaluateWithTimeout, saveScreenshot, stringifyResult } from './capture.mjs';
 import { degradeTo, withDeadline } from './deadline.mjs';
 import {
   EVAL_INLINE_MAX,
@@ -44,6 +44,7 @@ import {
   findInSnapshot,
   locatorFor,
   locatorForElement,
+  parseSnapshot,
   sensitiveRefs,
 } from './snapshot.mjs';
 import { MODIFIERS, isRef } from './steps.schema.mjs';
@@ -69,9 +70,20 @@ const modifiersOf = (mods) =>
 /**
  * Where an action runs: the frame scope (`browser-inspector frame 2`) for CSS/text selectors, the page for refs —
  * an `aria-ref=` resolves from the page's last snapshot in whatever frame it lives (DESIGN.md §4.5).
+ * A scope whose document is gone is dropped first: navigating the main frame detaches every child
+ * frame, and `setPage` is not on that path, so a `frame <n>` set before a `goto` / `reload` /
+ * `back` / a click on a link would otherwise answer `Frame was detached` for every later CSS
+ * selector — in a session until the agent guesses `frame main`.
  * @param {Ctx} ctx @param {string} selector
+ * @returns {any} the frame to run in, or `undefined` for the page
  */
-const root = (ctx, selector) => (ctx.frame && !selector.startsWith('aria-ref=') ? ctx.frame : ctx.page);
+export function frameFor(ctx, selector) {
+  if (ctx.frame?.isDetached?.() === true) ctx.frame = undefined;
+  return ctx.frame && !selector.startsWith('aria-ref=') ? ctx.frame : undefined;
+}
+
+/** @param {Ctx} ctx @param {string} selector */
+const root = (ctx, selector) => frameFor(ctx, selector) ?? ctx.page;
 
 /**
  * A `target` field (`drag.from`, `drag.to`): a ref or a selector in one string.
@@ -136,7 +148,10 @@ export function globToRegExp(pattern) {
  * @param {Ctx} ctx @param {Step} s @param {string} text
  */
 function emit(ctx, s, text) {
-  if (typeof s.name === 'string') ctx.capture.extracts[s.name] = capExtract(text);
+  // The WHOLE value goes to the report: capping it here made `values/<name>.txt` a duplicate of the
+  // head report.json already holds, and the rest of the value existed nowhere. `buildReport` keeps
+  // the head in the JSON and writes the whole thing to the file report.md points at.
+  if (typeof s.name === 'string') ctx.capture.extracts[s.name] = { value: text, truncated: false };
   else if (ctx.lines) ctx.lines.push(text.length > EXTRACT_CAP ? text.slice(0, EXTRACT_CAP) : text);
   return text;
 }
@@ -272,7 +287,17 @@ function snapshotLines(ctx, s, text) {
     else lines.push(...capped([...added.map((l) => `+ ${l}`), ...removed.map((l) => `- ${l}`)]));
   } else if (typeof s.around === 'string') {
     const near = maskLines(ctx, aroundRef(text, s.around, { sidecar: entries, names: s.names === true }));
-    lines.push(...(near.length === 0 ? [`ref ${s.around} not in snapshot${SEP}${mdFile}`] : capped(near)));
+    if (near.length > 0) lines.push(...capped(near));
+    else {
+      // Two different answers used to share one line: a ref that is GONE and a ref that is alive
+      // but has no compact line (a `generic` `find` just handed out, a heading). Telling the agent
+      // "not in snapshot" about a ref it can still click is how a good ref gets thrown away.
+      const alive = parseSnapshot(text).some((node) => node.ref === s.around);
+      const full = rel(ctx, path.join(ctx.dir, 'snap.full.yml'));
+      lines.push(
+        alive ? `ref ${s.around} outside the compact${SEP}${full}` : `ref ${s.around} not in snapshot${SEP}${mdFile}`,
+      );
+    }
   } else {
     const view =
       s.names === true || typeof s.grep === 'string'
@@ -598,71 +623,98 @@ export const RUNNERS = {
   verify: async (ctx, s) => {
     const soft = s.soft === true;
     const kind = String(s.kind);
-    const target = s.ref !== undefined || s.selector !== undefined ? await ctx.sel(s) : undefined;
-    const locator = target !== undefined ? ctx.loc(target).first() : undefined;
-    const result = await until(ctx, async () => {
-      switch (kind) {
-        case 'visible':
-        case 'hidden': {
-          const visible = (await locator?.isVisible?.()) === true;
-          const ok = kind === 'visible' ? visible : !visible;
-          return { ok, detail: `expected ${String(target)} ${kind}, it is ${visible ? 'visible' : 'hidden'}` };
-        }
-        case 'text': {
-          const text = (await locator?.innerText(opts(ctx))) ?? '';
-          const ok = text.includes(String(s.text));
-          return {
-            ok,
-            detail: `expected ${String(target)} to contain ${JSON.stringify(s.text)}, got ${JSON.stringify(text.slice(0, 80))}`,
-          };
-        }
-        case 'value': {
-          const value = (await locator?.inputValue?.(opts(ctx))) ?? '';
-          return {
-            ok: value === String(s.value),
-            detail: `expected ${String(target)} value ${JSON.stringify(s.value)}, got ${JSON.stringify(value)}`,
-          };
-        }
-        case 'list': {
-          const text = (await locator?.innerText(opts(ctx))) ?? '';
-          const items = /** @type {string[]} */ (s.items ?? []);
-          let from = 0;
-          /** @type {string | undefined} */
-          let missing;
-          for (const item of items) {
-            const at = text.indexOf(item, from);
-            if (at < 0) {
-              missing = item;
-              break;
-            }
-            from = at + item.length;
-          }
-          return {
-            ok: missing === undefined,
-            detail:
-              missing === undefined ? 'ok' : `expected ${String(target)} to list ${JSON.stringify(missing)} in order`,
-          };
-        }
-        case 'count': {
-          const count = await ctx.loc(String(target)).count();
-          return {
-            ok: count === Number(s.count),
-            detail: `expected ${String(s.count)} × ${String(target)}, got ${String(count)}`,
-          };
-        }
-        case 'url': {
-          const url = ctx.page.url();
-          return { ok: globToRegExp(String(s.url)).test(url), detail: `expected url ${String(s.url)}, got ${url}` };
-        }
-        default: {
-          const title = await ctx.page.title();
-          return {
-            ok: title.includes(String(s.title)),
-            detail: `expected title ${JSON.stringify(s.title)}, got ${JSON.stringify(title)}`,
-          };
-        }
+    /** @type {string | undefined} */
+    let target;
+    /** @type {string | undefined} */
+    let unresolved;
+    if (s.ref !== undefined || s.selector !== undefined) {
+      try {
+        target = await ctx.sel(s);
+      } catch (error) {
+        // A target that does not resolve is this step's VERDICT, not an exception: `soft` has to
+        // record it in `verifications[]` and the flow has to reach the next step. Resolving stays
+        // OUTSIDE `until` — a dead ref costs one snapshot refresh, not the whole timeout (§4.1).
+        unresolved = error instanceof Error ? error.message.split('\n')[0] : String(error);
       }
-    });
+    }
+    const locator = target !== undefined ? ctx.loc(target).first() : undefined;
+    const address = String(s.ref ?? s.selector ?? '');
+    const result = unresolved
+      ? { ok: false, detail: `${address}: ${unresolved}` }
+      : await until(ctx, async () => {
+          switch (kind) {
+            case 'visible':
+            case 'hidden': {
+              const visible = (await locator?.isVisible?.()) === true;
+              const ok = kind === 'visible' ? visible : !visible;
+              return { ok, detail: `expected ${String(target)} ${kind}, it is ${visible ? 'visible' : 'hidden'}` };
+            }
+            case 'text': {
+              // `innerText` falls back to `textContent` on a node the page does not render, so text
+              // alone would pass an assertion about a `hidden` banner nobody can see (§2.4 parity with
+              // `browser_verify_text_visible`). Visibility first, then the text.
+              const visible = (await locator?.isVisible?.()) !== false;
+              const text = (await locator?.innerText(opts(ctx))) ?? '';
+              const ok = visible && text.includes(String(s.text));
+              return {
+                ok,
+                detail: visible
+                  ? `expected ${String(target)} to contain ${JSON.stringify(s.text)}, got ${JSON.stringify(text.slice(0, 80))}`
+                  : `expected ${String(target)} to contain ${JSON.stringify(s.text)}, the element is hidden`,
+              };
+            }
+            case 'value': {
+              const value = (await locator?.inputValue?.(opts(ctx))) ?? '';
+              return {
+                ok: value === String(s.value),
+                detail: `expected ${String(target)} value ${JSON.stringify(s.value)}, got ${JSON.stringify(value)}`,
+              };
+            }
+            case 'list': {
+              // Same reason as `text`: DESIGN.md §3.2 promises the VISIBLE text of the descendants.
+              const visible = (await locator?.isVisible?.()) !== false;
+              const text = visible ? ((await locator?.innerText(opts(ctx))) ?? '') : '';
+              const items = /** @type {string[]} */ (s.items ?? []);
+              let from = 0;
+              /** @type {string | undefined} */
+              let missing;
+              for (const item of items) {
+                const at = text.indexOf(item, from);
+                if (at < 0) {
+                  missing = item;
+                  break;
+                }
+                from = at + item.length;
+              }
+              return {
+                ok: visible && missing === undefined,
+                detail: !visible
+                  ? `expected ${String(target)} to list ${String(items.length)} items, the element is hidden`
+                  : missing === undefined
+                    ? 'ok'
+                    : `expected ${String(target)} to list ${JSON.stringify(missing)} in order`,
+              };
+            }
+            case 'count': {
+              const count = await ctx.loc(String(target)).count();
+              return {
+                ok: count === Number(s.count),
+                detail: `expected ${String(s.count)} × ${String(target)}, got ${String(count)}`,
+              };
+            }
+            case 'url': {
+              const url = ctx.page.url();
+              return { ok: globToRegExp(String(s.url)).test(url), detail: `expected url ${String(s.url)}, got ${url}` };
+            }
+            default: {
+              const title = await ctx.page.title();
+              return {
+                ok: title.includes(String(s.title)),
+                detail: `expected title ${JSON.stringify(s.title)}, got ${JSON.stringify(title)}`,
+              };
+            }
+          }
+        });
     ctx.capture.verifications.push({
       index: ctx.stepIndex ?? 0,
       kind,
@@ -911,7 +963,9 @@ export const RUNNERS = {
     cursors.pageErrors = rec.pageErrors.length;
     const min = typeof s.level === 'string' ? levelOf(s.level === 'warn' ? 'warning' : s.level) : 0;
     let shown = entries.filter((e) => levelOf(String(e.type)) >= min);
-    if (typeof s.tail === 'number' && s.tail >= 0) shown = shown.slice(-s.tail);
+    // `slice(-0)` is `slice(0)` — the whole list. `--tail 0` is a budget the agent asked for, so it
+    // has to mean "no entries", not "every entry".
+    if (typeof s.tail === 'number' && s.tail >= 0) shown = s.tail === 0 ? [] : shown.slice(-s.tail);
     lines.push(
       ...formatNewEntries(
         shown.map((e) => ctx.redact(formatConsoleEntry(e))),
@@ -976,7 +1030,7 @@ export const RUNNERS = {
     if (all) {
       const tail = typeof s.tail === 'number' && s.tail >= 0 ? s.tail : NET_LIST_MAX;
       const listed = s.failed === true ? entries.filter(netFailed) : entries;
-      const shown = listed.slice(-tail);
+      const shown = tail === 0 ? [] : listed.slice(-tail);
       lines.push(
         `${String(entries.length)} total${listed.length !== entries.length ? ` · ${String(listed.length)} failed` : ''}:`,
       );
@@ -987,7 +1041,9 @@ export const RUNNERS = {
     }
     const failed = entries.filter(netFailed);
     const tail = typeof s.tail === 'number' && s.tail >= 0 ? s.tail : failed.length;
-    lines.push(...formatNetSummary({ newCount: entries.length, failed: failed.slice(-tail).map(format) }));
+    lines.push(
+      ...formatNetSummary({ newCount: entries.length, failed: (tail === 0 ? [] : failed.slice(-tail)).map(format) }),
+    );
     return entries.length;
   },
   trace: async (ctx, s) => {

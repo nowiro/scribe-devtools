@@ -71,18 +71,103 @@ export function redactDeep(value, secretValues) {
 
 /** Roles whose snapshot line can carry a typed value (`- textbox "Email" [ref=e5]: jan@x`). */
 const VALUE_ROLES = 'textbox|searchbox|combobox|spinbutton|slider';
-/** Full aria YAML line: indent, `- role "name" [attrs] [ref=eN]` then `: value`. */
-const YAML_VALUE_LINE = new RegExp(
-  `^(\\s*-\\s+(?:${VALUE_ROLES})\\b[^:\\n]*?\\[ref=([a-z]\\d*e\\d+|e\\d+)\\][^:\\n]*)(:\\s.*)$`,
-);
-/** Compact line (`snap.md`): `e39 textbox "Szukaj…" = Harry`. */
-const COMPACT_VALUE_LINE = new RegExp(`^((?:f\\d+)?e\\d+)\\s+(?:${VALUE_ROLES})\\b(.*?)(\\s=\\s.*)$`);
+/** A ref as the snapshot writes it, anywhere in a line. */
+const REF_IN_LINE = /\[ref=((?:f\d+)?e\d+)\]/u;
+/** Head of a compact line (`snap.md`): `e39 textbox "Szukaj…" = Harry`. */
+const COMPACT_HEAD = new RegExp(`^((?:f\\d+)?e\\d+)\\s+(?:${VALUE_ROLES})\\b`, 'u');
+
+/**
+ * Index of the `:` that closes the key of a `- ` YAML item body, or -1. Cannot be a regexp over
+ * roles and colons: the accessible name may itself contain a colon (`textbox "Hasło:"`), and when
+ * it contains `: ` the renderer quotes the WHOLE key (`'textbox "Kod: SMS" [ref=e5] [box=…]': 1`),
+ * so the line does not even start with a role any more.
+ * @param {string} body the text after `- `
+ * @returns {number}
+ */
+function keyEnd(body) {
+  if (body.startsWith("'") || body.startsWith('"')) {
+    const quote = body[0];
+    let i = 1;
+    while (i < body.length) {
+      if (quote === '"' && body[i] === '\\') {
+        i += 2;
+        continue;
+      }
+      if (body[i] === quote) {
+        if (quote === "'" && body[i + 1] === "'") {
+          i += 2;
+          continue;
+        }
+        break;
+      }
+      i += 1;
+    }
+    return body[i + 1] === ':' ? i + 1 : -1;
+  }
+  let inName = false;
+  for (let i = 0; i < body.length; i += 1) {
+    const ch = body[i];
+    if (ch === '\\' && inName) {
+      i += 1;
+      continue;
+    }
+    if (ch === '"') inName = !inName;
+    else if (ch === ':' && !inName && (i === body.length - 1 || body[i + 1] === ' ')) return i;
+  }
+  return -1;
+}
+
+/**
+ * A raw aria YAML line that carries both a ref and an inline value. A line whose value is empty is
+ * a container whose children follow — cutting its `:` would break the nesting, so it does not count.
+ * @param {string} line
+ * @returns {{ ref: string, at: number } | undefined} `at` = index of the `:` that ends the key
+ */
+function yamlValueLine(line) {
+  const item = /^\s*-\s+/u.exec(line);
+  if (!item) return undefined;
+  const start = item[0].length;
+  const body = line.slice(start);
+  const colon = keyEnd(body);
+  if (colon < 0 || body.slice(colon + 1).trim() === '') return undefined;
+  const ref = REF_IN_LINE.exec(body.slice(0, colon))?.[1];
+  return ref === undefined ? undefined : { ref, at: start + colon };
+}
+
+/**
+ * A compact line that carries a typed value: its ref and where ` = value` starts. The accessible
+ * name is skipped as a quoted run, so a name containing ` = ` neither hides the value nor eats the
+ * rest of the line.
+ * @param {string} line
+ * @returns {{ ref: string, at: number } | undefined}
+ */
+function compactValueLine(line) {
+  const head = COMPACT_HEAD.exec(line);
+  if (!head) return undefined;
+  let i = head[0].length;
+  if (line[i] === ' ' && line[i + 1] === '"') {
+    let j = i + 2;
+    while (j < line.length) {
+      if (line[j] === '\\') {
+        j += 2;
+        continue;
+      }
+      if (line[j] === '"') break;
+      j += 1;
+    }
+    i = Math.min(j + 1, line.length);
+  }
+  const at = line.indexOf(' = ', i);
+  return at < 0 ? undefined : { ref: head[1], at };
+}
 
 /**
  * Mask values in a snapshot text — both the raw aria YAML (`snap.full.yml`) and the compact form
  * (`snap.md`). Two rules: a field whose ref is in `sensitiveRefs` (type=password,
  * autocomplete=one-time-code — the sidecar knows the DOM type, the aria tree does not) NEVER shows
- * a value; every other value goes through `redact`. Lines without a value are untouched.
+ * a value; every OTHER line goes through `redact`, the ones carrying no value included — a page
+ * that echoes a secret into a heading or a URL must not slip through because its line did not look
+ * like a value line.
  * @param {string} text
  * @param {{ secretValues?: readonly string[], sensitiveRefs?: Iterable<string> }} [options]
  * @returns {string}
@@ -93,12 +178,11 @@ export function maskSnapshotValues(text, options = {}) {
   return text
     .split('\n')
     .map((line) => {
-      const yaml = YAML_VALUE_LINE.exec(line);
-      if (yaml) return sensitive.has(yaml[2]) ? yaml[1] : redact(line, secrets);
-      const compact = COMPACT_VALUE_LINE.exec(line);
-      if (compact)
-        return sensitive.has(compact[1]) ? line.slice(0, line.length - compact[3].length) : redact(line, secrets);
-      return line;
+      const yaml = yamlValueLine(line);
+      if (yaml && sensitive.has(yaml.ref)) return line.slice(0, yaml.at);
+      const compact = compactValueLine(line);
+      if (compact && sensitive.has(compact.ref)) return line.slice(0, compact.at);
+      return redact(line, secrets);
     })
     .join('\n');
 }
@@ -116,7 +200,9 @@ export function maskSnapshotEntries(entries, options = {}) {
   return entries.map((entry) => {
     if (entry.sensitive === true || (entry.ref !== undefined && sensitive.has(entry.ref))) {
       const { value: _dropped, ...rest } = entry;
-      return /** @type {E} */ (rest);
+      // The rest of a sensitive entry is redacted like any other: a page that echoed the secret
+      // into the field's accessible name would otherwise ship it in `snap.json`.
+      return /** @type {E} */ (redactDeep(rest, options.secretValues));
     }
     return redactDeep(entry, options.secretValues);
   });

@@ -51,6 +51,8 @@ export function fnv1a(text) {
  * @property {string} [executablePath]
  * @property {boolean} [headless]
  * @property {readonly string[]} [args] browser args from the config
+ * @property {boolean} [fastHeadless] `browser.fastHeadless` — the headless launch flags
+ * @property {'no-preference' | 'reduce' | string} [motion] `browser.motion` — `reducedMotion` of every context
  * @property {string} [browserArgsEnv] `BROWSER_INSPECTOR_BROWSER_ARGS`
  * @property {string} [httpProxy] `HTTP_PROXY`
  * @property {string} [httpsProxy] `HTTPS_PROXY`
@@ -76,6 +78,11 @@ export function identityHash(parts) {
     parts.executablePath ?? '',
     parts.headless === undefined ? 'true' : String(parts.headless),
     (parts.args ?? []).join(' '),
+    // Normalized, not raw: `fastHeadless` decides the launch flags and `motion` the `reducedMotion`
+    // of every context, so a config that turns either off is a DIFFERENT browser and needs its own
+    // keeper — but the defaults must keep hashing like a config that never mentioned them.
+    parts.fastHeadless === false ? 'no-fast-headless' : '',
+    parts.motion === 'reduce' ? 'reduce' : '',
     parts.browserArgsEnv ?? '',
     parts.httpProxy ?? '',
     parts.httpsProxy ?? '',
@@ -149,7 +156,7 @@ export function playwrightCoreVersion(packageDir) {
  * Collect the identity parts from the real tree and environment. `srcStamp` is skipped when the
  * `PORTABLE` marker sits in the package directory (an unpacked zip has meaningless mtimes and no
  * one edits its `src/`).
- * @param {{ packageDir: string, env?: NodeJS.ProcessEnv, browser?: { channel?: string, executablePath?: string, headless?: boolean, args?: readonly string[] }, nodeMajor?: number }} input
+ * @param {{ packageDir: string, env?: NodeJS.ProcessEnv, browser?: { channel?: string, executablePath?: string, headless?: boolean, args?: readonly string[], fastHeadless?: boolean, motion?: string }, nodeMajor?: number }} input
  * @returns {IdentityParts}
  */
 export function collectIdentity(input) {
@@ -172,6 +179,8 @@ export function collectIdentity(input) {
     executablePath: env.BROWSER_INSPECTOR_BROWSER_PATH ?? browser.executablePath ?? '',
     headless: browser.headless !== false,
     args: browser.args ?? [],
+    fastHeadless: browser.fastHeadless !== false,
+    motion: browser.motion === 'reduce' ? 'reduce' : 'no-preference',
     browserArgsEnv: env.BROWSER_INSPECTOR_BROWSER_ARGS ?? '',
     httpProxy: env.HTTP_PROXY ?? env.http_proxy ?? '',
     httpsProxy: env.HTTPS_PROXY ?? env.https_proxy ?? '',

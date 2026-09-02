@@ -103,6 +103,54 @@ describe('idle and sessions', () => {
     expect(keeperLog(h)).toContain('session t expired');
   }, 20000);
 
+  it('a session opened by `browser-inspector script` is registered: it blocks idle, `status` sees it, a script that closes releases it', async () => {
+    // `script` used to run its lines without ever calling `touchSession`: the engine held an open
+    // session the keeper's registry knew nothing about, so `status` said `sessions 0`, the idle
+    // timer took the browser (and the login) down after IDLE_MS instead of the session's TTL, and a
+    // due recycle was not deferred under it.
+    const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '200' });
+    await runBrowserInspector(['up'], h);
+    fs.writeFileSync(path.join(h.cwd, 'setup.txt'), 'open http://localhost:4521/\n');
+    const script = await runBrowserInspector(['script', 'setup.txt'], h);
+    expect(script.code).toBe(0);
+    // The keeper AFTER the script, for the same reason as in the `open` case above.
+    const info = readPid(h);
+    await sleep(600);
+    expect(isAlive(info.pid)).toBe(true);
+    const status = await runBrowserInspector(['status'], h);
+    expect(status.lines[1]).toContain('sessions 1');
+    expect(status.lines.some((l) => l.startsWith('session default · cwd '))).toBe(true);
+    fs.writeFileSync(path.join(h.cwd, 'teardown.txt'), 'close\n');
+    const teardown = await runBrowserInspector(['script', 'teardown.txt'], h);
+    expect(teardown.code).toBe(0);
+    await until(() => !isAlive(info.pid), 2000);
+    expect(isAlive(info.pid)).toBe(false);
+  }, 20000);
+
+  it('`browser-inspector script` refreshes the session it drives, so the TTL sweep does not close it under the agent', async () => {
+    // An agent that packs its steps into `script` files kept a session whose `lastUsedAt` never
+    // moved: the sweep expired it mid-work, at the default TTL, with no idle window anywhere.
+    const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '30000', BROWSER_INSPECTOR_SESSION_TTL_MS: '1000' });
+    await runBrowserInspector(['open', 'http://localhost:4521/', '--session', 'k'], h);
+    const file = path.join(h.cwd, 'step.txt');
+    fs.writeFileSync(file, 'wait 5\n');
+    // Six steps 250 ms apart: 1.5 s of work, every gap well inside the 1 s TTL. Over the pipe, not
+    // through the client, so the gaps are the test's and not a node start's.
+    for (let i = 0; i < 6; i += 1) {
+      await sleep(250);
+      const step = await rawRequest(h, {
+        argv: ['script', 'step.txt'],
+        session: 'k',
+        files: { 'step.txt': { path: file } },
+      });
+      expect(step.done.exit).toBe(0);
+    }
+    expect(keeperLog(h)).not.toContain('session k expired');
+    expect(fakeLog(h).some((e) => e.event === 'closeSession' && e.session === 'k')).toBe(false);
+    const status = await rawRequest(h, { argv: ['status'] });
+    expect(status.done.lines.some((l) => l.startsWith('session k · cwd '))).toBe(true);
+  }, 20000);
+
   it('a command that leaves no session open (per the engine) does not keep the keeper', async () => {
     // 600 ms, not 200: this test needs the keeper from `up` to still be there when the NEXT client
     // process connects, and starting that process costs 80-190 ms (more on a loaded machine).
@@ -130,6 +178,18 @@ describe('recycling waits for the sessions', () => {
     expect(close.code).toBe(0);
     await until(() => fakeLog(h).some((e) => e.event === 'recycle'));
     expect(fakeLog(h).find((e) => e.event === 'recycle')?.sessions).toBe(0);
+  }, 20000);
+
+  it('a recycle due right after `browser-inspector script` is deferred under the session the script opened', async () => {
+    // MAX_JOBS 1: the recycle falls due on the script's own job, the first one the keeper runs —
+    // the only moment where nothing but the script's `touchSession` can defer it.
+    const h = fresh({ BROWSER_INSPECTOR_MAX_JOBS: '1' });
+    fs.writeFileSync(path.join(h.cwd, 'setup.txt'), 'open http://localhost:4521/\n');
+    const script = await runBrowserInspector(['script', 'setup.txt'], h);
+    expect(script.code).toBe(0);
+    await sleep(200);
+    expect(fakeLog(h).some((e) => e.event === 'recycle')).toBe(false);
+    expect(keeperLog(h)).toContain('recycle deferred: 1 sessions open');
   }, 20000);
 
   it('samples the browser RSS in the background every 10 jobs, never on a job', async () => {

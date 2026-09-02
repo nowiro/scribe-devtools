@@ -14,8 +14,8 @@ import { degradeTo, withDeadline } from './deadline.mjs';
 import { attachRecorder, errorMessage } from './recorder.mjs';
 import { maskSnapshotEntries, maskSnapshotValues, redact } from './redact.mjs';
 import { waitSettled } from './settle.mjs';
-import { boxJoin, compactSnapshot, resolveRef, sensitiveRefs, walkInteractive } from './snapshot.mjs';
-import { RUNNERS } from './steps.run.mjs';
+import { boxJoin, compactSnapshot, resolveRef, sensitiveRefs, sidecarFromPage } from './snapshot.mjs';
+import { RUNNERS, frameFor } from './steps.run.mjs';
 import { describeStep, resolveStepName } from './steps.schema.mjs';
 
 /** @typedef {import('./types.js').PageLike} PageLike */
@@ -81,8 +81,17 @@ export async function navigate(ctx, url, waitUntil, timeoutMs) {
  * @returns {Promise<string[]>} files written, relative to `ctx.dir`
  */
 export async function writeSnapshotFiles(ctx, text, base) {
-  const walk = await degradeTo([], ctx.page.evaluate(walkInteractive), Math.min(ctx.timeoutMs, 5000), 'snapshot walk');
-  const { entries } = boxJoin(text, Array.isArray(walk) ? walk : []);
+  // `sidecarFromPage`, not `boxJoin` over one main-frame walk: a walk that stops at the main
+  // document leaves every node inside an iframe without a selector AND without `sensitive`, so a
+  // password typed into an embedded login widget kept its value in snap.md and snap.full.yml.
+  // The degraded shape is still the ref/role/name sidecar, never an empty one.
+  const joined = await degradeTo(
+    undefined,
+    sidecarFromPage(ctx.page, text),
+    Math.min(ctx.timeoutMs, 5000),
+    'snapshot walk',
+  );
+  const entries = joined ?? boxJoin(text, []).entries;
   const secretValues = ctx.secretValues;
   const sidecar = maskSnapshotEntries(entries, { secretValues });
   const compact = maskSnapshotValues(compactSnapshot(text, { sidecar: entries }), {
@@ -159,7 +168,7 @@ export function makeStepContext(input) {
     written: [],
     lastSnapshot: undefined,
     lastShot: undefined,
-    loc: (selector) => (ctx.frame && !selector.startsWith('aria-ref=') ? ctx.frame : ctx.page).locator(selector),
+    loc: (selector) => (frameFor(ctx, selector) ?? ctx.page).locator(selector),
     navigate: (url, waitUntil, timeoutMs) => navigate(ctx, url, waitUntil, timeoutMs),
     settle: () => waitSettled(null, ctx.recorder, { capMs: ctx.snapshot?.settleMs ?? 2000 }),
     artifact: (name, ext) => {

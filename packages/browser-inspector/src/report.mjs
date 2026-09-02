@@ -14,7 +14,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { formatStamp } from './cli.mjs';
-import { formatMs, urlDisplay } from './print.mjs';
+import { formatMs, sliceUnits, urlDisplay } from './print.mjs';
 
 /** @typedef {import('./types.js').Report} Report */
 /** @typedef {import('./types.js').StepResult} StepResult */
@@ -99,6 +99,8 @@ const shortFailure = (failure) => failure.replace(/^HTTP\s+(\d{3})$/u, '$1');
  * @property {readonly string[]} [pageErrors]
  * @property {readonly NetEntry[]} [network]
  * @property {number} [networkTotal]
+ * @property {readonly NetEntry[]} [failed] the recorder's own failure list — it survives the cap on `network`
+ * @property {number} [failedTotal] failures the recorder counted, cap or no cap (drives `truncated`)
  * @property {readonly import('./types.js').DialogEntry[]} [dialogs]
  * @property {readonly import('./types.js').TabEntry[]} [tabs]
  * @property {readonly string[]} [screenshots]
@@ -147,9 +149,11 @@ export function buildReport(input) {
     const value = typeof raw === 'string' ? raw : raw.value;
     const truncated = typeof raw === 'string' ? false : raw.truncated;
     if (value.length > CAPS.extract) {
-      // The JSON keeps the head, the file keeps the whole — report.md points at the file.
+      // The JSON keeps the head, the file keeps the whole — report.md points at the file and says
+      // how much is there. `length` is what makes that number true: the head alone always reads
+      // "5 000+", whatever the value was.
       files[`values/${name}.txt`] = value;
-      extracts[name] = { value: value.slice(0, CAPS.extract), truncated: true };
+      extracts[name] = { value: sliceUnits(value, CAPS.extract), truncated: true, length: value.length };
     } else {
       extracts[name] = { value, truncated };
     }
@@ -158,9 +162,13 @@ export function buildReport(input) {
   const consoleEntries = input.console ?? [];
   const consoleTotal = input.consoleTotal ?? consoleEntries.length;
   const network = input.network ?? [];
-  const failed = network
-    .filter((entry) => entry.failure !== undefined || (entry.status ?? 0) >= 400)
-    .map((entry) => ({ ...entry, failure: entry.failure ?? `HTTP ${String(entry.status)}` }));
+  // `input.failed` when the caller has the recorder's own failure list: `network` is capped at 500
+  // ENTRIES, so a failure on the 501st request of a page fell out of the report entirely — and
+  // `failedRequests.truncated`, counted from that same capped list, claimed the list was complete.
+  const failed = (
+    input.failed ?? network.filter((entry) => entry.failure !== undefined || (entry.status ?? 0) >= 400)
+  ).map((entry) => ({ ...entry, failure: entry.failure ?? `HTTP ${String(entry.status)}` }));
+  const failedTotal = input.failedTotal ?? failed.length;
 
   const text = input.text ?? '';
   const elements = input.captureElements === false ? undefined : (input.elements ?? []);
@@ -187,12 +195,12 @@ export function buildReport(input) {
     network: { total: input.networkTotal ?? network.length, failed: failed.slice(0, CAPS.failedRequests) },
     failedRequests: {
       entries: failed.slice(0, CAPS.failedRequests).map((entry) => ({ url: entry.url, failure: entry.failure })),
-      truncated: failed.length > CAPS.failedRequests,
+      truncated: Math.max(failedTotal, failed.length) > Math.min(failed.length, CAPS.failedRequests),
     },
     dialogs: [...(input.dialogs ?? [])],
     tabs: [...(input.tabs ?? [])],
     screenshots: [...(input.screenshots ?? [])],
-    text: { content: text.slice(0, CAPS.text), truncated: text.length > CAPS.text },
+    text: { content: sliceUnits(text, CAPS.text), truncated: text.length > CAPS.text },
     ...(elements !== undefined
       ? {
           elements: {
@@ -239,6 +247,8 @@ export function artifactFiles(report) {
     files[report.files.text] = report.text.content;
   }
   for (const [name, value] of Object.entries(report.extracts)) {
+    // Only the head is left here — the whole value exists while `buildReport` still has it, and it
+    // puts the file in `BuiltReport.files`, which wins over this one in `writeArtifacts`.
     if (value.truncated) files[`values/${name}.txt`] = value.value;
   }
   return files;
@@ -254,7 +264,11 @@ export function artifactFiles(report) {
  */
 function renderValue(name, value) {
   if (value.truncated) {
-    return [`${name}: values/${name}.txt (${formatMs(value.value.length)}+ chars)`];
+    // `length` = the whole value is in the file; without it the head is all anyone has, and the
+    // number can only be a lower bound.
+    const chars =
+      typeof value.length === 'number' ? `${formatMs(value.length)} chars` : `${formatMs(value.value.length)}+ chars`;
+    return [`${name}: values/${name}.txt (${chars})`];
   }
   if (!value.value.includes('\n')) return [`${name}: ${value.value}`];
   const fence = value.value.includes('```') ? '````' : '```';
@@ -433,9 +447,23 @@ export function renderElementsMd(report) {
 
 // ── JUnit ────────────────────────────────────────────────────────────────────
 
-/** @param {unknown} value */
-const xml = (value) =>
-  String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+/**
+ * Text as an XML 1.0 document may carry it. The four metacharacters become entities — and every
+ * character the `Char` production forbids (a C0 byte other than TAB/LF/CR, U+FFFE/U+FFFF) becomes a
+ * space FIRST: an `Error` a page threw with an ANSI colour code in it (ESC, U+001B) made the WHOLE
+ * junit.xml unparseable, so CI dropped the entire run rather than one testcase.
+ * @param {unknown} value
+ */
+const xml = (value) => {
+  let safe = '';
+  // Iterated by code point, so a surrogate pair survives whole.
+  for (const ch of String(value)) {
+    const code = ch.codePointAt(0) ?? 0;
+    const allowed = code === 9 || code === 10 || code === 13 || (code >= 0x20 && code !== 0xfffe && code !== 0xffff);
+    safe += allowed ? ch : ' ';
+  }
+  return safe.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+};
 
 /**
  * `--junit f.xml`: the format every CI reads as a test tab. One `testcase` per snapshot; an

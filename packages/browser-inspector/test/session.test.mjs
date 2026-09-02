@@ -233,7 +233,11 @@ describe('session: open, deltas, one line per command', () => {
     const secret = 'hunter2-per-session';
     const h = await harness({
       texts: { 'aria-ref=e2': secret },
-      snapshot: [SNAPSHOT, `- textbox "Token" [ref=e4]: ${secret}`].join('\n'),
+      // The names carry a colon on purpose — the pattern that used to leave the value in
+      // `snap.full.yml`: one bare key, one the renderer quotes whole because of the `: `.
+      snapshot: [SNAPSHOT, `- textbox "Token:" [ref=e4]: ${secret}`, `- 'textbox "Kod: SMS" [ref=e5]': ${secret}`].join(
+        '\n',
+      ),
       runtimeEvaluate: () => ({ result: { type: 'string', value: `token=${secret}` } }),
     });
     await h.open();
@@ -353,6 +357,10 @@ describe('session: snap', () => {
     ]);
     const gone = await h.run({ do: 'snapshot', around: 'e1' }, { alias: 'snap' });
     expect(gone.lines).toEqual([expect.stringMatching(/^ref e1 not in snapshot · /u)]);
+    // A ref that is alive but has no compact line of its own (a heading, a `generic` `find` handed
+    // out) is a different answer: "not in snapshot" made an agent throw away a ref it could click.
+    const outside = await h.run({ do: 'snapshot', around: 'e0' }, { alias: 'snap' });
+    expect(outside.lines).toEqual([expect.stringMatching(/^ref e0 outside the compact · .*snap\.full\.yml$/u)]);
     const grep = await h.run({ do: 'snapshot', grep: 'name' }, { alias: 'snap' });
     expect(grep.lines).toEqual(['e2 textbox "Name"']);
   });
@@ -421,6 +429,11 @@ describe('session: console and net', () => {
       '…2 older (browser-inspector net --all --tail N)',
       expect.stringMatching(/^#3 GET \/api\/ping net::ERR_FAILED [01] ms$/u),
     ]);
+    // `--tail 0` is a budget of zero entries. `slice(-0)` is `slice(0)`, so it used to print
+    // EVERYTHING — more than the flag-less call, which stops at NET_LIST_MAX.
+    const none = await h.run({ do: 'net', all: true, tail: 0 });
+    expect(none.lines).toEqual(['3 total:', '…3 older (browser-inspector net --all --tail N)']);
+    expect((await h.run({ do: 'console', all: true, tail: 0 })).lines).toEqual(['0 total']);
     expect(await readFile(path.join(h.dir, 'net.jsonl'), 'utf8')).toContain('"url":"http://localhost:4300/api/cart"');
   });
 });
@@ -589,6 +602,24 @@ describe('session: shot, eval, run, close, export, script', () => {
     expect(again.lines[0]).toMatch(/^FAIL export · .*exists — add --force/u);
     const forced = await h.engine.exportFlow('default', { file, cwd: h.cwd, force: true });
     expect(forced.exit).toBe(0);
+  });
+
+  it('export covers THIS session only — the journal of the previous one is not part of the flow', async () => {
+    const h = await harness();
+    await h.open('http://localhost:4300/stara/');
+    await h.run({ do: 'click', ref: 'e1' });
+    await h.run({ do: 'close' }, { alias: 'close' });
+    // Same session name, same journal file — `journal.jsonl` outlives `close` on purpose.
+    await h.open('http://localhost:4300/nowa/');
+    await h.run({ do: 'click', ref: 'e2' });
+    const file = path.join(h.cwd, 'flows', 'nowa.json');
+    const exported = await h.engine.exportFlow('default', { file, cwd: h.cwd });
+    expect(exported.exit, exported.lines.join('\n')).toBe(0);
+    const config = JSON.parse(await readFile(file, 'utf8'));
+    expect(config.snapshots[0].url).toBe('http://localhost:4300/nowa/');
+    expect(config.snapshots[0].steps).toEqual([{ do: 'click', selector: 'role=textbox[name="Name"]' }]);
+    // Both sessions are still in the journal — only the export is scoped.
+    expect(readJournal(path.join(h.dir, 'journal.jsonl'))).toHaveLength(5);
   });
 
   it('runScript: one command per line, values under script[<line>], stops at the first FAIL, comments keep the numbering', async () => {

@@ -37,6 +37,8 @@ const BASE = {
   executablePath: '',
   headless: true,
   args: ['--disable-frame-rate-limit'],
+  fastHeadless: true,
+  motion: 'no-preference',
   browserArgsEnv: '',
   httpProxy: '',
   httpsProxy: '',
@@ -69,6 +71,10 @@ describe('identityHash', () => {
     ['executablePath', { executablePath: 'C:/chrome.exe' }],
     ['headless', { headless: false }],
     ['args', { args: [] }],
+    // Both shape the browser (`fastHeadless` the launch flags, `motion` every context), so two
+    // configs that differ only in them must not share one keeper.
+    ['browser.fastHeadless', { fastHeadless: false }],
+    ['browser.motion', { motion: 'reduce' }],
     ['BROWSER_INSPECTOR_BROWSER_ARGS', { browserArgsEnv: '--no-sandbox' }],
     // `browser-inspector run --file` is gated on the KEEPER's env: an unsafe keeper must be a separate process.
     ['BROWSER_INSPECTOR_UNSAFE=1', { unsafe: true }],
@@ -113,7 +119,19 @@ describe('collectIdentity / srcStamp', () => {
       noProxy: 'n',
       headless: false,
       args: ['--a'],
+      fastHeadless: true,
+      motion: 'no-preference',
     });
+  });
+
+  it('carries browser.fastHeadless and browser.motion — they shape the browser, so they shape the identity', () => {
+    const parts = collectIdentity({
+      packageDir: PACKAGE_DIR,
+      env: {},
+      browser: { fastHeadless: false, motion: 'reduce' },
+    });
+    expect(parts).toMatchObject({ fastHeadless: false, motion: 'reduce' });
+    expect(identityHash(parts)).not.toBe(identityHash(collectIdentity({ packageDir: PACKAGE_DIR, env: {} })));
   });
 
   it('srcStamp is the newest mtime and the PORTABLE marker turns it off', () => {

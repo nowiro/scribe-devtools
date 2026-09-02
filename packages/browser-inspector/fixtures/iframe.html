@@ -25,6 +25,10 @@
         document.body.innerHTML =
           '<h2>Dziecko</h2>' +
           '<button id="child-btn" data-testid="child-button">Przycisk w ramce</button>' +
+          // An embedded login widget: the field lives in the frame, so the sidecar has to walk the
+          // frame to know it is sensitive (DESIGN.md §2.6).
+          '<p><label for="child-pass">Hasło:</label> ' +
+          '<input id="child-pass" type="password" data-testid="child-pass" /></p>' +
           '<p><output id="child-out" aria-live="polite">nic</output></p>';
         document.getElementById('child-btn').addEventListener('click', () => {
           document.getElementById('child-out').textContent = 'kliknięto w ramce';

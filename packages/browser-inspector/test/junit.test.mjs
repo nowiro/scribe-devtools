@@ -38,6 +38,26 @@ describe('renderJUnit', () => {
     );
   });
 
+  it('drops the control characters XML 1.0 forbids — one ANSI escape used to void the whole file', () => {
+    const esc = String.fromCharCode(27);
+    const junit = renderJUnit('cfg.json', [
+      {
+        name: `raport${String.fromCharCode(1)}`,
+        completed: false,
+        ms: 12,
+        failure: `step 1 "evaluate boom" — Error: zapis nie powiodl sie: ${esc}[31mHTTP 500${esc}[0m`,
+        dir: `out${String.fromCharCode(0)}/x`,
+      },
+    ]);
+    const illegal = [...junit].filter((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      return code !== 9 && code !== 10 && code !== 13 && (code < 0x20 || code === 0xfffe || code === 0xffff);
+    });
+    expect(illegal).toEqual([]);
+    expect(junit).toContain('Error: zapis nie powiodl sie:  [31mHTTP 500 [0m');
+    expect(junit).toContain('<testcase name="raport "');
+  });
+
   it('an empty run is still a valid document', () => {
     const empty = renderJUnit('cfg.json', []);
     expect(empty).toContain('<testsuites name="browser-inspector" tests="0" failures="0" time="0.000">');

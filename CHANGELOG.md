@@ -5,6 +5,108 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Fixed
+
+- **Wartość pola hasła zostawała jawnie w `snap.full.yml`, gdy etykieta pola zawierała dwukropek.**
+  Trzy niezależne agenty audytu wskazały to samo miejsce: `maskSnapshotValues` rozpoznawało linię
+  wzorcem `- rola "nazwa" [ref=eN]: wartość`, w którym część na nazwę nie mogła przekroczyć `:`.
+  Etykieta „Hasło:” — najzwyklejsza w polskim formularzu — kończyła dopasowanie, linia nie liczyła
+  się jako niosąca wartość i **wpisane hasło szło na dysk i na stdout**. Gorszy wariant: gdy nazwa
+  zawiera `: `, renderer cytuje CAŁY klucz (`'textbox "Kod: SMS" [ref=e5] [box=…]': 1`) i linia nie
+  zaczyna się już od roli. Regexp zastąpiony parserem: `keyEnd()` skanuje klucz znak po znaku (klucz
+  goły i cytowany, `''` w apostrofach, odwrotny ukośnik w cudzysłowie), ref rozpoznawany osobno
+  (`[ref=…]` gdziekolwiek w kluczu), a linie **bez** wartości też przechodzą przez `redact` — sekret
+  echem w nagłówku albo w URL już się nie prześlizguje.
+
+- **Sidecar snapshotu widział tylko ramkę główną — hasło wpisane w `iframe` lądowało jawnie.**
+  `writeSnapshotFiles` zszywało drzewo aria z walkiem DOM po samej ramce głównej, więc pole w ramce
+  nie dostawało ani selektora, ani flagi `sensitive`, a jego wartość szła do `snap.md`,
+  `snap.full.yml` i na stdout. Używa teraz `sidecarFromPage()` — funkcji, która istniała, była
+  przetestowana i **martwa**. Znalezione przez porównanie z `@playwright/mcp`, nie przez lekturę.
+
+- **Walk DOM nie wchodził w shadow root.** Web component z polem hasła dawał zero selektorów i brak
+  flagi `sensitive`, więc hasło szło do `snap.md` i na stdout. Ślepe `querySelectorAll`
+  (`walkInteractive`, `evidenceInPage`, sonda sesji) przechodzą teraz przez otwarte shadow rooty.
+  Nowy fixture `fixtures/shadow.html`.
+
+- **Przejściowy błąd startu silnika był memoizowany na całe życie keepera.** Odrzucona obietnica
+  zostawała w `enginePromise`, więc jedno nieudane uruchomienie Chrome (antywirus, wyścig o lock)
+  psuło **każdy kolejny** przebieg aż do restartu keepera, i żaden fallback się nie włączał.
+
+- **`browser-inspector script` otwierał sesję, której keeper nie rejestrował.** Timer bezczynności ją
+  zabijał, recykling zamykał pod nią przeglądarkę, a `status` pokazywał `sessions 0`. `runScript`
+  woła teraz `touchSession` tak samo jak `runSession`.
+
+- **`export` składał flow z całego dziennika.** Po `close` i ponownym `open` eksportował poprzednią
+  sesję, z cudzym startowym URL. Linie dziennika są stemplowane `sid`, `exportFlow` bierze ostatnią
+  sesję — świadomie po `sid`, a nie po wpisie `close`, bo sesja kończy się także przez TTL,
+  `closeAll` i restart keepera.
+
+- **`verify` z martwym refem był twardym FAIL-em także z `soft: true`**, i nie zostawiał wpisu
+  w `verifications[]`. Nierozwiązany cel jest teraz werdyktem, nie wyjątkiem kroku.
+
+- **`verify kind: text` i `kind: list` czytały tekst elementów, których strona nie renderuje.**
+  `innerText` na nieukazanym węźle zwraca `textContent`, więc asercja przechodziła na zielono na
+  ukrytym banerze błędu i na ukrytej karcie potwierdzenia. Widoczność sprawdzana przed tekstem.
+
+- **`ctx.frame` przeżywał nawigację** — po `goto`/`reload` każdy krok z selektorem CSS padał na
+  „Frame was detached”. Nowy `frameFor()` porzuca zakres wskazujący odłączoną ramkę.
+
+- **Nieudane żądania powyżej 500. wpisu znikały z raportu, a `failedRequests.truncated` kłamało
+  `false`.** `runFlow` omijało `summarize()` i czytało listę przyciętą capem `NETWORK_CAP`; bierze
+  teraz własną listę rejestratora i liczy `truncated` z faktycznej liczby.
+
+- **`values/<name>.txt` — plik, na który `report.md` wskazuje jako „całość wartości” — zawierał
+  pierwsze 5000 znaków.** Wartość była cięta już przy przechwyceniu, więc reszty nie miał kto
+  zapisać. Cięcie zostało wyłącznie w `buildReport`, które od początku umiało odłożyć całość na dysk.
+
+- **`--junit` produkował niepoprawny XML.** Surowy znak sterujący ze strony (np. sekwencja ANSI
+  w `console.error`) unieważniał cały plik dla parsera CI. `xml()` czyści znaki spoza produkcji
+  `Char` XML 1.0, zachowując pary surogatów.
+
+- **„Internal error” z serializującego obiegu CDP był raportowany jako timeout.** Krok padał w 1 ms,
+  a raport twierdził, że strona wisiała przez cały budżet 10 s — diagnoza, na którą naturalną
+  reakcją jest podbicie `--timeout`, co nigdy nie pomoże. Mapowanie rozdzielone: `mapCdpError`
+  (z tłumaczeniem na timeout) zostaje przy `Runtime.evaluate`, który faktycznie niesie `timeout`,
+  drugie wywołanie ma własny `mapSerializeError`. Repro na prawdziwym Chrome.
+
+- **`evaluate` przez CDP przestało odwzorowywać `page.evaluate` 1:1** — `Date`, `Error`, funkcja
+  i symbol schodziły do `{}`. Najgroźniejszy wariant: zagnieżdżona `Date` w poprawnie wyglądającym
+  obiekcie. Drugi przelot serializuje w stronie przez `JSON.stringify`.
+
+- **Nieudana nawigacja raportowała `cacheHits: 1`.** Wewnętrzna strona błędu Chrome
+  (`chrome-error://chromewebdata/`) zgłasza `deliveryType: 'cache'` dla ciała, które sama zmyśliła.
+  Wpis liczy się jako trafienie tylko przy `responseStatus > 0`.
+
+- **Kontekst `fresh` wyciekał przy każdym wyjątku przed `close()`** (LIFE-7 z przeglądu wydajności),
+  a jego cięższa siostra — lane **współdzielony** — nie oddawał `busy`, gdy rzucił scrub albo
+  `setViewportSize`. Trzy klamry `try/finally`.
+
+- **`--tail 0` w `console`/`net` drukowało wszystko zamiast nic** (`slice(-0) === slice(0)`), a przy
+  `net --all` zdejmowało jeszcze domyślny cap — flaga budżetowa dawała **więcej** wyjścia niż jej brak.
+
+- **Limity tekstu cięły w środku pary surogatów** — w `report.md` lądował znak zastępczy,
+  w `report.json` osierocona połówka pary. Nowy `sliceUnits()` cofa się o jednostkę.
+
+- **`status`/`stop`/`doctor` wisiały 10 minut** przy zaklinowanym keeperze zamiast poddać się po
+  500 ms — `runViaKeeper` ignorowało `options.timeoutMs` dla nogi żądania.
+
+- **`browser.fastHeadless` i `browser.motion` z configu nigdy nie docierały do silnika** i nie
+  wchodziły w tożsamość keepera, więc dwa configi różniące się tylko nimi dzieliły jedną przeglądarkę.
+
+- **`--only` żądało zmiennych środowiskowych i plików snapshotów, które właśnie wyklucza.**
+
+- **Dwa kroki `snapshot` o tej samej nazwie po cichu nadpisywały swoje pliki** — `validateSteps`
+  wykrywa to teraz tak jak duplikaty `screenshot`/`pdf`.
+
+- **`el N`, `elements.md` i `text.txt` liczyły tylko ramkę główną**, więc raport aplikacji osadzonej
+  w `iframe` twierdził, że strona jest prawie pusta. Licznik dolicza ramki potomne; **listowanie**
+  zostaje przy ramce głównej świadomie — selektor z ramki potomnej nie rozwiązałby się ze strony,
+  a kontrakt `evidenceInPage` obiecuje, że każdy wydany selektor znajduje element ponownie.
+
+- **`snap --around` na żywym refie spoza kompaktu kłamało „ref nie w snapshocie”** — rozróżnia teraz
+  ref martwy od żywego, ale niewidocznego w kompakcie.
+
 ### Changed
 
 - **`fullPage` idzie wreszcie szybką ścieżką CDP — `captureMs` na `nowiro-strona` 614 → ~350 ms.**

@@ -741,7 +741,13 @@ export function uniqueIn(walk) {
  */
 export function locatorForElement(el) {
   const esc = (/** @type {string} */ v) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const unique = (/** @type {string} */ selector) => el.ownerDocument.querySelectorAll(selector).length === 1;
+  // Counted in the element's OWN root: inside an open shadow root `ownerDocument` sees nothing, so
+  // every durable candidate looked "not unique" and a web component's field fell back to a brittle
+  // `role=…[name=…]`. The document is still consulted, because Playwright's CSS pierces open shadow
+  // roots and a selector that also matches in the light DOM would be a strict-mode error.
+  const scope = /** @type {any} */ (el.getRootNode?.() ?? el.ownerDocument);
+  const unique = (/** @type {string} */ selector) =>
+    scope.querySelectorAll(selector).length === 1 && el.ownerDocument.querySelectorAll(selector).length <= 1;
   const testid = el.getAttribute('data-testid');
   if (testid && unique(`[data-testid="${esc(testid)}"]`)) return `[data-testid="${esc(testid)}"]`;
   if (el.id) {
@@ -803,7 +809,18 @@ export function walkInteractive() {
     'a[href], button, input, select, textarea, summary, option, [role], [tabindex], [contenteditable=""], [contenteditable="true"]';
   /** @type {WalkEntry[]} */
   const out = [];
-  for (const el of document.querySelectorAll(selector)) {
+  /** @type {(Document | ShadowRoot)[]} */
+  const roots = [document];
+  /** @type {Element[]} */
+  const found = [];
+  for (let r = 0; r < roots.length; r += 1) {
+    // `ariaSnapshot` walks open shadow roots, so a walk that stops at the light DOM leaves every
+    // control of a web component without a box match: no durable selector and, worse, no
+    // `sensitive` — the password field of a `<login-box>` kept its value in snap.md (DESIGN.md §2.6).
+    for (const host of roots[r].querySelectorAll('*')) if (host.shadowRoot) roots.push(host.shadowRoot);
+    for (const el of roots[r].querySelectorAll(selector)) found.push(el);
+  }
+  for (const el of found) {
     if (el.getClientRects().length === 0) continue; // display:none / detached — not in the aria tree either
     const r = el.getBoundingClientRect();
     const tag = el.tagName.toLowerCase();

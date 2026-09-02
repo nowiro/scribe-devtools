@@ -120,6 +120,7 @@ export function createSessions(input) {
    * @property {Set<string>} secretValues every secret any command of this session carried (§2.6: per session, not per request)
    * @property {Promise<unknown>} writes the journal / console / net appends, chained in order and awaited only by `close` / `export`
    * @property {number} journalSeq
+   * @property {string} sessionId stamped on every journal line — `export` covers THIS session only
    * @property {number} [fetchSeq]
    * @property {number} [runSeq]
    */
@@ -152,11 +153,16 @@ export function createSessions(input) {
    * @param {string} selector
    */
   function sessionProbe(selector) {
-    return {
-      el: document.querySelectorAll(selector).length,
-      dom: Number(/** @type {any} */ (window).__bi_dom ?? 0),
-      title: document.title,
-    };
+    /** @type {(Document | ShadowRoot)[]} */
+    const roots = [document];
+    let el = 0;
+    for (let r = 0; r < roots.length; r += 1) {
+      // Open shadow roots are part of what the agent can act on (the aria tree shows them), so a
+      // count that stops at the light DOM answered `el 0` for a page built from web components.
+      for (const host of roots[r].querySelectorAll('*')) if (host.shadowRoot) roots.push(host.shadowRoot);
+      el += roots[r].querySelectorAll(selector).length;
+    }
+    return { el, dom: Number(/** @type {any} */ (window).__bi_dom ?? 0), title: document.title };
   }
 
   /** Console errors + page errors — what `err N` and `+N console.error` count. @param {Recorder} recorder */
@@ -255,6 +261,8 @@ export function createSessions(input) {
       writes: Promise.resolve(),
       // A session reopened over yesterday's journal keeps numbering where it stopped.
       journalSeq: journalLineCount(journalPath(dir)),
+      // …and marks its own lines, so `export` can tell them from the ones already in that file.
+      sessionId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     };
     await armSessionPage(session, pair.page);
     const ctx = makeStepContext({
@@ -613,6 +621,7 @@ export function createSessions(input) {
     const journalLine = formatJournalLine(
       {
         seq: session.journalSeq,
+        sid: session.sessionId,
         command: canonical,
         step,
         ok: result.ok,

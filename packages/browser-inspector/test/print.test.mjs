@@ -27,6 +27,7 @@ import {
   formatOverflow,
   formatShot,
   relPath,
+  sliceUnits,
   truncate,
   urlDisplay,
 } from '../src/print.mjs';
@@ -169,6 +170,21 @@ describe('rules', () => {
     expect(truncate('a\n  b\nc')).toBe('a b c');
     expect(truncate('abcdef', 4)).toBe('abc…');
     expect(truncate('abc', 4)).toBe('abc');
+  });
+
+  it('cuts before an emoji, never through it — half a surrogate pair is not a character', () => {
+    const lonely = (/** @type {string} */ s) =>
+      [...s].some((ch) => {
+        const code = ch.charCodeAt(0);
+        return ch.length === 1 && code >= 0xd800 && code <= 0xdfff;
+      });
+    // The cut lands between the two units of 😀 (`aaa` + high surrogate): one unit back.
+    expect(truncate('aaa😀tail', 5)).toBe('aaa…');
+    expect(lonely(truncate('aaa😀tail', 5))).toBe(false);
+    expect(sliceUnits('aaa😀tail', 4)).toBe('aaa');
+    expect(sliceUnits('aaa😀tail', 5)).toBe('aaa😀');
+    expect(sliceUnits('abc', 10)).toBe('abc');
+    expect(sliceUnits('abc', 0)).toBe('');
   });
 
   it('formatLine drops empty parts and formatFail caps the reason', () => {

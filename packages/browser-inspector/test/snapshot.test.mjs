@@ -696,4 +696,24 @@ describe('engine-facing helpers: entries alias, sidecarFromPage, snapshotArtifac
     expect(entries.find((e) => e.ref === 'e3')?.sensitive).toBe(true);
     expect(yaml).toContain('tajne');
   });
+
+  it('a label with a colon — the usual Polish form — does not smuggle the value past the mask', () => {
+    // `textbox "Hasło:"` leaves the key bare; `"Kod: SMS"` makes the renderer quote the whole key.
+    const yaml = [
+      '- generic [ref=e1] [box=0,0,300,100]:',
+      '  - textbox "Hasło:" [ref=e2] [box=0,0,100,20]: tajne',
+      `  - 'textbox "Kod: SMS" [ref=e3] [box=0,20,100,20]': "123456"`,
+      '',
+    ].join('\n');
+    const { entries } = boxJoin(yaml, [
+      { tag: 'input', type: 'password', nameAttr: 'password', sensitive: true, box: [0, 0, 100, 20] },
+      { tag: 'input', type: 'text', nameAttr: 'otp', sensitive: true, box: [0, 20, 100, 20] },
+    ]);
+    const out = snapshotArtifacts(yaml, entries);
+    expect(out.sensitive).toEqual(['e2', 'e3']);
+    expect(out.full).not.toMatch(/tajne|123456/u);
+    expect(out.md).not.toMatch(/tajne|123456/u);
+    // The quoted key keeps its quotes — the file stays valid YAML.
+    expect(out.full).toContain(`- 'textbox "Kod: SMS" [ref=e3] [box=0,20,100,20]'\n`);
+  });
 });

@@ -250,6 +250,10 @@ describe('validateSteps', () => {
           { do: 'extract', name: 'v', selector: 'h1' },
           { do: 'evaluate', name: 'v', expression: '1' },
           { do: 'storage', kind: 'local', op: 'get', key: 'k', name: 'v' },
+          // A named snapshot writes three files of its own; the second one with the same name
+          // overwrites all three and the report keeps a single entry — evidence lost in silence.
+          { do: 'snapshot', name: 'przed' },
+          { do: 'snapshot', name: 'przed' },
         ],
         's',
       ),
@@ -257,7 +261,21 @@ describe('validateSteps', () => {
       expect.stringMatching(/^s\[1\]\.name: duplicate screenshot name "a"/u),
       expect.stringMatching(/^s\[3\]\.name: duplicate capture name "v"/u),
       expect.stringMatching(/^s\[4\]\.name: duplicate capture name "v"/u),
+      expect.stringMatching(/^s\[6\]\.name: duplicate snapshot name "przed" — the later snapshot would overwrite/u),
     ]);
+    // Its own namespace: a snapshot and an extract may share a name, and two nameless snapshots
+    // (the usual "refresh the ref map" pattern) stay legal.
+    expect(
+      validateSteps(
+        [
+          { do: 'snapshot', name: 'x' },
+          { do: 'extract', name: 'x', selector: 'h1' },
+          { do: 'snapshot' },
+          { do: 'snapshot' },
+        ],
+        's',
+      ),
+    ).toEqual([]);
   });
 
   it('applies the ref rule per mode: batch needs a snapshot first, session never does, auth forbids literals', () => {

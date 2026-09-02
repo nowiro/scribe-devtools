@@ -34,7 +34,22 @@ export function truncate(text, max = MAX_LINE) {
     .replace(/\s*\n\s*/gu, ' ')
     .trim();
   if (flat.length <= max) return flat;
-  return `${flat.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+  return `${sliceUnits(flat, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
+/**
+ * `text.slice(0, max)` that never leaves half of a surrogate pair behind. A cut between the two
+ * units of an emoji writes U+FFFD into a file and `\ud83d` into the JSON — two spellings of a
+ * character the page never had. One unit back is enough: the cut is a budget, not a promise.
+ * @param {string} text
+ * @param {number} max
+ * @returns {string}
+ */
+export function sliceUnits(text, max) {
+  if (max <= 0) return '';
+  if (text.length <= max) return text;
+  const code = text.charCodeAt(max - 1);
+  return text.slice(0, code >= 0xd800 && code <= 0xdbff ? max - 1 : max);
 }
 
 /**

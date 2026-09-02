@@ -56,17 +56,29 @@ export const CONNECT_RETRY_MS = 25;
  * reset it, so a long batch that is still reporting snapshots is never cut.
  */
 export const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+/**
+ * `status` / `stop` are answered from the keeper's event loop without touching the browser, so they
+ * get a ping's deadline: the one keeper an agent cannot diagnose is the one whose diagnosis hangs.
+ */
+export const CONTROL_TIMEOUT_MS = 500;
+/** `doctor`'s `open`/`close` drive a real browser (warm ≈ 470 ms, a cold lane seconds) — not a ping. */
+export const DOCTOR_JOB_TIMEOUT_MS = 30 * 1000;
 
 /** @param {unknown} error */
 const messageOf = (error) => (error instanceof Error ? error.message : String(error));
 
 /** Thrown when no keeper answers: batch falls back, a session prints KEEPER_UNAVAILABLE and exits 2. */
 export class KeeperUnavailableError extends Error {
-  /** @param {string} reason */
-  constructor(reason) {
+  /**
+   * @param {string} reason
+   * @param {'connect' | 'request'} [stage] `connect`: nothing was there. `request`: it connected and
+   *   then went silent — the process is alive, so "not running" would be a lie and the wrong remedy.
+   */
+  constructor(reason, stage = 'connect') {
     super(`keeper unavailable: ${reason}`);
     this.name = 'KeeperUnavailableError';
     this.reason = reason;
+    this.stage = stage;
   }
 }
 
@@ -108,11 +120,16 @@ export function computeIdentity(input) {
     key,
     tmpdir:
       env.BROWSER_INSPECTOR_TMPDIR && env.BROWSER_INSPECTOR_TMPDIR !== '' ? env.BROWSER_INSPECTOR_TMPDIR : os.tmpdir(),
+    // Everything the engine reads out of `browser` has to be here: this object IS the browser
+    // config on both paths (`--browser` argv for the keeper, `identity.browserOpts` in-process),
+    // and a field left out is a config that silently did nothing.
     browserOpts: {
       ...(parts.channel ? { channel: parts.channel } : {}),
       ...(parts.executablePath ? { executablePath: parts.executablePath } : {}),
       headless: parts.headless !== false,
       args: [...(parts.args ?? [])],
+      ...(parts.fastHeadless === false ? { fastHeadless: false } : {}),
+      ...(parts.motion === 'reduce' ? { motion: 'reduce' } : {}),
     },
     pwVersion: parts.pwVersion,
     binPath: parts.binRealpath,
@@ -250,7 +267,12 @@ export function resolveValues(parsed, input) {
   if (parsed.mode === 'batch' && config) {
     const configDir = path.dirname(config.configPath ?? path.resolve(cwd, parsed.configPath));
     const bases = cwd === configDir ? [cwd] : [cwd, configDir];
+    // `--only` narrows what has to EXIST: a run of one flow must not demand the variables and the
+    // fixture files of the flows it will not run (`runBatch` filters by the same `snapshot.name`).
+    // Skipped, never renumbered — the keeper addresses values with the config's own index.
+    const only = parsed.options.only;
     config.snapshots.forEach((/** @type {Record<string, any>} */ snapshot, /** @type {number} */ i) => {
+      if (only.length > 0 && !only.includes(snapshot.name)) return;
       (snapshot.steps ?? []).forEach((/** @type {any} */ step, /** @type {number} */ j) =>
         walkStep(step, `snapshots[${String(i)}].steps[${String(j)}]`, bases),
       );
@@ -416,7 +438,7 @@ export function exchange(socket, request, onProgress, options = {}) {
       if (watchdog) clearTimeout(watchdog);
       socket.destroy();
       if (result) resolve(result);
-      else reject(new KeeperUnavailableError(reason));
+      else reject(new KeeperUnavailableError(reason, 'request'));
     };
     const arm = () => {
       if (watchdog) clearTimeout(watchdog);
@@ -451,17 +473,34 @@ export function exchange(socket, request, onProgress, options = {}) {
 }
 
 /**
+ * How long one exchange may stay silent. The CALLER's number wins — `status`, `stop` and the
+ * doctor's probes pass their own deadline precisely because they must not wait ten minutes on a
+ * keeper that connects and then says nothing. `BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS` is next, read like
+ * `intEnv` in keeper.mjs: empty or unparsable means "the default", not `Number('') === 0`, which
+ * disarmed the watchdog altogether. Only an explicit `0` still means "no watchdog".
+ * @param {NodeJS.ProcessEnv} env
+ * @param {number} [override] the caller's deadline
+ * @returns {number}
+ */
+export function requestTimeout(env, override) {
+  if (override !== undefined) return override;
+  const raw = env.BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS;
+  if (raw === undefined || raw.trim() === '') return REQUEST_TIMEOUT_MS;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : REQUEST_TIMEOUT_MS;
+}
+
+/**
  * Connect (spawning if needed), send, collect.
  * @param {KeeperRequest} request `token` is filled in here
- * @param {{ identity: Identity, env: NodeJS.ProcessEnv, spawn?: boolean, timeoutMs?: number, onProgress?: (p: any) => void }} options
+ * @param {{ identity: Identity, env: NodeJS.ProcessEnv, spawn?: boolean, timeoutMs?: number, onProgress?: (p: any) => void }} options `timeoutMs` is the deadline for BOTH legs
  * @returns {Promise<KeeperDone>}
  */
 export async function runViaKeeper(request, options) {
   const { socket, token } = await ensureKeeper(options.identity, options);
-  const raw = Number(options.env.BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS);
-  const timeoutMs =
-    Number.isFinite(raw) && options.env.BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS !== undefined ? raw : REQUEST_TIMEOUT_MS;
-  return exchange(socket, { ...request, token }, options.onProgress, { timeoutMs });
+  return exchange(socket, { ...request, token }, options.onProgress, {
+    timeoutMs: requestTimeout(options.env, options.timeoutMs),
+  });
 }
 
 /**
@@ -542,11 +581,11 @@ export async function doctor(input) {
   let survives = false;
   let warmMs = 0;
   const base = { v: /** @type {const} */ (1), token: '', cwd, values: {}, secretValues: [], files: {} };
-  /** @param {string[]} argv @param {string} [session] */
-  const ask = (argv, session) =>
+  /** @param {string[]} argv @param {{ session?: string, timeoutMs?: number }} [options] */
+  const ask = (argv, options = {}) =>
     runViaKeeper(
-      { ...base, argv, ...(session !== undefined ? { session } : {}) },
-      { identity: probe, env: probeEnv, spawn: false, timeoutMs: 500 },
+      { ...base, argv, ...(options.session !== undefined ? { session: options.session } : {}) },
+      { identity: probe, env: probeEnv, spawn: false, timeoutMs: options.timeoutMs ?? CONTROL_TIMEOUT_MS },
     );
   try {
     // Survival is "the keeper spawned inside the shell still answers from THIS process" — any
@@ -557,18 +596,18 @@ export async function doctor(input) {
     warmMs = Math.round(performance.now() - t1);
     survives = status.exit === 0;
     const t2 = performance.now();
-    const open = await ask(['open', 'about:blank', '--session', '__doctor'], '__doctor');
+    // A browser round trip, not a ping: with a control deadline a healthy but ordinary machine
+    // would miss `open` by tens of milliseconds and doctor would report "survives: no".
+    const job = { session: '__doctor', timeoutMs: DOCTOR_JOB_TIMEOUT_MS };
+    const open = await ask(['open', 'about:blank', '--session', '__doctor'], job);
     if (open.exit === 0) {
       warmMs = Math.round(performance.now() - t2);
-      await ask(['close', '--session', '__doctor'], '__doctor').catch(() => undefined);
+      await ask(['close', '--session', '__doctor'], job).catch(() => undefined);
     }
   } catch {
     survives = false;
   }
-  await runViaKeeper(
-    { ...base, argv: ['stop'] },
-    { identity: probe, env: probeEnv, spawn: false, timeoutMs: 500 },
-  ).catch(() => undefined);
+  await ask(['stop']).catch(() => undefined);
   const line = formatDoctor({
     survives,
     spawnToListenMs,
@@ -679,7 +718,7 @@ async function control(mode, io) {
       identity,
       env: io.env,
       spawn: mode === 'up',
-      ...(mode === 'up' ? {} : { timeoutMs: 500 }),
+      ...(mode === 'up' ? {} : { timeoutMs: CONTROL_TIMEOUT_MS }),
     });
     io.print(done.lines);
     return done.exit;
@@ -689,10 +728,20 @@ async function control(mode, io) {
       io.print([KEEPER_UNAVAILABLE(error.reason)]);
       return 2;
     }
+    const pidPath = pidFile(identity.key, identity.tmpdir);
+    // It connected and then said nothing: the process is alive, so "not running" would be a lie and
+    // the wrong remedy — the pid is the only thing left to kill.
+    if (error.stage === 'request') {
+      const info = readPidFile(pidPath);
+      const who = info ? `pid ${String(info.pid)} · ` : '';
+      io.print([
+        `FAIL keeper not answering · no answer from the keeper within ${formatMs(CONTROL_TIMEOUT_MS)} ms · ${who}hash ${identity.hash}`,
+      ]);
+      return 2;
+    }
     // A pid file with nobody behind the pipe is a keeper that died with its shell (or a reboot):
     // the next keeper start removes it itself, but the path is the concrete remedy when it does not.
     // Its own line: with the pipe and a tmpdir path, one line would pass 160 characters.
-    const pidPath = pidFile(identity.key, identity.tmpdir);
     const lines = [`${mode === 'stop' ? 'ok ' : ''}keeper not running · hash ${identity.hash} · ${identity.pipe}`];
     if (fs.existsSync(pidPath))
       lines.push(`stale pid file ${pidPath.replaceAll('\\', '/')} — removed on the next start`);

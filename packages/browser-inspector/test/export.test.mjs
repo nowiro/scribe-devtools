@@ -187,6 +187,30 @@ describe('exportFlow', () => {
     expect(out.config.snapshots[0].name).toBe('dwa');
   });
 
+  it('exports the LAST session in the journal, whatever ended the previous one', () => {
+    // `journal.jsonl` is per session NAME and survives `close`, a TTL recycle and yesterday. The
+    // export used to start at the first `open` in the file, so it replayed a flow nobody ran: the
+    // URL of the previous session with its steps in front of the real ones.
+    const older = [
+      { seq: 1, sid: 'a1', command: 'goto', step: { do: 'goto', url: 'http://localhost:4595/' }, ok: true },
+      { seq: 2, sid: 'a1', command: 'click', step: { do: 'click', selector: '#btnA' }, ok: true },
+      { seq: 3, sid: 'a1', command: 'close', step: { do: 'close' }, ok: true },
+    ];
+    const current = [
+      { seq: 4, sid: 'b2', command: 'goto', step: { do: 'goto', url: 'http://localhost:4596/' }, ok: true },
+      { seq: 5, sid: 'b2', command: 'click', step: { do: 'click', selector: '#btnB' }, ok: true },
+    ];
+    const out = exportFlow([...older, ...current], { name: 'druga' });
+    expect(out.config.snapshots[0].url).toBe('http://localhost:4596/');
+    expect(out.config.snapshots[0].steps).toEqual([{ do: 'click', selector: '#btnB' }]);
+    // A session that ended by TTL or a keeper restart leaves no `close` line — the id is what
+    // marks the boundary, not the command.
+    const noClose = exportFlow([...older.slice(0, 2), ...current], { name: 'druga' });
+    expect(noClose.config.snapshots[0].url).toBe('http://localhost:4596/');
+    // A journal written before ids existed is one session, as it always was.
+    expect(exportFlow(journal(), { name: 'stary' }).config.snapshots[0].url).toBe('http://localhost:4313/');
+  });
+
   it('derives the flow name from the file inside the artifact alphabet', () => {
     expect(flowNameFrom('flows/Koszyk Test.json')).toBe('koszyk-test');
     expect(flowNameFrom('D:\\x\\_a.json')).toBe('a');

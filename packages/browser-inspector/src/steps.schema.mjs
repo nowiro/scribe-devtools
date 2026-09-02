@@ -139,6 +139,14 @@ function needOneOf(s, where, fields, options = {}) {
 const needTarget = (s, where) => needOneOf(s, where, ['selector', 'ref']);
 
 /**
+ * `--tail` is a budget: `0` means "no entries" and a negative number means nothing at all. Without
+ * this, `--tail -1` fell through to the default and printed EVERYTHING, silently.
+ * @param {Step} s @param {string} where
+ */
+const nonNegativeTail = (s, where) =>
+  typeof s.tail === 'number' && s.tail < 0 ? `${where}.tail: must be 0 or more, got ${String(s.tail)}` : undefined;
+
+/**
  * Where a typed value comes from: exactly one of `value` / `valueFromEnv`; in `auth.login.steps`
  * a literal is forbidden outright — a password in a versioned config is the one mistake this
  * repository has refused since day one.
@@ -1082,6 +1090,7 @@ export const STEPS = Object.freeze({
     argv: [],
     flags: { level: 'enum:info,warn,error', errors: 'bool', all: 'bool', tail: 'int' },
     config: { level: 'enum:info,warn,error?', all: 'bool?', tail: 'int?' },
+    validate: (s, where) => nonNegativeTail(s, where),
     describe: (s) => `console${s.level ? ` --level ${String(s.level)}` : ''}`,
     help: 'console [--level info|warn|error] [--errors] [--all] [--tail N]',
     fromArgv: (_, flags) => ({
@@ -1098,6 +1107,7 @@ export const STEPS = Object.freeze({
     argv: ['n?'],
     flags: { failed: 'bool', all: 'bool', tail: 'int', body: 'bool', req: 'bool' },
     config: { n: 'int?', failed: 'bool?', all: 'bool?', tail: 'int?', body: 'bool?', req: 'bool?' },
+    validate: (s, where) => nonNegativeTail(s, where),
     describe: (s) => `net${s.n !== undefined ? ` ${String(s.n)}` : ''}${s.failed ? ' --failed' : ''}`,
     help: 'net [--failed] [--all] [--tail N] | net <n> [--body] [--req]',
     fromArgv: ({ n }, flags) => ({
@@ -1281,6 +1291,7 @@ export function validateSteps(steps, where = 'steps', options = {}) {
   const errors = [];
   const shotNames = new Set();
   const pdfNames = new Set();
+  const snapNames = new Set();
   const captureNames = new Set();
   let refsLive = ctx.mode === 'session';
   steps.forEach((raw, j) => {
@@ -1312,6 +1323,17 @@ export function validateSteps(steps, where = 'steps', options = {}) {
     if (name === 'pdf' && typeof s.name === 'string') {
       if (pdfNames.has(s.name)) errors.push(`${at}.name: duplicate pdf name "${s.name}"`);
       pdfNames.add(s.name);
+    }
+    if (name === 'snapshot' && typeof s.name === 'string') {
+      // A named snapshot writes three files (`snap-<name>.md/.full.yml/.json`); the second one with
+      // the same name overwrites all three and the report keeps ONE entry in `files` — the evidence
+      // of the earlier state is gone with nothing saying so. Its own namespace, like screenshot and
+      // pdf: this is a file name, not the `extracts` namespace.
+      if (snapNames.has(s.name))
+        errors.push(
+          `${at}.name: duplicate snapshot name "${s.name}" — the later snapshot would overwrite snap-${s.name}.md / .full.yml / .json`,
+        );
+      snapNames.add(s.name);
     }
     if (['extract', 'evaluate', 'storage', 'fetch'].includes(name) && typeof s.name === 'string') {
       if (captureNames.has(s.name)) {

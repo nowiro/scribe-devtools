@@ -75,19 +75,48 @@ describe('maskSnapshotValues', () => {
   it('is a no-op without secrets or sensitive refs', () => {
     expect(maskSnapshotValues(yaml)).toBe(yaml);
   });
+
+  it('strips the value when the accessible name carries a colon — bare key and quoted key alike', () => {
+    const labels = [
+      '- textbox "Hasło:" [ref=e3] [box=50,8,177,21]: S3cret',
+      `- 'textbox "Kod: SMS" [ref=e4] [box=294,8,177,21]': 654321`,
+      '- textbox "Zwykły" [ref=e5]: tekst',
+      // A container ends with `:` and its children follow — cutting that one would break the tree.
+      '- generic [ref=e1] [box=0,0,300,100]:',
+    ].join('\n');
+    expect(maskSnapshotValues(labels, { sensitiveRefs: ['e3', 'e4'] }).split('\n')).toEqual([
+      '- textbox "Hasło:" [ref=e3] [box=50,8,177,21]',
+      `- 'textbox "Kod: SMS" [ref=e4] [box=294,8,177,21]'`,
+      '- textbox "Zwykły" [ref=e5]: tekst',
+      '- generic [ref=e1] [box=0,0,300,100]:',
+    ]);
+  });
+
+  it('redacts a line no value rule matches — a secret the page echoed into a heading', () => {
+    const echoed = ['- heading "Witaj, hunter2" [ref=e2]', '- textbox "Hasło:" [ref=e3]: hunter2'].join('\n');
+    expect(maskSnapshotValues(echoed, { secretValues: ['hunter2'] }).split('\n')).toEqual([
+      `- heading "Witaj, ${MASK}" [ref=e2]`,
+      `- textbox "Hasło:" [ref=e3]: ${MASK}`,
+    ]);
+  });
+
+  it('cuts a compact value after the name, even when the name itself contains " = "', () => {
+    expect(maskSnapshotValues('e5 textbox "a = b" = sekret', { sensitiveRefs: ['e5'] })).toBe('e5 textbox "a = b"');
+  });
 });
 
 describe('maskSnapshotEntries', () => {
   it('drops the value of sensitive sidecar entries and redacts the rest', () => {
     const entries = [
       { ref: 'e5', role: 'textbox', name: 'Email', value: 'jan@example.com' },
-      { ref: 'e6', role: 'textbox', name: 'Hasło', value: 'hunter2', sensitive: true },
+      // The name echoes the secret — dropping `value` is not enough for the rest of the entry.
+      { ref: 'e6', role: 'textbox', name: 'Hasło jan@example.com', value: 'hunter2', sensitive: true },
       { ref: 'e9', role: 'textbox', name: 'OTP', value: '123456' },
     ];
     const out = maskSnapshotEntries(entries, { secretValues: ['jan@example.com'], sensitiveRefs: ['e9'] });
     expect(out).toEqual([
       { ref: 'e5', role: 'textbox', name: 'Email', value: MASK },
-      { ref: 'e6', role: 'textbox', name: 'Hasło', sensitive: true },
+      { ref: 'e6', role: 'textbox', name: `Hasło ${MASK}`, sensitive: true },
       { ref: 'e9', role: 'textbox', name: 'OTP' },
     ]);
     expect(entries[1]).toHaveProperty('value');

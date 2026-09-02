@@ -233,6 +233,8 @@ export interface RecorderLike {
 export interface ExtractedValue {
   value: string;
   truncated: boolean;
+  /** Characters the whole value has; present when it was capped and `values/<name>.txt` holds it all. */
+  length?: number;
 }
 
 export interface Verification {

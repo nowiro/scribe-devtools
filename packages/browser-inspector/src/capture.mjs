@@ -13,6 +13,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { degradeTo, withDeadline } from './deadline.mjs';
+import { sliceUnits } from './print.mjs';
 
 /** @typedef {import('./types.js').PageLike} PageLike */
 /** @typedef {import('./types.js').CdpLike} CdpLike */
@@ -35,7 +36,7 @@ const MAX_CAPTURE_PX = 16_384;
  * @param {string} raw
  * @returns {ExtractedValue}
  */
-export const capExtract = (raw) => ({ value: raw.slice(0, EXTRACT_CAP), truncated: raw.length > EXTRACT_CAP });
+export const capExtract = (raw) => ({ value: sliceUnits(raw, EXTRACT_CAP), truncated: raw.length > EXTRACT_CAP });
 
 // ── Screenshots ──────────────────────────────────────────────────────────────
 
@@ -206,14 +207,31 @@ function evidenceInPage(caps) {
         parts.unshift(`#${CSS.escape(node.parentElement.id)}`);
         return parts.join(' > ');
       }
-      node = node.parentElement;
+      if (node.parentElement) {
+        node = node.parentElement;
+        continue;
+      }
+      // A shadow root has no parent element: hop to its host. Playwright's CSS engine pierces open
+      // shadow roots on the descendant combinator, not on `>`, so the boundary is a space.
+      const host = /** @type {any} */ (node.getRootNode())?.host;
+      if (!host) break;
+      return `${selectorFor(host)} ${parts.join(' > ')}`;
     }
     parts.unshift('body');
     return parts.join(' > ');
   };
-  const nodes = document.querySelectorAll(
-    'a[href], button, input, select, textarea, summary, [role="button"], [role="link"], [role="tab"], [onclick]',
-  );
+  const selector =
+    'a[href], button, input, select, textarea, summary, [role="button"], [role="link"], [role="tab"], [onclick]';
+  /** @type {(Document | ShadowRoot)[]} */
+  const roots = [document];
+  /** @type {Element[]} */
+  const nodes = [];
+  for (let r = 0; r < roots.length; r += 1) {
+    // The aria tree the agent reads walks open shadow roots; an element map that stops at the light
+    // DOM answered `el 0` for a page whose whole form lives in a web component.
+    for (const host of roots[r].querySelectorAll('*')) if (host.shadowRoot) roots.push(host.shadowRoot);
+    for (const el of roots[r].querySelectorAll(selector)) nodes.push(el);
+  }
   /** @type {{ kind: string, name: string, selector: string, href?: string, disabled?: boolean }[]} */
   const elements = [];
   let count = 0;
@@ -258,16 +276,24 @@ function evidenceInPage(caps) {
   let cacheHitsDocument = 0;
   try {
     for (const entry of performance.getEntriesByType('resource')) if (cached(entry)) cacheHits += 1;
-    const nav = performance.getEntriesByType('navigation')[0];
-    if (nav && cached(nav)) {
+    // `responseStatus > 0` = a real response. Chrome's own error page (`chrome-error://…`, the
+    // document after ERR_CONNECTION_REFUSED) reports `deliveryType: 'cache'` with `transferSize: 0`
+    // and a large body, so a failed navigation used to answer "the document came from cache" — the
+    // one number whose whole point is warning about a stale build.
+    const nav = /** @type {any} */ (performance.getEntriesByType('navigation')[0]);
+    if (nav && (nav.responseStatus ?? 0) > 0 && cached(nav)) {
       cacheHits += 1;
       cacheHitsDocument = 1;
     }
   } catch {
     // A document without the Resource Timing API answers "no hits", never breaks the report.
   }
+  // One unit back when the cap lands between the two halves of a surrogate pair — the file would
+  // otherwise get U+FFFD and the JSON `\ud83d`, neither of them the character the page had.
+  const cut = Math.min(caps.textCap, full.length);
+  const head = full.charCodeAt(cut - 1);
   return {
-    text: full.slice(0, caps.textCap),
+    text: full.slice(0, head >= 0xd800 && head <= 0xdbff ? cut - 1 : cut),
     textLength: full.length,
     elements,
     count,
@@ -301,17 +327,32 @@ export async function pageEvidence(page, options = {}) {
     elCount: 0,
     cache: { hits: 0, document: 0 },
   };
-  const raw = await degradeTo(
-    undefined,
-    page.evaluate(evidenceInPage, { textCap: TEXT_CAP, elementsCap: ELEMENTS_CAP, wantText, wantElements }),
-    options.timeoutMs ?? 5000,
-    'final evidence',
-  );
+  const timeoutMs = options.timeoutMs ?? 5000;
+  const caps = { textCap: TEXT_CAP, elementsCap: ELEMENTS_CAP, wantText, wantElements };
+  const raw = await degradeTo(undefined, page.evaluate(evidenceInPage, caps), timeoutMs, 'final evidence');
   if (!raw || typeof raw !== 'object') return empty;
   const text = typeof raw.text === 'string' ? raw.text : '';
   const textLength = typeof raw.textLength === 'number' ? raw.textLength : text.length;
   const entries = Array.isArray(raw.elements) ? raw.elements : [];
-  const count = typeof raw.count === 'number' ? raw.count : entries.length;
+  // Child frames are counted, not listed: an app embedded in an iframe used to report `el 1` for a
+  // page with a whole form in it. Their selectors resolve only under a `frame <n>` scope, and this
+  // map promises selectors that find the element from the page — so the count says the map is
+  // partial (`truncated`) and the snapshot stays the way into the frame (DESIGN.md §5.1).
+  // Cache hits stay the MAIN document's, which is the question that number answers.
+  const children = typeof page.frames === 'function' ? page.frames().slice(1) : [];
+  const inFrames = await Promise.all(
+    children.map((frame) =>
+      degradeTo(
+        0,
+        Promise.resolve()
+          .then(() => frame.evaluate(evidenceInPage, { ...caps, wantText: false, wantElements: false }))
+          .then((r) => (typeof r?.count === 'number' ? r.count : 0)),
+        timeoutMs,
+        'frame evidence',
+      ).catch(() => 0),
+    ),
+  );
+  const count = (typeof raw.count === 'number' ? raw.count : entries.length) + inFrames.reduce((a, b) => a + b, 0);
   return {
     text: { content: text, truncated: textLength > text.length },
     elements: wantElements ? { entries, total: count, truncated: count > entries.length } : undefined,
@@ -436,9 +477,18 @@ export function mapEvaluateResult(response) {
   }
   if (typeof result.unserializableValue === 'string') return result.unserializableValue;
   if ('value' in result) return JSON.stringify(result.value) ?? '';
-  if (result.type === 'function' || result.type === 'symbol') return '';
+  // A function or a symbol that never reached the serializing round trip: `page.evaluate` gave
+  // `undefined` for both, so the report says `undefined` and not an empty string.
+  if (result.type === 'function' || result.type === 'symbol') return 'undefined';
   throw new Error(`evaluate result is not serializable (${String(result.description ?? result.type ?? 'unknown')})`);
 }
+
+/** @param {unknown} error */
+const bareCdpMessage = (error) =>
+  (error instanceof Error ? error.message : String(error))
+    .replace(/^cdpSession\.send: /u, '')
+    .replace(/^Protocol error \([^)]*\): /u, '')
+    .split('\n')[0];
 
 /**
  * @param {unknown} error
@@ -448,12 +498,29 @@ export function mapEvaluateResult(response) {
 function mapCdpError(error, label, timeoutMs) {
   const message = error instanceof Error ? error.message : String(error);
   // Chrome answers a `timeout` hit with "Internal error" / "Execution was terminated" — name the
-  // real cause, the page is still alive.
+  // real cause, the page is still alive. Only on the FIRST round trip: that is the one that carries
+  // a CDP `timeout`.
   if (/Execution was terminated|Internal error/u.test(message)) {
     return new Error(`${label} timed out after ${String(timeoutMs)}ms (script terminated, page alive)`);
   }
-  const bare = message.replace(/^cdpSession\.send: /u, '').replace(/^Protocol error \([^)]*\): /u, '');
-  return new Error(bare.split('\n')[0]);
+  return new Error(bareCdpMessage(error));
+}
+
+/**
+ * The second round trip carries no CDP `timeout` (a page that hangs is caught by `withDeadline` and
+ * comes back as `E_DEADLINE` before this), so "Internal error" here means V8 refused to serialize
+ * the value — a getter that threw while the result was being read. Calling that a timeout sent
+ * every reader after a hang that never happened, and told them to raise `--timeout`.
+ * @param {unknown} error
+ * @param {any} result the `Runtime.evaluate` result descriptor of the value being read
+ */
+function mapSerializeError(error, result) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/Internal error/u.test(message)) {
+    const what = String(result?.className ?? result?.description ?? result?.type ?? 'unknown');
+    return new Error(`evaluate result is not serializable (${what})`);
+  }
+  return new Error(bareCdpMessage(error));
 }
 
 /**
@@ -486,7 +553,13 @@ export async function evaluateWithTimeout(cdp, expression, options) {
       const second = await withDeadline(
         cdp.send('Runtime.callFunctionOn', {
           objectId: result.objectId,
-          functionDeclaration: 'function () { return this; }',
+          // Serialized IN THE PAGE, not by `returnByValue`: CDP's own serializer enumerates own
+          // enumerable properties and never calls `toJSON`, so `new Date(0)` came back as `{}` and
+          // `{ stan: 1, od: new Date() }` as `{"stan":1,"od":{}}` — a step that looks fine with one
+          // field silently emptied. `JSON.stringify` is what the old `page.evaluate` did (DESIGN.md
+          // §2.2): a Date becomes its ISO string, a function and a symbol become `undefined`, and a
+          // circular structure throws in the page, which fails the step exactly as it used to.
+          functionDeclaration: 'function () { return JSON.stringify(this); }',
           returnByValue: true,
         }),
         timeoutMs,
@@ -495,7 +568,7 @@ export async function evaluateWithTimeout(cdp, expression, options) {
       return mapEvaluateResult(second);
     } catch (error) {
       if (error && typeof error === 'object' && /** @type {any} */ (error).code === 'E_DEADLINE') throw error;
-      throw mapCdpError(error, label, timeoutMs);
+      throw mapSerializeError(error, result);
     } finally {
       cdp.send('Runtime.releaseObject', { objectId: result.objectId }).catch(() => {});
     }

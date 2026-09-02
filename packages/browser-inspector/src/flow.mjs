@@ -138,211 +138,241 @@ export function createFlowRunner(input) {
         scrubErrors: [],
         fresh: true,
       };
-      lane.cdp = await pair.context.newCDPSession(pair.page);
+      try {
+        lane.cdp = await pair.context.newCDPSession(pair.page);
+      } catch (error) {
+        // The one await that sits before the try/finally below: a target that died between
+        // `freshContext` and here would otherwise leave its context open for the keeper's life.
+        await pair.context.close().catch(() => {});
+        throw error;
+      }
       await lane.cdp.send('Network.clearBrowserCache').catch(() => {});
     } else {
       lane = await pool.getLane(laneOpts.lane ?? 0);
       lane.busy = true;
-      // Normally clean already: the keeper scrubs in the lane queue right after the previous
-      // answer (the wait shows as `queuedMs`). This is the safety net — and the in-process
-      // `runBatch` path, where the scrub between snapshots is legitimately in the stopwatch (§6).
-      if (lane.dirty) scrubMs = (await pool.scrub(lane)).ms;
-      const current = lane.page.viewportSize?.();
-      if (!current || current.width !== viewport.width || current.height !== viewport.height) {
-        await lane.page.setViewportSize(viewport);
-      }
-    }
-    const recorder = lane.recorder;
-    recorder.reset();
-    // `=== true`, not `!== false`: a snapshot that never went through `loadConfig` (a direct engine
-    // call, a test) must get the batch default, not the recorder's.
-    recorder.captureBodies = snapshot.captureBodies === true;
-    recorder.dialogPolicy = { action: snapshot.dialogs === 'accept' ? 'accept' : 'dismiss' };
-    const tab = lane.tab;
-    lane.tab = 'kept';
-
-    const ctx = makeStepContext({
-      page: lane.page,
-      context: lane.context,
-      cdp: lane.cdp,
-      recorder,
-      dir,
-      timeoutMs: snapshot.stepTimeoutMs ?? 10_000,
-      mode: 'batch',
-      snapshot,
-      values: laneOpts.values,
-      secretValues: laneOpts.secretValues,
-      files: laneOpts.files,
-      cwd: laneOpts.cwd,
-      laneTab: lane.page,
-      snapshotIndex,
-    });
-    const base = laneOpts.address ?? `snapshots[${String(snapshotIndex)}]`;
-
-    /** @type {StepResult[]} */
-    const steps = [];
-    let completed = true;
-    /** @type {string | undefined} */
-    let navigationError;
-    let stepsMs = 0;
-    let lastStepWasScreenshot = false;
-    /** @type {Record<string, string>} */
-    const files = {};
-
-    for (const [k, route] of (snapshot.routes ?? []).entries()) {
-      ctx.address = `${base}.routes[${String(k)}]`;
       try {
-        await RUNNERS.route(ctx, { do: 'route', ...route });
-      } catch (error) {
-        log(`route ${String(route.url)}: ${errorMessage(error)}`);
-      }
-    }
-    if (snapshot.trace === true) {
-      await lane.context.tracing?.start({ screenshots: true, snapshots: true }).catch(() => {});
-    }
-
-    const navStarted = now();
-    try {
-      await navigate(ctx, snapshot.url, snapshot.waitUntil, snapshot.navTimeoutMs ?? DEFAULT_TIMEOUT_MS);
-      // The run's history starts HERE: `back` must never reach the previous run's document, which
-      // is still the entry before this one on a reused tab (2 ms; a fresh tab has nothing behind).
-      if (!fresh) await lane.cdp.send('Page.resetNavigationHistory').catch(() => {});
-    } catch (error) {
-      navigationError = errorMessage(error);
-      completed = false;
-    }
-    const gotoMs = ms(navStarted);
-
-    const stepList = /** @type {Step[]} */ (snapshot.type === 'flow' ? (snapshot.steps ?? []) : []);
-    if (navigationError === undefined) {
-      const stepsStarted = now();
-      for (const [j, step] of stepList.entries()) {
-        ctx.address = `${base}.steps[${String(j)}]`;
-        const result = await runStep(ctx, step, j);
-        steps.push(result);
-        if (!result.ok) {
-          // Stop at the first failure: later steps assume the state this one was meant to produce.
-          completed = false;
-          break;
+        // Normally clean already: the keeper scrubs in the lane queue right after the previous
+        // answer (the wait shows as `queuedMs`). This is the safety net — and the in-process
+        // `runBatch` path, where the scrub between snapshots is legitimately in the stopwatch (§6).
+        if (lane.dirty) scrubMs = (await pool.scrub(lane)).ms;
+        const current = lane.page.viewportSize?.();
+        if (!current || current.width !== viewport.width || current.height !== viewport.height) {
+          await lane.page.setViewportSize(viewport);
         }
-        lastStepWasScreenshot = resolveStepName(step.do) === 'screenshot';
-      }
-      stepsMs = ms(stepsStarted);
-    }
-
-    if (snapshot.trace === true) {
-      await lane.context.tracing
-        ?.stop({ path: path.join(dir, 'trace.zip') })
-        .then(() => {
-          files.trace = 'trace.zip';
-        })
-        .catch(() => {});
-    }
-
-    const captureStarted = now();
-    const evidence = await finalEvidence(ctx, snapshot, { dir, completed, lastStepWasScreenshot });
-    if (snapshot.captureSnapshot === true && !ctx.lastSnapshot) {
-      try {
-        const text = await withDeadline(ctx.page.ariaSnapshot({ mode: 'ai', boxes: true }), 5000, 'snapshot');
-        await ctx.writeSnapshot(text, {});
-      } catch {
-        // A page that cannot be snapshotted still gets its report.
+      } catch (error) {
+        // These two awaits sit before the try/finally below; a lane left `busy` after them is a
+        // lane the keeper never recycles and the idle reaper never collects.
+        lane.busy = false;
+        throw error;
       }
     }
-    const captureMs = ms(captureStarted);
-
-    // The queued screenshot writes and the recorder's body reads are the `writeMs` of §6; the
-    // report files themselves land after the timing is known (a few ms, unmeasured on purpose).
-    // Split in two, because the sum alone cannot say which half to attack: `shotsMs` is the tail of
-    // `saveScreenshot` (disk), `settleMs` is `Network.getResponseBody` for the bodies the recorder
-    // still owes (a POST that answered late leaves its whole tail here).
-    const writeStarted = now();
-    await Promise.allSettled([...(ctx.capture.pending ?? []), ...evidence.pending]);
-    const shotsMs = ms(writeStarted);
-    const settleStarted = now();
-    await recorder.settle();
-    const settleMs = ms(settleStarted);
-    const writeMs = ms(writeStarted);
-
-    const screenshots = [...ctx.capture.screenshots, ...(evidence.screenshot ? [evidence.screenshot] : [])];
-    // `report.json.files` maps a kind to a file (WP4): `snapshot` / `snapshot-<name>` → the compact
-    // `snap*.md` (the sidecar and the raw YAML sit next to it), `pdf-<name>` → the pdf.
-    for (const rel of ctx.written) {
-      const snap = /^snap(?:-([a-z0-9-]+))?\.md$/u.exec(rel);
-      if (snap) files[snap[1] ? `snapshot-${snap[1]}` : 'snapshot'] = rel;
-      else if (rel.endsWith('.pdf')) files[`pdf-${rel.slice(0, -4)}`] = rel;
-    }
-    const summary = summarize(recorder);
-    const lastShot =
-      lastStepWasScreenshot && completed && !evidence.screenshot ? ctx.capture.screenshots.at(-1) : undefined;
-
-    /** @type {Timing} */
-    const timing = {
-      mode,
-      ctx: fresh ? 'fresh' : 'reused',
-      tab,
-      lane: lane.index,
-      queuedMs: laneOpts.queuedMs ?? 0,
-      scrubMs,
-      gotoMs,
-      stepsMs,
-      captureMs,
-      writeMs,
-      shotsMs,
-      settleMs,
-      totalMs: ms(started),
-      // From the page's Resource Timing API, collected inside `finalEvidence` (`capture.mjs`), not
-      // from the recorder: `response.fromCache()` does not exist in playwright-core 1.62.1, so the
-      // previous counter reported 0 for every run ever measured — the call threw and the guard
-      // swallowed it. Counted per document, which is the question the number answers.
-      cacheHits: evidence.cache?.hits ?? 0,
-      cacheHitsDocument: evidence.cache?.document ?? 0,
+    let released = false;
+    // ONE place gives the lane back, and a `finally` guarantees it runs: a throw that skips the
+    // tail (a write that fails, a target that dies mid-run) left `busy: true` forever — and a lane
+    // that never goes idle blocks the keeper's recycle for the rest of its life, while a `fresh`
+    // context nobody closed is a tab Chrome keeps for just as long.
+    const release = async () => {
+      if (released) return;
+      released = true;
+      lane.busy = false;
+      if (fresh) await lane.context.close().catch(() => {});
     };
+    try {
+      const recorder = lane.recorder;
+      recorder.reset();
+      // `=== true`, not `!== false`: a snapshot that never went through `loadConfig` (a direct engine
+      // call, a test) must get the batch default, not the recorder's.
+      recorder.captureBodies = snapshot.captureBodies === true;
+      recorder.dialogPolicy = { action: snapshot.dialogs === 'accept' ? 'accept' : 'dismiss' };
+      const tab = lane.tab;
+      lane.tab = 'kept';
 
-    const built = buildReport({
-      name: snapshot.name,
-      startUrl: snapshot.url,
-      finalUrl: evidence.finalUrl || snapshot.url,
-      ...(evidence.title !== undefined ? { title: evidence.title } : {}),
-      completed,
-      ...(navigationError !== undefined ? { navigationError } : {}),
-      steps,
-      skipped: stepList.length - steps.length,
-      extracts: ctx.capture.extracts,
-      verifications: ctx.capture.verifications,
-      console: recorder.console,
-      consoleTotal: recorder.consoleTotal,
-      pageErrors: recorder.pageErrors,
-      network: snapshot.captureNetwork === false ? [] : recorder.network,
-      networkTotal: snapshot.captureNetwork === false ? 0 : recorder.networkTotal,
-      dialogs: summary.dialogs,
-      tabs: summary.tabs,
-      screenshots,
-      text: evidence.text.content,
-      elements: evidence.elements?.entries ?? [],
-      elementsTotal: evidence.elements?.total ?? 0,
-      captureElements: snapshot.captureElements !== false,
-      timing,
-      engine: {
-        'browser-inspector': versions['browser-inspector'],
-        'playwright-core': versions['playwright-core'],
-        browser: pool.browserLabel(),
-        flags: pool.flags,
-        motion: pool.motion,
-        serviceWorkers: fresh ? 'allow' : 'block',
-        generation: lane.generation,
-      },
-      ...(lastShot ? { final: lastShot } : {}),
-      ...(!fresh && recorder.serviceWorkerSeen ? { serviceWorkerBlocked: true } : {}),
-      files,
-    });
-    const report = /** @type {Report} */ (built.report);
+      const ctx = makeStepContext({
+        page: lane.page,
+        context: lane.context,
+        cdp: lane.cdp,
+        recorder,
+        dir,
+        timeoutMs: snapshot.stepTimeoutMs ?? 10_000,
+        mode: 'batch',
+        snapshot,
+        values: laneOpts.values,
+        secretValues: laneOpts.secretValues,
+        files: laneOpts.files,
+        cwd: laneOpts.cwd,
+        laneTab: lane.page,
+        snapshotIndex,
+      });
+      const base = laneOpts.address ?? `snapshots[${String(snapshotIndex)}]`;
 
-    pool.noteJob(lane);
-    lane.busy = false;
-    if (fresh) {
-      const video = snapshot.video === true ? lane.page.video?.() : undefined;
-      await lane.context.close().catch(() => {});
+      /** @type {StepResult[]} */
+      const steps = [];
+      let completed = true;
+      /** @type {string | undefined} */
+      let navigationError;
+      let stepsMs = 0;
+      let lastStepWasScreenshot = false;
+      /** @type {Record<string, string>} */
+      const files = {};
+
+      for (const [k, route] of (snapshot.routes ?? []).entries()) {
+        ctx.address = `${base}.routes[${String(k)}]`;
+        try {
+          await RUNNERS.route(ctx, { do: 'route', ...route });
+        } catch (error) {
+          log(`route ${String(route.url)}: ${errorMessage(error)}`);
+        }
+      }
+      if (snapshot.trace === true) {
+        await lane.context.tracing?.start({ screenshots: true, snapshots: true }).catch(() => {});
+      }
+
+      const navStarted = now();
+      try {
+        await navigate(ctx, snapshot.url, snapshot.waitUntil, snapshot.navTimeoutMs ?? DEFAULT_TIMEOUT_MS);
+        // The run's history starts HERE: `back` must never reach the previous run's document, which
+        // is still the entry before this one on a reused tab (2 ms; a fresh tab has nothing behind).
+        if (!fresh) await lane.cdp.send('Page.resetNavigationHistory').catch(() => {});
+      } catch (error) {
+        navigationError = errorMessage(error);
+        completed = false;
+      }
+      const gotoMs = ms(navStarted);
+
+      const stepList = /** @type {Step[]} */ (snapshot.type === 'flow' ? (snapshot.steps ?? []) : []);
+      if (navigationError === undefined) {
+        const stepsStarted = now();
+        for (const [j, step] of stepList.entries()) {
+          ctx.address = `${base}.steps[${String(j)}]`;
+          const result = await runStep(ctx, step, j);
+          steps.push(result);
+          if (!result.ok) {
+            // Stop at the first failure: later steps assume the state this one was meant to produce.
+            completed = false;
+            break;
+          }
+          lastStepWasScreenshot = resolveStepName(step.do) === 'screenshot';
+        }
+        stepsMs = ms(stepsStarted);
+      }
+
+      if (snapshot.trace === true) {
+        await lane.context.tracing
+          ?.stop({ path: path.join(dir, 'trace.zip') })
+          .then(() => {
+            files.trace = 'trace.zip';
+          })
+          .catch(() => {});
+      }
+
+      const captureStarted = now();
+      const evidence = await finalEvidence(ctx, snapshot, { dir, completed, lastStepWasScreenshot });
+      if (snapshot.captureSnapshot === true && !ctx.lastSnapshot) {
+        try {
+          const text = await withDeadline(ctx.page.ariaSnapshot({ mode: 'ai', boxes: true }), 5000, 'snapshot');
+          await ctx.writeSnapshot(text, {});
+        } catch {
+          // A page that cannot be snapshotted still gets its report.
+        }
+      }
+      const captureMs = ms(captureStarted);
+
+      // The queued screenshot writes and the recorder's body reads are the `writeMs` of §6; the
+      // report files themselves land after the timing is known (a few ms, unmeasured on purpose).
+      // Split in two, because the sum alone cannot say which half to attack: `shotsMs` is the tail of
+      // `saveScreenshot` (disk), `settleMs` is `Network.getResponseBody` for the bodies the recorder
+      // still owes (a POST that answered late leaves its whole tail here).
+      const writeStarted = now();
+      await Promise.allSettled([...(ctx.capture.pending ?? []), ...evidence.pending]);
+      const shotsMs = ms(writeStarted);
+      const settleStarted = now();
+      await recorder.settle();
+      const settleMs = ms(settleStarted);
+      const writeMs = ms(writeStarted);
+
+      const screenshots = [...ctx.capture.screenshots, ...(evidence.screenshot ? [evidence.screenshot] : [])];
+      // `report.json.files` maps a kind to a file (WP4): `snapshot` / `snapshot-<name>` → the compact
+      // `snap*.md` (the sidecar and the raw YAML sit next to it), `pdf-<name>` → the pdf.
+      for (const rel of ctx.written) {
+        const snap = /^snap(?:-([a-z0-9-]+))?\.md$/u.exec(rel);
+        if (snap) files[snap[1] ? `snapshot-${snap[1]}` : 'snapshot'] = rel;
+        else if (rel.endsWith('.pdf')) files[`pdf-${rel.slice(0, -4)}`] = rel;
+      }
+      const summary = summarize(recorder);
+      const lastShot =
+        lastStepWasScreenshot && completed && !evidence.screenshot ? ctx.capture.screenshots.at(-1) : undefined;
+
+      /** @type {Timing} */
+      const timing = {
+        mode,
+        ctx: fresh ? 'fresh' : 'reused',
+        tab,
+        lane: lane.index,
+        queuedMs: laneOpts.queuedMs ?? 0,
+        scrubMs,
+        gotoMs,
+        stepsMs,
+        captureMs,
+        writeMs,
+        shotsMs,
+        settleMs,
+        totalMs: ms(started),
+        // From the page's Resource Timing API, collected inside `finalEvidence` (`capture.mjs`), not
+        // from the recorder: `response.fromCache()` does not exist in playwright-core 1.62.1, so the
+        // previous counter reported 0 for every run ever measured — the call threw and the guard
+        // swallowed it. Counted per document, which is the question the number answers.
+        cacheHits: evidence.cache?.hits ?? 0,
+        cacheHitsDocument: evidence.cache?.document ?? 0,
+      };
+
+      const built = buildReport({
+        name: snapshot.name,
+        startUrl: snapshot.url,
+        finalUrl: evidence.finalUrl || snapshot.url,
+        ...(evidence.title !== undefined ? { title: evidence.title } : {}),
+        completed,
+        ...(navigationError !== undefined ? { navigationError } : {}),
+        steps,
+        skipped: stepList.length - steps.length,
+        extracts: ctx.capture.extracts,
+        verifications: ctx.capture.verifications,
+        console: recorder.console,
+        consoleTotal: recorder.consoleTotal,
+        pageErrors: recorder.pageErrors,
+        network: snapshot.captureNetwork === false ? [] : recorder.network,
+        networkTotal: snapshot.captureNetwork === false ? 0 : recorder.networkTotal,
+        // From the recorder's OWN failure list, not from `network`: that one is capped at 500
+        // entries, so a page with more requests than the cap dropped the failure the report exists
+        // for and still claimed `failedRequests.truncated: false`.
+        failed: snapshot.captureNetwork === false ? [] : summary.network.failed,
+        failedTotal: snapshot.captureNetwork === false ? 0 : (recorder.failedTotal ?? summary.network.failed.length),
+        dialogs: summary.dialogs,
+        tabs: summary.tabs,
+        screenshots,
+        text: evidence.text.content,
+        elements: evidence.elements?.entries ?? [],
+        elementsTotal: evidence.elements?.total ?? 0,
+        captureElements: snapshot.captureElements !== false,
+        timing,
+        engine: {
+          'browser-inspector': versions['browser-inspector'],
+          'playwright-core': versions['playwright-core'],
+          browser: pool.browserLabel(),
+          flags: pool.flags,
+          motion: pool.motion,
+          serviceWorkers: fresh ? 'allow' : 'block',
+          generation: lane.generation,
+        },
+        ...(lastShot ? { final: lastShot } : {}),
+        ...(!fresh && recorder.serviceWorkerSeen ? { serviceWorkerBlocked: true } : {}),
+        files,
+      });
+      const report = /** @type {Report} */ (built.report);
+
+      pool.noteJob(lane);
+      // The video handle has to be taken while the context is open; the file lands after it closes.
+      const video = fresh && snapshot.video === true ? lane.page.video?.() : undefined;
+      await release();
       if (video) {
         await video
           .saveAs(path.join(dir, 'video.webm'))
@@ -352,40 +382,43 @@ export function createFlowRunner(input) {
           })
           .catch(() => {});
       }
-    } else {
-      lane.dirty = true;
-      void pool.reapIdleLanes();
-    }
+      if (!fresh) {
+        lane.dirty = true;
+        void pool.reapIdleLanes();
+      }
 
-    const { written } = await writeArtifacts(dir, report, built.files, {
-      render: snapshot.render,
-      redact: ctx.redact,
-      manifest: {
-        type: snapshot.type === 'page' ? 'page' : 'flow',
-        url: snapshot.url,
-        stamp: laneOpts.stamp,
-        version: versions['browser-inspector'],
-        startedAt,
+      const { written } = await writeArtifacts(dir, report, built.files, {
         render: snapshot.render,
-      },
-    });
-    const failed = report.steps.find((s) => !s.ok);
-    const failure =
-      report.navigationError !== undefined
-        ? report.navigationError
-        : failed
-          ? `step ${String(failed.index + 1)} "${failed.description}" — ${failed.error ?? 'failed'}`
-          : undefined;
-    return {
-      name: snapshot.name,
-      dir,
-      completed: report.completed,
-      ms: ms(started),
-      files: [...written, ...screenshots, ...ctx.written].map((rel) => path.join(dir, rel)),
-      timing,
-      ...(failure !== undefined ? { failure } : {}),
-      report,
-    };
+        redact: ctx.redact,
+        manifest: {
+          type: snapshot.type === 'page' ? 'page' : 'flow',
+          url: snapshot.url,
+          stamp: laneOpts.stamp,
+          version: versions['browser-inspector'],
+          startedAt,
+          render: snapshot.render,
+        },
+      });
+      const failed = report.steps.find((s) => !s.ok);
+      const failure =
+        report.navigationError !== undefined
+          ? report.navigationError
+          : failed
+            ? `step ${String(failed.index + 1)} "${failed.description}" — ${failed.error ?? 'failed'}`
+            : undefined;
+      return {
+        name: snapshot.name,
+        dir,
+        completed: report.completed,
+        ms: ms(started),
+        files: [...written, ...screenshots, ...ctx.written].map((rel) => path.join(dir, rel)),
+        timing,
+        ...(failure !== undefined ? { failure } : {}),
+        report,
+      };
+    } finally {
+      await release();
+    }
   }
 
   /**

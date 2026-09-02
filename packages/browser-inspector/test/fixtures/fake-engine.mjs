@@ -9,12 +9,18 @@
 // `Report`: the keeper synthesizes the manifest entry from `timing` and writes `_manifest.json`.
 //
 // Knobs (env): `BROWSER_INSPECTOR_FAKE_LAUNCH_MS` delays `ready`; `BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL=1` makes `createEngine`
-// reject like a missing Chrome (`E_BROWSER_MISSING` with the attempts list); `BROWSER_INSPECTOR_FAKE_SCRUB_MS`
+// reject like a missing Chrome (`E_BROWSER_MISSING` with the attempts list) and
+// `BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL_WHILE=<file>` only while that file exists — a Chrome busy with an
+// update, fine again once the test removes the marker, which is the case a keeper that memoizes the
+// failure can never recover from; `BROWSER_INSPECTOR_FAKE_SCRUB_MS`
 // is how long the post-response `scrubIfDirty` takes (the next job on the lane waits for it).
 import fs from 'node:fs';
 import path from 'node:path';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** `createEngine` calls this process has seen — a test that expects a retry counts the attempts. */
+let launchAttempts = 0;
 
 /** The same signature as `src/engine.mjs`: one options object `{ browser, env, log, onDisconnected }`. */
 export async function createEngine(options = {}) {
@@ -24,8 +30,10 @@ export async function createEngine(options = {}) {
     if (!logPath) return;
     fs.appendFileSync(logPath, `${JSON.stringify({ at: Date.now(), ...entry })}\n`);
   };
-  if (process.env.BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL === '1') {
-    record({ event: 'launch-failed' });
+  launchAttempts += 1;
+  const failWhile = process.env.BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL_WHILE;
+  if (process.env.BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL === '1' || (failWhile !== undefined && fs.existsSync(failWhile))) {
+    record({ event: 'launch-failed', attempt: launchAttempts });
     const error = new Error(
       'E_BROWSER_MISSING: no usable browser.\n  tried channel chrome: not found\n  tried channel msedge: not found\n' +
         'Install Google Chrome or Microsoft Edge, or point browser.executablePath / BROWSER_INSPECTOR_BROWSER_PATH at a Chromium binary.',
@@ -47,6 +55,16 @@ export async function createEngine(options = {}) {
   const waitMs = (steps) =>
     (steps ?? []).reduce((sum, s) => sum + (s && s.do === 'wait' && Number.isInteger(s.ms) ? s.ms : 0), 0);
 
+  /** `parseSessionCommand` as far as the keeper tests need it: one script line → one step. */
+  const scriptStep = (line) => {
+    const [alias, ...rest] = line.trim().split(/\s+/u);
+    if (alias === 'open') return { do: 'goto', url: rest[0] };
+    if (alias === 'wait') return { do: 'wait', ms: Number(rest[0]) };
+    if (alias === 'click') return { do: 'click', ref: rest[0] };
+    if (alias === 'fill') return { do: 'fill', ref: rest[0], value: rest[1] };
+    return { do: alias };
+  };
+
   const journal = (ctx, name, entry) => {
     const dir = path.join(ctx.out, 'session', name);
     fs.mkdirSync(dir, { recursive: true });
@@ -55,7 +73,7 @@ export async function createEngine(options = {}) {
     return path.join(dir, 'journal.jsonl');
   };
 
-  return {
+  const engine = {
     ready: launchDelay > 0 ? sleep(launchDelay) : Promise.resolve(),
     async runFlow(snapshot, dir, laneOpts) {
       jobs += 1;
@@ -147,10 +165,26 @@ export async function createEngine(options = {}) {
       return { exit: 0, lines: [`ok ${step.do}${step.url ? ` "${step.url}"` : ''} · session ${name}`], files: [] };
     },
     async runScript(lines, ctx) {
-      jobs += 1;
       record({ event: 'runScript', lines: lines.length, mode: ctx.mode, valueKeys: Object.keys(ctx.values ?? {}) });
-      const out = lines.filter((l) => l.trim() !== '' && !l.trim().startsWith('#')).map((l) => `ok ${l}`);
-      return { exit: 0, lines: out, files: [] };
+      const name = ctx.session ?? 'default';
+      const out = [];
+      const files = [];
+      let exit = 0;
+      // Every line goes through `runCommand`, like `session.mjs` does: a script that says `open`
+      // really opens the engine's session and one that says `close` really ends it. A fake that only
+      // echoed the lines could not tell a keeper that registers the script's session from one that
+      // does not.
+      for (const line of lines) {
+        if (line.trim() === '' || line.trim().startsWith('#')) continue;
+        const result = await engine.runCommand(name, scriptStep(line), ctx);
+        out.push(...result.lines);
+        files.push(...(result.files ?? []));
+        if (result.exit !== 0) {
+          exit = result.exit;
+          break;
+        }
+      }
+      return { exit, lines: out, files };
     },
     async exportFlow(name, opts) {
       record({ event: 'exportFlow', session: name, file: opts.file, force: opts.force });
@@ -194,4 +228,5 @@ export async function createEngine(options = {}) {
       listeners.get(event)?.(...args);
     },
   };
+  return engine;
 }

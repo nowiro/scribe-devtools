@@ -391,7 +391,7 @@ export function createContext(options = {}) {
 
   const engine = () => {
     if (enginePromise === undefined) {
-      enginePromise = loadEngine(
+      const loading = loadEngine(
         options.engineModule ?? env.BROWSER_INSPECTOR_ENGINE_MODULE,
         options.browserOpts ?? {},
         {
@@ -405,11 +405,18 @@ export function createContext(options = {}) {
           },
         },
       );
-      enginePromise.then(
+      enginePromise = loading;
+      loading.then(
         () => log('engine ready'),
         (error) => {
           engineError = messageOf(error);
           log(`engine failed: ${engineError}`);
+          // Forget the failure: a launch lost to a Chrome update, an antivirus hold or a profile
+          // lock is over a second later, but a memoized rejection answered every later call with
+          // the same stale line for as long as the keeper lived — and since a well-formed exit 2 is
+          // an answer, the client's in-process fallback never engaged either (§2.2). The next job
+          // loads a fresh engine; a browser that really is missing just fails fast again.
+          if (enginePromise === loading) enginePromise = undefined;
         },
       );
     }

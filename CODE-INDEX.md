@@ -61,7 +61,7 @@ Modules: 40.
 
 ## packages/browser-inspector/src/capture.mjs
 - exports: `ELEMENTS_CAP`, `EVIDENCE_CAP_MS`, `EXTRACT_CAP`, `TEXT_CAP`, `capExtract`, `elementsMap`, `evaluateWithTimeout`, `exceptionText`, `finalEvidence`, `finalScreenshotName`, `mapEvaluateResult`, `pageEvidence`, `pageText`, `pngSize`, `saveScreenshot`, `screenshotFast`, `stringifyResult`
-- imports: `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/types.js`
+- imports: `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/cli.mjs
@@ -70,7 +70,7 @@ Modules: 40.
 - imported by: `packages/browser-inspector/bin/browser-inspector.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/session.mjs`
 
 ## packages/browser-inspector/src/client.mjs
-- exports: `CONNECT_RETRY_MS`, `CONNECT_TIMEOUT_MS`, `INLINE_FILE_MAX`, `KeeperUnavailableError`, `REQUEST_TIMEOUT_MS`, `computeIdentity`, `connectOnce`, `doctor`, `ensureKeeper`, `exchange`, `isScriptComment`, `main`, `packageVersion`, `readFileEntry`, `readPidFile`, `resolveValues`, `runInProcess`, `runViaKeeper`, `spawnKeeper`, `splitCommandLine`
+- exports: `CONNECT_RETRY_MS`, `CONNECT_TIMEOUT_MS`, `CONTROL_TIMEOUT_MS`, `DOCTOR_JOB_TIMEOUT_MS`, `INLINE_FILE_MAX`, `KeeperUnavailableError`, `REQUEST_TIMEOUT_MS`, `computeIdentity`, `connectOnce`, `doctor`, `ensureKeeper`, `exchange`, `isScriptComment`, `main`, `packageVersion`, `readFileEntry`, `readPidFile`, `requestTimeout`, `resolveValues`, `runInProcess`, `runViaKeeper`, `spawnKeeper`, `splitCommandLine`
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/bin/browser-inspector.mjs`, `packages/browser-inspector/src/session.mjs`
 
@@ -117,8 +117,8 @@ Modules: 40.
 - imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/session.mjs`
 
 ## packages/browser-inspector/src/print.mjs
-- exports: `EVAL_INLINE_MAX`, `KEEPER_UNAVAILABLE`, `MAX_LINE`, `REF_NOT_FOUND`, `SEP`, `formatBytes`, `formatConsoleEntry`, `formatDeltas`, `formatDialogStatus`, `formatDoctor`, `formatEval`, `formatExport`, `formatFail`, `formatLine`, `formatMs`, `formatNetBody`, `formatNetEntry`, `formatNetSummary`, `formatNewEntries`, `formatOk`, `formatOpen`, `formatOverflow`, `formatShot`, `relPath`, `truncate`, `urlDisplay`
-- imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.run.mjs`
+- exports: `EVAL_INLINE_MAX`, `KEEPER_UNAVAILABLE`, `MAX_LINE`, `REF_NOT_FOUND`, `SEP`, `formatBytes`, `formatConsoleEntry`, `formatDeltas`, `formatDialogStatus`, `formatDoctor`, `formatEval`, `formatExport`, `formatFail`, `formatLine`, `formatMs`, `formatNetBody`, `formatNetEntry`, `formatNetSummary`, `formatNewEntries`, `formatOk`, `formatOpen`, `formatOverflow`, `formatShot`, `relPath`, `sliceUnits`, `truncate`, `urlDisplay`
+- imported by: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/recorder.mjs
 - exports: `BODY_LIMIT`, `BODY_READ_MS`, `BODY_TYPES`, `CONSOLE_CAP`, `DIALOG_CAP`, `FAILED_REQUEST_CAP`, `NETWORK_CAP`, `PAGE_ERROR_CAP`, `attachRecorder`, `createRecorder`, `errorMessage`, `originOf`, `summarize`
@@ -164,7 +164,7 @@ Modules: 40.
 - imported by: `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session.mjs`
 
 ## packages/browser-inspector/src/steps.run.mjs
-- exports: `BODY_LINES_MAX`, `NET_LIST_MAX`, `RUNNERS`, `SNAP_MAX_DEFAULT`, `durableSelector`, `fileContent`, `globToRegExp`
+- exports: `BODY_LINES_MAX`, `NET_LIST_MAX`, `RUNNERS`, `SNAP_MAX_DEFAULT`, `durableSelector`, `fileContent`, `frameFor`, `globToRegExp`
 - imports: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`
 

@@ -8,7 +8,15 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CliError, parseArgs } from '../src/cli.mjs';
-import { computeIdentity, readFileEntry, resolveValues, splitCommandLine } from '../src/client.mjs';
+import {
+  REQUEST_TIMEOUT_MS,
+  computeIdentity,
+  main,
+  readFileEntry,
+  requestTimeout,
+  resolveValues,
+  splitCommandLine,
+} from '../src/client.mjs';
 import { KEEPER_UNAVAILABLE } from '../src/print.mjs';
 import {
   runBrowserInspector,
@@ -17,6 +25,7 @@ import {
   isAlive,
   makeEnv,
   readPid,
+  sleep,
   stopKeeper,
   uniquePipe,
   until,
@@ -121,6 +130,15 @@ describe('batch without a keeper', () => {
     expect(readPid(h)).toBeUndefined();
   }, 20000);
 
+  it('carries browser.fastHeadless and browser.motion from the config to the engine', async () => {
+    const h = fresh();
+    const config = writeConfig(h, { browser: { fastHeadless: false, motion: 'reduce' } });
+    const run = await runBrowserInspector([config, '--stamp', '2026-09-01_12-06', '--no-daemon'], h);
+    expect(run.code).toBe(0);
+    const launch = fakeLog(h).find((e) => e.event === 'launch');
+    expect(launch.browserOpts).toMatchObject({ fastHeadless: false, motion: 'reduce' });
+  }, 20000);
+
   it('BROWSER_INSPECTOR_DAEMON=0 and CI mean no keeper; BROWSER_INSPECTOR_DAEMON=1 overrides CI', async () => {
     const h = fresh({ BROWSER_INSPECTOR_DAEMON: '0' });
     const config = writeConfig(h);
@@ -205,7 +223,53 @@ describe('session without a keeper', () => {
   }, 20000);
 });
 
+/** A listener that accepts the connection, reads the request and says nothing — a wedged keeper. */
+async function silentKeeper(h) {
+  const identity = computeIdentity({ env: h.env });
+  /** @type {net.Socket[]} */
+  const sockets = [];
+  const server = net.createServer((socket) => {
+    sockets.push(socket);
+    socket.on('data', () => {});
+    socket.on('error', () => {});
+  });
+  await new Promise((resolve) => server.listen(h.pipe, () => resolve(undefined)));
+  servers.push(server);
+  fs.writeFileSync(
+    path.join(h.tmpdir, `browser-inspector-${identity.key}.json`),
+    JSON.stringify({ pid: process.pid, pipe: h.pipe, token: 'f'.repeat(64) }),
+  );
+  return { identity, sockets };
+}
+
 describe('a keeper that never answers', () => {
+  it('`status` and `stop` give up on the control deadline and say the keeper is silent, not absent', async () => {
+    const h = fresh();
+    const { sockets } = await silentKeeper(h);
+    /** @type {string[]} */
+    const out = [];
+    const io = {
+      env: h.env,
+      cwd: h.cwd,
+      stdout: { write: (/** @type {string} */ t) => out.push(t) },
+      stderr: { write: (/** @type {string} */ t) => out.push(t) },
+    };
+    // In process, and raced: before the fix `main` waits ten minutes and would take the file with it.
+    const hung = 'still running';
+    const t0 = performance.now();
+    const status = await Promise.race([main(['status'], io), sleep(4000).then(() => hung)]);
+    const stop = await Promise.race([main(['stop'], io), sleep(4000).then(() => hung)]);
+    for (const socket of sockets) socket.destroy();
+    expect(performance.now() - t0).toBeLessThan(4000);
+    expect([status, stop]).toEqual([2, 2]);
+    // "keeper not running" would be a lie (the process is alive) and the wrong remedy.
+    expect(out.join('')).not.toContain('keeper not running');
+    for (const line of out.join('').split('\n').filter(Boolean)) {
+      expect(line).toMatch(/^FAIL keeper not answering · no answer from the keeper within 500 ms · pid \d+ · hash /u);
+      expect(line.length).toBeLessThanOrEqual(160);
+    }
+  }, 20000);
+
   it('is abandoned after BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: a session command exits 2 with the reason, a batch falls back', async () => {
     const h = fresh({ BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: '300' });
     const identity = computeIdentity({ env: h.env });
@@ -404,6 +468,60 @@ describe('pure helpers', () => {
     );
     const ok = resolveValues(parsed, { env: { NOPE: 'v' }, cwd: process.cwd() });
     expect(ok).toEqual({ values: { 'argv.fill.value': 'v' }, secretValues: ['v'], files: {} });
+  });
+
+  it('resolveValues with --only demands nothing from the snapshots it excludes; auth is always resolved', () => {
+    const h = fresh();
+    const configPath = path.join(h.cwd, 'read.config.json');
+    const config = {
+      configPath,
+      snapshots: [
+        { name: 'home', type: 'page', url: 'http://localhost:4521/' },
+        {
+          name: 'admin',
+          type: 'flow',
+          url: 'http://localhost:4521/admin',
+          steps: [
+            { do: 'fill', selector: '#pass', valueFromEnv: 'ADMIN_PASS' },
+            { do: 'upload', selector: '#file', files: ['./nope.bin'] },
+          ],
+        },
+      ],
+      auth: {
+        login: {
+          url: 'http://localhost:4521/login',
+          steps: [{ do: 'fill', selector: '#p', valueFromEnv: 'APP_PASS' }],
+        },
+      },
+    };
+    const env = { APP_PASS: 'pw-1234' };
+    const only = resolveValues(parseArgs([configPath, '--only', 'home']), { env, cwd: h.cwd, config });
+    expect(only).toEqual({ values: { 'auth.login.steps[0].value': 'pw-1234' }, secretValues: ['pw-1234'], files: {} });
+    // Without the selector the whole config is resolved — the excluded flow is skipped, not repaired.
+    expect(() => resolveValues(parseArgs([configPath]), { env, cwd: h.cwd, config })).toThrow(
+      'snapshots[1].steps[0].valueFromEnv: environment variable ADMIN_PASS is not set',
+    );
+  });
+
+  it('requestTimeout: the caller wins, an empty or unusable variable means the default', () => {
+    expect(requestTimeout({}, 500)).toBe(500);
+    expect(requestTimeout({ BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: '300' }, 500)).toBe(500);
+    expect(requestTimeout({ BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: '300' })).toBe(300);
+    expect(requestTimeout({})).toBe(REQUEST_TIMEOUT_MS);
+    // `export BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS=` used to mean `0` — that is "no watchdog at all".
+    for (const raw of ['', '   ', 'nope', '-1'])
+      expect(requestTimeout({ BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: raw })).toBe(REQUEST_TIMEOUT_MS);
+    expect(requestTimeout({ BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: '0' })).toBe(0);
+  });
+
+  it('computeIdentity carries browser.fastHeadless and browser.motion, and they change the hash', () => {
+    const env = { ...process.env, BROWSER_INSPECTOR_SOCKET: '' };
+    const base = computeIdentity({ env, browser: {} });
+    const slow = computeIdentity({ env, browser: { fastHeadless: false, motion: 'reduce' } });
+    expect(slow.browserOpts).toMatchObject({ fastHeadless: false, motion: 'reduce' });
+    expect(base.browserOpts).not.toHaveProperty('fastHeadless');
+    expect(base.browserOpts).not.toHaveProperty('motion');
+    expect(slow.hash).not.toBe(base.hash);
   });
 
   it('readFileEntry inlines small files and hands over a path above 1 MB', () => {

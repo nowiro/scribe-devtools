@@ -145,6 +145,51 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     });
   }, 60_000);
 
+  it('a password in an iframe or a shadow root never reaches snap.md / snap.full.yml (AC-10)', async () => {
+    const inFrame = await run({
+      name: 'ramka',
+      url: a.url('iframe.html'),
+      stepTimeoutMs: 5000,
+      steps: [
+        { do: 'waitFor', selector: 'iframe' },
+        { do: 'frame', frame: '1' },
+        { do: 'fill', selector: '[data-testid=child-pass]', value: 'TAJNE-W-RAMCE' },
+        { do: 'snapshot' },
+        // The navigation detaches the frame; the scope has to go with it, or every CSS selector
+        // after it answers `Frame was detached` — in a session until the agent guesses `frame main`.
+        { do: 'goto', url: a.url('iframe.html') },
+        { do: 'click', selector: '[data-testid=parent-button]' },
+      ],
+    });
+    expect(inFrame.failure).toBeUndefined();
+    expect(inFrame.completed).toBe(true);
+    expect(await text(inFrame.dir, 'snap.full.yml')).not.toContain('TAJNE-W-RAMCE');
+    expect(await text(inFrame.dir, 'snap.md')).not.toContain('TAJNE-W-RAMCE');
+    const framed = JSON.parse(await text(inFrame.dir, 'snap.json'));
+    const childPass = framed.find((/** @type {any} */ e) => e.selector === '[data-testid="child-pass"]');
+    expect(childPass).toMatchObject({ sensitive: true });
+    expect(String(childPass.ref)).toMatch(/^f\d+e\d+$/u);
+    // The element map lists the main frame only, but the count is the whole page — an app inside an
+    // iframe is not an empty page (DESIGN.md §5.1).
+    expect(inFrame.report.elements?.total).toBeGreaterThan(inFrame.report.elements?.entries.length ?? 0);
+
+    const shadow = await run({
+      name: 'shadow',
+      url: a.url('shadow.html'),
+      stepTimeoutMs: 5000,
+      steps: [{ do: 'fill', selector: '[data-testid=sd-pass]', value: 'TAJNE-W-KOMPONENCIE' }, { do: 'snapshot' }],
+    });
+    expect(shadow.failure).toBeUndefined();
+    expect(await text(shadow.dir, 'snap.full.yml')).not.toContain('TAJNE-W-KOMPONENCIE');
+    expect(await text(shadow.dir, 'snap.md')).not.toContain('TAJNE-W-KOMPONENCIE');
+    const inShadow = JSON.parse(await text(shadow.dir, 'snap.json'));
+    expect(inShadow.find((/** @type {any} */ e) => e.selector === '[data-testid="sd-pass"]')).toMatchObject({
+      sensitive: true,
+    });
+    // Three controls, all of them inside the open shadow root — the map used to see none.
+    expect(shadow.report.elements?.total).toBe(3);
+  }, 60_000);
+
   it('the scrub keeps the HTTP cache: the second run on the same lane counts cacheHits (AC-12)', async () => {
     // The number this pins is a design claim, not a detail: `SCRUB_STORAGE_TYPES` deliberately omits
     // `all`, so the scrub clears storage and leaves the HTTP cache — that is what makes a warm run
@@ -163,6 +208,18 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     // The document itself carries no caching headers, so it is fetched again both times.
     expect(second.report.timing.cacheHitsDocument).toBe(0);
   });
+
+  it('a navigation that never reached a server is not a cache hit (the Chrome error page is not the document)', async () => {
+    // `chrome-error://chromewebdata/` reports `deliveryType: 'cache'` with `transferSize: 0` for a
+    // body Chrome made up, so a failed run used to claim the document came from the HTTP cache —
+    // the one number whose whole point is warning about a stale build after a rebuild.
+    const dead = await run({ url: 'http://127.0.0.1:4519/nie-ma', navTimeoutMs: 5000, type: 'page' });
+    expect(dead.completed).toBe(false);
+    expect(String(dead.report.navigationError)).toContain('net::ERR');
+    expect(dead.report.finalUrl.startsWith('chrome-error://')).toBe(true);
+    expect(dead.report.timing.cacheHitsDocument).toBe(0);
+    expect(dead.report.timing.cacheHits).toBe(0);
+  }, 30_000);
 
   it('a failing step writes final.png and the Error: form; evaluate maps like the old runner', async () => {
     const result = await run({

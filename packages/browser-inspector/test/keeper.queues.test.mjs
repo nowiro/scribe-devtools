@@ -169,6 +169,31 @@ describe('a browser that cannot launch is an answer, never a hang', () => {
     expect(open.lines[0]).toMatch(/^FAIL keeper: engine unavailable: E_BROWSER_MISSING/u);
   }, 20000);
 
+  it('a launch that fails while Chrome is busy is retried by the next request on the same keeper', async () => {
+    // The keeper memoized the rejected engine promise, so ONE bad moment (a Chrome mid-update, an
+    // antivirus hold, a profile lock) wedged it for as long as it lived: every later call answered
+    // with the same stale line, and because that is a well-formed exit 2 the client's in-process
+    // fallback never engaged either — `browser-inspector stop` was the only way out. A long idle
+    // budget here so the keeper cannot "recover" by dying between the two runs: THIS keeper must.
+    const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '600000' });
+    const marker = path.join(h.tmpdir, 'chrome-is-busy');
+    h.env.BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL_WHILE = marker;
+    fs.writeFileSync(marker, '');
+    const config = writeConfig(h, [{ name: 'one' }]);
+    const first = await runBrowserInspector([config, '--stamp', '2026-09-02_12-00'], h);
+    expect(first.code).toBe(2);
+    expect(first.stdout).toContain('FAIL E_BROWSER_MISSING: no usable browser.');
+    const poisoned = readPid(h);
+    fs.rmSync(marker);
+    const second = await runBrowserInspector([config, '--stamp', '2026-09-02_12-01'], h);
+    expect(second.code).toBe(0);
+    expect(second.lines.at(-1)).toMatch(/^ok 1\/1 completed · /u);
+    // The same process answered both: the recovery is the keeper's, not a respawn's — and it really
+    // launched again instead of replaying the remembered rejection.
+    expect(readPid(h).pid).toBe(poisoned.pid);
+    expect(fakeLog(h).filter((e) => e.event === 'launch-failed').length).toBeGreaterThanOrEqual(2);
+  }, 20000);
+
   it('the same batch with --no-daemon prints the same reason with exit 2', async () => {
     const h = fresh({ BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL: '1' });
     const config = writeConfig(h, [{ name: 'one' }]);
