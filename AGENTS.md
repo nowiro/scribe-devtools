@@ -152,7 +152,9 @@ Plan pakietów roboczych i własność plików: [docs/PLAN.md](docs/PLAN.md). Kr
 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Kroki: [docs/STEPS.md](docs/STEPS.md) (generowane).
 Prośby i ustalenia między pakietami roboczymi: `docs/handoff/<WPn>.md` — czytaj wszystkie przed
 zmianą cudzego kontraktu. Wynik pomiaru: [bench/RAPORT.md](bench/RAPORT.md), budżet vs pomiar:
-[bench/BUDGET.md](bench/BUDGET.md).
+[bench/BUDGET.md](bench/BUDGET.md). Przeglądy: [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md)
+(bezpieczeństwo, 47 ustaleń) i [docs/OPTIMIZATION-REVIEW.md](docs/OPTIMIZATION-REVIEW.md)
+(wydajność — ms i tokeny; §7 mówi, co już zmierzono i odrzucono, żeby nie wymyślać tego drugi raz).
 
 Copilot i VS Code: `.github/copilot-instructions.md` (karta repo + kopia bloku instrukcji),
 `.github/instructions/*.instructions.md` (reguły per obszar plików), `.github/prompts/*.prompt.md`
