@@ -101,15 +101,28 @@ export function stagePortable(root, staging) {
  */
 export function zipDirectory(staging, zipPath) {
   rmSync(zipPath, { force: true });
-  if (process.platform === 'win32') {
-    execFileSync(
-      'powershell',
-      ['-NoProfile', '-Command', `Compress-Archive -Path '${staging}\\*' -DestinationPath '${zipPath}'`],
-      { cwd: staging, stdio: 'inherit' },
-    );
-  } else {
-    execFileSync('zip', ['-qr', zipPath, '.'], { cwd: staging, stdio: 'inherit' });
-  }
+  // Windows: bsdtar from System32, never Compress-Archive. The PowerShell cmdlet writes entry
+  // names with backslashes, and unzip on Linux/macOS then creates files literally named
+  // "packages\browser-inspector\bin\bi.mjs" (157 of 160 entries in the first 0.1.0 build).
+  // bsdtar picks the zip format from the extension (`-a`) and stores forward slashes, like `zip -r`.
+  const [tool, args] =
+    process.platform === 'win32'
+      ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-a', '-cf', zipPath, '.']]
+      : ['zip', ['-qr', zipPath, '.']];
+  execFileSync(tool, args, { cwd: staging, stdio: 'inherit' });
+}
+
+/**
+ * Entry names of a zip, as the archive stores them — the portability check: a name with a
+ * backslash unpacks as one flat file on Linux/macOS.
+ * @param {string} zipPath
+ */
+export function zipEntries(zipPath) {
+  const tool =
+    process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
+  return execFileSync(tool, ['-tf', zipPath], { encoding: 'utf8' })
+    .split(/\r?\n/u)
+    .filter((line) => line !== '');
 }
 
 /** @param {string} flag */

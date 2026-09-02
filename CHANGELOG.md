@@ -11,6 +11,8 @@ _Brak zmian od ostatniego wydania._
 
 Pierwsze wydanie: `bi` (browser-inspector 2) — zamiennik serwera MCP Playwrighta. Bench: bi-warm 358 ms vs MCP naive warm 3871 ms (10,8×), tokeny 400 vs 6814 na sesję; szczegóły w `bench/RAPORT.md`. Otwarte: AC-5 (bi-cold 2,08 s > 1,75 s), AC-6 na limicie (400 tokenów).
 
+Zip portable pakuje bsdtar (`tar -a -cf`), nie `Compress-Archive`: cmdlet zapisywał nazwy wpisów z backslashami (157 ze 160 w pierwszym buildzie 0.1.0), przez co archiwum rozpakowywało się na Linuksie/macOS do płaskich plików; test round-trip sprawdza teraz separatory (`zipEntries`).
+
 ### Added
 
 - WP0 — szkielet repozytorium: workspaces `packages/*` + `bench`, `packages/browser-inspector`

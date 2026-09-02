@@ -3,8 +3,8 @@
 // `help` (the client, no browser), `lint-config` on the staged fixture (config loading, no
 // browser) and, unless BI_SKIP_SMOKE=1, one real `--no-daemon` batch on a staged fixture page
 // (playwright-core resolved from the staged `node_modules`, the system Chrome/Edge). The zip
-// round-trip (Compress-Archive / zip → unpack → `bi help`) runs too — a few seconds, and it is
-// the artifact a release ships.
+// round-trip (bsdtar / zip → unpack → `bi help`) runs too — a few seconds, and it is the
+// artifact a release ships.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { PORTABLE_MARKER, stagePortable, zipDirectory } from './portable-zip.mjs';
+import { PORTABLE_MARKER, stagePortable, zipDirectory, zipEntries } from './portable-zip.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = 'packages/browser-inspector';
@@ -129,6 +129,11 @@ describe('portable staging', () => {
     try {
       zipDirectory(staging, zipPath);
       expect(existsSync(zipPath)).toBe(true);
+      // Entry names with backslashes (what Compress-Archive writes) unpack on Linux/macOS as flat
+      // files named "packages\browser-inspector\bin\bi.mjs" — the first 0.1.0 build shipped 157 of them.
+      const entries = zipEntries(zipPath);
+      expect(entries.some((name) => name.endsWith('bin/bi.mjs'))).toBe(true);
+      expect(entries.filter((name) => name.includes('\\'))).toEqual([]);
       if (process.platform === 'win32') {
         spawnSync(
           'powershell',

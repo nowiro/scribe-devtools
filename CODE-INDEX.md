@@ -154,4 +154,4 @@ Modules: 34.
 - exports: `INDEX_FILE`, `buildIndex`, `generateIndex`, `listSourceFiles`, `parseExports`, `parseImports`, `renderIndex`
 
 ## scripts/portable-zip.mjs
-- exports: `PORTABLE_MARKER`, `stagePortable`, `zipDirectory`
+- exports: `PORTABLE_MARKER`, `stagePortable`, `zipDirectory`, `zipEntries`
