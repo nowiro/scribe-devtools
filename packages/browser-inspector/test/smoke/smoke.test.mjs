@@ -533,7 +533,7 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
   }
 
   const refOf = (/** @type {string} */ line) => line.split(' ')[0];
-  const sessionDir = () => path.join(h.cwd, '.scribe', 'browser-inspector', 'session', 'default');
+  const sessionDir = () => path.join(h.cwd, '.scribe-devtools', 'browser-inspector', 'session', 'default');
 
   it('bi up → session commands on form/relabel/iframe/tabs/dialog → export → doctor → close → stop', async () => {
     const up = await cmd(['up']);

@@ -1,5 +1,5 @@
 {
-  "outputDir": "./.scribe/browser-inspector",
+  "outputDir": "./.scribe-devtools/browser-inspector",
   "snapshots": [
     {
       "name": "nowiro-strona",

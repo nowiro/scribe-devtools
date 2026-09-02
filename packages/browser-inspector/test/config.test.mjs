@@ -40,7 +40,7 @@ describe('app-factory fixture', () => {
       expect(config.snapshots[i].waitUntil).toBe(snapshot.waitUntil ?? 'load');
     });
     expect(config.outputDir.replaceAll('\\', '/')).toBe(
-      path.resolve(path.dirname(FIXTURE), './.scribe/browser-inspector').replaceAll('\\', '/'),
+      path.resolve(path.dirname(FIXTURE), './.scribe-devtools/browser-inspector').replaceAll('\\', '/'),
     );
     expect(config.configPath.replaceAll('\\', '/')).toBe(FIXTURE.replaceAll('\\', '/'));
   });
@@ -81,7 +81,7 @@ describe('app-factory fixture', () => {
 describe('new fields (DESIGN.md §3.3 sample)', () => {
   it('accepts the documented sample config', () => {
     const config = parseConfig({
-      outputDir: './.scribe/browser-inspector',
+      outputDir: './.scribe-devtools/browser-inspector',
       parallel: 3,
       browser: { channel: 'chrome', headless: true, fastHeadless: true, motion: 'no-preference' },
       snapshots: [
@@ -132,7 +132,7 @@ describe('secrets', () => {
     const errors = errorsOf(() =>
       parseConfig({
         auth: {
-          storageState: './.scribe/auth.json',
+          storageState: './.scribe-devtools/auth.json',
           login: {
             url: 'http://localhost:4300/login',
             steps: [

@@ -44,7 +44,7 @@ describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-da
       JSON.stringify({
         outputDir: './out',
         auth: {
-          storageState: './.scribe/auth.json',
+          storageState: './.scribe-devtools/auth.json',
           login: {
             url: app.url('login.html'),
             steps: [
@@ -93,7 +93,7 @@ describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-da
     const run = await bi([config, '--no-daemon', '--stamp', '2026-09-02_13-00'], h);
     expect(run.code, run.stdout + run.stderr).toBe(0);
     expect(run.lines.at(-1)).toMatch(/^ok 2\/2 completed/u);
-    expect(existsSync(path.join(h.cwd, '.scribe', 'auth.json'))).toBe(true);
+    expect(existsSync(path.join(h.cwd, '.scribe-devtools', 'auth.json'))).toBe(true);
     const pulpit = await report('2026-09-02_13-00', 'pulpit');
     // The user name came from env through `valueFromEnv`, so the client made it a secret (§2.6):
     // the dashboard shows it, the report masks it. `source` and the login counter prove the login.
@@ -108,7 +108,7 @@ describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-da
   }, 60_000);
 
   it('through the keeper, twice: the second run reuses the state file and still starts logged in', async () => {
-    await rm(path.join(h.cwd, '.scribe'), { recursive: true, force: true });
+    await rm(path.join(h.cwd, '.scribe-devtools'), { recursive: true, force: true });
     const first = await bi([config, '--stamp', '2026-09-02_13-01'], h);
     expect(first.code, first.stdout + first.stderr).toBe(0);
     expect(first.lines.at(-1)).toMatch(/^ok 2\/2 completed/u);
@@ -193,7 +193,7 @@ describe.skipIf(skip)('smoke: auth — login once, snapshots logged in, anonymou
   it('form login once → two snapshots logged in on fresh contexts, auth:false anonymous on the lane', async () => {
     const config = configOf(
       {
-        storageState: './.scribe/auth.json',
+        storageState: './.scribe-devtools/auth.json',
         login: {
           url: app.url('login.html'),
           steps: [
@@ -235,7 +235,7 @@ describe.skipIf(skip)('smoke: auth — login once, snapshots logged in, anonymou
     expect(session).toMatchObject({
       method: 'login',
       reused: false,
-      storageState: path.join(out, '.scribe', 'auth.json'),
+      storageState: path.join(out, '.scribe-devtools', 'auth.json'),
     });
     expect(contexts).toBe(1);
     const state = JSON.parse(await readFile(session.storageState, 'utf8'));
@@ -278,7 +278,7 @@ describe.skipIf(skip)('smoke: auth — login once, snapshots logged in, anonymou
   it('OAuth password grant → token in storageState → the page shows the user from the JWT, no form', async () => {
     const config = configOf(
       {
-        storageState: './.scribe/oauth.json',
+        storageState: './.scribe-devtools/oauth.json',
         oauth: {
           keycloak: { url: idp.origin, realm: idp.realm },
           grantType: 'password',

@@ -48,7 +48,7 @@ const session = await ensureSession(config.auth, {
   values, secretValues,         // z żądania klienta (adresy jak wyżej); czego klient nie przysłał, bierze z `env`
   env: process.env,             // fallback tylko dla wołających bez klienta (bench, smoke, runBatch)
   log,                          // linie: `auth: session from file … (session from 12 min ago)`, `auth: login (no saved session) → <url>`,
-                                //        `auth: oauth password (…) → <tokenUrl>`, `auth: session saved → <plik>`, `auth: WARNING … outside .scribe/`
+                                //        `auth: oauth password (…) → <tokenUrl>`, `auth: session saved → <plik>`, `auth: WARNING … outside .scribe-devtools/`
 });
 // potem per snapshot:
 engine.runFlow(snapshot, dir, { ...laneOpts, auth: config.auth, storageState: storageStateFor(snapshot, session) });
@@ -96,9 +96,9 @@ Dziś `engine.runFlow` **honoruje** `laneOpts.storageState` (kontekst `fresh` z 
   `storageStateFor` dostałby sesję — dlatego plik idzie przez `storageStateFor`, nie z `session.storageState`.
 - **WP8 (README/AGENTS/templates/flow.md)**: udokumentować blok `auth` (`storageState` względem configu, `login.steps`
   wyłącznie `valueFromEnv`, `oauth.*FromEnv`, `oauth.store { origin, key }`, `maxAgeMinutes`, `reuse`, `auth: false`
-  per snapshot), plik sesji = żywe poświadczenia (`.scribe/` jest w `.gitignore`; poza nim keeper loguje
+  per snapshot), plik sesji = żywe poświadczenia (`.scribe-devtools/` jest w `.gitignore`; poza nim keeper loguje
   ostrzeżenie), meta `<state>.meta.json` przy OAuth, `E_AUTH` → exit 2. `bi lint-config` może dodać wiersz
-  „`auth.storageState` poza `.scribe/`” (opcjonalnie).
+  „`auth.storageState` poza `.scribe-devtools/`” (opcjonalnie).
 - **WP4 (opcjonalnie)**: stary raport skryby miał pole `session: 'z zapisanej sesji' | 'anonimowo'` tylko gdy
   `auth` było w grze; DESIGN §5.2 go nie wymienia, więc WP7 nic nie dodaje — `report.json.timing.ctx === 'fresh'` +
   `engine.serviceWorkers === 'allow'` mówią, że snapshot szedł na sesji. Gdyby WP8 chciał tę linię w nagłówku

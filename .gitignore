@@ -8,7 +8,7 @@ Thumbs.db
 
 # Output of every `bi` run: screenshots, report.json, session journals — the page under test
 # is somebody's application and what lands here is its data. `.bi/` is the session scratch.
-.scribe/
+.scribe-devtools/
 .bi/
 
 # The benchmark's raw results; RAPORT.md/WYNIKI.md/BUDGET.md are committed, the JSON behind them is not.

@@ -198,11 +198,11 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
     for (const app of APPS)
       text = text.replaceAll(`localhost:${String(app.gatePort)}`, `localhost:${String(app.port)}`);
     const config = JSON.parse(text);
-    config.outputDir = './.scribe/browser-inspector';
+    config.outputDir = './.scribe-devtools/browser-inspector';
     expected = config.snapshots.map((/** @type {{ name: string }} */ s) => s.name);
     configPath = path.join(work, 'read.config.browser-inspector.json');
     await writeFile(configPath, JSON.stringify(config, null, 2));
-    outDir = path.join(work, '.scribe', 'browser-inspector');
+    outDir = path.join(work, '.scribe-devtools', 'browser-inspector');
     await mkdir(outDir, { recursive: true });
   }, 60_000);
 
@@ -330,7 +330,7 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
   it('failures are results: `Error: uczen widzi przycisk nauczyciela` in steps[].error, navigationError only when navigation failed', async () => {
     const journal = `http://localhost:${String(APPS[3].port)}/`;
     const negative = {
-      outputDir: './.scribe/negative',
+      outputDir: './.scribe-devtools/negative',
       snapshots: [
         {
           name: 'dziennik-uczen-negatyw',
@@ -354,7 +354,7 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
     await writeFile(file, JSON.stringify(negative, null, 2));
     const result = await bi([file, '--stamp', '2026-09-02_10-05', '--no-daemon'], harness);
     expect(result.code).toBe(0); // a failed step is a result, not a crash (DESIGN.md §3.5)
-    const dir = path.join(work, '.scribe', 'negative', '2026-09-02_10-05');
+    const dir = path.join(work, '.scribe-devtools', 'negative', '2026-09-02_10-05');
     const reports = new Map(
       negative.snapshots.map((s) => [s.name, JSON.parse(readFileSync(path.join(dir, s.name, 'report.json'), 'utf8'))]),
     );

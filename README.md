@@ -66,8 +66,8 @@ bi read.config.browser-inspector.json --stamp 2026-09-02_10-00
 ok nowiro-strona · 1 773 ms
 ok nowiro-jezyk · 1 984 ms
 FAIL dziennik-uczen · 10 088 ms
-ok 5/6 completed · 11 880 ms · warm · .scribe/browser-inspector/2026-09-02_10-00
-FAIL dziennik-uczen · step 4 "evaluate uprawnienia-ucznia" — Error: uczen widzi przycisk nauczyciela · .scribe/browser-inspector/2026-09-02_10-00/dziennik-uczen/report.md
+ok 5/6 completed · 11 880 ms · warm · .scribe-devtools/browser-inspector/2026-09-02_10-00
+FAIL dziennik-uczen · step 4 "evaluate uprawnienia-ucznia" — Error: uczen widzi przycisk nauczyciela · .scribe-devtools/browser-inspector/2026-09-02_10-00/dziennik-uczen/report.md
 ```
 
 Flagi: `--stamp YYYY-MM-DD_HH-MM` (katalog przebiegu; bez flagi — bieżący czas Europe/Warsaw),
@@ -159,8 +159,8 @@ ok export 9 steps → flows/koszyk.json (refs → data-testid/#id/role=)
 ```
 
 Zasady: jedna linia na sukces (prefiks `ok | FAIL`, separator ` · `, ścieżki względne do cwd —
-domyślny `out` to `./.scribe/browser-inspector`, więc pełna linia `open` kończy się
-`.scribe/browser-inspector/session/default/snap.md`); `find`, `snap`, `console`, `net`, `eval`,
+domyślny `out` to `./.scribe-devtools/browser-inspector`, więc pełna linia `open` kończy się
+`.scribe-devtools/browser-inspector/session/default/snap.md`); `find`, `snap`, `console`, `net`, `eval`,
 `get` drukują treść, bo treść JEST wynikiem; `console`/`net` pokazują **tylko wpisy od
 ostatniego wywołania** (`--all`, `--failed`, `--tail N`, `--level info|warn|error`); `snap`
 domyślnie `--max 25` z markerem nadmiaru, `--diff` (od poprzedniego widoku), `--around eN`,

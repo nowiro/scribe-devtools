@@ -7,6 +7,11 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Changed
 
+- Domyślny katalog wyników to **`.scribe-devtools/`** (było `.scribe/`): `DEFAULT_OUTPUT_DIR`
+  = `./.scribe-devtools/browser-inspector`, sesje w `.scribe-devtools/browser-inspector/session/<nazwa>`,
+  ostrzeżenie `auth` o pliku sesji poza `.scribe-devtools/`; fixture, szablon flow, README, DESIGN,
+  `.gitignore`/`.prettierignore` i testy przepisane. Jawny `outputDir` w configu (np. app-factory:
+  `./.scribe/browser-inspector`) działa jak dotąd — to reguła dla wartości domyślnej.
 - Zip portable jest **śledzony w repo**: `download/scribe-devtools-portable-<wersja>.zip` + sidecar
   `.sha256` (format `sha256sum`), budowany przez hook pre-commit po `CODE-INDEX.md` i `docs/STEPS.md`
   oraz przez `npm run portable`; każda wydana wersja zostaje w `download/`. Build jest

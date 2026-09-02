@@ -19,7 +19,7 @@ przeglądarki, nieznana flaga).
 
 ```json
 {
-  "outputDir": "./.scribe/browser-inspector",
+  "outputDir": "./.scribe-devtools/browser-inspector",
   "parallel": 1,
   "snapshots": [
     {
@@ -78,7 +78,7 @@ w obie strony — obecność przez `waitFor`, **brak** przez `evaluate`, które 
 
 ```json
 {
-  "outputDir": "./.scribe/browser-inspector",
+  "outputDir": "./.scribe-devtools/browser-inspector",
   "parallel": 2,
   "snapshots": [
     {
@@ -153,7 +153,7 @@ linie wykona `bi script plik.txt --no-daemon` (jedna komenda na linię, stop na 
 ```json
 {
   "auth": {
-    "storageState": "./.scribe/auth/session.json",
+    "storageState": "./.scribe-devtools/auth/session.json",
     "maxAgeMinutes": 60,
     "login": {
       "url": "http://localhost:3000/login",
@@ -174,7 +174,7 @@ zapisuje sesję, kolejne przebiegi ją wczytują, dopóki plik jest młodszy ni�
 `client_credentials`; `tokenUrl` albo Keycloak `{ url, realm }`; sekrety wyłącznie `*FromEnv`;
 token w localStorage pod `store: { origin, key }`; ważność z `expires_in`/`exp` w
 `<state>.meta.json`). `auth: false` na snapshotcie = widok anonimowy. Plik sesji to **żywe
-poświadczenia**: trzymaj go w `.scribe/` (ignorowanym przez git), poza nim keeper ostrzega.
+poświadczenia**: trzymaj go w `.scribe-devtools/` (ignorowanym przez git), poza nim keeper ostrzega.
 W `auth.login.steps` każdy `fill` musi mieć `valueFromEnv` — literał jest błędem walidacji.
 
 ## Zasady, które czynią flow utrzymywalnym

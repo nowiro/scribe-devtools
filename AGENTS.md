@@ -119,7 +119,7 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Czego nie robić
 
-- Nie commituj wyników: `.scribe/`, `.bi/`, `bench/out/`, `read.config.*.json` (poza
+- Nie commituj wyników: `.scribe-devtools/`, `.bi/`, `bench/out/`, `read.config.*.json` (poza
   `fixtures/` i `examples/`) — to zrzuty i sesje cudzej aplikacji.
 - Nie dodawaj ścieżek DELETE — jedyne czyszczenie to `storage … clear` w piaskownicy
   własnego kontekstu i scrub między przebiegami.

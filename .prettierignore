@@ -4,7 +4,7 @@
 node_modules/
 coverage/
 package-lock.json
-.scribe/
+.scribe-devtools/
 .bi/
 
 # Hand-maintained prose with narrowed tables.

@@ -16,7 +16,7 @@ import { ARTIFACT_NAME, checkField, validateSteps } from './steps.schema.mjs';
 
 /** Defaults DESIGN.md §3.3 fixes; the report header names the ones that differ from them. */
 export const DEFAULTS = Object.freeze({
-  outputDir: './.scribe/browser-inspector',
+  outputDir: './.scribe-devtools/browser-inspector',
   parallel: 1,
   settleMs: 2000,
   browser: Object.freeze({ headless: true, fastHeadless: true, motion: 'no-preference' }),

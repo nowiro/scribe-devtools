@@ -162,7 +162,7 @@ Obecny `read.config.browser-inspector.json` (6 snapshotów, `networkidle`, `wait
 
 ```json
 {
-  "outputDir": "./.scribe/browser-inspector",
+  "outputDir": "./.scribe-devtools/browser-inspector",
   "parallel": 3,
   "browser": { "channel": "chrome", "headless": true, "fastHeadless": true, "motion": "no-preference" },
   "snapshots": [
@@ -294,7 +294,7 @@ Zasady (`src/print.mjs`, testowane): jedna linia na sukces, ≤ 160 znaków, pre
 
 ### 4.5 Pliki sesji, dialogi, karty, ramki, eksport
 
-**Klucz sesji = tylko nazwa** (`--session`, `BI_SESSION`, domyślnie `default`) per keeper — nie `<cwd>|<name>`, bo `cd` w Bash albo subagent z innym cwd tworzyłby drugą sesję bez ostrzeżenia. Katalog `out` ustalany przy `bi open` (`--out`, domyślnie `./.scribe/browser-inspector`) i zapamiętany w sesji; `bi status` pokazuje `session default · cwd D:/x · out …`. `<out>/session/<name>/`: `snap.md`, `snap.full.yml`, `snap.json`, `journal.jsonl` (komenda, wynik, ms, url, **selektor rozwiązany przy akcji**), `console.jsonl`, `net.jsonl`, `net/<n>.txt`, `shots/NNN-<name>.png`, `pdf/`, `eval-NNN.txt`, `trace.zip`, `video/`. Tylko najnowszy snapshot — historia w dzienniku.
+**Klucz sesji = tylko nazwa** (`--session`, `BI_SESSION`, domyślnie `default`) per keeper — nie `<cwd>|<name>`, bo `cd` w Bash albo subagent z innym cwd tworzyłby drugą sesję bez ostrzeżenia. Katalog `out` ustalany przy `bi open` (`--out`, domyślnie `./.scribe-devtools/browser-inspector`) i zapamiętany w sesji; `bi status` pokazuje `session default · cwd D:/x · out …`. `<out>/session/<name>/`: `snap.md`, `snap.full.yml`, `snap.json`, `journal.jsonl` (komenda, wynik, ms, url, **selektor rozwiązany przy akcji**), `console.jsonl`, `net.jsonl`, `net/<n>.txt`, `shots/NNN-<name>.png`, `pdf/`, `eval-NNN.txt`, `trace.zip`, `video/`. Tylko najnowszy snapshot — historia w dzienniku.
 
 - **Dialogi**: polityka PRZED akcją (`bi dialog accept|dismiss [--text …] [--once]`, domyślnie `dismiss`), każdy dialog logowany i pokazany w linii; `beforeunload` jest **zawsze akceptowany** (inaczej blokuje nawigację) z wpisem `· dialog beforeunload → accepted`; `bi dialog` bez argumentów = polityka + ostatni dialog. Zero blokad w keeperze.
 - **Karty**: `bi tabs`, `bi tab new [url]`, `bi tab 2`, `bi tab close`; popupy przez `context.on('page')`; w batchu popupy trafiają do `report.json.tabs[] = [{ url, title, openedAt }]`, zanim scrub je zamknie.

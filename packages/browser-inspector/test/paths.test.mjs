@@ -168,7 +168,7 @@ describe('pipeName and files', () => {
     expect(sessionDir('/out')).toBe(path.join('/out', 'session', 'default'));
     expect(sessionDir('/out', 'b')).toBe(path.join('/out', 'session', 'b'));
     expect(defaultOutputDir()).toBe(DEFAULT_OUTPUT_DIR);
-    expect(resolveOutputDir(undefined, '/repo')).toBe(path.resolve('/repo', '.scribe/browser-inspector'));
+    expect(resolveOutputDir(undefined, '/repo')).toBe(path.resolve('/repo', '.scribe-devtools/browser-inspector'));
     expect(resolveOutputDir('./x', '/repo')).toBe(path.resolve('/repo', 'x'));
     expect(resolveOutputDir('/abs/x', '/repo')).toBe(path.resolve('/abs/x'));
   });

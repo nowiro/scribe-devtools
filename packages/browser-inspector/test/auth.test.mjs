@@ -259,7 +259,7 @@ describe('resolveAuthValues / storageStateFor', () => {
 describe('ensureSession — login through the engine', () => {
   it('runs the steps on a fresh context with the client values, saves the state ONCE, reuses it next time', async () => {
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     const { engine, calls } = fakeEngine();
     /** @type {string[]} */
     const log = [];
@@ -305,7 +305,7 @@ describe('ensureSession — login through the engine', () => {
 
   it('falls back to env for valueFromEnv when the client sent nothing; a missing variable fails before the browser', async () => {
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     const { engine, calls } = fakeEngine();
     const auth = loginAuth(statePath);
     await expect(ensureSession(auth, { engine, env: {} })).rejects.toMatchObject({
@@ -320,7 +320,7 @@ describe('ensureSession — login through the engine', () => {
 
   it('a failing step is an AuthError naming the step, never the value; the context is closed', async () => {
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     const { engine, calls } = fakeEngine({
       fail: { click: new Error(`element [data-testid=login-submit] is not attached (value ${PASS} typed)`) },
     });
@@ -349,7 +349,7 @@ describe('ensureSession — login through the engine', () => {
 
   it('an old file logs in again; reuse: false always logs in; the login needs an engine', async () => {
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     await mkdir(path.dirname(statePath), { recursive: true });
     await writeFile(statePath, '{"cookies":[],"origins":[]}\n', 'utf8');
     const old = new Date(Date.now() - 2 * 3_600_000);
@@ -375,7 +375,7 @@ describe('ensureSession — login through the engine', () => {
     );
   });
 
-  it('warns once when the state file lives outside .scribe/', async () => {
+  it('warns once when the state file lives outside .scribe-devtools/', async () => {
     const dir = await tmp();
     const statePath = path.join(dir, 'auth.json');
     const { engine } = fakeEngine();
@@ -386,7 +386,7 @@ describe('ensureSession — login through the engine', () => {
       env: { APP_USER: 'alice', APP_PASS: PASS },
       log: (l) => log.push(l),
     });
-    expect(log.filter((l) => l.includes('outside .scribe/'))).toHaveLength(1);
+    expect(log.filter((l) => l.includes('outside .scribe-devtools/'))).toHaveLength(1);
     expect(log.join('\n')).toContain('do not commit it');
   });
 });
@@ -411,7 +411,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
   it('password grant → state file with the token under the store key + meta with the expiry; the second call reuses', async () => {
     const server = await tokenServer();
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     /** @type {string[]} */
     const log = [];
     const t0 = Date.now();
@@ -452,7 +452,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
   it('a token inside the expiry margin is fetched again although the file is young (expires_in and exp alike)', async () => {
     const server = await tokenServer(PORT_TOKEN, { expiresIn: 10 });
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     const env = { APP_USER: 'alice', APP_PASS: PASS };
     await ensureSession(oauthAuth(statePath), { env });
     const second = await ensureSession(oauthAuth(statePath), { env });
@@ -463,7 +463,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
     closers.pop();
 
     const expOnly = await tokenServer(PORT_TOKEN, { expiresIn: 10, omitExpiresIn: true });
-    const other = path.join(dir, '.scribe', 'auth2.json');
+    const other = path.join(dir, '.scribe-devtools', 'auth2.json');
     const first = await ensureSession(oauthAuth(other), { env });
     expect(first.expiresAtMs).toBeGreaterThan(Date.now());
     await ensureSession(oauthAuth(other), { env });
@@ -473,7 +473,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
   it('client_credentials with a plain tokenUrl and the secret from env', async () => {
     const server = await tokenServer();
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     const info = await ensureSession(
       {
         storageState: statePath,
@@ -494,7 +494,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
   it('wrong credentials: HTTP 401 with the OAuth error code, no secret in the message', async () => {
     await tokenServer();
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     let error;
     try {
       await ensureSession(oauthAuth(statePath), { env: { APP_PASS: 'wrong-one' } });
@@ -515,7 +515,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
       respond: () => ({ status: 200, headers: { 'content-type': 'text/html' }, body: '<html>login portal</html>' }),
     });
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     await expect(ensureSession(oauthAuth(statePath), { env: { APP_USER: 'alice', APP_PASS: PASS } })).rejects.toThrow(
       /^OAuth http:\/\/localhost:4562\/.*: the response is not JSON: <html>login portal<\/html>$/u,
     );
@@ -541,7 +541,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
         }),
     });
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     const auth = oauthAuth(statePath, {
       keycloak: undefined,
       tokenUrl: `http://localhost:${String(PORT_SILENT)}/token`,

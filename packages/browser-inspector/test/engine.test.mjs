@@ -777,13 +777,13 @@ describe('runBatch with auth', () => {
   it('reuses a fresh state file once and hands storageState to every snapshot but the anonymous one', async () => {
     const { engine, calls } = harness();
     const dir = await tmp();
-    const statePath = path.join(dir, '.scribe', 'auth.json');
+    const statePath = path.join(dir, '.scribe-devtools', 'auth.json');
     await mkdir(path.dirname(statePath), { recursive: true });
     await writeFile(statePath, JSON.stringify({ cookies: [], origins: [] }), 'utf8');
     const config = {
       configPath: path.join(dir, 'read.config.json'),
       outputDir: path.join(dir, 'out'),
-      auth: { storageState: './.scribe/auth.json', maxAgeMinutes: 60, reuse: true },
+      auth: { storageState: './.scribe-devtools/auth.json', maxAgeMinutes: 60, reuse: true },
       snapshots: [flow([], { name: 'pulpit' }), flow([], { name: 'gosc', auth: false })],
     };
     const run = await engine.runBatch(config, { stamp: '2026-09-02_10-00', cwd: dir });

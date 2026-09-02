@@ -49,7 +49,7 @@ pid/lock/log, żeby równoległe testy nie widziały swoich keeperów.
 ```json
 { "v": 1, "token": "<64 hex z pliku pid>", "cwd": "D:/x", "argv": ["fill", "e3", "@{APP_PASS}", "--session", "s"],
   "values": { "argv.fill.value": "…" }, "secretValues": ["…"], "files": { "photo.bin": { "base64": "…", "size": 4 } },
-  "session": "s", "out": "./.scribe/browser-inspector" }
+  "session": "s", "out": "./.scribe-devtools/browser-inspector" }
 ```
 
 - **Bez `env`** — żądanie z polem `env` dostaje `exit 2` (`FAIL keeper: the protocol carries no env …`); zły

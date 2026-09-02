@@ -405,13 +405,13 @@ export async function ensureSession(auth, options = {}) {
 }
 
 /**
- * The state file is live credentials — a commit with it is not a typo, it is a leak. `.scribe/` is
+ * The state file is live credentials — a commit with it is not a typo, it is a leak. `.scribe-devtools/` is
  * in the repository's `.gitignore`; anywhere else gets one line in the log.
  * @param {string} statePath @param {(line: string) => void} log
  */
 function warnIfOutside(statePath, log) {
-  if (!statePath.replaceAll('\\', '/').includes('/.scribe/')) {
-    log(`auth: WARNING ${statePath} is outside .scribe/ — a live session, do not commit it`);
+  if (!statePath.replaceAll('\\', '/').includes('/.scribe-devtools/')) {
+    log(`auth: WARNING ${statePath} is outside .scribe-devtools/ — a live session, do not commit it`);
   }
 }
 

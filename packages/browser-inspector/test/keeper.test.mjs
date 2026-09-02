@@ -58,7 +58,7 @@ function writeConfig(h, snapshots, extra = {}) {
 
 /** A config with an `auth` block: a form login, `APP_PASS` from env, the state file next to the config. */
 const AUTH = {
-  storageState: './.scribe/auth.json',
+  storageState: './.scribe-devtools/auth.json',
   login: {
     url: 'http://localhost:4521/login.html',
     steps: [
@@ -501,7 +501,7 @@ describe('auth in a config is executed, not only validated', () => {
   it('a fresh state file is reused and handed to every snapshot except `auth: false`', async () => {
     const h = fresh({ APP_PASS: 'wonderland-42' });
     const config = writeConfig(h, [{ name: 'pulpit' }, { name: 'gosc', auth: false }], { auth: AUTH });
-    const state = path.join(h.cwd, '.scribe', 'auth.json');
+    const state = path.join(h.cwd, '.scribe-devtools', 'auth.json');
     fs.mkdirSync(path.dirname(state), { recursive: true });
     fs.writeFileSync(state, JSON.stringify({ cookies: [], origins: [] }));
     const run = await bi([config, '--stamp', '2026-09-02_12-00'], h);

@@ -82,7 +82,7 @@ fixtures/tabs.html, smoke sesyjny przez keepera (AC-8, AC-9, AC-14, AC-15).`
   gdy runner ją dał (`close`, `trace`, `video`, `run`), inaczej `ok <head>` (+ ewentualne `dialog …`).
 - FAIL → `formatFail(head, error)` (powód ≤ 120 znaków) + tylko delty `dialog …`; `exit 1`.
 - Ścieżki w liniach są **względne do cwd komendy** (reguła §4.4), więc domyślnie
-  `.scribe/browser-inspector/session/default/snap.md`, nie `session/default/snap.md` z próbki — próbka zakładała
+  `.scribe-devtools/browser-inspector/session/default/snap.md`, nie `session/default/snap.md` z próbki — próbka zakładała
   `out` w cwd; mierzone: `ok open` z pełną ścieżką = 30 tok.
 
 ### Komendy sesyjne w `steps.run.mjs` — decyzje

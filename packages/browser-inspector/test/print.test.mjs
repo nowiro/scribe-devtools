@@ -192,7 +192,9 @@ describe('rules', () => {
     expect(formatBytes(41)).toBe('41 B');
     expect(formatBytes(1536)).toBe('1.5 KB');
     expect(formatBytes(3 * 1024 * 1024)).toBe('3.0 MB');
-    expect(relPath('D:\\x\\.scribe\\session\\default\\snap.md', 'D:/x')).toBe('.scribe/session/default/snap.md');
+    expect(relPath('D:\\x\\.scribe-devtools\\session\\default\\snap.md', 'D:/x')).toBe(
+      '.scribe-devtools/session/default/snap.md',
+    );
     expect(relPath('d:/x/a.txt', 'D:/x/')).toBe('a.txt');
     expect(relPath('/tmp/other/a.txt', '/home/me')).toBe('/tmp/other/a.txt');
     expect(relPath('/home/me', '/home/me')).toBe('.');

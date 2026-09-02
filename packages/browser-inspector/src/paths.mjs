@@ -21,7 +21,7 @@ export const CI_VARS = Object.freeze([
   'CIRCLECI',
 ]);
 
-export const DEFAULT_OUTPUT_DIR = './.scribe/browser-inspector';
+export const DEFAULT_OUTPUT_DIR = './.scribe-devtools/browser-inspector';
 
 /** Marker written by `scripts/portable-zip.mjs` next to the package.json of an unpacked zip. */
 export const PORTABLE_MARKER = 'PORTABLE';
@@ -223,7 +223,7 @@ export const sessionDir = (out, name = 'default') => path.join(out, 'session', n
 
 /**
  * The output directory of a config, resolved like scribe does: relative to the CONFIG FILE, not
- * the cwd — so a config in the repo root writes to `<repo>/.scribe/browser-inspector` from anywhere.
+ * the cwd — so a config in the repo root writes to `<repo>/.scribe-devtools/browser-inspector` from anywhere.
  * @param {string | undefined} outputDir
  * @param {string} baseDir directory of the config file (or the cwd for a session)
  * @returns {string}
