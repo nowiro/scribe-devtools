@@ -330,6 +330,9 @@ export interface Timing {
   stepsMs: number;
   captureMs: number;
   writeMs: number;
+  /** `writeMs` split in two: the screenshot write tail and the recorder's outstanding body reads. */
+  shotsMs?: number;
+  settleMs?: number;
   totalMs: number;
   cacheHits: number;
   cacheHitsDocument: number;

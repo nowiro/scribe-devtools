@@ -250,9 +250,15 @@ export function createFlowRunner(input) {
 
     // The queued screenshot writes and the recorder's body reads are the `writeMs` of §6; the
     // report files themselves land after the timing is known (a few ms, unmeasured on purpose).
+    // Split in two, because the sum alone cannot say which half to attack: `shotsMs` is the tail of
+    // `saveScreenshot` (disk), `settleMs` is `Network.getResponseBody` for the bodies the recorder
+    // still owes (a POST that answered late leaves its whole tail here).
     const writeStarted = now();
     await Promise.allSettled([...(ctx.capture.pending ?? []), ...evidence.pending]);
+    const shotsMs = ms(writeStarted);
+    const settleStarted = now();
     await recorder.settle();
+    const settleMs = ms(settleStarted);
     const writeMs = ms(writeStarted);
 
     const screenshots = [...ctx.capture.screenshots, ...(evidence.screenshot ? [evidence.screenshot] : [])];
@@ -279,6 +285,8 @@ export function createFlowRunner(input) {
       stepsMs,
       captureMs,
       writeMs,
+      shotsMs,
+      settleMs,
       totalMs: ms(started),
       cacheHits: summary.cacheHits,
       cacheHitsDocument: summary.cacheHitsDocument,

@@ -390,7 +390,7 @@ Flow benchu (`demo/skryba/read.config.json`, 18 kroków): waitFor, click, 2×ext
 | 5 × extract + 1 × evaluate à 2 | 12 | 12 | 12 | 12 |
 | 2 × screenshot CDP PNG à 25 (zapis asynchroniczny) | 50 | 50 | 50 | 50 |
 | dowód końcowy (el-count 6 + title/text/elements 6); `final.png` pominięty (`auto`) | 12 | 12 | 12 | 12 |
-| oczekiwanie na zapisy + `report.json/md`, `elements.md`, `text.txt`, manifesty | 10 | 10 | 10 | 10 |
+| `writeMs`: ogon zapisu zrzutów (`shotsMs`) + zaległe odczyty ciał przez recorder (`settleMs`) | 10 | 10 | 10 | 10 |
 | odpowiedź + wydruk + wyjście klienta | 6 | 6 | 6 | 5 |
 | context.close + browser.close | — | — | — | 200 |
 | **razem** | **546** | **561** | **1 469** | **1 618** |
@@ -492,7 +492,7 @@ scribe-devtools/
     src/types.d.ts                  # PageLike, StepContext, StepDef, Report, Manifest, KeeperRequest/Response, Timing
     test/*.test.mjs                 # vitest z FakePage (PageLike)
     test/client-imports.test.mjs    # graf modułów klienta: nigdy playwright-core / engine|lanes|flow|session|steps.ctx|steps.run.mjs
-    test/keeper.test.mjs            # prawdziwy pipe na losowej nazwie, silnik = fake; lock, token, idle, CI, sesje
+    test/keeper.*.test.mjs          # prawdziwy pipe na losowej nazwie, silnik = fake; identity, idle, queues, secrets
     test/compat/smoke-gate.test.mjs # spawn bin/browser-inspector.mjs <config app-factory> --stamp X: --no-daemon, keeper ×2, --parallel 3; kopia evaluateReports()
     test/smoke/smoke.test.mjs       # prawdziwy Chrome: fixtures/*.html przez node:http, flow + sesja przez keepera + izolacja
     test/perf/*.perf.test.mjs       # opt-in (BROWSER_INSPECTOR_PERF=1): client-start ≤ BROWSER_INSPECTOR_PERF_CLIENT_MS (120)

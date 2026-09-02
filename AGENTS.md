@@ -34,7 +34,7 @@ tam; `scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości.
 | --- | --- |
 | `npm run verify` | wszystko poniżej, w tej kolejności |
 | `prettier --check .` | format: 120 kolumn, LF, pojedyncze cudzysłowy (`.prettierignore`: proza z wąskimi tabelami, generowane, fixture'y) |
-| `vitest run` | projekty `unit` (FakePage, keeper na prawdziwym pipe z fake'iem silnika, `client-imports`), `scripts` (CODE-INDEX, portable staging + `browser-inspector help` z rozpakowanego drzewa), `bench`, `smoke`, `compat` (perf tylko z `BROWSER_INSPECTOR_PERF=1`) |
+| `vitest run --project !smoke` | projekty `unit` (FakePage, keeper na prawdziwym pipe z fake'iem silnika w czterech plikach, `client-imports`), `scripts` (CODE-INDEX, portable staging + `browser-inspector help` z rozpakowanego drzewa), `bench`, `compat` (perf tylko z `BROWSER_INSPECTOR_PERF=1`). `smoke` jest wykluczony i idzie OSOBNO, na końcu (`npm run smoke`) — inaczej `vitest run` uruchamiał go drugi raz, a prawdziwy Chrome obok testów jednostkowych obciążał maszynę na tyle, że testy z budżetem 200 ms migotały |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**`, `bench/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
 | `node scripts/gen-steps-doc.mjs --check` | świeżość `docs/STEPS.md` |

@@ -13,7 +13,7 @@
     "bench"
   ],
   "scripts": {
-    "verify": "prettier --check . && vitest run && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/gen-steps-doc.mjs --check && node scripts/check-instruction-sync.mjs && npm run smoke",
+    "verify": "prettier --check . && vitest run --project !smoke && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/gen-steps-doc.mjs --check && node scripts/check-instruction-sync.mjs && npm run smoke",
     "test": "vitest run",
     "smoke": "vitest run --project smoke",
     "typecheck": "tsc --noEmit",

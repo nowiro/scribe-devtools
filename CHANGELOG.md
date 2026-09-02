@@ -7,6 +7,35 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Changed
 
+- **Start klienta o 13 ms krótszy: `Intl.DateTimeFormat` budowany leniwie** (`src/cli.mjs`). Konstruktor
+  formatera stempla ładował ICU i dane stref w ciele modułu — **12 ms zmierzone** w świeżym procesie
+  (`formatToParts` potem 0,05 ms) — a klient `formatStamp` nigdy nie woła: robi to tylko `keeper.requests.mjs`
+  przy `batch` i manifesty w `report.mjs`. Płacił za to każdy proces klienta, bo `bin/browser-inspector.mjs`
+  importuje `cli.mjs` zawsze. Zmierzone A/B: import `cli.mjs` 15,2 → 3,9 ms, `browser-inspector help`
+  **78 → 65 ms** mediany z 5 (budżet 120), bench `browser-inspector-warm-tight` 326 → **316 ms**.
+  Keeper przestał płacić ten koszt przed `listen` (buduje formater dopiero przy pierwszym `batch`),
+  ale nadal go płaci na ścieżce żądania — więc `first` i `cold` zyskują tylko połowę klienta, co
+  pomiar potwierdza: 1373 → 1393 i 1465 → 1509 ms mieszczą się w szumie tych wariantów.
+- **`timing.writeMs` rozbity na `shotsMs` i `settleMs`** (`src/flow.mjs`, `types.d.ts`). Jeden wiersz
+  BUDGET.md z rozjazdem +380 % nie mówił, w co celować; etykieta („oczekiwanie na zapisy + report.json/md…")
+  była wręcz myląca, bo raporty lądują PO zamrożeniu `timing` i kosztują 3 ms. Pomiar na zadaniu benchu,
+  5 przebiegów: **`shotsMs` = 0, `settleMs` = 41–57 ms** — całe te ~50 ms to `recorder.settle()`, czyli
+  zaległe `Network.getResponseBody` dla ciał, których batch nigdzie nie renderuje (jedyny czytelnik
+  `recorder.bodies` to sesyjne `net <n> --body`). Kontrola sufitu: ten sam przebieg z `captureBodies: false`
+  daje `settleMs` 0 i **total 232 → 178 ms (−23 %)**, kosztem `size` przy odpowiedzi bez `Content-Length`.
+  Etykieta wiersza w §6 i w `bench/budget.mjs` poprawiona; sama zmiana domyślnego `captureBodies` to
+  decyzja o treści raportu i czeka na osobne rozstrzygnięcie.
+- **Bramka nie uruchamia już smoke dwa razy**: `verify` woła `vitest run --project !smoke`, a `npm run smoke`
+  zostaje jako osobny, ostatni krok. `vitest run` bez filtra brał wszystkie projekty łącznie ze `smoke`, więc
+  prawdziwy Chrome jechał raz obok testów jednostkowych i drugi raz na końcu — a przy okazji obciążał maszynę
+  na tyle, że testy z budżetem 200 ms migotały.
+- **`test/keeper.test.mjs` (586 linii, 28 testów, 55 spawnów klienta) rozbity na cztery pliki** wzdłuż własnych
+  bloków `describe`: `keeper.identity` (lock, token, stale files, doctor), `keeper.idle` (sesje, TTL, recykling,
+  scrub po odpowiedzi), `keeper.queues` (serializacja, `queuedMs`, awarie silnika, brak przeglądarki) i
+  `keeper.secrets` (log, dziennik, auth, sekret per sesja). Vitest zrównolegla po plikach, a jeden plik był
+  70 % czasu projektu: **`unit` 17,5 → 8,75 s**, te same 355 testów. `writeConfig` i `AUTH` przeniesione do
+  `test/fixtures/keeper-harness.mjs`, bo dzielą je teraz cztery pliki.
+
 - **Silnik to pięć modułów zamiast jednego pliku na 2320 linii** — refaktor bez zmiany zachowania
   (te same 423 testy + 18 smoke, ten sam `report.json`). `src/engine.mjs` (242 linie) jest teraz
   wyłącznie miejscem składania: normalizuje dwa zapisy `createEngine`, spina części i trzyma to, czego

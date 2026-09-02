@@ -223,3 +223,34 @@ export function cleanup(harness) {
     // Left for the OS.
   }
 }
+
+/** A batch config with N flows; a `wait` step makes the fake sleep, a name with `fail` fails. */
+export function writeConfig(h, snapshots, extra = {}) {
+  const file = path.join(h.cwd, 'read.config.json');
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      outputDir: './out',
+      ...extra,
+      snapshots: snapshots.map((s) => ({
+        type: 'flow',
+        url: 'http://localhost:4521/',
+        steps: [{ do: 'wait', ms: 5 }],
+        ...s,
+      })),
+    }),
+  );
+  return file;
+}
+
+/** A config with an `auth` block: a form login, `APP_PASS` from env, the state file next to the config. */
+export const AUTH = {
+  storageState: './.scribe-devtools/auth.json',
+  login: {
+    url: 'http://localhost:4521/login.html',
+    steps: [
+      { do: 'fill', selector: '#pass', valueFromEnv: 'APP_PASS' },
+      { do: 'click', selector: '#go' },
+    ],
+  },
+};

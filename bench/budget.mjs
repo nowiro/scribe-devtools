@@ -147,7 +147,7 @@ export const DESIGN_BUDGET = {
     },
     {
       key: 'write',
-      label: 'oczekiwanie na zapisy + report.json/md, elements.md, text.txt, manifesty',
+      label: 'writeMs: ogon zapisu zrzutow (shotsMs) + zalegle odczyty cial przez recorder (settleMs)',
       design: {
         'browser-inspector-warm': 10,
         'browser-inspector-warm-tight': 10,

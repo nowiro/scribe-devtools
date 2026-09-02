@@ -46,15 +46,15 @@ const SESSION_FLAGS = Object.freeze({ session: 'string', out: 'string', soft: 'b
 const SCRIPT_FLAGS = Object.freeze({ out: 'string', 'no-daemon': 'bool' });
 const EXPORT_FLAGS = Object.freeze({ session: 'string', force: 'bool' });
 
-const STAMP_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/Warsaw',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
+/**
+ * Built on the first `formatStamp`, never at import: constructing an `Intl.DateTimeFormat` loads ICU
+ * and the timezone data, which is **12 ms measured** in a fresh process — and the CLIENT never
+ * formats a stamp (only the keeper's `batch` handler and the manifests do), yet it imports this
+ * module on every single call. 12 ms out of an 80 ms client start, paid for an object that path
+ * does not use; on `first` it is paid twice, because the keeper pays it again before `listen`.
+ * @type {Intl.DateTimeFormat | undefined}
+ */
+let stampFormat;
 
 /**
  * `Date` → `YYYY-MM-DD_HH-MM` in Europe/Warsaw — the directory name of a run when `--stamp` is absent.
@@ -62,7 +62,16 @@ const STAMP_FORMAT = new Intl.DateTimeFormat('en-GB', {
  * @returns {string}
  */
 export function formatStamp(date) {
-  const parts = new Map(STAMP_FORMAT.formatToParts(date).map((part) => [part.type, part.value]));
+  stampFormat ??= new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Warsaw',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = new Map(stampFormat.formatToParts(date).map((part) => [part.type, part.value]));
   const hour = parts.get('hour') === '24' ? '00' : (parts.get('hour') ?? '00');
   return `${parts.get('year') ?? '1970'}-${parts.get('month') ?? '01'}-${parts.get('day') ?? '01'}_${hour}-${parts.get('minute') ?? '00'}`;
 }
