@@ -13,6 +13,11 @@ Thumbs.db
 # The benchmark's raw results; RAPORT.md/WYNIKI.md/BUDGET.md are committed, the JSON behind them is not.
 bench/out/
 
+# What the @playwright/mcp server drops in the working directory (console logs, page snapshots) when
+# it runs from `.mcp.json` / `.vscode/mcp.json` — including during `npm run bench`. Untracked AND
+# unformatted: without the `.prettierignore` twin, one bench run turns `npm run verify` red.
+.playwright-mcp/
+
 # The portable zip IS tracked — every version lives in download/ (built by the pre-commit hook,
 # deterministic bytes, .sha256 sidecar). A zip anywhere else is a stray build.
 *-portable-*.zip

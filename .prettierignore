@@ -14,6 +14,9 @@ docs/PLAN.md
 docs/ACCEPTANCE.md
 docs/handoff/
 
+# Dropped by the @playwright/mcp server configured in `.mcp.json` (also during `npm run bench`).
+.playwright-mcp/
+
 # Generated.
 CODE-INDEX.md
 docs/STEPS.md
