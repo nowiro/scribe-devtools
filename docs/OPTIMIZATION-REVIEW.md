@@ -1,10 +1,11 @@
 # Przegląd wydajności `browser-inspector` — v0.1.0
 
-Data przeglądu: 2026-09-02. Stan kodu: `scribe-devtools` od `a5bbd5f` (stan wyjściowy) do `a439a6f` (HEAD w chwili
-zamknięcia); tag `v0.1.0` wskazuje wydanie sprzed tej rundy. Numery linii odnoszą się do stanu `a439a6f`; ścieżki
+Data przeglądu: 2026-09-02. Stan kodu: `scribe-devtools` od `a5bbd5f` (stan wyjściowy) do `a6ecf98` (HEAD w chwili
+zamknięcia); tag `v0.1.0` wskazuje wydanie sprzed tej rundy. Numery linii odnoszą się do stanu `a6ecf98`; ścieżki
 `src/…` i `test/…` oznaczają `packages/browser-inspector/src/…` i `…/test/…`. W trakcie przeglądu drzewo przesunęło się
-o trzy commity — refaktor silnika na moduły (`646bfad`), pakiet wydajnościowy (`7bcc9c0`) i dwie naprawy liczników
-(`a439a6f`) — więc część ustaleń jest już **zamknięta**; każde takie mówi o tym wprost i podaje pomiar przed/po.
+o pięć commitów — refaktor silnika na moduły (`646bfad`), pakiet wydajnościowy (`7bcc9c0`), dwie naprawy liczników
+(`a439a6f`), sam ten dokument (`30dc3e6`) i wdrożenie punktów 3 i 5 planu (`a6ecf98`) — więc część ustaleń jest już
+**zamknięta**; każde takie mówi o tym wprost i podaje pomiar przed/po.
 
 Przegląd prowadzono w dwóch rundach po cztery niezależne soczewki. Runda druga dostała listę ustaleń rundy pierwszej z
 zakazem odkrywania ich ponownie, więc numeracja nie ma dziur po duplikatach.
@@ -60,7 +61,9 @@ się na metodzie, której nie ma w playwright-core 1.62.1, a timer bezczynności
 zamiatanie sesji — oba przeżyły, bo testy sprawdzały własne atrapy zamiast rzeczywistości, i oba są już naprawione.
 Największy pojedynczy zysk czasowy, jaki został do wzięcia, to zrzuty `fullPage` idące wolną ścieżką Playwrighta zamiast
 CDP (808 ms wobec 17–66 ms), a największy tokenowy — pozycyjne ścieżki CSS w `elements.md`, które zjadają 63 % pliku
-droższego niż cały `report.md`. Nic z tego nie wymaga zmiany architektury: wszystkie otwarte pozycje to zmiany
+droższego niż cały `report.md`. Dwie pozycje z planu — czytanie ciał odpowiedzi w batchu i przydział lane'ów po kolei —
+są już zamknięte i zmierzone (`a6ecf98`): razem ze zmianami wcześniejszymi ciepła ścieżka zeszła z 348 na 304 ms, a
+iloraz wobec MCP naive z 8,3× na 10,1×. Nic z tego nie wymaga zmiany architektury: wszystkie otwarte pozycje to zmiany
 punktowe, a trzy z nich wymagają decyzji właściciela wyłącznie dlatego, że dotykają kontraktu raportu albo obietnic
 zapisanych w DESIGN.md.
 
@@ -75,10 +78,10 @@ w kodzie pewny, wielkość zysku niezmierzona. Kolumna „zysk” podaje jednost
 | ENGINE-1 | high   | `src/recorder.mjs:260` (był)       | CONFIRMED, repro | —                          | **zamknięte** | `cacheHits` liczony przez `response.fromCache()`, metodę nieistniejącą w playwright-core 1.62.1 — 0 w 86 raportach.    |
 | LIFE-1   | high   | `src/keeper.mjs:448` (był)         | CONFIRMED, repro | —                          | **zamknięte** | Zamiatanie sesji co 30 s resetowało 30-minutowy timer bezczynności — keeper nie wychodził nigdy.                       |
 | ENGINE-2 | high   | `src/capture.mjs:98`               | MEASURED         | 0,6–1,0 s / przebieg       | otwarte       | `fullPage` z definicji omija szybką ścieżkę CDP; zrzut koszyka 808 ms wobec 17–66 ms przez CDP.                        |
-| ENGINE-3 | high   | `src/recorder.mjs:189`             | CONFIRMED        | 54 ms (−23 %)              | do decyzji    | `recorder.settle()` czeka na ciała, których batch nie renderuje; `captureBodies: false` daje total 232 → 178 ms.       |
+| ENGINE-3 | high   | `src/recorder.mjs:189` (był)       | CONFIRMED, repro | 45 ms (−19 %)              | **zamknięte** | `recorder.settle()` czekał na ciała, których batch nie renderuje; `captureBodies` opt-in → 232 → 187 ms, `settleMs` 0. |
 | CONFIG-1 | high   | `fixtures/app-factory.config.json` | CONFIRMED        | 3,5–4,0 s / przebieg       | do decyzji    | Siedem kroków `wait ms` = 4248 ms zmierzonego snu, 54 % przebiegu app-factory; `waitFor` robi to samo w 28 ms.         |
 | CLIENT-1 | high   | `src/cli.mjs:49` (był)             | CONFIRMED, A/B   | 13 ms / wywołanie          | **zamknięte** | `new Intl.DateTimeFormat` w ciele modułu — 12 ms ICU w każdym procesie klienta, który stempla nie używa.               |
-| ENGINE-4 | medium | `src/keeper.requests.mjs:283`      | MEASURED         | −26 % makespanu            | do decyzji    | `lane = k % parallel` sadza dwa najdłuższe snapshoty na jednym lane'ie; LPT daje 4,35 → 3,24 s.                        |
+| ENGINE-4 | medium | `src/keeper.requests.mjs:284`      | CONFIRMED, repro | −10 % zmierzone            | **zamknięte** | `lane = k % parallel` sadzał dwa najdłuższe snapshoty na jednym lane'ie; `planLanes` (offline LPT) to naprawia.        |
 | TOKENS-1 | medium | `src/capture.mjs:150`              | MEASURED         | 2982 tok. (−63 %)          | otwarte       | Pozycyjne ścieżki CSS w `elements.md`; 43 ze 100 wpisów to bezimienne linki, dla których ścieżka jest całą treścią.    |
 | TOKENS-2 | medium | `src/report.mjs:42`                | MEASURED         | do 1750 tok.               | otwarte       | `extract` wchodzi inline do `report.md` do 5000 znaków ≈ 1950 tokenów w pliku projektowanym na 190.                    |
 | STEPS-1  | medium | `src/session.mjs:277`              | MEASURED         | 2–3 ms × komenda           | otwarte       | `resolveRef` i `durableSelector` rozwiązują ten sam ref dwa razy: 5 komunikatów CDP zamiast 2.                         |
@@ -166,6 +169,40 @@ z Chrome (150–960 MB) żył do restartu maszyny. Sonda bez przeglądarki, prze
 zamiataniu co 100 ms i budżecie 500 ms `onIdle` nie wystrzelił ani razu; przy zamiataniu co 30 s wystrzelił po 513 ms.
 Naprawa: zamiatanie uzbraja timer tylko wtedy, gdy faktycznie wygasiło sesję.
 
+**ENGINE-3 — batch przestał czytać ciała odpowiedzi (`a6ecf98`).** Rejestrator czytał `response.text()` dla każdej
+odpowiedzi json/text, a **nic w batchu ciał nie renderuje**: jedynym czytelnikiem `recorder.bodies` w całym drzewie jest
+sesyjne `net <n> --body` (`steps.run.mjs:935`). Zmierzone przed: `shotsMs` 0, `settleMs` 41–57 ms z `totalMs` ~232.
+Po zmianie `captureBodies` na opt-in dla batchu: **232 → 187 ms (−19 %)**, `settleMs` 0, w benchu warm 321 → 304 ms
+i iloraz 9,1× → 10,1×. Sesja bez zmian, bo tam ktoś o ciała pyta; `auth` też przestał, bo jego kontekst jest wyrzucany
+zaraz po logowaniu i nikt nie woła na nim `settle()`. `size` nie zależy już od odczytu ciała — `Content-Length`, a przy
+`chunked` `request.sizes()` (`encodedDataLength`, bez dodatkowego obiegu, zweryfikowane na żywo: 39 bajtów na łączu
+wobec 28 zdekodowanych).
+
+**Granica, której rekomendacja nie przewidziała, a pokazał ją dopiero pomiar po wdrożeniu.** Rekomendacja zakładała, że
+`request.sizes()` zachowa `size` w każdym przypadku. Nie zachowuje: żądanie **wciąż w locie** w chwili budowania raportu
+nie ma ani `ms`, ani `size`, bo oba wypełnia `requestfinished` — a to jest dokładnie ten ogon, którego przestaliśmy
+czekać. W zadaniu benchu POST leci na ostatnim kliknięciu, więc trafia w ten przypadek wprost; z jednym krokiem oddechu
+po kliknięciu `size` wraca. Nie da się mieć obu naraz: ogon jest oszczędnością. Status, URL i wpis w `## errors`
+zostają, bo przychodzą z odpowiedzi. Zapisane w `types.d.ts`, DESIGN §2.2 i CHANGELOG zamiast obietnicy, że nic nie
+tracimy — to jest cena tej pozycji i ma być widoczna.
+
+**ENGINE-4 — lane'y przydzielane według kosztu (`a6ecf98`).** `lane = k % parallel` sadzał snapshoty 0 i 3 na jednym
+lane'ie niezależnie od tego, ile trwają, choć DESIGN §2.3 obiecuje „czas ≈ max(lane), nie sum(flow)”. Nowy
+`src/schedule.mjs`: `planLanes` robi offline LPT po szacunku liczonym **czystą funkcją z configu**
+(`Σ wait.ms + 100 × liczba kroków`) — nigdy z historii na dysku, bo to uczyniłoby `outputDir` wejściem planera. Zmienia
+się **wyłącznie numer lane'u**; kolejność wyników, `_manifest.json.snapshots[]`, JUnit i adresy `snapshots[i]` zostają
+kolejnością configu, a kolejność w obrębie lane'u też — dlatego scrub między snapshotami dalej jest w `scrubMs`, nie
+w `queuedMs` (własność, którą złamała odrzucona próba z modelem „worker pull”, §7). Przy równych szacunkach plan
+degeneruje się dokładnie do round-robin, więc żadna istniejąca asercja o lane'ach nie wymagała zmiany.
+
+**Rachunek obiecywał więcej, niż dowiózł pomiar.** Na prawdziwych medianach wychodziło 4,35 → 3,24 s (−26 %);
+**zmierzone** w benchu na app-factory `settled` + `parallel: 3`: 4279 · 4147 → **3805 · 3751 ms (−10 %)**. Różnica bierze
+się stąd, że szacunek dobrze **porządkuje** snapshoty, ale nie zna ich prawdziwych czasów. Lepsza kalibracja była
+próbowana przy analizie (baza + dopłata za `networkidle` i `fullPage`) i wypadła **gorzej** — przy sześciu punktach
+danych estymatory są nierozróżnialne, a jedyna solidna własność brzmi: każdy szacunek, który stawia dwa najcięższe
+snapshoty na czele, wygrywa to samo. Dlatego funkcja została surowa i taka ma zostać. Cela `parallel: 1` jest z
+definicji nietknięta, bo plan jednego lane'u to identyczność.
+
 **Wspólna diagnoza ENGINE-1 i LIFE-1, warta zapisania osobno.** Oba błędy przeżyły z tego samego powodu: **test
 sprawdzał własną atrapę zamiast rzeczywistości**. Test rejestratora budował odpowiedź _z metodą_ `fromCache`, której
 prawdziwy obiekt Playwrighta nie ma. Testy idle ustawiały krótki `IDLE_MS` przy **domyślnym** `SESSION_TTL_MS`, więc
@@ -184,34 +221,11 @@ za ścieżkę Playwrighta — koszt rośnie z wysokością strony i część z 8
 `Page.captureScreenshot({ captureBeyondViewport: true, clip: documentRect, optimizeForSpeed: true })`, fallback zostaje.
 **Przed wdrożeniem wymagany A/B**, bo wielkość zysku jest niezmierzona — mechanizm jest pewny, liczba nie.
 
-**ENGINE-3 — `recorder.settle()` czeka na ciała, których batch nie renderuje.** Po rozbiciu licznika (ENGINE-5): pięć
-przebiegów zadania benchu daje `shotsMs` **0** i `settleMs` **41–57 ms** przy `totalMs` ~232. To są zaległe
-`Network.getResponseBody` dla odpowiedzi, których jedynym czytelnikiem w całym repozytorium jest sesyjne
-`net <n> --body` (`steps.run.mjs:935`). Kontrola sufitu: ten sam przebieg z `captureBodies: false` daje `settleMs` 0 i
-**total 232 → 178 ms (−23 %)**. Rekomendacja soczewki, z prześledzeniem wszystkich czytelników `entry.size` i
-`entry.bodySkipped`: uczynić `captureBodies` opt-in dla batchu, a `size` brać z `request.sizes()` (`responseBodySize`
-liczony przez playwright-core z `Network.loadingFinished.encodedDataLength` **bez dodatkowego obiegu**). Trzy rzeczy do
-zapisania przy wdrożeniu: znaczenie `size` zmienia się ze zdekodowanych bajtów na bajty na łączu; przy odpowiedzi z
-cache'u trzeba strażnika `> 0`; `sizes()` musi trafić do `recorder.pending`, nie być gołym `await`. **Bramy app-factory
-ta zmiana nie dotyka** — `tools/scripts/smoke-browser.mjs` czyta wyłącznie `completed`, `steps[].ok/description/error`
-i `navigationError`.
-
 **CONFIG-1 — 54 % przebiegu app-factory to sen w configu.** Siedem kroków `wait ms` (500 + 600 + 700 + 700 + 700 + 400 + 600) daje **4248 ms** zmierzonego snu przy całym batchu ~7,9 s. Kalibracja leży w tym samym pliku: `dziennik-*` używa
 wyłącznie `waitFor` i ta sama klasa przejścia kosztuje **28 ms** zamiast 709. `browser-inspector lint-config` **już** to
 drukuje. Jedyny sen z uzasadnieniem to 600 ms przed zrzutem koszyka — animacja szuflady, której `waitFor` nie zobaczy.
 To nie jest ustalenie o naszym kodzie, tylko o configu, który trzyma bramka — ale jest największą pojedynczą pozycją
 całego pomiaru i dlatego stoi wysoko.
-
-**ENGINE-4 — statyczny przydział lane'ów.** `lane = k % parallel` sadza snapshoty 0 i 3 na tym samym lane'ie niezależnie
-od kosztu; z mediany app-factory (`parallel: 3`) wychodzi lane0 = 1,2 + 3,1 = **4,33 s** przy sumie/3 = 3,2 s. Sama
-zmiana na model „worker pull” **nie pomaga** (ten sam makespan, bo najdłuższy snapshot jest czwarty w configu) i przy
-okazji przenosi koszt scrubu ze `scrubMs` do `queuedMs`, łamiąc udokumentowaną własność — próba wdrożenia oblała bramkę
-zgodności i została cofnięta. Rekomendacja soczewki: zostawić kolejność wyników i statyczny przydział, a zmienić sam
-**numer lane'u** przez offline LPT po szacunku liczonym czystą funkcją z configu (`Σ wait.ms + 100 × liczba kroków`).
-Policzone: makespan 4,35 → 3,24 s (−26 %), przy czym ideał LPT na prawdziwych medianach to 3,22 s. Nie zmienia się nic
-w `_manifest.json`, `report.json`, JUnit ani `evaluateReports()`; przy równych szacunkach degeneruje się dokładnie do
-dzisiejszego round-robin. Argument, który przeważa nad „to tylko bench”: DESIGN §2.3 obiecuje literalnie
-„czas ≈ max(lane), nie sum(flow)”, a kod daje max(dowolnego podziału) — dokument obiecuje coś, czego kod nie robi.
 
 **TOKENS-1 — `elements.md` droższy niż cały raport.** Fallback `selectorFor` buduje pozycyjne ścieżki CSS w rodzaju
 `#main-content > ais-bookstore-catalogue-page:nth-of-type(1) > … > a:nth-of-type(1)`: 42 takie ścieżki po ~74 tokeny.
@@ -322,19 +336,20 @@ Ta sekcja istnieje po to, żeby następna runda nie wymyśliła tego samego od n
 kart, `about:blank` między przebiegami, nowa karta w scrubie, `DOMStorage.clear` przez CDP, JPEG, `force: true`, własny
 silnik selektorów) obowiązują dalej i nie są tu powtarzane.
 
-| pomysł                                               | dlaczego odrzucony                                                                                                                                 |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Buforowanie `srcStamp` zamiast chodzenia po `src/**` | Zmierzone 1,3 ms z 34 wywołań `fs`. Zamiennik (mtime katalogu) jest **niepoprawny** na NTFS: nie zmienia się przy edycji zawartości pliku.         |
-| Binarny/length-prefixed transport zamiast NDJSON     | 2,6 ms dla najgorszego realnego przypadku (plik 1 MB). Protokół jest punktem synchronizacji; wymiana za 2 ms to zły interes.                       |
-| Usunięcie podwójnego `loadConfig` (klient + keeper)  | 0,198 ms dla configu sześciu snapshotów. Usunięcie wymagałoby przesłania sparsowanego configu, czyli zmiany protokołu z §2.4.                      |
-| `NODE_COMPILE_CACHE`                                 | 1,3–2,4 ms, w szumie — i wymagałoby, żeby zmienną ustawiał wołający agent.                                                                         |
-| Prewarm jako lekarstwo na pierwszy `goto`            | `warm-fresh` dostaje **prewarmowaną** parę kontekst+strona i ma najgorszy `goto` ze wszystkich wariantów (390 ms wobec 341 dla `first`).           |
-| Worker pull w keeperze zamiast `k % parallel`        | Ten sam makespan na configu referencyjnym; przenosi koszt scrubu ze `scrubMs` do `queuedMs`, łamiąc §2.3, wiersz BUDGET.md i asercję `smoke-gate`. |
-| Szacunek kosztu z poprzedniego `_manifest.json`      | Czyni `outputDir` **wejściem** planera — katalog opisany jako „zrzut, można skasować” zaczyna sterować przebiegiem; plus niedeterminizm w CI.      |
-| Twardy cap na `settle()` (np. 10 ms) zamiast opt-in  | `size` i `bodySkipped` stają się zależne od wyścigu, a `comparable()` w bramce zgodności porównuje je między trzema trybami.                       |
-| Czytanie ciał tylko dla `status >= 400`              | Zysk **zero** na zadaniu referencyjnym: to właśnie POST 404 jest tym jednym odczytem, który kosztuje całe 40–55 ms.                                |
-| Przekazanie `pending` do `writeArtifacts`            | `shotsMs` = 0 w pięciu przebiegach — nie ma czego nakładać. Hipoteza obalona własnym licznikiem w dniu, w którym powstał.                          |
-| Obniżenie progu perf-testu `browser-inspector help`  | §11 odrzuciło 100 ms jako flaky na obciążonej maszynie. To, że CLIENT-1 dał zapas, nie jest powodem, żeby wracać do odrzuconej decyzji.            |
+| pomysł                                                        | dlaczego odrzucony                                                                                                                                                                      |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Buforowanie `srcStamp` zamiast chodzenia po `src/**`          | Zmierzone 1,3 ms z 34 wywołań `fs`. Zamiennik (mtime katalogu) jest **niepoprawny** na NTFS: nie zmienia się przy edycji zawartości pliku.                                              |
+| Binarny/length-prefixed transport zamiast NDJSON              | 2,6 ms dla najgorszego realnego przypadku (plik 1 MB). Protokół jest punktem synchronizacji; wymiana za 2 ms to zły interes.                                                            |
+| Usunięcie podwójnego `loadConfig` (klient + keeper)           | 0,198 ms dla configu sześciu snapshotów. Usunięcie wymagałoby przesłania sparsowanego configu, czyli zmiany protokołu z §2.4.                                                           |
+| `NODE_COMPILE_CACHE`                                          | 1,3–2,4 ms, w szumie — i wymagałoby, żeby zmienną ustawiał wołający agent.                                                                                                              |
+| Prewarm jako lekarstwo na pierwszy `goto`                     | `warm-fresh` dostaje **prewarmowaną** parę kontekst+strona i ma najgorszy `goto` ze wszystkich wariantów (390 ms wobec 341 dla `first`).                                                |
+| Worker pull w keeperze zamiast `k % parallel`                 | Ten sam makespan na configu referencyjnym; przenosi koszt scrubu ze `scrubMs` do `queuedMs`, łamiąc §2.3, wiersz BUDGET.md i asercję `smoke-gate`.                                      |
+| Szacunek kosztu z poprzedniego `_manifest.json`               | Czyni `outputDir` **wejściem** planera — katalog opisany jako „zrzut, można skasować” zaczyna sterować przebiegiem; plus niedeterminizm w CI.                                           |
+| Twardy cap na `settle()` (np. 10 ms) zamiast opt-in           | `size` i `bodySkipped` stają się zależne od wyścigu, a `comparable()` w bramce zgodności porównuje je między trzema trybami.                                                            |
+| Czytanie ciał tylko dla `status >= 400`                       | Zysk **zero** na zadaniu referencyjnym: to właśnie POST 404 jest tym jednym odczytem, który kosztuje całe 40–55 ms.                                                                     |
+| Przekazanie `pending` do `writeArtifacts`                     | `shotsMs` = 0 w pięciu przebiegach — nie ma czego nakładać. Hipoteza obalona własnym licznikiem w dniu, w którym powstał.                                                               |
+| Zachowanie `ms`/`size` dla żądania w locie po wyłączeniu ciał | Zmierzone po wdrożeniu ENGINE-3: oba pola wypełnia `requestfinished`, a czekanie na nie JEST tą oszczędnością. Nie da się mieć obu naraz — granica jest udokumentowana, nie obchodzona. |
+| Obniżenie progu perf-testu `browser-inspector help`           | §11 odrzuciło 100 ms jako flaky na obciążonej maszynie. To, że CLIENT-1 dał zapas, nie jest powodem, żeby wracać do odrzuconej decyzji.                                                 |
 
 ## 8. Plan
 
@@ -347,14 +362,17 @@ zysku.
 | --- | ---------------------------------------------------------------------- | ---------------------------------- | --------- |
 | 1   | Leniwy `Intl.DateTimeFormat`, `writeMs` → `shotsMs`/`settleMs`, bramka | CLIENT-1, ENGINE-5, GATE-1, GATE-2 | `7bcc9c0` |
 | 2   | `cacheHits` z Resource Timing API + smoke, idle bez resetu + regresja  | ENGINE-1, LIFE-1                   | `a439a6f` |
+| 3   | `captureBodies` opt-in dla batchu + `size` z `request.sizes()`         | ENGINE-3                           | `a6ecf98` |
+| 5   | `planLanes()` — offline LPT po szacunku z configu                      | ENGINE-4                           | `a6ecf98` |
 
 ### 8.2 Do 0.1.1 — wymaga decyzji właściciela
 
+Numeracja zachowana z pierwszego wydania dokumentu, żeby odsyłacze w commitach i w CHANGELOG-u dalej wskazywały to samo.
+Punkty 3 i 5 przeszły do §8.1.
+
 | #   | Zmiana                                                                                      | Zamyka   | Zysk                 | Koszt |
 | --- | ------------------------------------------------------------------------------------------- | -------- | -------------------- | ----- |
-| 3   | `captureBodies` opt-in dla batchu + `size` z `request.sizes()`                              | ENGINE-3 | −23 % zadania        | S–M   |
 | 4   | `fullPage` przez CDP `captureBeyondViewport` (po A/B)                                       | ENGINE-2 | 0,6–1,0 s / przebieg | M     |
-| 5   | `planLanes()` — offline LPT po szacunku z configu, bez zmiany kolejności wyników            | ENGINE-4 | −26 % makespanu      | M     |
 | 6   | Migracja `wait ms` → `waitFor` / `wait --text` w configu app-factory (PR po tamtej stronie) | CONFIG-1 | 3,5–4,0 s / przebieg | S     |
 
 ### 8.3 Do 0.2 — bez decyzji, do zrobienia
