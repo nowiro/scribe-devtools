@@ -1,0 +1,40 @@
+{
+  // tsconfig.json — TYPECHECK only, there is no build step in this repository.
+  //
+  // Everything that runs is plain ESM `.mjs` executed by node straight from the checkout (the
+  // gates must work in a fresh clone without compiling, and the portable zip is a copy of the
+  // tree, not a bundle). Types live in JSDoc and in `src/types.d.ts`; `tsc --noEmit` with
+  // `checkJs` reads them and nothing else. `NodeNext` because node itself resolves the imports —
+  // a `bundler` resolution would let the typecheck accept specifiers node rejects at runtime.
+  //
+  // `strict` is on, `noImplicitAny` is off ON PURPOSE: in JS files an unannotated parameter is
+  // `any` without an error, so a helper written before its JSDoc does not block the gate, while
+  // every declared type (JSDoc `@param`, `@type`, `@typedef`, the `.d.ts`) is checked strictly.
+  // `DOM` in `lib` because step runners pass callbacks into `page.evaluate` — `document` and
+  // `window` in those arrow functions are real, not a claim that the package runs in a browser.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": ["packages/**/*.mjs", "packages/**/*.d.ts", "scripts/**/*.mjs", "bench/**/*.mjs"],
+  // Fixtures are pages under test and probes are throwaway measurement scripts — neither is code
+  // this repository maintains at the level of the typecheck. `bench/app` is a committed build.
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/fixtures/**", "bench/app/**", "bench/out/**", "bench/probes/**"]
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ramka</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; }
+      iframe { width: 400px; height: 160px; border: 1px solid #888; display: block; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      One file, two documents: the same URL with `?child=1` renders the frame's content, and the
+      frame element is created from script in parent mode only, so the child never nests another
+      frame. A full `ariaSnapshot({ mode: 'ai' })` of the parent includes the iframe with refs
+      prefixed `f<seq>e…`, and `aria-ref=f1e3` resolves from the parent page without switching
+      scope (DESIGN.md §4.5).
+    -->
+    <h1>Ramka</h1>
+    <button id="parent-btn" data-testid="parent-button">Przycisk rodzica</button>
+    <p><output id="parent-out" aria-live="polite">nic</output></p>
+    <script>
+      if (new URLSearchParams(location.search).has('child')) {
+        document.title = 'Dziecko';
+        document.body.innerHTML =
+          '<h2>Dziecko</h2>' +
+          '<button id="child-btn" data-testid="child-button">Przycisk w ramce</button>' +
+          '<p><output id="child-out" aria-live="polite">nic</output></p>';
+        document.getElementById('child-btn').addEventListener('click', () => {
+          document.getElementById('child-out').textContent = 'kliknięto w ramce';
+        });
+      } else {
+        document.getElementById('parent-btn').addEventListener('click', () => {
+          document.getElementById('parent-out').textContent = 'kliknięto rodzica';
+        });
+        const frame = document.createElement('iframe');
+        frame.src = 'iframe.html?child=1';
+        frame.title = 'Dziecko';
+        document.body.appendChild(frame);
+      }
+    </script>
+  </body>
+</html>

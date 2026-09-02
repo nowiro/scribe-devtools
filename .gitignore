@@ -1,0 +1,24 @@
+node_modules/
+coverage/
+*.log
+*.tsbuildinfo
+.vitest/
+.DS_Store
+Thumbs.db
+
+# Output of every `bi` run: screenshots, report.json, session journals — the page under test
+# is somebody's application and what lands here is its data. `.bi/` is the session scratch.
+.scribe/
+.bi/
+
+# The benchmark's raw results; RAPORT.md/WYNIKI.md/BUDGET.md are committed, the JSON behind them is not.
+bench/out/
+
+# The portable zip is a Release asset, never a tracked file.
+*-portable-*.zip
+
+# A read config carries the URLs, selectors and flows of the app it inspects — yours, not the
+# template's. The negations must name their directories: a slash-less pattern matches at every depth.
+read.config.*.json
+!packages/*/fixtures/read.config.*.json
+!examples/read.config.*.json

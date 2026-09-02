@@ -1,0 +1,36 @@
+{
+  "name": "scribe-devtools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Developer tools in the scribe spirit: scripts instead of MCP servers, results on disk. Home of browser-inspector 2 (`bi`) — batch flows and an interactive session on one step table over playwright-core — and of its benchmark against @playwright/mcp.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "bench"
+  ],
+  "scripts": {
+    "verify": "prettier --check . && vitest run && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/gen-steps-doc.mjs --check && node scripts/check-instruction-sync.mjs && npm run smoke",
+    "test": "vitest run",
+    "smoke": "vitest run --project smoke",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "docs": "node scripts/gen-steps-doc.mjs",
+    "code-index": "node scripts/index-code.mjs",
+    "portable": "node scripts/portable-zip.mjs",
+    "bench": "npm run bench --workspace bench",
+    "prepare": "git config core.hooksPath .githooks || exit 0",
+    "bi": "node packages/browser-inspector/bin/bi.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "gpt-tokenizer": "^4.0.0",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

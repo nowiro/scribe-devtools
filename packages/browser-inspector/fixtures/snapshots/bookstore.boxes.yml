@@ -1,0 +1,952 @@
+- generic [ref=e3] [box=0,0,1280,6335]:
+  - link "Przejdź do treści" [ref=e4] [cursor=pointer] [box=8,-32,150,40]:
+    - /url: "#main-content"
+  - generic [ref=e8] [box=0,0,1280,6335]:
+    - banner [ref=e9] [box=0,0,1280,60]:
+      - generic [ref=e10] [box=0,0,1280,60]:
+        - link "Księgarnia" [ref=e11] [cursor=pointer] [box=16,16,137,28]:
+          - /url: /
+          - generic [ref=e12] [box=16,18,24,24]: menu_book
+        - navigation "Nawigacja główna" [ref=e14] [box=177,12,322,36]:
+          - link "Katalog" [ref=e15] [cursor=pointer] [box=177,12,73,36]:
+            - /url: /
+          - link "Nowości" [ref=e19] [cursor=pointer] [box=254,12,79,36]:
+            - /url: /new
+          - link "Promocje" [ref=e23] [cursor=pointer] [box=337,12,85,36]:
+            - /url: /promotions
+          - link "Kontakt" [ref=e27] [cursor=pointer] [box=426,12,73,36]:
+            - /url: /contact
+        - search [ref=e33] [box=868,4,352,52]:
+          - generic [ref=e36] [box=884,4,336,52]:
+            - generic [box=868,4,352,52]: Szukaj produktów…
+            - textbox "Szukaj produktów…" [ref=e39] [box=884,18,296,24]
+            - button "Szukaj" [ref=e41] [cursor=pointer] [box=1184,12,36,36]:
+              - generic [ref=e42] [box=1190,18,24,24]: search
+        - button "Otwórz koszyk" [ref=e45] [cursor=pointer] [box=1228,12,36,36]:
+          - generic [ref=e46] [box=1234,18,24,24]: shopping_cart
+    - main [ref=e49] [box=0,60,1280,6005]:
+      - generic [ref=e50] [box=0,60,1280,6005]:
+        - generic "Twoja kolejna ulubiona książka" [ref=e51] [box=0,60,1280,572]:
+          - generic [ref=e54] [box=32,204,592,284]:
+            - generic [ref=e55] [box=32,204,592,16]: Tysiące tytułów
+            - heading "Twoja kolejna ulubiona książka" [level=1] [ref=e56] [box=32,236,592,120]
+            - paragraph [ref=e57] [box=32,372,592,56]: Literatura, fantastyka, biografie, książki dla dzieci — wszystko z dostawą w 24 h.
+            - link [ref=e58] [cursor=pointer] [box=32,452,177,36]:
+              - /url: /
+              - generic [ref=e59] [box=56,455,129,30]:
+                - text: Zobacz katalog
+                - generic [ref=e60] [box=161,455,24,24]: arrow_forward
+        - generic [ref=e65] [box=0,632,1280,5433]:
+          - complementary [ref=e67] [box=16,648,288,716]:
+            - generic [ref=e68] [box=28,660,264,36]:
+              - heading "Filtry" [level=2] [ref=e69] [box=28,664,41,28]
+              - button "Wyczyść" [ref=e70] [box=213,660,79,36]
+            - generic [ref=e76] [box=44,708,232,52]:
+              - generic [box=28,708,264,52]: Szukaj
+              - textbox "Szukaj" [ref=e79] [box=44,722,232,24]:
+                - /placeholder: Tytuł, autor, ISBN
+            - generic [ref=e80] [box=28,772,264,364]:
+              - button "Gatunek" [expanded] [ref=e81] [cursor=pointer] [box=28,772,264,60]
+              - region "Gatunek" [ref=e88] [box=28,832,264,304]:
+                - generic [ref=e90] [box=52,832,216,288]:
+                  - generic [ref=e92] [cursor=pointer] [box=52,832,102,36]:
+                    - checkbox "Literatura" [ref=e95] [box=52,832,36,36]
+                    - generic [ref=e96] [box=88,840,66,20]: Literatura
+                  - generic [ref=e98] [cursor=pointer] [box=52,872,139,36]:
+                    - checkbox "Literatura faktu" [ref=e101] [box=52,872,36,36]
+                    - generic [ref=e102] [box=88,880,103,20]: Literatura faktu
+                  - generic [ref=e104] [cursor=pointer] [box=52,912,91,36]:
+                    - checkbox "Fantasy" [ref=e107] [box=52,912,36,36]
+                    - generic [ref=e108] [box=88,920,55,20]: Fantasy
+                  - generic [ref=e110] [cursor=pointer] [box=52,952,136,36]:
+                    - checkbox "Science fiction" [ref=e113] [box=52,952,36,36]
+                    - generic [ref=e114] [box=88,960,100,20]: Science fiction
+                  - generic [ref=e116] [cursor=pointer] [box=52,992,97,36]:
+                    - checkbox "Kryminał" [ref=e119] [box=52,992,36,36]
+                    - generic [ref=e120] [box=88,1000,61,20]: Kryminał
+                  - generic [ref=e122] [cursor=pointer] [box=52,1032,98,36]:
+                    - checkbox "Biografia" [ref=e125] [box=52,1032,36,36]
+                    - generic [ref=e126] [box=88,1040,62,20]: Biografia
+                  - generic [ref=e128] [cursor=pointer] [box=52,1072,91,36]:
+                    - checkbox "Historia" [ref=e131] [box=52,1072,36,36]
+                    - generic [ref=e132] [box=88,1080,55,20]: Historia
+                  - generic [ref=e134] [cursor=pointer] [box=52,1112,81,36]:
+                    - checkbox "Nauka" [ref=e137] [box=52,1112,36,36]
+                    - generic [ref=e138] [box=88,1120,45,20]: Nauka
+                  - generic [ref=e140] [cursor=pointer] [box=52,1152,103,36]:
+                    - checkbox "Dla dzieci" [ref=e143] [box=52,1152,36,36]
+                    - generic [ref=e144] [box=88,1160,67,20]: Dla dzieci
+                  - generic [ref=e146] [cursor=pointer] [box=52,1192,84,36]:
+                    - checkbox "Poezja" [ref=e149] [box=52,1192,36,36]
+                    - generic [ref=e150] [box=88,1200,48,20]: Poezja
+            - button "Język" [ref=e152] [cursor=pointer] [box=28,1148,264,44]
+            - button "Format" [ref=e159] [cursor=pointer] [box=28,1204,264,44]
+            - button "Cena (zł)" [ref=e166] [cursor=pointer] [box=28,1260,264,44]
+            - generic [ref=e173] [cursor=pointer] [box=28,1316,162,36]:
+              - checkbox "Tylko w magazynie" [ref=e176] [box=28,1316,36,36]
+              - generic [ref=e177] [box=64,1324,126,20]: Tylko w magazynie
+          - generic [ref=e178] [box=320,648,944,5401]:
+            - generic [ref=e179] [box=320,648,944,52]:
+              - heading "Księgarnia (33)" [level=1] [ref=e180] [box=320,658,165,32]
+              - generic [ref=e183] [cursor=pointer] [box=1068,648,180,52]:
+                - generic [box=1052,648,212,52]: Sortuj
+                - combobox "Sortuj" [ref=e186] [box=1068,662,180,24]:
+                  - generic [ref=e187] [box=1068,662,180,24]: Popularność
+            - generic [ref=e194] [box=320,712,944,5337]:
+              - generic [ref=e196] [box=320,712,304,483]:
+                - link [ref=e197] [cursor=pointer] [box=320,712,304,304]:
+                  - /url: /book/book-013
+                  - img "Bloomsbury Harry Potter and the Philosopher's Stone" [ref=e199] [box=320,712,304,304]
+                - generic [ref=e200] [box=320,1016,304,127]:
+                  - generic [ref=e201] [box=336,1016,272,28]:
+                    - generic [ref=e202] [box=336,1022,80,16]: Bloomsbury
+                    - generic [ref=e203] [box=534,1016,74,28]: Fantasy
+                  - link "Harry Potter and the Philosopher's Stone" [ref=e207] [cursor=pointer] [box=336,1046,247,43]:
+                    - /url: /book/book-013
+                  - generic [ref=e208] [box=336,1092,272,20]: J.K. Rowling · 1997
+                  - generic "Rating 4.9 out of 5, 3211 reviews" [ref=e210] [box=336,1112,175,24]:
+                    - generic [ref=e211] [box=336,1112,24,24]: star
+                    - generic [ref=e212] [box=362,1112,24,24]: star
+                    - generic [ref=e213] [box=388,1112,24,24]: star
+                    - generic [ref=e214] [box=414,1112,24,24]: star
+                    - generic [ref=e215] [box=440,1112,24,24]: star_half
+                    - generic [ref=e216] [box=470,1114,41,20]: (3211)
+                - generic [ref=e217] [box=320,1143,304,52]:
+                  - generic [ref=e218] [box=328,1155,72,28]: 69,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e221] [box=468,1151,148,36]:
+                    - generic [ref=e222] [box=492,1154,100,30]:
+                      - generic [ref=e223] [box=492,1154,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e227] [box=640,712,304,483]:
+                - link [ref=e228] [cursor=pointer] [box=640,712,304,304]:
+                  - /url: /book/book-009
+                  - img "HarperCollins The Lord of the Rings" [ref=e230] [box=640,712,304,304]
+                - generic [ref=e231] [box=640,1016,304,115]:
+                  - generic [ref=e232] [box=656,1016,272,28]:
+                    - generic [ref=e233] [box=656,1022,98,16]: HarperCollins
+                    - generic [ref=e234] [box=854,1016,74,28]: Fantasy
+                  - link "The Lord of the Rings" [ref=e238] [cursor=pointer] [box=656,1046,154,19]:
+                    - /url: /book/book-009
+                  - generic [ref=e239] [box=656,1068,272,20]: J.R.R. Tolkien · 1954
+                  - generic "Rating 4.9 out of 5, 2456 reviews" [ref=e241] [box=656,1088,175,24]:
+                    - generic [ref=e242] [box=656,1088,24,24]: star
+                    - generic [ref=e243] [box=682,1088,24,24]: star
+                    - generic [ref=e244] [box=708,1088,24,24]: star
+                    - generic [ref=e245] [box=734,1088,24,24]: star
+                    - generic [ref=e246] [box=760,1088,24,24]: star_half
+                    - generic [ref=e247] [box=790,1090,41,20]: (2456)
+                - generic [ref=e248] [box=640,1131,304,64]:
+                  - generic [ref=e250] [box=648,1139,84,48]:
+                    - generic [ref=e251] [box=648,1139,84,28]: 149,00 zł
+                    - generic [ref=e252] [box=675,1167,56,20]: 169,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e253] [box=788,1145,148,36]:
+                    - generic [ref=e254] [box=812,1148,100,30]:
+                      - generic [ref=e255] [box=812,1148,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e259] [box=960,712,304,483]:
+                - link [ref=e260] [cursor=pointer] [box=960,712,304,304]:
+                  - /url: /book/book-014
+                  - img "Penguin 1984" [ref=e262] [box=960,712,304,304]
+                - generic [ref=e263] [box=960,1016,304,115]:
+                  - generic [ref=e264] [box=976,1016,272,28]:
+                    - generic [ref=e265] [box=976,1022,53,16]: Penguin
+                    - generic [ref=e266] [box=1163,1016,85,28]: Literatura
+                  - link "1984" [ref=e270] [cursor=pointer] [box=976,1046,37,19]:
+                    - /url: /book/book-014
+                  - generic [ref=e271] [box=976,1068,272,20]: George Orwell · 1949
+                  - generic "Rating 4.7 out of 5, 2189 reviews" [ref=e273] [box=976,1088,175,24]:
+                    - generic [ref=e274] [box=976,1088,24,24]: star
+                    - generic [ref=e275] [box=1002,1088,24,24]: star
+                    - generic [ref=e276] [box=1028,1088,24,24]: star
+                    - generic [ref=e277] [box=1054,1088,24,24]: star
+                    - generic [ref=e278] [box=1080,1088,24,24]: star_half
+                    - generic [ref=e279] [box=1110,1090,41,20]: (2189)
+                - generic [ref=e280] [box=960,1131,304,64]:
+                  - generic [ref=e282] [box=968,1139,72,48]:
+                    - generic [ref=e283] [box=968,1139,72,28]: 39,00 zł
+                    - generic [ref=e284] [box=992,1167,48,20]: 49,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e285] [box=1108,1145,148,36]:
+                    - generic [ref=e286] [box=1132,1148,100,30]:
+                      - generic [ref=e287] [box=1132,1148,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e291] [box=320,1211,304,495]:
+                - link [ref=e292] [cursor=pointer] [box=320,1211,304,304]:
+                  - /url: /book/book-010
+                  - img "HarperCollins The Hobbit" [ref=e294] [box=320,1211,304,304]
+                - generic [ref=e295] [box=320,1515,304,139]:
+                  - generic [ref=e296] [box=336,1515,272,28]:
+                    - generic [ref=e297] [box=336,1521,98,16]: HarperCollins
+                    - generic [ref=e298] [box=534,1515,74,28]: Fantasy
+                  - link "The Hobbit" [ref=e302] [cursor=pointer] [box=336,1545,79,19]:
+                    - /url: /book/book-010
+                  - generic [ref=e303] [box=336,1567,272,20]: J.R.R. Tolkien · 1937
+                  - generic "Rating 4.8 out of 5, 1834 reviews" [ref=e305] [box=336,1587,175,24]:
+                    - generic [ref=e306] [box=336,1587,24,24]: star
+                    - generic [ref=e307] [box=362,1587,24,24]: star
+                    - generic [ref=e308] [box=388,1587,24,24]: star
+                    - generic [ref=e309] [box=414,1587,24,24]: star
+                    - generic [ref=e310] [box=440,1587,24,24]: star_half
+                    - generic [ref=e311] [box=470,1589,41,20]: (1834)
+                - generic [ref=e312] [box=320,1654,304,52]:
+                  - generic [ref=e313] [box=328,1666,72,28]: 45,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e316] [box=468,1662,148,36]:
+                    - generic [ref=e317] [box=492,1665,100,30]:
+                      - generic [ref=e318] [box=492,1665,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e322] [box=640,1211,304,495]:
+                - link [ref=e323] [cursor=pointer] [box=640,1211,304,304]:
+                  - /url: /book/book-016
+                  - 'img "Harper Sapiens: A Brief History of Humankind" [ref=e325] [box=640,1211,304,304]'
+                - generic [ref=e326] [box=640,1515,304,127]:
+                  - generic [ref=e327] [box=656,1515,272,28]:
+                    - generic [ref=e328] [box=656,1521,47,16]: Harper
+                    - generic [ref=e329] [box=807,1515,122,28]: Literatura faktu
+                  - 'link "Sapiens: A Brief History of Humankind" [ref=e333] [cursor=pointer] [box=656,1545,190,43]':
+                    - /url: /book/book-016
+                  - generic [ref=e334] [box=656,1591,272,20]: Yuval Noah Harari · 2011
+                  - generic "Rating 4.7 out of 5, 1923 reviews" [ref=e336] [box=656,1611,175,24]:
+                    - generic [ref=e337] [box=656,1611,24,24]: star
+                    - generic [ref=e338] [box=682,1611,24,24]: star
+                    - generic [ref=e339] [box=708,1611,24,24]: star
+                    - generic [ref=e340] [box=734,1611,24,24]: star
+                    - generic [ref=e341] [box=760,1611,24,24]: star_half
+                    - generic [ref=e342] [box=790,1613,41,20]: (1923)
+                - generic [ref=e343] [box=640,1642,304,64]:
+                  - generic [ref=e345] [box=648,1650,72,48]:
+                    - generic [ref=e346] [box=648,1650,72,28]: 65,00 zł
+                    - generic [ref=e347] [box=672,1678,48,20]: 77,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e348] [box=788,1656,148,36]:
+                    - generic [ref=e349] [box=812,1659,100,30]:
+                      - generic [ref=e350] [box=812,1659,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e354] [box=960,1211,304,495]:
+                - link [ref=e355] [cursor=pointer] [box=960,1211,304,304]:
+                  - /url: /book/book-019
+                  - img "Penguin Pride and Prejudice" [ref=e357] [box=960,1211,304,304]
+                - generic [ref=e358] [box=960,1515,304,139]:
+                  - generic [ref=e359] [box=976,1515,272,28]:
+                    - generic [ref=e360] [box=976,1521,53,16]: Penguin
+                    - generic [ref=e361] [box=1163,1515,85,28]: Literatura
+                  - link "Pride and Prejudice" [ref=e365] [cursor=pointer] [box=976,1545,141,19]:
+                    - /url: /book/book-019
+                  - generic [ref=e366] [box=976,1567,272,20]: Jane Austen · 1813
+                  - generic "Rating 4.7 out of 5, 1834 reviews" [ref=e368] [box=976,1587,175,24]:
+                    - generic [ref=e369] [box=976,1587,24,24]: star
+                    - generic [ref=e370] [box=1002,1587,24,24]: star
+                    - generic [ref=e371] [box=1028,1587,24,24]: star
+                    - generic [ref=e372] [box=1054,1587,24,24]: star
+                    - generic [ref=e373] [box=1080,1587,24,24]: star_half
+                    - generic [ref=e374] [box=1110,1589,41,20]: (1834)
+                - generic [ref=e375] [box=960,1654,304,52]:
+                  - generic [ref=e376] [box=968,1666,72,28]: 35,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e379] [box=1108,1662,148,36]:
+                    - generic [ref=e380] [box=1132,1665,100,30]:
+                      - generic [ref=e381] [box=1132,1665,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e385] [box=320,1722,304,459]:
+                - link [ref=e386] [cursor=pointer] [box=320,1722,304,304]:
+                  - /url: /book/book-022
+                  - img "Crown Becoming" [ref=e388] [box=320,1722,304,304]
+                - generic [ref=e389] [box=320,2026,304,103]:
+                  - generic [ref=e390] [box=336,2026,272,28]:
+                    - generic [ref=e391] [box=336,2032,44,16]: Crown
+                    - generic [ref=e392] [box=527,2026,81,28]: Biografia
+                  - link "Becoming" [ref=e396] [cursor=pointer] [box=336,2056,72,19]:
+                    - /url: /book/book-022
+                  - generic [ref=e397] [box=336,2078,272,20]: Michelle Obama · 2018
+                  - generic "Rating 4.8 out of 5, 1567 reviews" [ref=e399] [box=336,2098,175,24]:
+                    - generic [ref=e400] [box=336,2098,24,24]: star
+                    - generic [ref=e401] [box=362,2098,24,24]: star
+                    - generic [ref=e402] [box=388,2098,24,24]: star
+                    - generic [ref=e403] [box=414,2098,24,24]: star
+                    - generic [ref=e404] [box=440,2098,24,24]: star_half
+                    - generic [ref=e405] [box=470,2100,41,20]: (1567)
+                - generic [ref=e406] [box=320,2129,304,52]:
+                  - generic [ref=e407] [box=328,2141,72,28]: 89,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e410] [box=468,2137,148,36]:
+                    - generic [ref=e411] [box=492,2140,100,30]:
+                      - generic [ref=e412] [box=492,2140,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e416] [box=640,1722,304,459]:
+                - link [ref=e417] [cursor=pointer] [box=640,1722,304,304]:
+                  - /url: /book/book-024
+                  - img "Gallimard Le Petit Prince" [ref=e419] [box=640,1722,304,304]
+                - generic [ref=e420] [box=640,2026,304,103]:
+                  - generic [ref=e421] [box=656,2026,272,28]:
+                    - generic [ref=e422] [box=656,2032,69,16]: Gallimard
+                    - generic [ref=e423] [box=843,2026,85,28]: Literatura
+                  - link "Le Petit Prince" [ref=e427] [cursor=pointer] [box=656,2056,106,19]:
+                    - /url: /book/book-024
+                  - generic [ref=e428] [box=656,2078,272,20]: Antoine de Saint-Exupéry · 1943
+                  - generic "Rating 4.9 out of 5, 1089 reviews" [ref=e430] [box=656,2098,175,24]:
+                    - generic [ref=e431] [box=656,2098,24,24]: star
+                    - generic [ref=e432] [box=682,2098,24,24]: star
+                    - generic [ref=e433] [box=708,2098,24,24]: star
+                    - generic [ref=e434] [box=734,2098,24,24]: star
+                    - generic [ref=e435] [box=760,2098,24,24]: star_half
+                    - generic [ref=e436] [box=790,2100,41,20]: (1089)
+                - generic [ref=e437] [box=640,2129,304,52]:
+                  - generic [ref=e438] [box=648,2141,72,28]: 45,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e441] [box=788,2137,148,36]:
+                    - generic [ref=e442] [box=812,2140,100,30]:
+                      - generic [ref=e443] [box=812,2140,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e447] [box=960,1722,304,459]:
+                - link [ref=e448] [cursor=pointer] [box=960,1722,304,304]:
+                  - /url: /book/book-030
+                  - img "Harper & Row Charlotte's Web" [ref=e450] [box=960,1722,304,304]
+                - generic [ref=e451] [box=960,2026,304,103]:
+                  - generic [ref=e452] [box=976,2026,272,28]:
+                    - generic [ref=e453] [box=976,2032,89,16]: Harper & Row
+                    - generic [ref=e454] [box=1162,2026,86,28]: Dla dzieci
+                  - link "Charlotte's Web" [ref=e458] [cursor=pointer] [box=976,2056,112,19]:
+                    - /url: /book/book-030
+                  - generic [ref=e459] [box=976,2078,272,20]: E.B. White · 1952
+                  - generic "Rating 4.8 out of 5, 1198 reviews" [ref=e461] [box=976,2098,175,24]:
+                    - generic [ref=e462] [box=976,2098,24,24]: star
+                    - generic [ref=e463] [box=1002,2098,24,24]: star
+                    - generic [ref=e464] [box=1028,2098,24,24]: star
+                    - generic [ref=e465] [box=1054,2098,24,24]: star
+                    - generic [ref=e466] [box=1080,2098,24,24]: star_half
+                    - generic [ref=e467] [box=1110,2100,41,20]: (1198)
+                - generic [ref=e468] [box=960,2129,304,52]:
+                  - generic [ref=e469] [box=968,2141,72,28]: 35,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e472] [box=1108,2137,148,36]:
+                    - generic [ref=e473] [box=1132,2140,100,30]:
+                      - generic [ref=e474] [box=1132,2140,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e478] [box=320,2197,304,463]:
+                - link [ref=e479] [cursor=pointer] [box=320,2197,304,304]:
+                  - /url: /book/book-015
+                  - img "Penguin Animal Farm" [ref=e481] [box=320,2197,304,304]
+                - generic [ref=e482] [box=320,2501,304,107]:
+                  - generic [ref=e483] [box=336,2501,272,28]:
+                    - generic [ref=e484] [box=336,2507,53,16]: Penguin
+                    - generic [ref=e485] [box=523,2501,85,28]: Literatura
+                  - link "Animal Farm" [ref=e489] [cursor=pointer] [box=336,2531,91,19]:
+                    - /url: /book/book-015
+                  - generic [ref=e490] [box=336,2553,272,20]: George Orwell · 1945
+                  - generic "Rating 4.6 out of 5, 1567 reviews" [ref=e492] [box=336,2573,175,24]:
+                    - generic [ref=e493] [box=336,2573,24,24]: star
+                    - generic [ref=e494] [box=362,2573,24,24]: star
+                    - generic [ref=e495] [box=388,2573,24,24]: star
+                    - generic [ref=e496] [box=414,2573,24,24]: star
+                    - generic [ref=e497] [box=440,2573,24,24]: star_half
+                    - generic [ref=e498] [box=470,2575,41,20]: (1567)
+                - generic [ref=e499] [box=320,2608,304,52]:
+                  - generic [ref=e500] [box=328,2620,72,28]: 29,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e503] [box=468,2616,148,36]:
+                    - generic [ref=e504] [box=492,2619,100,30]:
+                      - generic [ref=e505] [box=492,2619,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e509] [box=640,2197,304,463]:
+                - link [ref=e510] [cursor=pointer] [box=640,2197,304,304]:
+                  - /url: /book/book-023
+                  - img "Random House Educated" [ref=e512] [box=640,2197,304,304]
+                - generic [ref=e513] [box=640,2501,304,107]:
+                  - generic [ref=e514] [box=656,2501,272,28]:
+                    - generic [ref=e515] [box=656,2507,96,16]: Random House
+                    - generic [ref=e516] [box=847,2501,81,28]: Biografia
+                  - link "Educated" [ref=e520] [cursor=pointer] [box=656,2531,67,19]:
+                    - /url: /book/book-023
+                  - generic [ref=e521] [box=656,2553,272,20]: Tara Westover · 2018
+                  - generic "Rating 4.7 out of 5, 1267 reviews" [ref=e523] [box=656,2573,175,24]:
+                    - generic [ref=e524] [box=656,2573,24,24]: star
+                    - generic [ref=e525] [box=682,2573,24,24]: star
+                    - generic [ref=e526] [box=708,2573,24,24]: star
+                    - generic [ref=e527] [box=734,2573,24,24]: star
+                    - generic [ref=e528] [box=760,2573,24,24]: star_half
+                    - generic [ref=e529] [box=790,2575,41,20]: (1267)
+                - generic [ref=e530] [box=640,2608,304,52]:
+                  - generic [ref=e531] [box=648,2620,72,28]: 79,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e534] [box=788,2616,148,36]:
+                    - generic [ref=e535] [box=812,2619,100,30]:
+                      - generic [ref=e536] [box=812,2619,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e540] [box=960,2197,304,463]:
+                - link [ref=e541] [cursor=pointer] [box=960,2197,304,304]:
+                  - /url: /book/book-017
+                  - img "Farrar, Straus and Giroux Thinking, Fast and Slow" [ref=e543] [box=960,2197,304,304]
+                - generic [ref=e544] [box=960,2501,304,107]:
+                  - generic [ref=e545] [box=976,2501,272,32]:
+                    - generic [ref=e546] [box=976,2501,143,32]: Farrar, Straus and Giroux
+                    - generic [ref=e547] [box=1127,2503,122,28]: Literatura faktu
+                  - link "Thinking, Fast and Slow" [ref=e551] [cursor=pointer] [box=976,2535,171,19]:
+                    - /url: /book/book-017
+                  - generic [ref=e552] [box=976,2557,272,20]: Daniel Kahneman · 2011
+                  - generic "Rating 4.6 out of 5, 1456 reviews" [ref=e554] [box=976,2577,175,24]:
+                    - generic [ref=e555] [box=976,2577,24,24]: star
+                    - generic [ref=e556] [box=1002,2577,24,24]: star
+                    - generic [ref=e557] [box=1028,2577,24,24]: star
+                    - generic [ref=e558] [box=1054,2577,24,24]: star
+                    - generic [ref=e559] [box=1080,2577,24,24]: star_half
+                    - generic [ref=e560] [box=1110,2579,41,20]: (1456)
+                - generic [ref=e561] [box=960,2608,304,52]:
+                  - generic [ref=e562] [box=968,2620,72,28]: 57,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e565] [box=1108,2616,148,36]:
+                    - generic [ref=e566] [box=1132,2619,100,30]:
+                      - generic [ref=e567] [box=1132,2619,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e571] [box=320,2676,304,459]:
+                - link [ref=e572] [cursor=pointer] [box=320,2676,304,304]:
+                  - /url: /book/book-029
+                  - img "Harper & Row Where the Wild Things Are" [ref=e574] [box=320,2676,304,304]
+                - generic [ref=e575] [box=320,2980,304,103]:
+                  - generic [ref=e576] [box=336,2980,272,28]:
+                    - generic [ref=e577] [box=336,2986,89,16]: Harper & Row
+                    - generic [ref=e578] [box=522,2980,86,28]: Dla dzieci
+                  - link "Where the Wild Things Are" [ref=e582] [cursor=pointer] [box=336,3010,190,19]:
+                    - /url: /book/book-029
+                  - generic [ref=e583] [box=336,3032,272,20]: Maurice Sendak · 1963
+                  - generic "Rating 4.8 out of 5, 1023 reviews" [ref=e585] [box=336,3052,175,24]:
+                    - generic [ref=e586] [box=336,3052,24,24]: star
+                    - generic [ref=e587] [box=362,3052,24,24]: star
+                    - generic [ref=e588] [box=388,3052,24,24]: star
+                    - generic [ref=e589] [box=414,3052,24,24]: star
+                    - generic [ref=e590] [box=440,3052,24,24]: star_half
+                    - generic [ref=e591] [box=470,3054,41,20]: (1023)
+                - generic [ref=e592] [box=320,3083,304,52]:
+                  - generic [ref=e593] [box=328,3095,72,28]: 49,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e596] [box=468,3091,148,36]:
+                    - generic [ref=e597] [box=492,3094,100,30]:
+                      - generic [ref=e598] [box=492,3094,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e602] [box=640,2676,304,459]:
+                - link [ref=e603] [cursor=pointer] [box=640,2676,304,304]:
+                  - /url: /book/book-005
+                  - 'img "SuperNowa Wiedźmin: Ostatnie życzenie" [ref=e605] [box=640,2676,304,304]'
+                - generic [ref=e606] [box=640,2980,304,103]:
+                  - generic [ref=e607] [box=656,2980,272,28]:
+                    - generic [ref=e608] [box=656,2986,74,16]: SuperNowa
+                    - generic [ref=e609] [box=854,2980,74,28]: Fantasy
+                  - 'link "Wiedźmin: Ostatnie życzenie" [ref=e613] [cursor=pointer] [box=656,3010,207,19]':
+                    - /url: /book/book-005
+                  - generic [ref=e614] [box=656,3032,272,20]: Andrzej Sapkowski · 1993
+                  - generic "Rating 4.8 out of 5, 956 reviews" [ref=e616] [box=656,3052,167,24]:
+                    - generic [ref=e617] [box=656,3052,24,24]: star
+                    - generic [ref=e618] [box=682,3052,24,24]: star
+                    - generic [ref=e619] [box=708,3052,24,24]: star
+                    - generic [ref=e620] [box=734,3052,24,24]: star
+                    - generic [ref=e621] [box=760,3052,24,24]: star_half
+                    - generic [ref=e622] [box=790,3054,33,20]: (956)
+                - generic [ref=e623] [box=640,3083,304,52]:
+                  - generic [ref=e624] [box=648,3095,72,28]: 35,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e627] [box=788,3091,148,36]:
+                    - generic [ref=e628] [box=812,3094,100,30]:
+                      - generic [ref=e629] [box=812,3094,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e633] [box=960,2676,304,459]:
+                - link [ref=e634] [cursor=pointer] [box=960,2676,304,304]:
+                  - /url: /book/book-020
+                  - img "Knopf The Girl with the Dragon Tattoo" [ref=e636] [box=960,2676,304,304]
+                - generic [ref=e637] [box=960,2980,304,103]:
+                  - generic [ref=e638] [box=976,2980,272,28]:
+                    - generic [ref=e639] [box=976,2986,40,16]: Knopf
+                    - generic [ref=e640] [box=1167,2980,81,28]: Kryminał
+                  - link "The Girl with the Dragon Tattoo" [ref=e644] [cursor=pointer] [box=976,3010,223,19]:
+                    - /url: /book/book-020
+                  - generic [ref=e645] [box=976,3032,272,20]: Stieg Larsson · 2005
+                  - generic "Rating 4.6 out of 5, 1234 reviews" [ref=e647] [box=976,3052,175,24]:
+                    - generic [ref=e648] [box=976,3052,24,24]: star
+                    - generic [ref=e649] [box=1002,3052,24,24]: star
+                    - generic [ref=e650] [box=1028,3052,24,24]: star
+                    - generic [ref=e651] [box=1054,3052,24,24]: star
+                    - generic [ref=e652] [box=1080,3052,24,24]: star_half
+                    - generic [ref=e653] [box=1110,3054,41,20]: (1234)
+                - generic [ref=e654] [box=960,3083,304,52]:
+                  - generic [ref=e655] [box=968,3095,72,28]: 48,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e658] [box=1108,3091,148,36]:
+                    - generic [ref=e659] [box=1132,3094,100,30]:
+                      - generic [ref=e660] [box=1132,3094,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e664] [box=320,3151,304,471]:
+                - link [ref=e665] [cursor=pointer] [box=320,3151,304,304]:
+                  - /url: /book/book-011
+                  - img "Ace Dune" [ref=e667] [box=320,3151,304,304]
+                - generic [ref=e668] [box=320,3455,304,103]:
+                  - generic [ref=e669] [box=336,3455,272,28]:
+                    - generic [ref=e670] [box=336,3461,23,16]: Ace
+                    - generic [ref=e671] [box=490,3455,118,28]: Science fiction
+                  - link "Dune" [ref=e675] [cursor=pointer] [box=336,3485,37,19]:
+                    - /url: /book/book-011
+                  - generic [ref=e676] [box=336,3507,272,20]: Frank Herbert · 1965
+                  - generic "Rating 4.7 out of 5, 1023 reviews" [ref=e678] [box=336,3527,175,24]:
+                    - generic [ref=e679] [box=336,3527,24,24]: star
+                    - generic [ref=e680] [box=362,3527,24,24]: star
+                    - generic [ref=e681] [box=388,3527,24,24]: star
+                    - generic [ref=e682] [box=414,3527,24,24]: star
+                    - generic [ref=e683] [box=440,3527,24,24]: star_half
+                    - generic [ref=e684] [box=470,3529,41,20]: (1023)
+                - generic [ref=e685] [box=320,3558,304,64]:
+                  - generic [ref=e687] [box=328,3566,72,48]:
+                    - generic [ref=e688] [box=328,3566,72,28]: 52,00 zł
+                    - generic [ref=e689] [box=352,3594,48,20]: 63,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e690] [box=468,3572,148,36]:
+                    - generic [ref=e691] [box=492,3575,100,30]:
+                      - generic [ref=e692] [box=492,3575,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e696] [box=640,3151,304,471]:
+                - link [ref=e697] [cursor=pointer] [box=640,3151,304,304]:
+                  - /url: /book/book-018
+                  - img "Bantam A Brief History of Time" [ref=e699] [box=640,3151,304,304]
+                - generic [ref=e700] [box=640,3455,304,103]:
+                  - generic [ref=e701] [box=656,3455,272,28]:
+                    - generic [ref=e702] [box=656,3461,51,16]: Bantam
+                    - generic [ref=e703] [box=863,3455,65,28]: Nauka
+                  - link "A Brief History of Time" [ref=e707] [cursor=pointer] [box=656,3485,164,19]:
+                    - /url: /book/book-018
+                  - generic [ref=e708] [box=656,3507,272,20]: Stephen Hawking · 1988
+                  - generic "Rating 4.6 out of 5, 987 reviews" [ref=e710] [box=656,3527,167,24]:
+                    - generic [ref=e711] [box=656,3527,24,24]: star
+                    - generic [ref=e712] [box=682,3527,24,24]: star
+                    - generic [ref=e713] [box=708,3527,24,24]: star
+                    - generic [ref=e714] [box=734,3527,24,24]: star
+                    - generic [ref=e715] [box=760,3527,24,24]: star_half
+                    - generic [ref=e716] [box=790,3529,33,20]: (987)
+                - generic [ref=e717] [box=640,3558,304,64]:
+                  - generic [ref=e719] [box=648,3566,72,48]:
+                    - generic [ref=e720] [box=648,3566,72,28]: 49,00 zł
+                    - generic [ref=e721] [box=672,3594,48,20]: 58,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e722] [box=788,3572,148,36]:
+                    - generic [ref=e723] [box=812,3575,100,30]:
+                      - generic [ref=e724] [box=812,3575,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e728] [box=960,3151,304,471]:
+                - link [ref=e729] [cursor=pointer] [box=960,3151,304,304]:
+                  - /url: /book/book-021
+                  - img "Crown Gone Girl" [ref=e731] [box=960,3151,304,304]
+                - generic [ref=e732] [box=960,3455,304,115]:
+                  - generic [ref=e733] [box=976,3455,272,28]:
+                    - generic [ref=e734] [box=976,3461,44,16]: Crown
+                    - generic [ref=e735] [box=1167,3455,81,28]: Kryminał
+                  - link "Gone Girl" [ref=e739] [cursor=pointer] [box=976,3485,67,19]:
+                    - /url: /book/book-021
+                  - generic [ref=e740] [box=976,3507,272,20]: Gillian Flynn · 2012
+                  - generic "Rating 4.5 out of 5, 1089 reviews" [ref=e742] [box=976,3527,175,24]:
+                    - generic [ref=e743] [box=976,3527,24,24]: star
+                    - generic [ref=e744] [box=1002,3527,24,24]: star
+                    - generic [ref=e745] [box=1028,3527,24,24]: star
+                    - generic [ref=e746] [box=1054,3527,24,24]: star
+                    - generic [ref=e747] [box=1080,3527,24,24]: star_half
+                    - generic [ref=e748] [box=1110,3529,41,20]: (1089)
+                - generic [ref=e749] [box=960,3570,304,52]:
+                  - generic [ref=e750] [box=968,3582,72,28]: 45,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e753] [box=1108,3578,148,36]:
+                    - generic [ref=e754] [box=1132,3581,100,30]:
+                      - generic [ref=e755] [box=1132,3581,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e759] [box=320,3638,304,459]:
+                - link [ref=e760] [cursor=pointer] [box=320,3638,304,304]:
+                  - /url: /book/book-028
+                  - img "Sudamericana Cien años de soledad" [ref=e762] [box=320,3638,304,304]
+                - generic [ref=e763] [box=320,3942,304,103]:
+                  - generic [ref=e764] [box=336,3942,272,28]:
+                    - generic [ref=e765] [box=336,3948,94,16]: Sudamericana
+                    - generic [ref=e766] [box=523,3942,85,28]: Literatura
+                  - link "Cien años de soledad" [ref=e770] [cursor=pointer] [box=336,3972,153,19]:
+                    - /url: /book/book-028
+                  - generic [ref=e771] [box=336,3994,272,20]: Gabriel García Márquez · 1967
+                  - generic "Rating 4.7 out of 5, 678 reviews" [ref=e773] [box=336,4014,167,24]:
+                    - generic [ref=e774] [box=336,4014,24,24]: star
+                    - generic [ref=e775] [box=362,4014,24,24]: star
+                    - generic [ref=e776] [box=388,4014,24,24]: star
+                    - generic [ref=e777] [box=414,4014,24,24]: star
+                    - generic [ref=e778] [box=440,4014,24,24]: star_half
+                    - generic [ref=e779] [box=470,4016,33,20]: (678)
+                - generic [ref=e780] [box=320,4045,304,52]:
+                  - generic [ref=e781] [box=328,4057,72,28]: 42,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e784] [box=468,4053,148,36]:
+                    - generic [ref=e785] [box=492,4056,100,30]:
+                      - generic [ref=e786] [box=492,4056,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e790] [box=640,3638,304,459]:
+                - link [ref=e791] [cursor=pointer] [box=640,3638,304,304]:
+                  - /url: /book/book-033
+                  - img "Norton Astrophysics for People in a Hurry" [ref=e793] [box=640,3638,304,304]
+                - generic [ref=e794] [box=640,3942,304,103]:
+                  - generic [ref=e795] [box=656,3942,272,28]:
+                    - generic [ref=e796] [box=656,3948,49,16]: Norton
+                    - generic [ref=e797] [box=863,3942,65,28]: Nauka
+                  - link "Astrophysics for People in a Hurry" [ref=e801] [cursor=pointer] [box=656,3972,246,19]:
+                    - /url: /book/book-033
+                  - generic [ref=e802] [box=656,3994,272,20]: Neil deGrasse Tyson · 2017
+                  - generic "Rating 4.7 out of 5, 678 reviews" [ref=e804] [box=656,4014,167,24]:
+                    - generic [ref=e805] [box=656,4014,24,24]: star
+                    - generic [ref=e806] [box=682,4014,24,24]: star
+                    - generic [ref=e807] [box=708,4014,24,24]: star
+                    - generic [ref=e808] [box=734,4014,24,24]: star
+                    - generic [ref=e809] [box=760,4014,24,24]: star_half
+                    - generic [ref=e810] [box=790,4016,33,20]: (678)
+                - generic [ref=e811] [box=640,4045,304,52]:
+                  - generic [ref=e812] [box=648,4057,72,28]: 55,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e815] [box=788,4053,148,36]:
+                    - generic [ref=e816] [box=812,4056,100,30]:
+                      - generic [ref=e817] [box=812,4056,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e821] [box=960,3638,304,459]:
+                - link [ref=e822] [cursor=pointer] [box=960,3638,304,304]:
+                  - /url: /book/book-006
+                  - 'img "SuperNowa Wiedźmin: Krew elfów" [ref=e824] [box=960,3638,304,304]'
+                - generic [ref=e825] [box=960,3942,304,103]:
+                  - generic [ref=e826] [box=976,3942,272,28]:
+                    - generic [ref=e827] [box=976,3948,74,16]: SuperNowa
+                    - generic [ref=e828] [box=1174,3942,74,28]: Fantasy
+                  - 'link "Wiedźmin: Krew elfów" [ref=e832] [cursor=pointer] [box=976,3972,159,19]':
+                    - /url: /book/book-006
+                  - generic [ref=e833] [box=976,3994,272,20]: Andrzej Sapkowski · 1994
+                  - generic "Rating 4.7 out of 5, 612 reviews" [ref=e835] [box=976,4014,167,24]:
+                    - generic [ref=e836] [box=976,4014,24,24]: star
+                    - generic [ref=e837] [box=1002,4014,24,24]: star
+                    - generic [ref=e838] [box=1028,4014,24,24]: star
+                    - generic [ref=e839] [box=1054,4014,24,24]: star
+                    - generic [ref=e840] [box=1080,4014,24,24]: star_half
+                    - generic [ref=e841] [box=1110,4016,33,20]: (612)
+                - generic [ref=e842] [box=960,4045,304,52]:
+                  - generic [ref=e843] [box=968,4057,72,28]: 35,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e846] [box=1108,4053,148,36]:
+                    - generic [ref=e847] [box=1132,4056,100,30]:
+                      - generic [ref=e848] [box=1132,4056,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e852] [box=320,4113,304,459]:
+                - link [ref=e853] [cursor=pointer] [box=320,4113,304,304]:
+                  - /url: /book/book-003
+                  - img "Greg Pan Tadeusz" [ref=e855] [box=320,4113,304,304]
+                - generic [ref=e856] [box=320,4417,304,103]:
+                  - generic [ref=e857] [box=336,4417,272,28]:
+                    - generic [ref=e858] [box=336,4423,32,16]: Greg
+                    - generic [ref=e859] [box=541,4417,67,28]: Poezja
+                  - link "Pan Tadeusz" [ref=e863] [cursor=pointer] [box=336,4447,92,19]:
+                    - /url: /book/book-003
+                  - generic [ref=e864] [box=336,4469,272,20]: Adam Mickiewicz · 1834
+                  - generic "Rating 4.5 out of 5, 678 reviews" [ref=e866] [box=336,4489,167,24]:
+                    - generic [ref=e867] [box=336,4489,24,24]: star
+                    - generic [ref=e868] [box=362,4489,24,24]: star
+                    - generic [ref=e869] [box=388,4489,24,24]: star
+                    - generic [ref=e870] [box=414,4489,24,24]: star
+                    - generic [ref=e871] [box=440,4489,24,24]: star_half
+                    - generic [ref=e872] [box=470,4491,33,20]: (678)
+                - generic [ref=e873] [box=320,4520,304,52]:
+                  - generic [ref=e874] [box=328,4532,72,28]: 25,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e877] [box=468,4528,148,36]:
+                    - generic [ref=e878] [box=492,4531,100,30]:
+                      - generic [ref=e879] [box=492,4531,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e883] [box=640,4113,304,459]:
+                - link [ref=e884] [cursor=pointer] [box=640,4113,304,304]:
+                  - /url: /book/book-012
+                  - img "Bantam Foundation" [ref=e886] [box=640,4113,304,304]
+                - generic [ref=e887] [box=640,4417,304,103]:
+                  - generic [ref=e888] [box=656,4417,272,28]:
+                    - generic [ref=e889] [box=656,4423,51,16]: Bantam
+                    - generic [ref=e890] [box=810,4417,118,28]: Science fiction
+                  - link "Foundation" [ref=e894] [cursor=pointer] [box=656,4447,81,19]:
+                    - /url: /book/book-012
+                  - generic [ref=e895] [box=656,4469,272,20]: Isaac Asimov · 1951
+                  - generic "Rating 4.6 out of 5, 567 reviews" [ref=e897] [box=656,4489,167,24]:
+                    - generic [ref=e898] [box=656,4489,24,24]: star
+                    - generic [ref=e899] [box=682,4489,24,24]: star
+                    - generic [ref=e900] [box=708,4489,24,24]: star
+                    - generic [ref=e901] [box=734,4489,24,24]: star
+                    - generic [ref=e902] [box=760,4489,24,24]: star_half
+                    - generic [ref=e903] [box=790,4491,33,20]: (567)
+                - generic [ref=e904] [box=640,4520,304,52]:
+                  - generic [ref=e905] [box=648,4532,72,28]: 42,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e908] [box=788,4528,148,36]:
+                    - generic [ref=e909] [box=812,4531,100,30]:
+                      - generic [ref=e910] [box=812,4531,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e914] [box=960,4113,304,459]:
+                - link [ref=e915] [cursor=pointer] [box=960,4113,304,304]:
+                  - /url: /book/book-031
+                  - img "Greg Akademia Pana Kleksa" [ref=e917] [box=960,4113,304,304]
+                - generic [ref=e918] [box=960,4417,304,103]:
+                  - generic [ref=e919] [box=976,4417,272,28]:
+                    - generic [ref=e920] [box=976,4423,32,16]: Greg
+                    - generic [ref=e921] [box=1162,4417,86,28]: Dla dzieci
+                  - link "Akademia Pana Kleksa" [ref=e925] [cursor=pointer] [box=976,4447,165,19]:
+                    - /url: /book/book-031
+                  - generic [ref=e926] [box=976,4469,272,20]: Jan Brzechwa · 1946
+                  - generic "Rating 4.7 out of 5, 467 reviews" [ref=e928] [box=976,4489,167,24]:
+                    - generic [ref=e929] [box=976,4489,24,24]: star
+                    - generic [ref=e930] [box=1002,4489,24,24]: star
+                    - generic [ref=e931] [box=1028,4489,24,24]: star
+                    - generic [ref=e932] [box=1054,4489,24,24]: star
+                    - generic [ref=e933] [box=1080,4489,24,24]: star_half
+                    - generic [ref=e934] [box=1110,4491,33,20]: (467)
+                - generic [ref=e935] [box=960,4520,304,52]:
+                  - generic [ref=e936] [box=968,4532,72,28]: 29,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e939] [box=1108,4528,148,36]:
+                    - generic [ref=e940] [box=1132,4531,100,30]:
+                      - generic [ref=e941] [box=1132,4531,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e945] [box=320,4588,304,475]:
+                - link [ref=e946] [cursor=pointer] [box=320,4588,304,304]:
+                  - /url: /book/book-032
+                  - img "Oxford The Selfish Gene" [ref=e948] [box=320,4588,304,304]
+                - generic [ref=e949] [box=320,4892,304,119]:
+                  - generic [ref=e950] [box=336,4892,272,28]:
+                    - generic [ref=e951] [box=336,4898,48,16]: Oxford
+                    - generic [ref=e952] [box=543,4892,65,28]: Nauka
+                  - link "The Selfish Gene" [ref=e956] [cursor=pointer] [box=336,4922,122,19]:
+                    - /url: /book/book-032
+                  - generic [ref=e957] [box=336,4944,272,20]: Richard Dawkins · 1976
+                  - generic "Rating 4.6 out of 5, 487 reviews" [ref=e959] [box=336,4964,167,24]:
+                    - generic [ref=e960] [box=336,4964,24,24]: star
+                    - generic [ref=e961] [box=362,4964,24,24]: star
+                    - generic [ref=e962] [box=388,4964,24,24]: star
+                    - generic [ref=e963] [box=414,4964,24,24]: star
+                    - generic [ref=e964] [box=440,4964,24,24]: star_half
+                    - generic [ref=e965] [box=470,4966,33,20]: (487)
+                - generic [ref=e966] [box=320,5011,304,52]:
+                  - generic [ref=e967] [box=328,5023,72,28]: 49,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e970] [box=468,5019,148,36]:
+                    - generic [ref=e971] [box=492,5022,100,30]:
+                      - generic [ref=e972] [box=492,5022,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e976] [box=640,4588,304,475]:
+                - link [ref=e977] [cursor=pointer] [box=640,4588,304,304]:
+                  - /url: /book/book-001
+                  - img "Wydawnictwo Literackie Solaris" [ref=e979] [box=640,4588,304,304]
+                - generic [ref=e980] [box=640,4892,304,107]:
+                  - generic [ref=e981] [box=656,4892,272,32]:
+                    - generic [ref=e982] [box=656,4892,146,32]: Wydawnictwo Literackie
+                    - generic [ref=e983] [box=810,4894,118,28]: Science fiction
+                  - link "Solaris" [ref=e987] [cursor=pointer] [box=656,4926,50,19]:
+                    - /url: /book/book-001
+                  - generic [ref=e988] [box=656,4948,272,20]: Stanisław Lem · 1961
+                  - generic "Rating 4.7 out of 5, 412 reviews" [ref=e990] [box=656,4968,167,24]:
+                    - generic [ref=e991] [box=656,4968,24,24]: star
+                    - generic [ref=e992] [box=682,4968,24,24]: star
+                    - generic [ref=e993] [box=708,4968,24,24]: star
+                    - generic [ref=e994] [box=734,4968,24,24]: star
+                    - generic [ref=e995] [box=760,4968,24,24]: star_half
+                    - generic [ref=e996] [box=790,4970,33,20]: (412)
+                - generic [ref=e997] [box=640,4999,304,64]:
+                  - generic [ref=e999] [box=648,5007,72,48]:
+                    - generic [ref=e1000] [box=648,5007,72,28]: 49,00 zł
+                    - generic [ref=e1001] [box=672,5035,48,20]: 59,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1002] [box=788,5013,148,36]:
+                    - generic [ref=e1003] [box=812,5016,100,30]:
+                      - generic [ref=e1004] [box=812,5016,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1008] [box=960,4588,304,475]:
+                - link [ref=e1009] [cursor=pointer] [box=960,4588,304,304]:
+                  - /url: /book/book-025
+                  - img "Gallimard L'Étranger" [ref=e1011] [box=960,4588,304,304]
+                - generic [ref=e1012] [box=960,4892,304,119]:
+                  - generic [ref=e1013] [box=976,4892,272,28]:
+                    - generic [ref=e1014] [box=976,4898,69,16]: Gallimard
+                    - generic [ref=e1015] [box=1163,4892,85,28]: Literatura
+                  - link "L'Étranger" [ref=e1019] [cursor=pointer] [box=976,4922,72,19]:
+                    - /url: /book/book-025
+                  - generic [ref=e1020] [box=976,4944,272,20]: Albert Camus · 1942
+                  - generic "Rating 4.5 out of 5, 432 reviews" [ref=e1022] [box=976,4964,167,24]:
+                    - generic [ref=e1023] [box=976,4964,24,24]: star
+                    - generic [ref=e1024] [box=1002,4964,24,24]: star
+                    - generic [ref=e1025] [box=1028,4964,24,24]: star
+                    - generic [ref=e1026] [box=1054,4964,24,24]: star
+                    - generic [ref=e1027] [box=1080,4964,24,24]: star_half
+                    - generic [ref=e1028] [box=1110,4966,33,20]: (432)
+                - generic [ref=e1029] [box=960,5011,304,52]:
+                  - generic [ref=e1030] [box=968,5023,72,28]: 32,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1033] [box=1108,5019,148,36]:
+                    - generic [ref=e1034] [box=1132,5022,100,30]:
+                      - generic [ref=e1035] [box=1132,5022,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1039] [box=320,5079,304,483]:
+                - link [ref=e1040] [cursor=pointer] [box=320,5079,304,304]:
+                  - /url: /book/book-008
+                  - img "Audioteka Sapkowski. Saga o Wiedźminie (audio)" [ref=e1042] [box=320,5079,304,304]
+                - generic [ref=e1043] [box=320,5383,304,127]:
+                  - generic [ref=e1044] [box=336,5383,272,28]:
+                    - generic [ref=e1045] [box=336,5389,67,16]: Audioteka
+                    - generic [ref=e1046] [box=534,5383,74,28]: Fantasy
+                  - link "Sapkowski. Saga o Wiedźminie (audio)" [ref=e1050] [cursor=pointer] [box=336,5413,223,43]:
+                    - /url: /book/book-008
+                  - generic [ref=e1051] [box=336,5459,272,20]: Andrzej Sapkowski · 2019
+                  - generic "Rating 4.6 out of 5, 312 reviews" [ref=e1053] [box=336,5479,167,24]:
+                    - generic [ref=e1054] [box=336,5479,24,24]: star
+                    - generic [ref=e1055] [box=362,5479,24,24]: star
+                    - generic [ref=e1056] [box=388,5479,24,24]: star
+                    - generic [ref=e1057] [box=414,5479,24,24]: star
+                    - generic [ref=e1058] [box=440,5479,24,24]: star_half
+                    - generic [ref=e1059] [box=470,5481,33,20]: (312)
+                - generic [ref=e1060] [box=320,5510,304,52]:
+                  - generic [ref=e1061] [box=328,5522,72,28]: 79,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1064] [box=468,5518,148,36]:
+                    - generic [ref=e1065] [box=492,5521,100,30]:
+                      - generic [ref=e1066] [box=492,5521,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1070] [box=640,5079,304,483]:
+                - link [ref=e1071] [cursor=pointer] [box=640,5079,304,304]:
+                  - /url: /book/book-026
+                  - img "Reclam Die Verwandlung" [ref=e1073] [box=640,5079,304,304]
+                - generic [ref=e1074] [box=640,5383,304,127]:
+                  - generic [ref=e1075] [box=656,5383,272,28]:
+                    - generic [ref=e1076] [box=656,5389,49,16]: Reclam
+                    - generic [ref=e1077] [box=843,5383,85,28]: Literatura
+                  - link "Die Verwandlung" [ref=e1081] [cursor=pointer] [box=656,5413,122,19]:
+                    - /url: /book/book-026
+                  - generic [ref=e1082] [box=656,5435,272,20]: Franz Kafka · 1915
+                  - generic "Rating 4.4 out of 5, 312 reviews" [ref=e1084] [box=656,5455,167,24]:
+                    - generic [ref=e1085] [box=656,5455,24,24]: star
+                    - generic [ref=e1086] [box=682,5455,24,24]: star
+                    - generic [ref=e1087] [box=708,5455,24,24]: star
+                    - generic [ref=e1088] [box=734,5455,24,24]: star
+                    - generic [ref=e1089] [box=760,5455,24,24]: star_border
+                    - generic [ref=e1090] [box=790,5457,33,20]: (312)
+                - generic [ref=e1091] [box=640,5510,304,52]:
+                  - generic [ref=e1092] [box=648,5522,72,28]: 19,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1095] [box=788,5518,148,36]:
+                    - generic [ref=e1096] [box=812,5521,100,30]:
+                      - generic [ref=e1097] [box=812,5521,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1101] [box=960,5079,304,483]:
+                - link [ref=e1102] [cursor=pointer] [box=960,5079,304,304]:
+                  - /url: /book/book-004
+                  - img "PIW Lalka" [ref=e1104] [box=960,5079,304,304]
+                - generic [ref=e1105] [box=960,5383,304,127]:
+                  - generic [ref=e1106] [box=976,5383,272,28]:
+                    - generic [ref=e1107] [box=976,5389,22,16]: PIW
+                    - generic [ref=e1108] [box=1163,5383,85,28]: Literatura
+                  - link "Lalka" [ref=e1112] [cursor=pointer] [box=976,5413,39,19]:
+                    - /url: /book/book-004
+                  - generic [ref=e1113] [box=976,5435,272,20]: Bolesław Prus · 1890
+                  - generic "Rating 4.6 out of 5, 234 reviews" [ref=e1115] [box=976,5455,167,24]:
+                    - generic [ref=e1116] [box=976,5455,24,24]: star
+                    - generic [ref=e1117] [box=1002,5455,24,24]: star
+                    - generic [ref=e1118] [box=1028,5455,24,24]: star
+                    - generic [ref=e1119] [box=1054,5455,24,24]: star
+                    - generic [ref=e1120] [box=1080,5455,24,24]: star_half
+                    - generic [ref=e1121] [box=1110,5457,33,20]: (234)
+                - generic [ref=e1122] [box=960,5510,304,52]:
+                  - generic [ref=e1123] [box=968,5522,72,28]: 59,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1126] [box=1108,5518,148,36]:
+                    - generic [ref=e1127] [box=1132,5521,100,30]:
+                      - generic [ref=e1128] [box=1132,5521,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1132] [box=320,5578,304,471]:
+                - link [ref=e1133] [cursor=pointer] [box=320,5578,304,304]:
+                  - /url: /book/book-002
+                  - img "Wydawnictwo Literackie Cyberiada" [ref=e1135] [box=320,5578,304,304]
+                - generic [ref=e1136] [box=320,5882,304,115]:
+                  - generic [ref=e1137] [box=336,5882,272,32]:
+                    - generic [ref=e1138] [box=336,5882,146,32]: Wydawnictwo Literackie
+                    - generic [ref=e1139] [box=490,5884,118,28]: Science fiction
+                  - link "Cyberiada" [ref=e1143] [cursor=pointer] [box=336,5916,72,19]:
+                    - /url: /book/book-002
+                  - generic [ref=e1144] [box=336,5938,272,20]: Stanisław Lem · 1965
+                  - generic "Rating 4.6 out of 5, 198 reviews" [ref=e1146] [box=336,5958,167,24]:
+                    - generic [ref=e1147] [box=336,5958,24,24]: star
+                    - generic [ref=e1148] [box=362,5958,24,24]: star
+                    - generic [ref=e1149] [box=388,5958,24,24]: star
+                    - generic [ref=e1150] [box=414,5958,24,24]: star
+                    - generic [ref=e1151] [box=440,5958,24,24]: star_half
+                    - generic [ref=e1152] [box=470,5960,33,20]: (198)
+                - generic [ref=e1153] [box=320,5997,304,52]:
+                  - generic [ref=e1154] [box=328,6009,72,28]: 39,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1157] [box=468,6005,148,36]:
+                    - generic [ref=e1158] [box=492,6008,100,30]:
+                      - generic [ref=e1159] [box=492,6008,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1163] [box=640,5578,304,471]:
+                - link [ref=e1164] [cursor=pointer] [box=640,5578,304,304]:
+                  - /url: /book/book-027
+                  - img "Reclam Faust I" [ref=e1166] [box=640,5578,304,304]
+                - generic [ref=e1167] [box=640,5882,304,115]:
+                  - generic [ref=e1168] [box=656,5882,272,28]:
+                    - generic [ref=e1169] [box=656,5888,49,16]: Reclam
+                    - generic [ref=e1170] [box=861,5882,67,28]: Poezja
+                  - link "Faust I" [ref=e1174] [cursor=pointer] [box=656,5912,48,19]:
+                    - /url: /book/book-027
+                  - generic [ref=e1175] [box=656,5934,272,20]: Johann Wolfgang von Goethe · 1808
+                  - generic "Rating 4.5 out of 5, 198 reviews" [ref=e1177] [box=656,5954,167,24]:
+                    - generic [ref=e1178] [box=656,5954,24,24]: star
+                    - generic [ref=e1179] [box=682,5954,24,24]: star
+                    - generic [ref=e1180] [box=708,5954,24,24]: star
+                    - generic [ref=e1181] [box=734,5954,24,24]: star
+                    - generic [ref=e1182] [box=760,5954,24,24]: star_half
+                    - generic [ref=e1183] [box=790,5956,33,20]: (198)
+                - generic [ref=e1184] [box=640,5997,304,52]:
+                  - generic [ref=e1185] [box=648,6009,72,28]: 24,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1188] [box=788,6005,148,36]:
+                    - generic [ref=e1189] [box=812,6008,100,30]:
+                      - generic [ref=e1190] [box=812,6008,24,24]: add_shopping_cart
+                      - text: Do koszyka
+              - generic [ref=e1194] [box=960,5578,304,471]:
+                - link [ref=e1195] [cursor=pointer] [box=960,5578,304,304]:
+                  - /url: /book/book-007
+                  - img "PIW Ferdydurke" [ref=e1197] [box=960,5578,304,304]
+                - generic [ref=e1198] [box=960,5882,304,103]:
+                  - generic [ref=e1199] [box=976,5882,272,28]:
+                    - generic [ref=e1200] [box=976,5888,22,16]: PIW
+                    - generic [ref=e1201] [box=1163,5882,85,28]: Literatura
+                  - link "Ferdydurke" [ref=e1205] [cursor=pointer] [box=976,5912,81,19]:
+                    - /url: /book/book-007
+                  - generic [ref=e1206] [box=976,5934,272,20]: Witold Gombrowicz · 1937
+                  - generic "Rating 4.4 out of 5, 143 reviews" [ref=e1208] [box=976,5954,167,24]:
+                    - generic [ref=e1209] [box=976,5954,24,24]: star
+                    - generic [ref=e1210] [box=1002,5954,24,24]: star
+                    - generic [ref=e1211] [box=1028,5954,24,24]: star
+                    - generic [ref=e1212] [box=1054,5954,24,24]: star
+                    - generic [ref=e1213] [box=1080,5954,24,24]: star_border
+                    - generic [ref=e1214] [box=1110,5956,33,20]: (143)
+                - generic [ref=e1215] [box=960,5985,304,64]:
+                  - generic [ref=e1217] [box=968,5993,72,48]:
+                    - generic [ref=e1218] [box=968,5993,72,28]: 32,00 zł
+                    - generic [ref=e1219] [box=992,6021,48,20]: 38,00 zł
+                  - button "add_shopping_cart Do koszyka" [ref=e1220] [box=1108,5999,148,36]:
+                    - generic [ref=e1221] [box=1132,6002,100,30]:
+                      - generic [ref=e1222] [box=1132,6002,24,24]: add_shopping_cart
+                      - text: Do koszyka
+    - contentinfo [ref=e1225] [box=0,6113,1280,222]:
+      - generic [ref=e1226] [box=0,6114,1280,172]:
+        - generic [ref=e1227] [box=16,6146,294,108]:
+          - heading "O nas" [level=3] [ref=e1228] [box=16,6146,294,20]
+          - list [ref=e1229] [box=16,6174,294,80]:
+            - listitem [ref=e1230] [box=16,6174,294,24]:
+              - link "O sklepie" [ref=e1231] [cursor=pointer] [box=16,6178,57,17]:
+                - /url: "#about"
+            - listitem [ref=e1232] [box=16,6202,294,24]:
+              - link "Blog" [ref=e1233] [cursor=pointer] [box=16,6206,28,17]:
+                - /url: "#blog"
+            - listitem [ref=e1234] [box=16,6230,294,24]:
+              - link "Kariera" [ref=e1235] [cursor=pointer] [box=16,6234,44,17]:
+                - /url: "#careers"
+        - generic [ref=e1236] [box=334,6146,294,108]:
+          - heading "Pomoc" [level=3] [ref=e1237] [box=334,6146,294,20]
+          - list [ref=e1238] [box=334,6174,294,80]:
+            - listitem [ref=e1239] [box=334,6174,294,24]:
+              - link "Kontakt" [ref=e1240] [cursor=pointer] [box=334,6178,48,17]:
+                - /url: "#contact"
+            - listitem [ref=e1241] [box=334,6202,294,24]:
+              - link "Najczęstsze pytania" [ref=e1242] [cursor=pointer] [box=334,6206,125,17]:
+                - /url: "#faq"
+            - listitem [ref=e1243] [box=334,6230,294,24]:
+              - link "Dostawa i zwroty" [ref=e1244] [cursor=pointer] [box=334,6234,106,17]:
+                - /url: "#shipping"
+        - generic [ref=e1245] [box=652,6146,294,108]:
+          - heading "Polityki" [level=3] [ref=e1246] [box=652,6146,294,20]
+          - list [ref=e1247] [box=652,6174,294,80]:
+            - listitem [ref=e1248] [box=652,6174,294,24]:
+              - link "Polityka prywatności" [ref=e1249] [cursor=pointer] [box=652,6178,129,17]:
+                - /url: "#privacy"
+            - listitem [ref=e1250] [box=652,6202,294,24]:
+              - link "Regulamin" [ref=e1251] [cursor=pointer] [box=652,6206,66,17]:
+                - /url: "#terms"
+            - listitem [ref=e1252] [box=652,6230,294,24]:
+              - link "Pliki cookies" [ref=e1253] [cursor=pointer] [box=652,6234,78,17]:
+                - /url: "#cookies"
+        - generic [ref=e1254] [box=970,6146,294,108]:
+          - heading "Płatności" [level=3] [ref=e1255] [box=970,6146,294,20]
+          - list [ref=e1256] [box=970,6174,294,80]:
+            - listitem [ref=e1257] [box=970,6174,294,24]:
+              - link "BLIK" [ref=e1258] [cursor=pointer] [box=970,6178,29,17]:
+                - /url: "#blik"
+            - listitem [ref=e1259] [box=970,6202,294,24]:
+              - link "Przelewy24" [ref=e1260] [cursor=pointer] [box=970,6206,72,17]:
+                - /url: "#p24"
+            - listitem [ref=e1261] [box=970,6230,294,24]:
+              - link "Visa / MasterCard" [ref=e1262] [cursor=pointer] [box=970,6234,113,17]:
+                - /url: "#cards"
+      - generic [ref=e1263] [box=0,6286,1280,49]: AI Studio · Demo księgarni · 2026

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Routes</title>
+</head>
+<body>
+<h1>Routes</h1>
+<button data-testid="load">Load data</button>
+<pre data-testid="api-result">idle</pre>
+<script>
+  // `/api/data` is served by the fixture server as `{"source":"server"}`; a route can block it
+  // (→ `error: network`), replace it (→ the routed body) or delay it.
+  document.querySelector('[data-testid=load]').addEventListener('click', async () => {
+    const out = document.querySelector('[data-testid=api-result]');
+    out.textContent = 'loading';
+    try {
+      const response = await fetch('/api/data');
+      const text = await response.text();
+      out.textContent = response.ok ? text : `error: ${response.status} ${text}`;
+    } catch (error) {
+      out.textContent = 'error: network';
+    }
+  });
+</script>
+</body>
+</html>

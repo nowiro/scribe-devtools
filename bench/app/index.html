@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<title>Zgłoszenie serwisowe</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 40rem; }
+  .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; }
+  .card.ok { border-color: #2a7; background: #f2fff7; }
+  label { display: block; margin-top: 0.75rem; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 0.4rem; }
+  fieldset label, label.check { display: inline-block; margin-right: 1rem; }
+  fieldset label input, label.check input { width: auto; }
+  .error { color: #b00; margin: 0.25rem 0 0; }
+  .status { color: #555; }
+  button { margin-top: 1rem; padding: 0.5rem 1rem; }
+</style>
+</head>
+<body>
+<main class="page">
+  <h1 data-testid="page-title">Zgłoszenie serwisowe</h1>
+  <p class="lead">Fixture formularza — statyczne odbicie demo/app (skryba vs MCP).</p>
+  <nav><a href="#top" data-testid="nav-top">Na górę</a> <a href="#form" data-testid="nav-form">Formularz</a></nav>
+
+  <section class="card ok" data-testid="confirmation" hidden>
+    <h2>Zgłoszenie przyjęte</h2>
+    <p>Numer: <strong data-testid="ticket-id"></strong></p>
+    <dl>
+      <dt>Zgłaszający</dt><dd data-testid="ticket-name"></dd>
+      <dt>Kategoria</dt><dd data-testid="ticket-category"></dd>
+      <dt>Priorytet</dt><dd data-testid="ticket-priority"></dd>
+    </dl>
+    <button type="button" data-testid="new-request">Nowe zgłoszenie</button>
+  </section>
+
+  <form class="card" id="form" data-testid="request-form" novalidate>
+    <label for="name">Imię i nazwisko</label>
+    <input id="name" name="name" data-testid="field-name" placeholder="Jan Kowalski" />
+    <p class="error" data-testid="error-name" hidden>Podaj imię i nazwisko (min. 3 znaki).</p>
+
+    <label for="email">E-mail</label>
+    <input id="email" name="email" data-testid="field-email" placeholder="jan@example.com" />
+    <p class="error" data-testid="error-email" hidden>Podaj poprawny adres e-mail.</p>
+
+    <label for="category">Kategoria</label>
+    <select id="category" name="category" data-testid="field-category">
+      <option value="awaria">Awaria</option>
+      <option value="pytanie">Pytanie</option>
+      <option value="zmiana">Wniosek o zmianę</option>
+    </select>
+
+    <fieldset>
+      <legend>Priorytet</legend>
+      <label><input type="radio" name="priority" data-testid="priority-niski" value="niski" /> Niski</label>
+      <label><input type="radio" name="priority" data-testid="priority-normalny" value="normalny" checked /> Normalny</label>
+      <label><input type="radio" name="priority" data-testid="priority-krytyczny" value="krytyczny" /> Krytyczny</label>
+    </fieldset>
+
+    <label for="description">Opis</label>
+    <textarea id="description" name="description" data-testid="field-description" rows="4" placeholder="Co się stało?"></textarea>
+    <p class="error" data-testid="error-description" hidden>Opis musi mieć min. 10 znaków.</p>
+
+    <label class="check">
+      <input type="checkbox" id="consent" name="consent" data-testid="field-consent" />
+      Zgadzam się na przetwarzanie danych
+    </label>
+    <p class="error" data-testid="error-consent" hidden>Zgoda jest wymagana.</p>
+
+    <p class="status" data-testid="invalid-count">Niepoprawnych pól: 3</p>
+    <button type="submit" data-testid="submit">Wyślij zgłoszenie</button>
+  </form>
+</main>
+<script>
+  // Mirrors demo/app/src/app/app.ts: validation on submit, a deterministic ticket number, a POST
+  // to an API that does not exist — the failure is visible ONLY in the console and the network.
+  let nextTicket = 1001;
+  let submitAttempted = false;
+  const form = document.getElementById('form');
+  const fields = {
+    name: { el: form.elements.name, valid: (v) => v.trim().length >= 3 },
+    email: { el: form.elements.email, valid: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) },
+    description: { el: form.elements.description, valid: (v) => v.trim().length >= 10 },
+    consent: { el: form.elements.consent, valid: (_, el) => el.checked },
+  };
+  const touched = new Set();
+  const invalidCount = () =>
+    Object.values(fields).filter((f) => !f.valid(f.el.value, f.el)).length;
+  const render = () => {
+    for (const [key, f] of Object.entries(fields)) {
+      const show = !f.valid(f.el.value, f.el) && (touched.has(key) || submitAttempted);
+      document.querySelector(`[data-testid=error-${key}]`).hidden = !show;
+    }
+    document.querySelector('[data-testid=invalid-count]').textContent = `Niepoprawnych pól: ${invalidCount()}`;
+  };
+  for (const [key, f] of Object.entries(fields)) {
+    f.el.addEventListener('input', render);
+    f.el.addEventListener('change', render);
+    f.el.addEventListener('blur', () => { touched.add(key); render(); });
+  }
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submitAttempted = true;
+    if (invalidCount() > 0) {
+      console.warn(`[zgloszenia] odrzucono wysylke: ${invalidCount()} niepoprawnych pol`);
+      render();
+      return;
+    }
+    const ticket = {
+      id: `ALM-${nextTicket++}`,
+      name: fields.name.el.value,
+      category: form.elements.category.value,
+      priority: form.elements.priority.value,
+    };
+    document.querySelector('[data-testid=ticket-id]').textContent = ticket.id;
+    document.querySelector('[data-testid=ticket-name]').textContent = ticket.name;
+    document.querySelector('[data-testid=ticket-category]').textContent = ticket.category;
+    document.querySelector('[data-testid=ticket-priority]').textContent = ticket.priority;
+    form.hidden = true;
+    document.querySelector('[data-testid=confirmation]').hidden = false;
+    try {
+      const response = await fetch('/api/zgloszenia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(ticket),
+      });
+      if (!response.ok) console.error(`[zgloszenia] zapis nie powiodl sie: HTTP ${response.status}`);
+    } catch (error) {
+      console.error(`[zgloszenia] zapis nie powiodl sie: ${String(error)}`);
+    }
+  });
+  document.querySelector('[data-testid=new-request]').addEventListener('click', () => {
+    form.reset();
+    touched.clear();
+    submitAttempted = false;
+    form.hidden = false;
+    document.querySelector('[data-testid=confirmation]').hidden = true;
+    render();
+  });
+  render();
+</script>
+</body>
+</html>

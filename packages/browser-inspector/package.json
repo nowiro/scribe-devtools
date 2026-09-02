@@ -1,0 +1,22 @@
+{
+  "name": "@scribe-devtools/browser-inspector",
+  "version": "0.1.0",
+  "description": "browser-inspector 2 (`bi`): batch flows from a JSON config and an interactive session on aria refs, one step table, one engine on playwright-core with the system Chrome/Edge, warm browser kept by a local keeper process.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "bi": "bin/bi.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    "PORTABLE"
+  ],
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

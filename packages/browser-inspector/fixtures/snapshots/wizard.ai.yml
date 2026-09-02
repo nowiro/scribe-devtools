@@ -1,0 +1,106 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e5]:
+      - img [ref=f1e6]: business_center
+      - generic [ref=f1e7]: Kreator ankiet biznesowych
+    - main [ref=f1e8]:
+      - paragraph [ref=f1e9]: Demo · AI Studio
+      - heading "Pulpit ankiety biznesowej" [level=1] [ref=f1e10]
+      - paragraph [ref=f1e11]: Wypełnij ankietę firmową w 6 krokach. Walidacja KRS i zgód uruchamia się dynamicznie w zależności od formy prawnej, branży i segmentu klientów.
+      - list [ref=f1e12]:
+        - 'listitem "Otwórz krok 1: Dane firmy" [ref=f1e13] [cursor=pointer]':
+          - generic [ref=f1e14]:
+            - img [ref=f1e16]: business
+            - generic [ref=f1e17]:
+              - paragraph [ref=f1e18]: Krok 1 / 6
+              - paragraph [ref=f1e19]: Dane firmy
+          - paragraph [ref=f1e20]: Nazwa, forma prawna, NIP, REGON, KRS, rok założenia.
+          - generic [ref=f1e21]:
+            - generic [ref=f1e22]:
+              - img [ref=f1e23]: radio_button_unchecked
+              - text: Niedotknięte
+            - generic [ref=f1e24]:
+              - text: Otwórz
+              - img [ref=f1e25]: arrow_forward
+        - 'listitem "Otwórz krok 2: Kontakt i adresy" [ref=f1e26] [cursor=pointer]':
+          - generic [ref=f1e27]:
+            - img [ref=f1e29]: mail
+            - generic [ref=f1e30]:
+              - paragraph [ref=f1e31]: Krok 2 / 6
+              - paragraph [ref=f1e32]: Kontakt i adresy
+          - paragraph [ref=f1e33]: Email, telefony, siedziba, oddziały, adresy do faktur.
+          - generic [ref=f1e34]:
+            - generic [ref=f1e35]:
+              - img [ref=f1e36]: radio_button_unchecked
+              - text: Niedotknięte
+            - generic [ref=f1e37]:
+              - text: Otwórz
+              - img [ref=f1e38]: arrow_forward
+        - 'listitem "Otwórz krok 3: Profil działalności" [ref=f1e39] [cursor=pointer]':
+          - generic [ref=f1e40]:
+            - img [ref=f1e42]: insights
+            - generic [ref=f1e43]:
+              - paragraph [ref=f1e44]: Krok 3 / 6
+              - paragraph [ref=f1e45]: Profil działalności
+          - paragraph [ref=f1e46]: Branża, segment (B2B / B2C), skala, eksport, języki robocze.
+          - generic [ref=f1e47]:
+            - generic [ref=f1e48]:
+              - img [ref=f1e49]: check_circle
+              - text: Gotowe
+            - generic [ref=f1e50]:
+              - text: Otwórz
+              - img [ref=f1e51]: arrow_forward
+        - 'listitem "Otwórz krok 4: Reprezentanci" [ref=f1e52] [cursor=pointer]':
+          - generic [ref=f1e53]:
+            - img [ref=f1e55]: groups
+            - generic [ref=f1e56]:
+              - paragraph [ref=f1e57]: Krok 4 / 6
+              - paragraph [ref=f1e58]: Reprezentanci
+          - paragraph [ref=f1e59]: Osoby decyzyjne — zarząd, pełnomocnicy, sygnatariusze.
+          - generic [ref=f1e60]:
+            - generic [ref=f1e61]:
+              - img [ref=f1e62]: radio_button_unchecked
+              - text: Niedotknięte
+            - generic [ref=f1e63]:
+              - text: Otwórz
+              - img [ref=f1e64]: arrow_forward
+        - 'listitem "Otwórz krok 5: Zgody i klauzule" [ref=f1e65] [cursor=pointer]':
+          - generic [ref=f1e66]:
+            - img [ref=f1e68]: verified_user
+            - generic [ref=f1e69]:
+              - paragraph [ref=f1e70]: Krok 5 / 6
+              - paragraph [ref=f1e71]: Zgody i klauzule
+          - paragraph [ref=f1e72]: RODO B2B, PSD2 (finanse), DPA (zdrowie), sankcje eksportowe.
+          - generic [ref=f1e73]:
+            - generic [ref=f1e74]:
+              - img [ref=f1e75]: radio_button_unchecked
+              - text: Niedotknięte
+            - generic [ref=f1e76]:
+              - text: Otwórz
+              - img [ref=f1e77]: arrow_forward
+        - 'listitem "Otwórz krok 6: Podsumowanie" [ref=f1e78] [cursor=pointer]':
+          - generic [ref=f1e79]:
+            - img [ref=f1e81]: task_alt
+            - generic [ref=f1e82]:
+              - paragraph [ref=f1e83]: Krok 6 / 6
+              - paragraph [ref=f1e84]: Podsumowanie
+          - paragraph [ref=f1e85]: Podgląd, walidacja krzyżowa i potwierdzenie zgłoszenia.
+          - generic [ref=f1e86]:
+            - generic [ref=f1e87]:
+              - img [ref=f1e88]: radio_button_unchecked
+              - text: Niedotknięte
+            - generic [ref=f1e89]:
+              - text: Otwórz
+              - img [ref=f1e90]: arrow_forward
+      - generic [ref=f1e91]:
+        - paragraph [ref=f1e92]: Dane są zapamiętywane w sesji przeglądarki i nigdy nie opuszczają urządzenia.
+        - button "Resetuj kreator" [ref=f1e93]:
+          - img [ref=f1e94]: restart_alt
+        - link "Przejdź do podsumowania" [ref=f1e97] [cursor=pointer]:
+          - /url: /wizard/6
+          - img [ref=f1e98]: task_alt
+  - generic [ref=f1e101]:
+    - button "Przeciągnij pionowo" [ref=f1e102]:
+      - img [ref=f1e103]: drag_indicator
+    - button "Otwórz panel narzędzi deweloperskich" [ref=f1e104] [cursor=pointer]:
+      - img [ref=f1e105]: auto_fix_high

@@ -1,0 +1,46 @@
+# .gitattributes — line endings, first and unconditionally.
+#
+# The repository is developed on Windows and its content is plain text that gets compared,
+# hashed and diffed. Without this, git writes CRLF into the working tree, every diff shows
+# whole files as changed, and `prettier --check` disagrees with what is committed. One
+# `text=auto eol=lf` rule removes the entire class of problem.
+
+* text=auto eol=lf
+
+# Classes of files that must stay LF even when the `auto` heuristic gets it wrong.
+*.md        text eol=lf
+*.mjs       text eol=lf
+*.mts       text eol=lf
+*.js        text eol=lf
+*.ts        text eol=lf
+*.json      text eol=lf
+*.jsonc     text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.toml      text eol=lf
+*.sh        text eol=lf
+.gitattributes text eol=lf
+.editorconfig  text eol=lf
+
+# The lockfile: LF, no diff in review, marked as generated.
+package-lock.json text eol=lf -diff linguist-generated=true
+
+# Binaries — never touched by line-ending conversion.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.7z    binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.dylib binary

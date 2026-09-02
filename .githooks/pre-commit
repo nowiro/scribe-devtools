@@ -1,0 +1,11 @@
+#!/bin/sh
+# Regenerates the two generated documents so every commit carries them fresh — `npm run verify`
+# fails on a stale one, this hook makes staleness impossible. Armed by `npm run prepare`
+# (`.npmrc` has ignore-scripts=true, so `npm install` does NOT run `prepare` — call it once).
+node scripts/index-code.mjs || exit 1
+git add CODE-INDEX.md
+# docs/STEPS.md exists only once packages/browser-inspector/src/steps.schema.mjs does; the
+# generator says so and exits 0 in the meantime.
+node scripts/gen-steps-doc.mjs || exit 1
+[ -f docs/STEPS.md ] && git add docs/STEPS.md
+exit 0

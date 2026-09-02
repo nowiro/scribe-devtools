@@ -1,0 +1,23 @@
+# .editorconfig — three invariants the whole repository relies on: LF line endings, no
+# trailing whitespace and exactly one newline at the end of every file. The editor should
+# produce content that already satisfies them, so that opening a file in another tool never
+# shows up as a diff.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# README.md is hand-wrapped and excluded from prettier (see .prettierignore), so a hard
+# width limit here would fight tables that were narrowed by hand. Trimming trailing
+# whitespace stays on deliberately: the markdown "two trailing spaces = line break" is
+# invisible in review and does not survive a formatter.
+max_line_length = off
+
+[Makefile]
+indent_style = tab

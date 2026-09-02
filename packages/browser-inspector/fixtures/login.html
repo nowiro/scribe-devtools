@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<title>Panel</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 30rem; }
+  .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; }
+  label { display: block; margin-top: 0.75rem; }
+  input { width: 100%; box-sizing: border-box; padding: 0.4rem; }
+  .error { color: #b00; }
+  button { margin-top: 1rem; padding: 0.5rem 1rem; }
+</style>
+</head>
+<body>
+<h1 data-testid="page-title">Panel</h1>
+<p class="lead">Fixture logowania — sesja w localStorage + ciasteczko, jak w SPA za bramą uprawnień.</p>
+
+<section class="card" data-testid="dashboard" hidden>
+  <h2>Pulpit</h2>
+  <p>Zalogowano jako <strong data-testid="dashboard-user"></strong></p>
+  <p>Źródło sesji: <span data-testid="session-source"></span></p>
+  <p>Logowań w tej sesji: <span data-testid="login-count"></span></p>
+  <button type="button" data-testid="logout">Wyloguj</button>
+</section>
+
+<section class="card" data-testid="dashboard-anonymous" hidden>
+  <h2>Gość</h2>
+  <p>Zaloguj się, żeby zobaczyć pulpit.</p>
+</section>
+
+<form class="card" id="login" data-testid="login-form" novalidate hidden>
+  <label for="user">Użytkownik</label>
+  <input id="user" name="user" data-testid="field-user" autocomplete="username" />
+  <label for="pass">Hasło</label>
+  <input id="pass" name="pass" type="password" data-testid="field-pass" autocomplete="current-password" />
+  <p class="error" data-testid="login-error" hidden>Nieprawidłowy użytkownik albo hasło.</p>
+  <button type="submit" data-testid="login-submit">Zaloguj</button>
+</form>
+
+<script>
+  // The fixture's own credentials — the fake application's, not a config's. Two ways in, like a
+  // real SPA behind Keycloak: the form (writes `session` + a cookie) and an access token under
+  // `access_token` (the OAuth path of bi writes it through storageState; the user comes from the
+  // JWT's `preferred_username`). `login-count` rides along in localStorage, so a storageState that
+  // was captured after ONE login shows 1 in every run that reuses it.
+  const USERS = { alice: 'wonderland-42' };
+  const $ = (testid) => document.querySelector(`[data-testid=${testid}]`);
+
+  const claims = (jwt) => {
+    try {
+      return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    } catch {
+      return {};
+    }
+  };
+
+  const whoAmI = () => {
+    const session = localStorage.getItem('session');
+    if (session) {
+      try {
+        return { user: JSON.parse(session).user, source: 'form' };
+      } catch {
+        /* a broken session is no session */
+      }
+    }
+    const token = localStorage.getItem('access_token');
+    if (token) return { user: claims(token).preferred_username ?? '?', source: 'token' };
+    return undefined;
+  };
+
+  const render = () => {
+    const me = whoAmI();
+    $('dashboard').hidden = !me;
+    $('dashboard-anonymous').hidden = !!me;
+    $('login-form').hidden = !!me;
+    if (me) {
+      $('dashboard-user').textContent = me.user;
+      $('session-source').textContent = me.source;
+      $('login-count').textContent = localStorage.getItem('login-count') ?? '0';
+    }
+  };
+
+  document.getElementById('login').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const user = $('field-user').value.trim();
+    const pass = $('field-pass').value;
+    if (USERS[user] !== pass) {
+      $('login-error').hidden = false;
+      return;
+    }
+    localStorage.setItem('session', JSON.stringify({ user, at: Date.now() }));
+    localStorage.setItem('login-count', String(Number(localStorage.getItem('login-count') ?? '0') + 1));
+    document.cookie = `sid=${Math.random().toString(36).slice(2)}; path=/`;
+    $('field-pass').value = '';
+    render();
+  });
+
+  $('logout').addEventListener('click', () => {
+    localStorage.removeItem('session');
+    localStorage.removeItem('access_token');
+    document.cookie = 'sid=; path=/; max-age=0';
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

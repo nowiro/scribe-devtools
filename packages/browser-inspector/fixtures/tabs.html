@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Karty</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; }
+      button, a { display: inline-block; margin: 6px 12px 6px 0; }
+    </style>
+  </head>
+  <body>
+    <!--
+      One file, two roles: the parent opens popups (a `target=_blank` link and a `window.open`
+      button), `?child=1` renders the popup's own document with a different title. The session's
+      `tabs` / `tab <n>` / `tab close` commands and the `report.json.tabs[]` entry of a batch both
+      come from `page.on('popup')` (DESIGN.md §4.5) — this page is where a popup comes from.
+    -->
+    <h1 id="title">Karty</h1>
+    <p><output id="out" aria-live="polite">nic</output></p>
+    <script>
+      if (new URLSearchParams(location.search).has('child')) {
+        document.title = 'Dziecko karty';
+        document.getElementById('title').textContent = 'Dziecko karty';
+        document.body.insertAdjacentHTML(
+          'beforeend',
+          '<button id="child-btn" data-testid="child-button" type="button">Przycisk w karcie</button>',
+        );
+        document.getElementById('child-btn').addEventListener('click', () => {
+          document.getElementById('out').textContent = 'kliknięto w karcie';
+        });
+      } else {
+        document.body.insertAdjacentHTML(
+          'beforeend',
+          '<a id="popup-link" data-testid="popup-link" href="tabs.html?child=1" target="_blank" rel="opener">Otwórz kartę</a>' +
+            '<button id="popup-btn" data-testid="popup-button" type="button">Otwórz oknem</button>' +
+            '<button id="count-btn" data-testid="count-button" type="button">Policz</button>',
+        );
+        document.getElementById('popup-btn').addEventListener('click', () => {
+          window.open('tabs.html?child=1', '_blank');
+          document.getElementById('out').textContent = 'otwarto oknem';
+        });
+        document.getElementById('count-btn').addEventListener('click', () => {
+          const n = Number(document.getElementById('out').dataset.n ?? 0) + 1;
+          document.getElementById('out').dataset.n = String(n);
+          document.getElementById('out').textContent = `policzono ${n}`;
+        });
+      }
+    </script>
+  </body>
+</html>

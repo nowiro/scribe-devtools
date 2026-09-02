@@ -1,0 +1,22 @@
+{
+  "name": "@scribe-devtools/bench",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Benchmark: bi (browser-inspector 2) against @playwright/mcp — time from spawn to exit and o200k tokens, same task, same day, same machine. Writes RAPORT.md, WYNIKI.md, BUDGET.md.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bench": "node bench.mjs",
+    "app:serve": "node serve.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "0.0.80",
+    "gpt-tokenizer": "^4.0.0"
+  }
+}
