@@ -115,7 +115,9 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
    (`findRunner`, skrypt `bi`, dwa zdania w AGENTS.md) jest scalany.
 4. Zip portable JEST commitowany: każda wersja zostaje w `download/` (asset Release'a to ten sam
    plik, sumę kontrolną niesie sidecar `.sha256`). Starych zipów nie usuwaj — „każda wersja
-   istnieje w repo" to reguła, nie wygoda.
+   istnieje w repo" to reguła, nie wygoda. **Zip wydanej wersji jest zamrożony**: gdy istnieje tag
+   `v<wersja>`, hook go nie przebudowuje (komunikat „wersja … jest wydana”) — nowy kod pod tą samą
+   wersją to błąd procesu, podbij wersję; `node scripts/portable-zip.mjs --force` przebudowuje mimo to.
 
 ## Czego nie robić
 

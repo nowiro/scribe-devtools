@@ -21,8 +21,9 @@
 //
 // Usage: npm run portable                                (zip + .sha256 land in download/)
 //        node scripts/portable-zip.mjs [--out <dir>] [--stage <dir>]   (--stage: copy only, no zip — for tests)
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -281,6 +282,27 @@ export function zipEntries(zipPath) {
 export const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 
 /**
+ * A released version's zip is frozen: once the tag `v<version>` exists, `download/<zip>` IS the
+ * release and must not follow later commits made before the next version bump — otherwise the
+ * file named 0.1.0 would quietly carry 0.1.1's code. The rule is pure so the test can feed tags.
+ * @param {string} version
+ * @param {string[]} tags existing git tags
+ * @param {boolean} zipExists
+ */
+export const isFrozen = (version, tags, zipExists) => zipExists && tags.includes(`v${version}`);
+
+/** @param {string} root @returns {string[]} `git tag -l` of the repository, [] outside git */
+export function gitTags(root) {
+  try {
+    return execFileSync('git', ['tag', '-l'], { cwd: root, encoding: 'utf8' })
+      .split(/\r?\n/u)
+      .filter((line) => line !== '');
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Build the zip for the current version into `outDir` (default `download/`) with its `.sha256`
  * sidecar in `sha256sum` format. Returns the paths and whether the bytes changed against what was
  * there before — the pre-commit hook prints that, a human reads it.
@@ -327,10 +349,18 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import
     );
   } else {
     const outDir = resolve(argValue('--out') ?? join(REPO, DOWNLOAD_DIR));
-    const { version, zipPath, shaPath, changed } = buildPortable(REPO, outDir);
-    console.log(
-      `[zip] ${changed ? 'zbudowany' : 'bez zmian'}: ${relative(REPO, zipPath)} (+ ${relative(REPO, shaPath)}) — wersja ${version}`,
-    );
-    console.log(`[zip] po rozpakowaniu: node ${PACKAGE}/bin/bi.mjs help  (bez npm, bez builda)`);
+    const version = readVersion(REPO);
+    const frozen = isFrozen(version, gitTags(REPO), existsSync(join(outDir, zipName(version))));
+    if (frozen && !process.argv.includes('--force')) {
+      console.log(
+        `[zip] wersja ${version} jest wydana (tag v${version}) — ${relative(REPO, join(outDir, zipName(version)))} zostaje bez zmian; nowy kod wymaga podbicia wersji (--force przebudowuje mimo to)`,
+      );
+    } else {
+      const { zipPath, shaPath, changed } = buildPortable(REPO, outDir);
+      console.log(
+        `[zip] ${changed ? 'zbudowany' : 'bez zmian'}: ${relative(REPO, zipPath)} (+ ${relative(REPO, shaPath)}) — wersja ${version}`,
+      );
+      console.log(`[zip] po rozpakowaniu: node ${PACKAGE}/bin/bi.mjs help  (bez npm, bez builda)`);
+    }
   }
 }

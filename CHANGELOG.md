@@ -12,6 +12,10 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   ostrzeżenie `auth` o pliku sesji poza `.scribe-devtools/`; fixture, szablon flow, README, DESIGN,
   `.gitignore`/`.prettierignore` i testy przepisane. Jawny `outputDir` w configu (np. app-factory:
   `./.scribe/browser-inspector`) działa jak dotąd — to reguła dla wartości domyślnej.
+- **Zip wydanej wersji jest zamrożony**: gdy istnieje tag `v<wersja>` i plik w `download/`, hook
+  i `npm run portable` nie przebudowują go (`isFrozen`, komunikat „wersja … jest wydana”); nowy kod
+  wymaga podbicia wersji, `--force` przebudowuje mimo to. Zip 0.1.0 przywrócony do bajtów z wydania
+  (sha256 `81b2ce52…`, identyczny z assetem Release'a).
 - Zip portable jest **śledzony w repo**: `download/scribe-devtools-portable-<wersja>.zip` + sidecar
   `.sha256` (format `sha256sum`), budowany przez hook pre-commit po `CODE-INDEX.md` i `docs/STEPS.md`
   oraz przez `npm run portable`; każda wydana wersja zostaje w `download/`. Build jest

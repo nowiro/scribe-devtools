@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   PORTABLE_MARKER,
   buildPortable,
+  isFrozen,
   readVersion,
   sha256,
   stagePortable,
@@ -145,6 +146,15 @@ describe('portable staging', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it('a released version is frozen: tag v<version> + existing zip → no rebuild; otherwise rebuild', () => {
+    expect(isFrozen('0.1.0', ['v0.1.0', 'v0.0.9'], true)).toBe(true);
+    // Version bumped, not yet tagged: the in-progress zip follows the tree.
+    expect(isFrozen('0.1.1', ['v0.1.0'], true)).toBe(false);
+    // Tagged but the zip is missing (fresh clone before the hook ran): build it.
+    expect(isFrozen('0.1.0', ['v0.1.0'], false)).toBe(false);
+    expect(isFrozen('0.1.0', [], true)).toBe(false);
   });
 
   it('two builds of the same tree are byte-identical — the tracked zip must not churn', () => {
