@@ -24,6 +24,11 @@ export const EXTRACT_CAP = 5000;
 export const ELEMENTS_CAP = 100;
 /** Ceiling on each final-evidence read (screenshot, evaluate, title) — see `finalEvidence`. */
 export const EVIDENCE_CAP_MS = 10_000;
+/**
+ * Above this, a single `Page.captureScreenshot` is past Chrome's texture limit and fails; the shot
+ * falls back to Playwright, which stitches. 16384 is the limit on the GPU backends Chrome ships.
+ */
+const MAX_CAPTURE_PX = 16_384;
 
 /**
  * Cap one captured value; the cap is marked, never silent.
@@ -95,15 +100,28 @@ export async function screenshotFast(page, cdp, options = {}) {
   const format = options.format ?? 'png';
   const quality = format === 'jpeg' ? (options.quality ?? 80) : undefined;
   return withMark(page, options.mark, async () => {
-    if (cdp && !options.fullPage && !options.selector) {
+    // The element shot stays on Playwright's path (it needs the locator); everything else, INCLUDING
+    // `fullPage`, goes through CDP. `fullPage` used to be excluded here, which sent the most
+    // expensive screenshot in the tree down the slow path — but the measurement says the reason is
+    // not the round trips it saves. A/B on the tallest page in the fixtures (bookstore, 1280×6335):
+    // CDP 222 ms, Playwright 713 ms, identical dimensions — and the SAME CDP clip with
+    // `optimizeForSpeed: false` costs 731 ms. The whole 491 ms is the PNG encoder, and the trade it
+    // buys is on disk: 3488 KB against 2045 KB for the same image. Viewport shots already make that
+    // trade (§2.2), so a full-page shot making a different one would be the odd case, not this.
+    if (cdp && !options.selector) {
       try {
-        const result = await cdp.send('Page.captureScreenshot', {
-          format,
-          ...(quality !== undefined ? { quality } : {}),
-          optimizeForSpeed: true,
-        });
-        const buffer = Buffer.from(result.data, 'base64');
-        return { buffer, ...(format === 'png' ? pngSize(buffer) : {}), via: 'cdp' };
+        const clip = options.fullPage ? await documentClip(cdp) : undefined;
+        // No metrics, no clip: rather than guess, fall through to the path that does not need them.
+        if (!options.fullPage || clip) {
+          const result = await cdp.send('Page.captureScreenshot', {
+            format,
+            ...(quality !== undefined ? { quality } : {}),
+            optimizeForSpeed: true,
+            ...(clip ? { clip, captureBeyondViewport: true } : {}),
+          });
+          const buffer = Buffer.from(result.data, 'base64');
+          return { buffer, ...(format === 'png' ? pngSize(buffer) : {}), via: 'cdp' };
+        }
       } catch {
         // A detached CDP session or a page mid-navigation: Playwright's path still works.
       }
@@ -119,6 +137,27 @@ export async function screenshotFast(page, cdp, options = {}) {
     const bytes = /** @type {Buffer} */ (buffer);
     return { buffer: bytes, ...(format === 'png' ? pngSize(bytes) : {}), via: 'playwright' };
   });
+}
+
+/**
+ * The whole document as a screenshot clip, in CSS pixels. `cssContentSize` is what
+ * `Page.getLayoutMetrics` reports for the layout viewport's content — the same rectangle
+ * `fullPage` means. `undefined` when the metrics look wrong (a page mid-navigation answers with
+ * zeros), because a clip of zero height would produce an empty image where the slow path produces
+ * a correct one.
+ * @param {CdpLike} cdp
+ * @returns {Promise<{ x: number, y: number, width: number, height: number, scale: number } | undefined>}
+ */
+async function documentClip(cdp) {
+  const metrics = await cdp.send('Page.getLayoutMetrics');
+  const size = metrics?.cssContentSize ?? metrics?.contentSize;
+  const width = Math.ceil(Number(size?.width));
+  const height = Math.ceil(Number(size?.height));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return undefined;
+  // Chrome refuses a capture past its texture limit and answers with an error; the guard keeps that
+  // case on Playwright's path, which stitches instead of failing.
+  if (height > MAX_CAPTURE_PX || width > MAX_CAPTURE_PX) return undefined;
+  return { x: 0, y: 0, width, height, scale: 1 };
 }
 
 /**

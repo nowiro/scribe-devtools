@@ -1,7 +1,7 @@
 # Przegląd wydajności `browser-inspector` — v0.1.0
 
-Data przeglądu: 2026-09-02. Stan kodu: `scribe-devtools` od `a5bbd5f` (stan wyjściowy) do `a6ecf98` (HEAD w chwili
-zamknięcia); tag `v0.1.0` wskazuje wydanie sprzed tej rundy. Numery linii odnoszą się do stanu `a6ecf98`; ścieżki
+Data przeglądu: 2026-09-02. Stan kodu: `scribe-devtools` od `a5bbd5f` (stan wyjściowy) do `632e7a8`+ (HEAD w chwili
+zamknięcia); tag `v0.1.0` wskazuje wydanie sprzed tej rundy. Numery linii odnoszą się do stanu HEAD; ścieżki
 `src/…` i `test/…` oznaczają `packages/browser-inspector/src/…` i `…/test/…`. W trakcie przeglądu drzewo przesunęło się
 o pięć commitów — refaktor silnika na moduły (`646bfad`), pakiet wydajnościowy (`7bcc9c0`), dwie naprawy liczników
 (`a439a6f`), sam ten dokument (`30dc3e6`) i wdrożenie punktów 3 i 5 planu (`a6ecf98`) — więc część ustaleń jest już
@@ -77,7 +77,7 @@ w kodzie pewny, wielkość zysku niezmierzona. Kolumna „zysk” podaje jednost
 | -------- | ------ | ---------------------------------- | ---------------- | -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | ENGINE-1 | high   | `src/recorder.mjs:260` (był)       | CONFIRMED, repro | —                          | **zamknięte** | `cacheHits` liczony przez `response.fromCache()`, metodę nieistniejącą w playwright-core 1.62.1 — 0 w 86 raportach.    |
 | LIFE-1   | high   | `src/keeper.mjs:448` (był)         | CONFIRMED, repro | —                          | **zamknięte** | Zamiatanie sesji co 30 s resetowało 30-minutowy timer bezczynności — keeper nie wychodził nigdy.                       |
-| ENGINE-2 | high   | `src/capture.mjs:98`               | MEASURED         | 0,6–1,0 s / przebieg       | otwarte       | `fullPage` z definicji omija szybką ścieżkę CDP; zrzut koszyka 808 ms wobec 17–66 ms przez CDP.                        |
+| ENGINE-2 | high   | `src/capture.mjs:98` (był)         | CONFIRMED, A/B   | 491 ms / zrzut fullPage    | **zamknięte** | `fullPage` omijał szybką ścieżkę CDP — ale A/B pokazało, że różnica to enkoder PNG, nie obiegi; kosztem rozmiar pliku. |
 | ENGINE-3 | high   | `src/recorder.mjs:189` (był)       | CONFIRMED, repro | 45 ms (−19 %)              | **zamknięte** | `recorder.settle()` czekał na ciała, których batch nie renderuje; `captureBodies` opt-in → 232 → 187 ms, `settleMs` 0. |
 | CONFIG-1 | high   | `fixtures/app-factory.config.json` | CONFIRMED        | 3,5–4,0 s / przebieg       | do decyzji    | Siedem kroków `wait ms` = 4248 ms zmierzonego snu, 54 % przebiegu app-factory; `waitFor` robi to samo w 28 ms.         |
 | CLIENT-1 | high   | `src/cli.mjs:49` (był)             | CONFIRMED, A/B   | 13 ms / wywołanie          | **zamknięte** | `new Intl.DateTimeFormat` w ciele modułu — 12 ms ICU w każdym procesie klienta, który stempla nie używa.               |
@@ -203,6 +203,21 @@ danych estymatory są nierozróżnialne, a jedyna solidna własność brzmi: ka�
 snapshoty na czele, wygrywa to samo. Dlatego funkcja została surowa i taka ma zostać. Cela `parallel: 1` jest z
 definicji nietknięta, bo plan jednego lane'u to identyczność.
 
+**ENGINE-2 — `fullPage` przez CDP, i korekta własnej premisy.** Warunek w `capture.mjs` wykluczał zrzuty całej strony
+z `Page.captureScreenshot`, więc najdroższy zrzut w drzewie szedł przez `page.screenshot({ fullPage: true })`. Po
+przejściu na CDP z `captureBeyondViewport` i klipem z `Page.getLayoutMetrics.cssContentSize`: A/B na najwyższej stronie
+fixture'ów (bookstore, 1280×6335, siedem par naprzemiennie) daje **CDP 222 ms wobec Playwrighta 713 ms** przy
+identycznych wymiarach, a end-to-end na `nowiro-strona` `captureMs` **614 → ~350 ms**.
+
+**Ale mechanizm jest inny, niż mówiło ustalenie.** Ten sam klip CDP z `optimizeForSpeed: false` kosztuje **731 ms** —
+czyli całe 491 ms to **enkoder PNG**, a nie cztery obiegi (wstrzyknięcie arkusza do każdej ramki, `document.fonts.ready`,
+przywrócenie strony), które ścieżka Playwrighta dokłada. Zysk jest kupiony rozmiarem pliku: 3488 KB wobec 2045 KB dla
+tego samego obrazu, na `nowiro-strona` 510 → ~850 KB. To ten sam wybór, który zrzuty viewportu robią od pierwszego dnia,
+więc odwrócenie go akurat dla `fullPage` byłoby wyjątkiem — ale jest to **wybór, nie darmowy zysk**, i wchodzi
+w interakcję z LIFE-9 (PNG to 94 % objętości `.scribe-devtools/`, bez retencji). Cofa się go jednym `optimizeForSpeed`.
+Na Playwrighcie zostaje zrzut elementu, strona wyższa niż 16 384 px (limit tekstury Chrome — CDP tam odmawia,
+Playwright zszywa) i strona o zerowych metrykach.
+
 **Wspólna diagnoza ENGINE-1 i LIFE-1, warta zapisania osobno.** Oba błędy przeżyły z tego samego powodu: **test
 sprawdzał własną atrapę zamiast rzeczywistości**. Test rejestratora budował odpowiedź _z metodą_ `fromCache`, której
 prawdziwy obiekt Playwrighta nie ma. Testy idle ustawiały krótki `IDLE_MS` przy **domyślnym** `SESSION_TTL_MS`, więc
@@ -212,14 +227,6 @@ przechodziłby dalej, gdyby kod zepsuć bardziej. Zastąpione testami, które mi
 zamiatanie : budżet — sprawdzone, że oblewa na kodzie sprzed naprawy.
 
 ### 4.2 Duże, otwarte
-
-**ENGINE-2 — `fullPage` omija szybką ścieżkę CDP.** Warunek w `capture.mjs:98` brzmi `if (cdp && !options.fullPage &&
-!options.selector)`, więc każdy zrzut całej strony idzie przez `page.screenshot({ fullPage: true })`. Z artefaktów
-(mediany z ośmiu przebiegów): zrzuty przez CDP 17–66 ms, `screenshot koszyk (full)` na stronie 1280×6335 — **808 ms**.
-Zastrzeżenie, które trzeba postawić obok tej liczby: `wizard` robi zrzut `fullPage` w 61 ms, więc to nie jest stała kara
-za ścieżkę Playwrighta — koszt rośnie z wysokością strony i część z 808 ms to samo kodowanie PNG. Kierunek naprawy:
-`Page.captureScreenshot({ captureBeyondViewport: true, clip: documentRect, optimizeForSpeed: true })`, fallback zostaje.
-**Przed wdrożeniem wymagany A/B**, bo wielkość zysku jest niezmierzona — mechanizm jest pewny, liczba nie.
 
 **CONFIG-1 — 54 % przebiegu app-factory to sen w configu.** Siedem kroków `wait ms` (500 + 600 + 700 + 700 + 700 + 400 + 600) daje **4248 ms** zmierzonego snu przy całym batchu ~7,9 s. Kalibracja leży w tym samym pliku: `dziennik-*` używa
 wyłącznie `waitFor` i ta sama klasa przejścia kosztuje **28 ms** zamiast 709. `browser-inspector lint-config` **już** to
@@ -358,21 +365,21 @@ zysku.
 
 ### 8.1 Zamknięte w tej rundzie
 
-| #   | Zmiana                                                                 | Zamyka                             | Commit    |
-| --- | ---------------------------------------------------------------------- | ---------------------------------- | --------- |
-| 1   | Leniwy `Intl.DateTimeFormat`, `writeMs` → `shotsMs`/`settleMs`, bramka | CLIENT-1, ENGINE-5, GATE-1, GATE-2 | `7bcc9c0` |
-| 2   | `cacheHits` z Resource Timing API + smoke, idle bez resetu + regresja  | ENGINE-1, LIFE-1                   | `a439a6f` |
-| 3   | `captureBodies` opt-in dla batchu + `size` z `request.sizes()`         | ENGINE-3                           | `a6ecf98` |
-| 5   | `planLanes()` — offline LPT po szacunku z configu                      | ENGINE-4                           | `a6ecf98` |
+| #   | Zmiana                                                                  | Zamyka                             | Commit    |
+| --- | ----------------------------------------------------------------------- | ---------------------------------- | --------- |
+| 1   | Leniwy `Intl.DateTimeFormat`, `writeMs` → `shotsMs`/`settleMs`, bramka  | CLIENT-1, ENGINE-5, GATE-1, GATE-2 | `7bcc9c0` |
+| 2   | `cacheHits` z Resource Timing API + smoke, idle bez resetu + regresja   | ENGINE-1, LIFE-1                   | `a439a6f` |
+| 3   | `captureBodies` opt-in dla batchu + `size` z `request.sizes()`          | ENGINE-3                           | `a6ecf98` |
+| 5   | `planLanes()` — offline LPT po szacunku z configu                       | ENGINE-4                           | `a6ecf98` |
+| 4   | `fullPage` przez CDP `captureBeyondViewport` (A/B: enkoder, nie obiegi) | ENGINE-2                           | HEAD      |
 
 ### 8.2 Do 0.1.1 — wymaga decyzji właściciela
 
 Numeracja zachowana z pierwszego wydania dokumentu, żeby odsyłacze w commitach i w CHANGELOG-u dalej wskazywały to samo.
-Punkty 3 i 5 przeszły do §8.1.
+Punkty 3, 4 i 5 przeszły do §8.1 — została jedna pozycja, i to poza tym repozytorium.
 
 | #   | Zmiana                                                                                      | Zamyka   | Zysk                 | Koszt |
 | --- | ------------------------------------------------------------------------------------------- | -------- | -------------------- | ----- |
-| 4   | `fullPage` przez CDP `captureBeyondViewport` (po A/B)                                       | ENGINE-2 | 0,6–1,0 s / przebieg | M     |
 | 6   | Migracja `wait ms` → `waitFor` / `wait --text` w configu app-factory (PR po tamtej stronie) | CONFIG-1 | 3,5–4,0 s / przebieg | S     |
 
 ### 8.3 Do 0.2 — bez decyzji, do zrobienia

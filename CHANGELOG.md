@@ -7,6 +7,24 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Changed
 
+- **`fullPage` idzie wreszcie szybką ścieżką CDP — `captureMs` na `nowiro-strona` 614 → ~350 ms.**
+  Warunek w `capture.mjs` wykluczał zrzuty całej strony z `Page.captureScreenshot`, więc najdroższy
+  zrzut w całym drzewie szedł przez `page.screenshot({ fullPage: true })`. Teraz idzie przez CDP
+  z `captureBeyondViewport` i klipem z `Page.getLayoutMetrics.cssContentSize`; na Playwrighcie
+  zostaje zrzut elementu (potrzebuje lokatora), strona wyższa niż 16 384 px (limit tekstury Chrome —
+  tam CDP odmawia, a Playwright zszywa) i strona o zerowych metrykach.
+  **Pomiar poprawił premisę ustalenia**: A/B na najwyższej stronie fixture'ów (bookstore, 1280×6335)
+  daje CDP 222 ms wobec Playwrighta 713 ms przy identycznych wymiarach — ale ten sam klip CDP
+  z `optimizeForSpeed: false` kosztuje **731 ms**, czyli całe 491 ms to **enkoder PNG, a nie cztery
+  obiegi**, które ścieżka Playwrighta dokłada. Kupujemy czas rozmiarem: 3488 KB wobec 2045 KB dla
+  tego samego obrazu, na `nowiro-strona` 510 → ~850 KB. To ten sam wybór, który zrzuty viewportu
+  robią od pierwszego dnia (§2.2), więc odwrócenie go dla `fullPage` byłoby wyjątkiem, nie regułą —
+  ale jest to wybór, nie darmowy zysk, cofa się go jednym `optimizeForSpeed`, i wchodzi w interakcję
+  z brakiem retencji w `.scribe-devtools/` (PNG to 94 % objętości tego katalogu). W benchu widać to
+  wyłącznie na app-factory, bo zadanie referencyjne nie ma ani jednego zrzutu całej strony: `settled`
+  - `parallel: 1` **9520 · 8970 → 8699 · 8142 ms**, `parallel: 3` 3805 · 3751 → **3575 · 3557 ms**;
+    wariant `warm` samego benchu stoi w miejscu (304 → 315 ms przy MCP naive 3066 → 2886 — szum).
+
 - **Batch przestał czytać ciała odpowiedzi (`captureBodies` jest tam opt-in) — przebieg zadania
   referencyjnego 232 → 187 ms (−19 %).** Rejestrator czytał `response.text()` dla każdej odpowiedzi
   json/text, a **nic w batchu ciała nie renderuje**: jedynym czytelnikiem `recorder.bodies` w całym
