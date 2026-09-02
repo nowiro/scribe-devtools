@@ -156,6 +156,17 @@ describe('exportFlow', () => {
     expect(skipped.find((s) => s.seq === 13)?.reason).toContain('session-only');
   });
 
+  it('refuses a ref that resolved inside an iframe — its selector is local to that document', () => {
+    // The selector `durableSelector` computes is unique in the FRAME; a config step resolves it in
+    // the main document, where it either finds a like-named element or nothing. Both are worse than
+    // an export that says no.
+    const entries = journal().map((e) => (e.seq === 3 ? { ...e, inFrame: true } : e));
+    expect(() => exportFlow(entries)).toThrow(ExportError);
+    expect(() => exportFlow(entries)).toThrow(/step 3 \(click e112\): the ref resolved inside an iframe/u);
+    // Without the marker the same journal exports as before — the refusal is not blanket.
+    expect(exportFlow(journal()).count).toBeGreaterThan(0);
+  });
+
   it('refuses a ref without a resolved selector instead of exporting a ref (negative test)', () => {
     const entries = journal().map((e) => (e.seq === 3 ? { ...e, selector: undefined } : e));
     expect(() => exportFlow(entries)).toThrow(ExportError);

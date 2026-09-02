@@ -246,8 +246,15 @@ export const STEPS = Object.freeze({
     argv: ['url'],
     flags: { wait: 'enum:load,domcontentloaded,networkidle,settled', video: 'bool' },
     config: { url: 'url', waitUntil: 'enum:load,domcontentloaded,networkidle,settled?', video: 'bool?' },
+    // `video` is the session's `open --video` and nothing else: recording starts with the CONTEXT,
+    // which a batch opens per snapshot. Outside a session the field used to pass validation and do
+    // nothing at all — no `.video/`, no `files.video`, no warning.
+    validate: (s, where, ctx) =>
+      ctx.mode !== 'session' && s.video !== undefined
+        ? `${where}.video: session only (browser-inspector open <url> --video) — in a config set "video": true on the snapshot`
+        : undefined,
     describe: (s) => `goto ${String(s.url)}`,
-    help: 'open <url> [--wait load|settled|networkidle] [--video]',
+    help: 'open <url> [--wait load|settled|networkidle] [--video]   (--video: session only; batch: "video": true on the snapshot)',
     fromArgv: ({ url }, flags) => ({
       url: urlArg(url),
       ...(flags.wait ? { waitUntil: flags.wait } : {}),
@@ -1031,7 +1038,7 @@ export const STEPS = Object.freeze({
     flags: {},
     config: { frame: 'string' },
     describe: (s) => `frame ${String(s.frame)}`,
-    help: 'frame main | frame <n> | frame <selector>    (scope for CSS selectors, eval, extract — refs need no frame)',
+    help: 'frame main | frame <n> | frame <selector>    (scope for CSS/text selectors — refs and eval need no frame)',
     fromArgv: ({ target }) => ({ frame: target }),
   },
   storage: {

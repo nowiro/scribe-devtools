@@ -67,6 +67,8 @@ export interface LocatorLike {
   boundingBox?(): Promise<{ x: number; y: number; width: number; height: number } | null>;
   isVisible?(options?: any): Promise<boolean>;
   waitFor?(options?: any): Promise<void>;
+  /** The handle behind the locator — `contentFrame()` on it is how an `iframe` node finds its frame. */
+  elementHandle?(options?: any): Promise<{ contentFrame?(): Promise<any> } | null>;
   locator?(selector: string): LocatorLike;
   [extra: string]: any;
 }
@@ -259,11 +261,11 @@ export interface SessionState {
   dir: string;
   cwd: string;
   out: string;
-  /** Current frame scope for CSS selectors / eval / extract (`main` or a frame index). */
+  /** Current frame scope for CSS/text selectors (`main` or a frame index); `eval` refuses it. */
   frame?: string;
   dialogPolicy: { action: 'accept' | 'dismiss'; text?: string; once?: boolean };
   /** Last full `ariaSnapshot` text and its sidecar, for `--diff` and `find`. */
-  lastSnapshot?: { text: string; entries: any[]; at: number };
+  lastSnapshot?: { text: string; entries: any[]; at: number; valuesUnknown?: boolean };
   shotSeq: number;
   evalSeq: number;
   cursors: Record<string, number>;
@@ -371,7 +373,8 @@ export interface Report {
   dialogs: DialogEntry[];
   tabs: TabEntry[];
   screenshots: string[];
-  text: { content: string; truncated: boolean };
+  /** `length` is the page's length before the 20 000 cut — present only when the cut bit. */
+  text: { content: string; truncated: boolean; length?: number };
   elements?: { entries: any[]; total: number; truncated: boolean };
   files: Record<string, string>;
   timing: Timing;

@@ -702,3 +702,32 @@ describe('writeArtifacts', () => {
     expect(readdirSync(dir)).not.toContain('_manifest.json');
   });
 });
+
+describe('a cap that bites is marked, whatever caused it', () => {
+  it('elements.truncated says "partial" when the frames were counted but not listed', () => {
+    // `pageEvidence` counts the elements of child frames and lists only the main document, so the
+    // map is incomplete far below `CAPS.elements` — recomputing the flag from the cap alone said
+    // `false` for every embedded app (DESIGN.md §5.1).
+    const { report } = buildReport(
+      sampleInput({
+        elements: [{ kind: 'button', name: 'Przycisk rodzica', selector: '#parent-btn' }],
+        elementsTotal: 3,
+      }),
+    );
+    expect(report.elements).toMatchObject({ total: 3, truncated: true });
+    expect(renderElementsMd(report)).toContain('# elements — zgloszenie-serwisowe (3, listed 1)');
+  });
+
+  it('text.truncated comes from the page, which already cut at the cap', () => {
+    const { report } = buildReport(
+      sampleInput({ text: 'y'.repeat(CAPS.text), textTruncated: true, textLength: 200_000 }),
+    );
+    expect(report.text).toMatchObject({ truncated: true, length: 200_000 });
+    expect(renderReportMd(report)).toContain(`text.txt (${String(CAPS.text)} of 200000)`);
+  });
+
+  it('a text that fits is not marked and carries no length', () => {
+    const { report } = buildReport(sampleInput());
+    expect(report.text).toEqual({ content: 'Zgłoszenie serwisowe\nFormularz…', truncated: false });
+  });
+});

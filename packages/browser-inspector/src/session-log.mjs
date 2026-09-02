@@ -48,6 +48,7 @@ export class ExportError extends Error {
  * @property {string} [title]
  * @property {string} [selector] the selector resolved for `step.ref` at action time
  * @property {Record<string, string>} [resolved] selectors per ref field path (`fields[1].ref`, `from`, `to`)
+ * @property {boolean} [inFrame] a ref of this step resolved OUTSIDE the main document
  * @property {string} [line] the stdout line
  * @property {string} [error]
  */
@@ -303,6 +304,14 @@ export function exportFlow(entries, options = {}) {
     for (const field of SESSION_ONLY_FIELDS[name] ?? []) delete step[field];
 
     for (const field of refFieldsOf(step, def)) {
+      if (entry.inFrame === true) {
+        // The selector recorded next to the ref is computed in the frame's own document; a config
+        // step resolves it in the main one. An export that replays a different flow is worse than
+        // none, so this is a refusal, not a guess.
+        throw new ExportError(
+          `step ${String(seq)} (${describeStep(step)}): the ref resolved inside an iframe — a config cannot address it without a "frame" step, so this session does not export`,
+        );
+      }
       const selector = entry.resolved?.[field] ?? (field === 'ref' ? entry.selector : undefined);
       if (typeof selector !== 'string' || selector === '') {
         throw new ExportError(

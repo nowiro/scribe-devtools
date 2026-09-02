@@ -14,7 +14,7 @@ Kroków: 45.
 
 | krok | aliasy | kind | gdzie | sesja: `browser-inspector …` | pola configu | flagi sesji |
 | --- | --- | --- | --- | --- | --- | --- |
-| `goto` | `open` | `action` | config + sesja | `open <url> [--wait load\|settled\|networkidle] [--video]` | `url: url`, `waitUntil: enum:load,domcontentloaded,networkidle,settled?`, `video: bool?` | `--wait: enum:load,domcontentloaded,networkidle,settled`, `--video` |
+| `goto` | `open` | `action` | config + sesja | `open <url> [--wait load\|settled\|networkidle] [--video]   (--video: session only; batch: "video": true on the snapshot)` | `url: url`, `waitUntil: enum:load,domcontentloaded,networkidle,settled?`, `video: bool?` | `--wait: enum:load,domcontentloaded,networkidle,settled`, `--video` |
 | `back` | — | `action` | config + sesja | `back` | — | — |
 | `forward` | — | `action` | config + sesja | `forward` | — | — |
 | `reload` | — | `action` | config + sesja | `reload [--wait load\|settled\|networkidle]` | `waitUntil: enum:load,domcontentloaded,networkidle,settled?` | `--wait: enum:load,domcontentloaded,networkidle,settled` |
@@ -49,7 +49,7 @@ Kroków: 45.
 | `dialog` | — | `control` | config + sesja | `dialog accept\|dismiss [--text "prompt answer"] [--once]   \|   dialog   (show policy + last dialog)` | `action: enum:accept,dismiss?`, `text: string?`, `once: bool?` | `--text: string`, `--once` |
 | `tab` | — | `control` | config + sesja | `tab new [url] \| tab <n> \| tab close` | `action: enum:new,select,close`, `index: int?`, `url: url?` | — |
 | `tabs` | — | `query` | sesja | `tabs` | — | — |
-| `frame` | — | `control` | config + sesja | `frame main \| frame <n> \| frame <selector>    (scope for CSS selectors, eval, extract — refs need no frame)` | `frame: string` | — |
+| `frame` | — | `control` | config + sesja | `frame main \| frame <n> \| frame <selector>    (scope for CSS/text selectors — refs and eval need no frame)` | `frame: string` | — |
 | `storage` | — | `query` | config + sesja | `storage cookies\|local\|session list\|get\|set\|del\|clear [key] [value\|@{ENV}] [--env NAME] [--name key]` | `kind: enum:cookies,local,session`, `op: enum:list,get,set,del,clear`, `key: string?`, `value: text?`, `valueFromEnv: string?`, `name: name?` | `--env: string`, `--name: string` |
 | `state` | — | `control` | config + sesja | `state save\|load <file.json>` | `op: enum:save,load`, `file: string` | — |
 | `console` | — | `query` | sesja | `console [--level info\|warn\|error] [--errors] [--all] [--tail N]` | `level: enum:info,warn,error?`, `all: bool?`, `tail: int?` | `--level: enum:info,warn,error`, `--errors`, `--all`, `--tail: int` |

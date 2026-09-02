@@ -104,7 +104,9 @@ const shortFailure = (failure) => failure.replace(/^HTTP\s+(\d{3})$/u, '$1');
  * @property {readonly import('./types.js').DialogEntry[]} [dialogs]
  * @property {readonly import('./types.js').TabEntry[]} [tabs]
  * @property {readonly string[]} [screenshots]
- * @property {string} [text]
+ * @property {string} [text] already capped by the page — `textTruncated`/`textLength` carry what was cut
+ * @property {boolean} [textTruncated]
+ * @property {number} [textLength] length before the cap
  * @property {readonly any[]} [elements] interactive elements `{ kind, name, selector, href?, disabled? }`
  * @property {number} [elementsTotal]
  * @property {boolean} [captureElements] `false` drops `elements.md` and the `elements` block
@@ -200,13 +202,22 @@ export function buildReport(input) {
     dialogs: [...(input.dialogs ?? [])],
     tabs: [...(input.tabs ?? [])],
     screenshots: [...(input.screenshots ?? [])],
-    text: { content: sliceUnits(text, CAPS.text), truncated: text.length > CAPS.text },
+    // `input.textTruncated` because the page already cut at the cap before the text got here:
+    // `text.length > CAPS.text` can then never be true and the report claimed a whole page.
+    text: {
+      content: sliceUnits(text, CAPS.text),
+      truncated: input.textTruncated === true || text.length > CAPS.text,
+      ...(input.textLength !== undefined && input.textLength > text.length ? { length: input.textLength } : {}),
+    },
     ...(elements !== undefined
       ? {
           elements: {
             entries: elements.slice(0, CAPS.elements),
             total: elementsTotal,
-            truncated: elementsTotal > CAPS.elements,
+            // Counted against what the report LISTS, not against the cap: elements inside child
+            // frames are counted and never listed, so a map missing a whole embedded form used to
+            // say `truncated: false` whenever the total stayed under the cap (DESIGN.md §5.1).
+            truncated: elementsTotal > Math.min(elements.length, CAPS.elements),
           },
         }
       : {}),
@@ -412,7 +423,16 @@ export function renderReportMd(report) {
 
   const more = [];
   if (report.files.elements) more.push(`${report.files.elements} (${String(report.elements?.total ?? 0)})`);
-  if (report.files.text) more.push(report.files.text);
+  if (report.files.text) {
+    // A file that holds only the head says so here — the footer is the only place an agent reading
+    // report.md alone learns that the rest of the page exists.
+    const { length, content, truncated } = report.text;
+    more.push(
+      truncated && length !== undefined
+        ? `${report.files.text} (${String(content.length)} of ${String(length)})`
+        : report.files.text,
+    );
+  }
   if (report.files.snapshot) more.push(report.files.snapshot);
   more.push('report.json');
   out.push('', `more: ${more.join(' · ')}`, '');

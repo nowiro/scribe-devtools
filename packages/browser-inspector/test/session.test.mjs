@@ -439,7 +439,7 @@ describe('session: console and net', () => {
 });
 
 describe('session: frames, dialogs, tabs', () => {
-  it('frame changes the scope of CSS selectors and eval only — never a subtree snapshot; refs stay on the page', async () => {
+  it('frame changes the scope of CSS selectors only — never a subtree snapshot; refs stay on the page', async () => {
     const h = await harness();
     await h.open();
     const snaps = callsOf(h.calls, 'ariaSnapshot').length;
@@ -503,6 +503,19 @@ describe('session: frames, dialogs, tabs', () => {
     await h.run({ do: 'tab', action: 'select', index: 1 });
     const closed = await h.run({ do: 'tab', action: 'close' });
     expect(closed.lines).toEqual(['ok tab close · url / "Sklep"']);
+    expect((await h.run({ do: 'tabs' })).lines).toEqual(['0* "Sklep" /']);
+  });
+
+  it('a tab that closes itself hands the session back to the lane tab instead of wedging it', async () => {
+    const h = await harness();
+    await h.open('http://localhost:4300/');
+    await h.run({ do: 'tab', action: 'new', url: 'http://localhost:4300/help' });
+    const popup = h.page();
+    // `window.close()` in the popup: no `tab close` ran, so nothing moved `ctx.page` off it.
+    await popup.close();
+    popup.emit('close');
+    const after = await h.run({ do: 'snapshot' });
+    expect(after.exit).toBe(0);
     expect((await h.run({ do: 'tabs' })).lines).toEqual(['0* "Sklep" /']);
   });
 });

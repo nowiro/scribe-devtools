@@ -267,6 +267,12 @@ export function parseConfig(raw, options = {}) {
     config.snapshots.forEach((/** @type {any} */ snapshot, /** @type {number} */ i) => {
       const where = `snapshots[${String(i)}]`;
       errors.push(...validateSnapshot(snapshot, where));
+      // `storageStateFor` gives every snapshot the session of the `auth` block unless it opted out,
+      // and `runFlow` prefers that over the snapshot's own file — so a snapshot meant to check the
+      // read-only account silently ran as the administrator, `completed: true`. Say so instead.
+      if (config.auth !== undefined && snapshot?.storageState !== undefined && snapshot?.auth !== false) {
+        errors.push(`${where}.storageState: the "auth" block wins over it — add "auth": false to use this file`);
+      }
       const name = snapshot?.name;
       if (typeof name === 'string' && ARTIFACT_NAME.test(name)) {
         // The name is the output directory: two snapshots sharing one race their manifests.
@@ -319,7 +325,10 @@ export function loadConfig(configPath, cwd = process.cwd()) {
   }
   let raw;
   try {
-    raw = JSON.parse(text);
+    // A leading BOM is not part of a JSON text (RFC 8259 §8.1) and `JSON.parse` refuses it with a
+    // message naming an invisible character. `browser-inspector script` already tolerates one
+    // through its `trim()`; a config written by Windows PowerShell 5.1 deserves the same answer.
+    raw = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
   } catch (error) {
     throw new ConfigError([`not valid JSON: ${error instanceof Error ? error.message : String(error)}`], configPath);
   }

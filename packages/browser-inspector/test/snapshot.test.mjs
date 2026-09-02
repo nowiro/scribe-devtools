@@ -609,47 +609,64 @@ describe('engine-facing helpers: entries alias, sidecarFromPage, snapshotArtifac
     );
   });
 
+  const framedYaml = [
+    '- generic [ref=e1] [box=0,0,100,100]:',
+    '  - button "Main" [ref=e2] [box=0,0,10,10]',
+    '  - iframe [ref=e3] [box=0,20,80,80]:',
+    '    - generic [ref=f1e1] [box=0,0,80,80]:',
+    '      - button "Child" [ref=f1e2] [box=0,0,10,10]',
+    '  - iframe [ref=e4] [box=0,20,80,80]',
+    '  - iframe [ref=e5] [box=0,20,80,80]:',
+    '    - generic [ref=f3e1] [box=0,0,80,80]:',
+    '      - button "Cross" [ref=f3e2] [box=0,0,10,10]',
+    '',
+  ].join('\n');
+
+  /**
+   * A page whose `iframe` refs resolve to the frames named in `byRef`; `frames()` answers `order`,
+   * which is what a positional pairing would use.
+   * @param {string[]} calls @param {Record<string, any>} byRef @param {any[]} order
+   */
+  const framedPage = (calls, byRef, order) => ({
+    evaluate: async (/** @type {any} */ fn) => {
+      calls.push(`main:${fn === walkInteractive ? 'walkInteractive' : 'other'}`);
+      return [{ tag: 'button', id: 'main', box: [0, 0, 10, 10] }];
+    },
+    ariaSnapshot: async () => {
+      throw new Error('sidecarFromPage must not snapshot');
+    },
+    locator: (/** @type {string} */ selector) => ({
+      first() {
+        return this;
+      },
+      elementHandle: async () => {
+        const frame = byRef[selector.replace('aria-ref=', '')];
+        return frame ? { contentFrame: async () => frame } : null;
+      },
+    }),
+    frames: () => order,
+  });
+
+  /** @param {string[]} calls @param {string} name @param {any} result */
+  const walkFrame = (calls, name, result) => ({
+    url: () => name,
+    evaluate: async (/** @type {any} */ fn) => {
+      calls.push(`${name}:${fn === walkInteractive ? 'walkInteractive' : 'other'}`);
+      if (result instanceof Error) throw result;
+      return result;
+    },
+  });
+
   it('sidecarFromPage walks the main frame and each iframe in order, never calling ariaSnapshot', async () => {
-    const yaml = [
-      '- generic [ref=e1] [box=0,0,100,100]:',
-      '  - button "Main" [ref=e2] [box=0,0,10,10]',
-      '  - iframe [ref=e3] [box=0,20,80,80]:',
-      '    - generic [ref=f1e1] [box=0,0,80,80]:',
-      '      - button "Child" [ref=f1e2] [box=0,0,10,10]',
-      '  - iframe [ref=e4] [box=0,20,80,80]',
-      '  - iframe [ref=e5] [box=0,20,80,80]:',
-      '    - generic [ref=f3e1] [box=0,0,80,80]:',
-      '      - button "Cross" [ref=f3e2] [box=0,0,10,10]',
-      '',
-    ].join('\n');
     /** @type {string[]} */
     const calls = [];
-    const frame = (/** @type {string} */ name, /** @type {any} */ result) => ({
-      url: () => name,
-      locator: () => {
-        throw new Error('unused');
-      },
-      evaluate: async (/** @type {any} */ fn) => {
-        calls.push(`${name}:${fn === walkInteractive ? 'walkInteractive' : 'other'}`);
-        if (result instanceof Error) throw result;
-        return result;
-      },
-    });
-    const page = /** @type {any} */ ({
-      evaluate: async (/** @type {any} */ fn) => {
-        calls.push(`main:${fn === walkInteractive ? 'walkInteractive' : 'other'}`);
-        return [{ tag: 'button', id: 'main', box: [0, 0, 10, 10] }];
-      },
-      ariaSnapshot: async () => {
-        throw new Error('sidecarFromPage must not snapshot');
-      },
-      frames: () => [
-        frame('top', null),
-        frame('child', [{ tag: 'button', id: 'child', box: [0, 0, 10, 10] }]),
-        frame('cross', new Error('cross-origin')),
-      ],
-    });
-    const entries = await sidecarFromPage(page, yaml);
+    const child = walkFrame(calls, 'child', [{ tag: 'button', id: 'child', box: [0, 0, 10, 10] }]);
+    const empty = walkFrame(calls, 'empty', []);
+    const cross = walkFrame(calls, 'cross', new Error('cross-origin'));
+    const page = /** @type {any} */ (
+      framedPage(calls, { e3: child, e4: empty, e5: cross }, [walkFrame(calls, 'top', null), child, empty, cross])
+    );
+    const entries = await sidecarFromPage(page, framedYaml);
     expect(calls).toEqual(['main:walkInteractive', 'child:walkInteractive', 'cross:walkInteractive']);
     expect(entries.map((e) => [e.ref, e.selector])).toEqual([
       ['e2', '#main'],
@@ -657,8 +674,26 @@ describe('engine-facing helpers: entries alias, sidecarFromPage, snapshotArtifac
       ['f3e2', undefined],
     ]);
     // A page without frames() is fine too (a FakePage of another package).
-    const bare = await sidecarFromPage(/** @type {any} */ ({ evaluate: async () => [] }), yaml);
+    const bare = await sidecarFromPage(/** @type {any} */ ({ evaluate: async () => [] }), framedYaml);
     expect(bare.map((e) => e.ref)).toEqual(['e2', 'f1e2', 'f3e2']);
+  });
+
+  it('sidecarFromPage pairs a frame with its own ref, not with its position in frames()', async () => {
+    /** @type {string[]} */
+    const calls = [];
+    // The walk of the frame behind `e5`; a positional pairing would hand it to `e3` and vice versa.
+    const cross = walkFrame(calls, 'cross', [{ tag: 'input', type: 'password', sensitive: true, box: [0, 0, 10, 10] }]);
+    const child = walkFrame(calls, 'child', [{ tag: 'button', id: 'child', box: [0, 0, 10, 10] }]);
+    const hidden = walkFrame(calls, 'hidden', []);
+    const empty = walkFrame(calls, 'empty', []);
+    // `hidden` is a display:none frame the aria tree does not show; `cross` attached before `child`.
+    const page = /** @type {any} */ (
+      framedPage(calls, { e3: child, e4: empty, e5: cross }, [hidden, cross, child, empty])
+    );
+    const entries = await sidecarFromPage(page, framedYaml);
+    expect(entries.find((e) => e.ref === 'f1e2')?.selector).toBe('#child');
+    expect(entries.find((e) => e.ref === 'f3e2')?.sensitive).toBe(true);
+    expect(calls).not.toContain('hidden:walkInteractive');
   });
 
   it('snapshotArtifacts masks secrets everywhere and drops sensitive values from full, md and json', () => {
@@ -715,5 +750,57 @@ describe('engine-facing helpers: entries alias, sidecarFromPage, snapshotArtifac
     expect(out.md).not.toMatch(/tajne|123456/u);
     // The quoted key keeps its quotes — the file stays valid YAML.
     expect(out.full).toContain(`- 'textbox "Kod: SMS" [ref=e3] [box=0,20,100,20]'\n`);
+  });
+});
+
+describe('the compact line never carries a typed value outside the `= value` slot', () => {
+  it('a nameless field does not borrow its own value as a label (snap.md, AC-10)', () => {
+    const yaml = [
+      '- generic [ref=e1] [box=0,0,300,100]:',
+      '  - textbox [ref=e2] [box=8,8,177,21]: TAJNE-HASLO',
+      '',
+    ].join('\n');
+    const { entries } = boxJoin(yaml, [
+      { tag: 'input', type: 'password', testid: 'pass', sensitive: true, box: [8, 8, 177, 21] },
+    ]);
+    expect(compactLines(yaml, { sidecar: entries })).toEqual(['e2 textbox [data-testid=pass]']);
+    expect(snapshotArtifacts(yaml, entries).md).not.toContain('TAJNE-HASLO');
+  });
+
+  it('a dialog does not fold the value of the field it wraps into its message', () => {
+    const yaml = [
+      '- dialog "Zaloguj" [ref=e2] [box=0,0,300,100]:',
+      '  - text: Hasło:',
+      '  - textbox "Hasło:" [ref=e3] [box=8,8,177,21]: TAJNE-HASLO',
+      '',
+    ].join('\n');
+    const { entries } = boxJoin(yaml, [
+      { tag: 'input', type: 'password', testid: 'pass', sensitive: true, box: [8, 8, 177, 21] },
+    ]);
+    expect(compactLines(yaml, { sidecar: entries })[0]).toBe('e2 dialog "Zaloguj": Hasło:');
+    expect(snapshotArtifacts(yaml, entries).md).not.toContain('TAJNE-HASLO');
+  });
+
+  it('an unlabelled field still shows its value after ` = ` when nothing marks it sensitive', () => {
+    const yaml = '- textbox [ref=e2] [box=8,8,177,21]: publiczna\n';
+    expect(compactLines(yaml, { sidecar: [] })).toEqual(['e2 textbox = publiczna']);
+  });
+});
+
+describe('the compact keeps the one attribute an action changes', () => {
+  const before = '- textbox "E-mail" [ref=e4] [box=0,0,100,20]\n';
+  const after = '- textbox "E-mail" [invalid] [ref=e4] [box=0,0,100,20]\n';
+
+  it('renders `[invalid]` (and its graded forms) so a rejected form is visible in snap.md', () => {
+    expect(compactLines(after, { sidecar: [] })).toEqual(['e4 textbox "E-mail" [invalid]']);
+    expect(compactLines('- textbox "Opis" [invalid=spelling] [ref=e5]\n', { sidecar: [] })).toEqual([
+      'e5 textbox "Opis" [invalid=spelling]',
+    ]);
+  });
+
+  it('`snap --diff` sees the validation verdict', () => {
+    const diff = diffSnapshot(compactLines(before, { sidecar: [] }), compactLines(after, { sidecar: [] }));
+    expect(diff.added).toEqual(['e4 textbox "E-mail" [invalid]']);
+    expect(diff.removed).toEqual(['e4 textbox "E-mail"']);
   });
 });

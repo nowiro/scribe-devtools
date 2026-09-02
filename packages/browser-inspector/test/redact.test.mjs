@@ -13,7 +13,18 @@ describe('redact', () => {
     expect(redact(`typed ${SECRET} here`, secrets)).toBe(`typed ${MASK} here`);
     expect(redact(JSON.stringify({ v: SECRET }), secrets)).toBe(`{"v":"${MASK}"}`);
     expect(redact(`body=${encodeURIComponent(SECRET)}`, secrets)).toBe(`body=${MASK}`);
-    expect(secretForms(secrets)).toHaveLength(3);
+    expect(secretForms(secrets)).toHaveLength(6);
+  });
+
+  it('masks the wire forms a browser produces: form-urlencoded and base64', () => {
+    const secret = 'p@ss word!';
+    const secrets = [secret];
+    // What a submitted <form> puts in the POST body (space is `+`, `!` is `%21`).
+    expect(redact(`login=jan&haslo=${new URLSearchParams({ v: secret }).toString().slice(2)}`, secrets)).toBe(
+      `login=jan&haslo=${MASK}`,
+    );
+    expect(redact(`token=${Buffer.from(secret, 'utf8').toString('base64')}`, secrets)).toBe(`token=${MASK}`);
+    expect(redact(`token=${Buffer.from(secret, 'utf8').toString('base64url')}`, secrets)).toBe(`token=${MASK}`);
   });
 
   it('masks the longer secret first and leaves innocent text alone', () => {
@@ -102,6 +113,38 @@ describe('maskSnapshotValues', () => {
 
   it('cuts a compact value after the name, even when the name itself contains " = "', () => {
     expect(maskSnapshotValues('e5 textbox "a = b" = sekret', { sensitiveRefs: ['e5'] })).toBe('e5 textbox "a = b"');
+  });
+
+  it('takes the ref from behind the name — a `[ref=` the page put in the name cannot steal the line', () => {
+    const crafted = [
+      '- textbox "Hasło [ref=e1] konta" [ref=e9] [box=1,2,3,4]: TAJNE',
+      `- 'textbox "Kod: SMS [ref=e1]" [ref=f2e7] [box=1,2,3,4]': 654321`,
+      '- textbox "Hasło [ref=e999]" [ref=e11]: TAJNE-2',
+    ].join('\n');
+    expect(maskSnapshotValues(crafted, { sensitiveRefs: ['e9', 'f2e7', 'e11'] }).split('\n')).toEqual([
+      '- textbox "Hasło [ref=e1] konta" [ref=e9] [box=1,2,3,4]',
+      `- 'textbox "Kod: SMS [ref=e1]" [ref=f2e7] [box=1,2,3,4]'`,
+      '- textbox "Hasło [ref=e999]" [ref=e11]',
+    ]);
+  });
+
+  it('keeps the value of a line whose NAME mentions a sensitive ref — the ref belongs to the node', () => {
+    const line = '- textbox "Powtórz [ref=e9] niżej" [ref=e5] [box=1,2,3,4]: jawna wartość';
+    expect(maskSnapshotValues(line, { sensitiveRefs: ['e9'] })).toBe(line);
+  });
+
+  it('with `maskAllValueRoles` cuts every value-carrying line — the sensitivity of the walk is unknown', () => {
+    const yaml2 = [
+      '- textbox "Hasło:" [ref=e2] [box=1,2,3,4]: TAJNE',
+      '- heading "Cennik" [ref=e3]: 2026',
+      '- generic [ref=e1]:',
+    ].join('\n');
+    expect(maskSnapshotValues(yaml2, { maskAllValueRoles: true }).split('\n')).toEqual([
+      '- textbox "Hasło:" [ref=e2] [box=1,2,3,4]',
+      '- heading "Cennik" [ref=e3]: 2026',
+      '- generic [ref=e1]:',
+    ]);
+    expect(maskSnapshotValues('e2 textbox "Hasło:" = TAJNE', { maskAllValueRoles: true })).toBe('e2 textbox "Hasło:"');
   });
 });
 

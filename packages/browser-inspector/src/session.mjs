@@ -111,7 +111,8 @@ export function createSessions(input) {
    * @property {string[] | undefined} prevCompact the compact view `snap --diff` compares against
    * @property {Record<string, number>} cursors since-last cursors of `console` / `net`
    * @property {Record<string, number>} flushed how much of console / net went to the jsonl files
-   * @property {Record<string, string | undefined> | undefined} resolving ref → durable selector, per command
+   * @property {Record<string, { selector?: string, inFrame: boolean }> | undefined} resolving ref → what
+   *   `durableSelector` found, per command
    * @property {string | undefined} videoDir
    * @property {number} openedAt
    * @property {number} lastUsedAt
@@ -143,10 +144,20 @@ export function createSessions(input) {
   /**
    * The session's init script: a MutationObserver counter every document of the context gets,
    * so `dom Δ` costs one property read instead of a snapshot (§4.2). One global, prefixed.
+   * It re-arms itself, because a page-opened popup gets the script ONCE — on its initial
+   * `about:blank` — and Chrome then reuses that same `window` for the real navigation: the
+   * observer stayed on the discarded document and `__bi_dom` answered a plausible 0 forever, so
+   * no command inside a popup ever reported `dom Δ`. Both hooks are needed: the window-level
+   * listeners catch the swap early (mutations during load are counted), the getter is the net for
+   * a document that arrives without either event.
    */
   const DOM_COUNTER_SCRIPT =
-    '(() => { const w = window; w.__bi_dom = 0; try { new MutationObserver((m) => { w.__bi_dom += m.length; })' +
-    '.observe(document, { subtree: true, childList: true, attributes: true, characterData: true }); } catch {} })();';
+    '(() => { const w = window; let n = 0; let doc; const arm = () => { if (doc === document) return; doc = document; n = 0;' +
+    ' try { new MutationObserver((m) => { n += m.length; })' +
+    '.observe(document, { subtree: true, childList: true, attributes: true, characterData: true }); } catch {} };' +
+    ' try { Object.defineProperty(w, "__bi_dom", { configurable: true,' +
+    ' get() { arm(); return n; }, set(v) { n = Number(v) || 0; } }); } catch { w.__bi_dom = 0; }' +
+    ' arm(); w.addEventListener("DOMContentLoaded", arm); w.addEventListener("load", arm); })();';
 
   /**
    * In-page: the after-probe of a command. Named, so a FakePage can recognise it by `fn.name`.
@@ -208,6 +219,18 @@ export function createSessions(input) {
     });
     page.on('close', () => {
       session.cdps.delete(page);
+      // A tab can die without a `tab close`: `window.close()` in a popup, an app closing its own
+      // tab. `ctx.page` then pointed at a dead target and EVERY later command answered "Target
+      // page … has been closed" — `open` included, because `goto` navigates the current tab — with
+      // `tabs` listing live tabs and marking none of them as current.
+      const ctx = session.ctx;
+      if (!ctx || ctx.page !== page) return;
+      const back = ctx.laneTab?.isClosed?.() === false ? ctx.laneTab : session.context.pages()[0];
+      if (!back || back === page) return;
+      ctx.setPage(back);
+      const cdp = session.cdps.get(back);
+      if (cdp) ctx.cdp = cdp;
+      else void armSessionPage(session, back);
     });
   }
 
@@ -277,6 +300,12 @@ export function createSessions(input) {
       cwd: where.cwd,
       laneTab: pair.page,
       secretValues: [...session.secretValues],
+      // The `tab` runner re-arms the CDP session inside the step; the post-command fix-up below
+      // stays for the tabs a PAGE opens (a popup), which no step moved us onto.
+      cdpFor: async (page) => {
+        await armSessionPage(session, page);
+        return session.cdps.get(page);
+      },
     });
     ctx.unsafe = env.BROWSER_INSPECTOR_UNSAFE === '1';
     // The durable selector of a ref is captured WHEN the action resolves it (§4.5): the element is
@@ -354,9 +383,27 @@ export function createSessions(input) {
       1500,
       'session probe',
     );
+    // Child frames pay only when there ARE child frames (§4.4 budgets one evaluate per command).
+    // Without them an app embedded in an iframe answers `el 0` for a page with a whole form in
+    // it, and `dom Δ` — the cheap "something changed" signal — never moves: the counter is
+    // per-window and `page.evaluate` reads the main frame's.
+    const children = typeof page.frames === 'function' ? page.frames().slice(1) : [];
+    const inFrames = await Promise.all(
+      children.map((frame) =>
+        degradeTo(
+          { el: 0, dom: 0 },
+          Promise.resolve()
+            .then(() => frame.evaluate(sessionProbe, INTERACTIVE_SELECTOR))
+            .then((r) => ({ el: Number(r?.el ?? 0), dom: Number(r?.dom ?? 0) })),
+          1500,
+          'frame probe',
+        ).catch(() => ({ el: 0, dom: 0 })),
+      ),
+    );
+    const extra = inFrames.reduce((sum, r) => ({ el: sum.el + r.el, dom: sum.dom + r.dom }), { el: 0, dom: 0 });
     if (raw && typeof raw === 'object') {
-      session.el = Number(raw.el ?? session.el);
-      session.dom = Number(raw.dom ?? session.dom);
+      session.el = Number(raw.el ?? session.el) + extra.el;
+      session.dom = Number(raw.dom ?? session.dom) + extra.dom;
       session.title = typeof raw.title === 'string' ? raw.title : session.title;
     }
     return { el: session.el, dom: session.dom, title: session.title, url: safeUrl(page) };
@@ -606,12 +653,16 @@ export function createSessions(input) {
     /** @type {Record<string, string>} */
     const resolved = {};
     let selector;
+    // A ref that lived in a child frame is recorded as such: the selector next to it is local to
+    // that document, so `export` must refuse rather than write a step that replays somewhere else.
+    let inFrame = false;
     for (const field of refFieldsOf(step, def)) {
       const ref = readRefPath(step, field);
       const found = typeof ref === 'string' ? session.resolving?.[ref] : undefined;
-      if (typeof found !== 'string') continue;
-      if (field === 'ref') selector = found;
-      else resolved[field] = found;
+      if (found?.inFrame === true) inFrame = true;
+      if (typeof found?.selector !== 'string') continue;
+      if (field === 'ref') selector = found.selector;
+      else resolved[field] = found.selector;
     }
     session.resolving = undefined;
     // The appends ride a per-session chain that the answer does not wait for (§6 budgets the
@@ -630,6 +681,7 @@ export function createSessions(input) {
         ...(after.title !== undefined ? { title: after.title } : {}),
         ...(selector !== undefined ? { selector } : {}),
         ...(Object.keys(resolved).length > 0 ? { resolved } : {}),
+        ...(inFrame ? { inFrame: true } : {}),
         line: lines[0] ?? '',
         ...(result.ok ? {} : { error: result.error }),
       },

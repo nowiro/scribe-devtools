@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ramka ukryta</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; }
+      iframe.widget { width: 400px; height: 120px; border: 1px solid #888; display: block; margin-top: 12px; }
+      iframe.tracker { display: none; }
+    </style>
+  </head>
+  <body>
+    <!--
+      The frame the aria tree does NOT show, in front of the one it does: an analytics/consent
+      `display:none` iframe is in `page.frames()` and nowhere in the snapshot, so pairing the i-th
+      `iframe` NODE with the i-th child frame handed the login widget the walk of the tracker. The
+      widget's field then arrived without `sensitive` and its value stayed in snap.md /
+      snap.full.yml (DESIGN.md §2.6, AC-10). The password is set by the PAGE, so `secretValues`
+      knows nothing about it — the sidecar is the only thing standing between it and the artifacts.
+    -->
+    <h1>Ramka ukryta</h1>
+    <button id="parent-btn" data-testid="blank-parent">Przycisk rodzica</button>
+    <script>
+      const role = new URLSearchParams(location.search).get('child');
+      if (role === 'tracker') {
+        document.title = 'Tracker';
+        document.body.innerHTML = '<button id="t" data-testid="blank-tracker">Zgoda</button>';
+      } else if (role === 'login') {
+        document.title = 'Widżet logowania';
+        document.body.innerHTML =
+          '<h2>Zaloguj</h2>' +
+          '<p><label for="blank-pass">Hasło:</label> ' +
+          '<input id="blank-pass" type="password" data-testid="blank-pass" value="TAJNE-ZA-UKRYTA" /></p>';
+      } else {
+        for (const [child, css] of [
+          ['tracker', 'tracker'],
+          ['login', 'widget'],
+        ]) {
+          const frame = document.createElement('iframe');
+          frame.src = `iframe-blank.html?child=${child}`;
+          frame.className = css;
+          frame.title = child;
+          document.body.appendChild(frame);
+        }
+      }
+    </script>
+  </body>
+</html>

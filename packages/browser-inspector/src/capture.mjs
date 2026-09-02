@@ -57,6 +57,8 @@ export function pngSize(buffer) {
  * @property {number} [quality] jpeg only
  * @property {boolean} [fullPage]
  * @property {string} [selector] element shot (Playwright path)
+ * @property {{ locator(selector: string): any }} [root] where `selector` and `mark` resolve — the frame
+ *   scope of `browser-inspector frame <n>`, the page by default
  * @property {string} [mark] selector of an element to outline for the shot (`--mark eN`)
  * @property {number} [timeoutMs]
  */
@@ -68,11 +70,12 @@ export function pngSize(buffer) {
  * @param {PageLike} page
  * @param {string | undefined} selector
  * @param {() => Promise<T>} fn
+ * @param {{ locator(selector: string): any } | undefined} [root]
  * @returns {Promise<T>}
  */
-async function withMark(page, selector, fn) {
+async function withMark(page, selector, fn, root) {
   if (!selector) return fn();
-  const target = page.locator(selector).first();
+  const target = (root ?? page).locator(selector).first();
   const restore = await target
     .evaluate((/** @type {any} */ el) => {
       const previous = el.style.outline;
@@ -100,44 +103,52 @@ async function withMark(page, selector, fn) {
 export async function screenshotFast(page, cdp, options = {}) {
   const format = options.format ?? 'png';
   const quality = format === 'jpeg' ? (options.quality ?? 80) : undefined;
-  return withMark(page, options.mark, async () => {
-    // The element shot stays on Playwright's path (it needs the locator); everything else, INCLUDING
-    // `fullPage`, goes through CDP. `fullPage` used to be excluded here, which sent the most
-    // expensive screenshot in the tree down the slow path — but the measurement says the reason is
-    // not the round trips it saves. A/B on the tallest page in the fixtures (bookstore, 1280×6335):
-    // CDP 222 ms, Playwright 713 ms, identical dimensions — and the SAME CDP clip with
-    // `optimizeForSpeed: false` costs 731 ms. The whole 491 ms is the PNG encoder, and the trade it
-    // buys is on disk: 3488 KB against 2045 KB for the same image. Viewport shots already make that
-    // trade (§2.2), so a full-page shot making a different one would be the odd case, not this.
-    if (cdp && !options.selector) {
-      try {
-        const clip = options.fullPage ? await documentClip(cdp) : undefined;
-        // No metrics, no clip: rather than guess, fall through to the path that does not need them.
-        if (!options.fullPage || clip) {
-          const result = await cdp.send('Page.captureScreenshot', {
-            format,
-            ...(quality !== undefined ? { quality } : {}),
-            optimizeForSpeed: true,
-            ...(clip ? { clip, captureBeyondViewport: true } : {}),
-          });
-          const buffer = Buffer.from(result.data, 'base64');
-          return { buffer, ...(format === 'png' ? pngSize(buffer) : {}), via: 'cdp' };
+  // A CSS selector under a `frame <n>` scope only exists in THAT document: resolving it on the
+  // page took the shot of a like-named element in the main frame, or timed out looking for one.
+  const scope = options.root ?? page;
+  return withMark(
+    page,
+    options.mark,
+    async () => {
+      // The element shot stays on Playwright's path (it needs the locator); everything else, INCLUDING
+      // `fullPage`, goes through CDP. `fullPage` used to be excluded here, which sent the most
+      // expensive screenshot in the tree down the slow path — but the measurement says the reason is
+      // not the round trips it saves. A/B on the tallest page in the fixtures (bookstore, 1280×6335):
+      // CDP 222 ms, Playwright 713 ms, identical dimensions — and the SAME CDP clip with
+      // `optimizeForSpeed: false` costs 731 ms. The whole 491 ms is the PNG encoder, and the trade it
+      // buys is on disk: 3488 KB against 2045 KB for the same image. Viewport shots already make that
+      // trade (§2.2), so a full-page shot making a different one would be the odd case, not this.
+      if (cdp && !options.selector) {
+        try {
+          const clip = options.fullPage ? await documentClip(cdp) : undefined;
+          // No metrics, no clip: rather than guess, fall through to the path that does not need them.
+          if (!options.fullPage || clip) {
+            const result = await cdp.send('Page.captureScreenshot', {
+              format,
+              ...(quality !== undefined ? { quality } : {}),
+              optimizeForSpeed: true,
+              ...(clip ? { clip, captureBeyondViewport: true } : {}),
+            });
+            const buffer = Buffer.from(result.data, 'base64');
+            return { buffer, ...(format === 'png' ? pngSize(buffer) : {}), via: 'cdp' };
+          }
+        } catch {
+          // A detached CDP session or a page mid-navigation: Playwright's path still works.
         }
-      } catch {
-        // A detached CDP session or a page mid-navigation: Playwright's path still works.
       }
-    }
-    const shotOptions = {
-      type: format,
-      ...(quality !== undefined ? { quality } : {}),
-      ...(options.timeoutMs ? { timeout: options.timeoutMs } : {}),
-    };
-    const buffer = options.selector
-      ? await page.locator(options.selector).first().screenshot?.(shotOptions)
-      : await page.screenshot({ ...shotOptions, fullPage: options.fullPage === true });
-    const bytes = /** @type {Buffer} */ (buffer);
-    return { buffer: bytes, ...(format === 'png' ? pngSize(bytes) : {}), via: 'playwright' };
-  });
+      const shotOptions = {
+        type: format,
+        ...(quality !== undefined ? { quality } : {}),
+        ...(options.timeoutMs ? { timeout: options.timeoutMs } : {}),
+      };
+      const buffer = options.selector
+        ? await scope.locator(options.selector).first().screenshot?.(shotOptions)
+        : await page.screenshot({ ...shotOptions, fullPage: options.fullPage === true });
+      const bytes = /** @type {Buffer} */ (buffer);
+      return { buffer: bytes, ...(format === 'png' ? pngSize(bytes) : {}), via: 'playwright' };
+    },
+    scope,
+  );
 }
 
 /**
@@ -187,12 +198,49 @@ export async function saveScreenshot(page, cdp, file, options = {}) {
  */
 function evidenceInPage(caps) {
   const escapeAttr = (/** @type {string} */ v) => v.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+  const selector =
+    'a[href], button, input, select, textarea, summary, [role="button"], [role="link"], [role="tab"], [onclick]';
+  /** @type {(Document | ShadowRoot)[]} */
+  const roots = [document];
+  /** @type {Element[]} */
+  const nodes = [];
+  for (let r = 0; r < roots.length; r += 1) {
+    // The aria tree the agent reads walks open shadow roots; an element map that stops at the light
+    // DOM answered `el 0` for a page whose whole form lives in a web component.
+    for (const host of roots[r].querySelectorAll('*')) if (host.shadowRoot) roots.push(host.shadowRoot);
+    for (const el of roots[r].querySelectorAll(selector)) nodes.push(el);
+  }
+  // Counted over EVERY root, because Playwright's CSS pierces open shadow roots: an `id` repeated
+  // in two web components (perfectly legal — each shadow root is its own tree) is one selector
+  // pointing at two elements, and the map promises the opposite. A duplicate `data-testid` on the
+  // rows of a table did the same in the light DOM.
+  const countAll = (/** @type {string} */ sel) => {
+    let n = 0;
+    for (const root of roots) {
+      try {
+        n += root.querySelectorAll(sel).length;
+      } catch {
+        return 2; // an unparseable selector is never "the one" — fall through to the path
+      }
+    }
+    return n;
+  };
   const selectorFor = (/** @type {Element} */ el) => {
-    if (el.id) return `#${CSS.escape(el.id)}`;
+    const unique = (/** @type {string} */ sel) => countAll(sel) === 1;
+    if (el.id) {
+      const byId = `#${CSS.escape(el.id)}`;
+      if (unique(byId)) return byId;
+    }
     const testId = el.getAttribute('data-testid');
-    if (testId) return `[data-testid="${escapeAttr(testId)}"]`;
+    if (testId) {
+      const byTestId = `[data-testid="${escapeAttr(testId)}"]`;
+      if (unique(byTestId)) return byTestId;
+    }
     const nameAttr = el.getAttribute('name');
-    if (nameAttr) return `${el.tagName.toLowerCase()}[name="${escapeAttr(nameAttr)}"]`;
+    if (nameAttr) {
+      const byName = `${el.tagName.toLowerCase()}[name="${escapeAttr(nameAttr)}"]`;
+      if (unique(byName)) return byName;
+    }
     /** @type {string[]} */
     const parts = [];
     /** @type {Element | null} */
@@ -203,8 +251,9 @@ function evidenceInPage(caps) {
         if (s.tagName === node.tagName) nth += 1;
       }
       parts.unshift(`${node.tagName.toLowerCase()}:nth-of-type(${String(nth)})`);
-      if (node.parentElement?.id) {
-        parts.unshift(`#${CSS.escape(node.parentElement.id)}`);
+      const anchor = node.parentElement?.id ? `#${CSS.escape(node.parentElement.id)}` : undefined;
+      if (anchor && unique(anchor)) {
+        parts.unshift(anchor);
         return parts.join(' > ');
       }
       if (node.parentElement) {
@@ -220,18 +269,6 @@ function evidenceInPage(caps) {
     parts.unshift('body');
     return parts.join(' > ');
   };
-  const selector =
-    'a[href], button, input, select, textarea, summary, [role="button"], [role="link"], [role="tab"], [onclick]';
-  /** @type {(Document | ShadowRoot)[]} */
-  const roots = [document];
-  /** @type {Element[]} */
-  const nodes = [];
-  for (let r = 0; r < roots.length; r += 1) {
-    // The aria tree the agent reads walks open shadow roots; an element map that stops at the light
-    // DOM answered `el 0` for a page whose whole form lives in a web component.
-    for (const host of roots[r].querySelectorAll('*')) if (host.shadowRoot) roots.push(host.shadowRoot);
-    for (const el of roots[r].querySelectorAll(selector)) nodes.push(el);
-  }
   /** @type {{ kind: string, name: string, selector: string, href?: string, disabled?: boolean }[]} */
   const elements = [];
   let count = 0;
@@ -304,7 +341,7 @@ function evidenceInPage(caps) {
 
 /**
  * @typedef {object} Evidence
- * @property {{ content: string, truncated: boolean }} text
+ * @property {{ content: string, truncated: boolean, length: number }} text `length` = before the in-page cap
  * @property {{ entries: any[], total: number, truncated: boolean } | undefined} elements
  * @property {number} elCount visible interactive elements — the `el 61→63` delta of a session line
  * @property {{ hits: number, document: number }} [cache] responses this document took from the HTTP cache
@@ -322,7 +359,7 @@ export async function pageEvidence(page, options = {}) {
   const wantText = options.text !== false;
   /** @type {Evidence} */
   const empty = {
-    text: { content: '', truncated: false },
+    text: { content: '', truncated: false, length: 0 },
     elements: wantElements ? undefined : undefined,
     elCount: 0,
     cache: { hits: 0, document: 0 },
@@ -354,7 +391,9 @@ export async function pageEvidence(page, options = {}) {
   );
   const count = (typeof raw.count === 'number' ? raw.count : entries.length) + inFrames.reduce((a, b) => a + b, 0);
   return {
-    text: { content: text, truncated: textLength > text.length },
+    // `length` travels with the flag: the text arrives ALREADY cut, so nothing downstream can
+    // recompute either of them — the report used to say `truncated: false` for every long page.
+    text: { content: text, truncated: textLength > text.length, length: textLength },
     elements: wantElements ? { entries, total: count, truncated: count > entries.length } : undefined,
     elCount: count,
     cache: {

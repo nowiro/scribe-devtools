@@ -173,6 +173,23 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     // iframe is not an empty page (DESIGN.md §5.1).
     expect(inFrame.report.elements?.total).toBeGreaterThan(inFrame.report.elements?.entries.length ?? 0);
 
+    // The frame the aria tree does not show, in front of the one it does: pairing frames by
+    // position handed the login widget the walk of the hidden tracker, and the field arrived
+    // without `sensitive`. The page fills the password itself, so `secretValues` cannot help.
+    const hidden = await run({
+      name: 'ramka-ukryta',
+      url: a.url('iframe-blank.html'),
+      stepTimeoutMs: 5000,
+      steps: [{ do: 'waitFor', selector: 'iframe.widget' }, { do: 'wait', ms: 200 }, { do: 'snapshot' }],
+    });
+    expect(hidden.failure).toBeUndefined();
+    expect(await text(hidden.dir, 'snap.full.yml')).not.toContain('TAJNE-ZA-UKRYTA');
+    expect(await text(hidden.dir, 'snap.md')).not.toContain('TAJNE-ZA-UKRYTA');
+    const behind = JSON.parse(await text(hidden.dir, 'snap.json'));
+    expect(behind.find((/** @type {any} */ e) => e.selector === '[data-testid="blank-pass"]')).toMatchObject({
+      sensitive: true,
+    });
+
     const shadow = await run({
       name: 'shadow',
       url: a.url('shadow.html'),
@@ -186,8 +203,14 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     expect(inShadow.find((/** @type {any} */ e) => e.selector === '[data-testid="sd-pass"]')).toMatchObject({
       sensitive: true,
     });
-    // Three controls, all of them inside the open shadow root — the map used to see none.
-    expect(shadow.report.elements?.total).toBe(3);
+    // Six controls, all of them inside the two open shadow roots — the map used to see none.
+    expect(shadow.report.elements?.total).toBe(6);
+    // Every selector the map emits finds ONE element: the two components repeat their ids, and
+    // Playwright's CSS pierces open shadow roots, so `#u` used to be listed twice and click the
+    // first one both times.
+    const selectors = (shadow.report.elements?.entries ?? []).map((/** @type {any} */ e) => e.selector);
+    expect(new Set(selectors).size).toBe(selectors.length);
+    expect(selectors).not.toContain('#u');
   }, 60_000);
 
   it('the scrub keeps the HTTP cache: the second run on the same lane counts cacheHits (AC-12)', async () => {
@@ -677,7 +700,14 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     expect(Number(deadEntry?.ms)).toBeLessThan(100);
 
     // iframe.html: a ref inside the frame resolves from the page; `frame` scopes CSS selectors only.
-    await cmd(['open', server.url('iframe.html')]);
+    const framed = await cmd(['open', server.url('iframe.html')]);
+    // The frame's controls are part of what the agent can act on: a count that stops at the main
+    // document answered `el 1` for a page whose whole app lives in the iframe (DESIGN.md §5.1).
+    expect(Number(/· el (\d+)/u.exec(framed.lines[0])?.[1] ?? 0)).toBeGreaterThan(1);
+    // A mutation inside the frame moves `dom` — the counter is per window, so it has to be summed.
+    await cmd(['frame', '1']);
+    expect((await cmd(['click', '[data-testid=child-button]'])).lines[0]).toMatch(/· dom Δ/u);
+    await cmd(['frame', 'main']);
     const inFrame = refOf((await cmd(['find', 'Przycisk w ramce'])).lines[0]);
     expect(inFrame).toMatch(/^f\d+e\d+$/u);
     expect((await cmd(['click', inFrame])).lines[0]).toMatch(new RegExp(`^ok click ${inFrame}`, 'u'));
@@ -693,7 +723,11 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     const tabs = await cmd(['tabs']);
     expect(tabs.lines).toEqual(['0* "Karty" /tabs.html', '1 "Dziecko karty" /tabs.html?child=1']);
     expect((await cmd(['tab', '1'])).lines[0]).toBe('ok tab select 1 · url /tabs.html?child=1 "Dziecko karty"');
+    // A page-opened popup gets the init script once, on its initial `about:blank`: without the
+    // re-arm the counter observed the discarded document and no command in the popup ever said
+    // `dom Δ`. The first command in the popup re-arms, the second one counts.
     expect((await cmd(['click', '[data-testid=child-button]'])).lines[0]).toMatch(/^ok click /u);
+    expect((await cmd(['click', '[data-testid=child-button]'])).lines[0]).toMatch(/· dom Δ/u);
     expect((await cmd(['get', '#out'])).lines).toEqual(['kliknięto w karcie']);
     expect((await cmd(['tab', 'close'])).lines[0]).toBe('ok tab close · url /tabs.html "Karty"');
     expect((await cmd(['tabs'])).lines).toEqual(['0* "Karty" /tabs.html']);

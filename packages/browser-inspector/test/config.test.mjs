@@ -292,3 +292,59 @@ describe('error paths', () => {
     expect(absolute.outputDir).toBe(path.join(dir, 'abs'));
   });
 });
+
+describe('a config the platform wrote is still a config', () => {
+  it('loadConfig reads a file saved with a UTF-8 BOM (Windows PowerShell 5.1)', () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-config-'));
+    const file = path.join(dir, 'bom.json');
+    writeFileSync(file, `﻿${JSON.stringify({ snapshots: [{ name: 'p', type: 'page', url: 'http://x/' }] })}`);
+    expect(loadConfig(file).snapshots[0].name).toBe('p');
+  });
+});
+
+describe('storageState next to an auth block', () => {
+  const withAuth = (/** @type {Record<string, any>} */ snapshot) => ({
+    auth: {
+      storageState: './.scribe-devtools/auth.json',
+      login: { url: 'http://x/login', steps: [{ do: 'click', selector: '#go' }] },
+    },
+    snapshots: [{ name: 'p', type: 'page', url: 'http://x/', ...snapshot }],
+  });
+
+  it('is refused rather than silently overridden by the auth session', () => {
+    expect(errorsOf(() => parseConfig(withAuth({ storageState: './readonly.json' })))).toEqual([
+      'snapshots[0].storageState: the "auth" block wins over it — add "auth": false to use this file',
+    ]);
+  });
+
+  it('is accepted next to `auth: false`, which is what makes it take effect', () => {
+    expect(parseConfig(withAuth({ storageState: './readonly.json', auth: false })).snapshots[0].storageState).toBe(
+      './readonly.json',
+    );
+  });
+});
+
+describe('a session-only field does not pass silently in a config', () => {
+  it('rejects `video` on a `goto` step of a batch flow and of an auth login', () => {
+    expect(
+      errorsOf(() =>
+        parseConfig({
+          snapshots: [
+            { name: 'p', type: 'flow', url: 'http://x/', steps: [{ do: 'goto', url: 'http://x/', video: true }] },
+          ],
+        }),
+      )[0],
+    ).toMatch(/steps\[0\]\.video: session only/u);
+    expect(
+      errorsOf(() =>
+        parseConfig({
+          auth: {
+            storageState: './a.json',
+            login: { url: 'http://x/l', steps: [{ do: 'goto', url: 'http://x/', video: true }] },
+          },
+          snapshots: [{ name: 'p', type: 'page', url: 'http://x/' }],
+        }),
+      )[0],
+    ).toMatch(/\.video: session only/u);
+  });
+});

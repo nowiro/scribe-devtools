@@ -3,8 +3,9 @@
 // `runFlow` is one snapshot end to end: the lane (or a fresh context), the navigation, the steps
 // under a deadline, the final evidence, `report.json`/`report.md` and the manifest on disk.
 // `runBatch` is every snapshot of a config over `parallel` lanes in one process (the `--no-daemon`
-// path; the keeper has its own queue per lane and calls `runFlow` + `finishRun` itself), and
-// `finishRun` writes what a run leaves behind after its snapshots: `_manifest.json` and `--junit`.
+// path; the keeper has its own queue per lane, calls `runFlow` and builds the run manifest with its
+// own copy of this code), and `finishRun` writes what a run leaves behind after its snapshots:
+// `_manifest.json` and `--junit` — both through the caller's redactor.
 //
 // Separate from `engine.mjs`: everything here is composed of the lane pool (`lanes.mjs`) and the
 // step context (`steps.ctx.mjs`), and owns no state of its own — which is why a failing page is a
@@ -19,6 +20,7 @@ import { withDeadline } from './deadline.mjs';
 import { DEFAULT_VIEWPORT, needsFreshContext } from './isolation.mjs';
 import { DEFAULT_TIMEOUT_MS } from './lanes.mjs';
 import { attachRecorder, errorMessage, summarize } from './recorder.mjs';
+import { redact } from './redact.mjs';
 import { buildManifest, buildReport, formatStepError, renderJUnit, writeArtifacts } from './report.mjs';
 import { estimateSnapshot } from './schedule.mjs';
 import { makeStepContext, navigate, runStep } from './steps.ctx.mjs';
@@ -26,6 +28,7 @@ import { RUNNERS } from './steps.run.mjs';
 import { resolveStepName } from './steps.schema.mjs';
 
 /** @typedef {import('./types.js').CdpLike} CdpLike */
+/** @typedef {import('./types.js').PageLike} PageLike */
 /** @typedef {import('./types.js').Step} Step */
 /** @typedef {import('./types.js').StepResult} StepResult */
 /** @typedef {import('./types.js').Report} Report */
@@ -187,10 +190,26 @@ export function createFlowRunner(input) {
       const tab = lane.tab;
       lane.tab = 'kept';
 
+      // A CDP session per tab, made on demand: `tab new` / `tab select` move `ctx.page`, and every
+      // CDP reader (`eval` without `--el`, every screenshot but an element one, `final.png`) has to
+      // move with it or the report describes one tab and pictures another. Cached per flow, so a
+      // step that comes back to a tab does not pay for a second attach.
+      /** @type {Map<PageLike, CdpLike>} */
+      const cdps = new Map([[lane.page, lane.cdp]]);
+      /** @param {PageLike} page */
+      const cdpFor = async (page) => {
+        const known = cdps.get(page);
+        if (known) return known;
+        const made = await lane.context.newCDPSession(page).catch(() => undefined);
+        if (made) cdps.set(page, made);
+        return made;
+      };
+
       const ctx = makeStepContext({
         page: lane.page,
         context: lane.context,
         cdp: lane.cdp,
+        cdpFor,
         recorder,
         dir,
         timeoutMs: snapshot.stepTimeoutMs ?? 10_000,
@@ -350,6 +369,8 @@ export function createFlowRunner(input) {
         tabs: summary.tabs,
         screenshots,
         text: evidence.text.content,
+        textTruncated: evidence.text.truncated,
+        textLength: evidence.text.length,
         elements: evidence.elements?.entries ?? [],
         elementsTotal: evidence.elements?.total ?? 0,
         captureElements: snapshot.captureElements !== false,
@@ -427,7 +448,7 @@ export function createFlowRunner(input) {
    * @param {{
    *   runDir: string, stamp: string, configPath?: string, config?: Record<string, any>, cwd?: string,
    *   options?: { junit?: string, [k: string]: any }, results: (Partial<FlowResult> & { name: string, dir: string })[],
-   *   mode: TimingMode, totalMs?: number, startedAt?: string,
+   *   mode: TimingMode, totalMs?: number, startedAt?: string, redact?: (text: string) => string,
    * }} run
    * @returns {Promise<{ files: string[], manifest: import('./types.js').Manifest }>}
    */
@@ -445,15 +466,19 @@ export function createFlowRunner(input) {
       results,
     );
     await mkdir(run.runDir, { recursive: true });
+    // The run manifest and the JUnit file quote step errors verbatim, and a failed `verify value`
+    // quotes the value it read — so the two files a run leaves behind carried a password in clear
+    // next to a report.json where the same string is `***` (DESIGN.md §2.6).
+    const scrub = run.redact ?? ((/** @type {string} */ text) => text);
     const manifestFile = path.join(run.runDir, '_manifest.json');
-    await writeFile(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    await writeFile(manifestFile, scrub(`${JSON.stringify(manifest, null, 2)}\n`), 'utf8');
     const files = [manifestFile];
     if (typeof run.options?.junit === 'string' && run.options.junit !== '') {
       const junitFile = path.resolve(run.cwd ?? process.cwd(), run.options.junit);
       await mkdir(path.dirname(junitFile), { recursive: true });
       await writeFile(
         junitFile,
-        renderJUnit(path.basename(configPath || 'browser-inspector'), manifest.snapshots),
+        scrub(renderJUnit(path.basename(configPath || 'browser-inspector'), manifest.snapshots)),
         'utf8',
       );
       files.push(junitFile);
@@ -606,6 +631,7 @@ export function createFlowRunner(input) {
       mode: options.mode ?? (pool.launches > 0 && pool.jobs === results.length ? 'first' : 'warm'),
       totalMs,
       startedAt,
+      redact: (text) => redact(text, secretValues),
     });
     return {
       stamp: options.stamp,

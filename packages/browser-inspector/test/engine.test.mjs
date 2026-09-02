@@ -9,6 +9,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createEngine } from '../src/engine.mjs';
+import { MASK } from '../src/redact.mjs';
 import {
   BrowserMissingError,
   E_BROWSER_MISSING,
@@ -16,9 +17,10 @@ import {
   launchBrowser,
   launchPlan,
 } from '../src/lanes.mjs';
-import { RUNNERS } from '../src/steps.run.mjs';
+import { makeStepContext, writeSnapshotFiles } from '../src/steps.ctx.mjs';
+import { RUNNERS, globToRegExp } from '../src/steps.run.mjs';
 import { STEPS } from '../src/steps.schema.mjs';
-import { callsOf, createFakeBrowser } from './fake-browser.mjs';
+import { callsOf, createFakeBrowser, createFakeContext } from './fake-browser.mjs';
 
 /** @type {string[]} */
 const dirs = [];
@@ -214,7 +216,7 @@ describe('runFlow — step mapping', () => {
     expect(callsOf(calls, 'mouse.click')[0]).toEqual([10, 20, {}]);
     expect(callsOf(calls, 'waitForTimeout')[0]).toEqual([5]);
     expect(callsOf(calls, 'waitForFunction')[0]).toEqual([{ text: 'Gotowe', gone: false }, { timeout: 300 }]);
-    expect(callsOf(calls, 'waitForURL')[0][0]).toBe('/^.*\\/cart$/u');
+    expect(callsOf(calls, 'waitForURL')[0][0]).toBe('/^(.*\\/)cart$/u');
     expect(callsOf(calls, 'setViewportSize').at(-1)).toEqual([{ width: 800, height: 600 }]);
     expect(callsOf(calls, 'storageState')[0]).toEqual([{ path: path.resolve(dir, 'state.json') }]);
     expect(callsOf(calls, 'route')[0][0]).toBe('**/api/x');
@@ -904,5 +906,215 @@ describe('runBatch with auth', () => {
     const withState = callsOf(calls, 'newContext').filter(([opts]) => opts?.storageState === statePath);
     expect(withState).toHaveLength(1);
     expect(withState[0][0]).toMatchObject({ serviceWorkers: 'allow' });
+  });
+});
+
+describe('writeSnapshotFiles', () => {
+  /** @param {(fn: any) => any} evaluate */
+  const walkCtx = (evaluate, dir) =>
+    makeStepContext({
+      page: /** @type {any} */ ({ evaluate, frames: () => [] }),
+      context: /** @type {any} */ ({}),
+      cdp: /** @type {any} */ ({ send: async () => ({}) }),
+      recorder: /** @type {any} */ ({}),
+      dir,
+      timeoutMs: 500,
+      mode: 'batch',
+    });
+
+  const yaml = [
+    '- generic [ref=e1] [box=0,0,300,100]:',
+    '  - textbox "Hasło:" [ref=e2] [box=8,8,177,21]: TAJNE-HASLO',
+  ].join('\n');
+
+  it('fails closed when the DOM walk did not run — no value reaches snap.md or snap.full.yml', async () => {
+    const dir = await tmp();
+    const ctx = walkCtx(async () => {
+      throw new Error('Execution context was destroyed');
+    }, dir);
+    await writeSnapshotFiles(ctx, yaml, 'snap');
+    expect(await readFile(path.join(dir, 'snap.md'), 'utf8')).not.toContain('TAJNE-HASLO');
+    expect(await readFile(path.join(dir, 'snap.full.yml'), 'utf8')).not.toContain('TAJNE-HASLO');
+    expect(ctx.lastSnapshot?.valuesUnknown).toBe(true);
+  });
+
+  it('keeps values when the walk DID run — the fail-closed cut is not unconditional', async () => {
+    const dir = await tmp();
+    const ctx = walkCtx(async () => [], dir);
+    await writeSnapshotFiles(ctx, yaml, 'snap');
+    expect(await readFile(path.join(dir, 'snap.full.yml'), 'utf8')).toContain('TAJNE-HASLO');
+    expect(ctx.lastSnapshot?.valuesUnknown).toBeUndefined();
+  });
+});
+
+describe('a `tab` step moves the CDP session with the page', () => {
+  /** @param {string} tag */
+  const taggedCdp = (tag) => ({
+    tag,
+    send: async (/** @type {string} */ method) =>
+      method === 'Runtime.evaluate' ? { result: { type: 'string', value: tag } } : {},
+  });
+
+  it('`tab new` / `tab select` / `tab close` re-arm ctx.cdp, so `eval` reads the tab it reports', async () => {
+    const dir = await tmp();
+    const context = createFakeContext();
+    const lanePage = await context.newPage();
+    const lane = taggedCdp('lane');
+    const popup = taggedCdp('popup');
+    const ctx = makeStepContext({
+      page: lanePage,
+      context: /** @type {any} */ (context),
+      cdp: /** @type {any} */ (lane),
+      recorder: /** @type {any} */ ({}),
+      dir,
+      timeoutMs: 200,
+      mode: 'batch',
+      laneTab: lanePage,
+      cdpFor: async (page) => /** @type {any} */ (page === lanePage ? lane : popup),
+    });
+    ctx.attachPage = () => undefined;
+
+    await RUNNERS.tab(ctx, { do: 'tab', action: 'new' });
+    expect(ctx.cdp).toBe(popup);
+    await RUNNERS.evaluate(ctx, { do: 'evaluate', name: 'gdzie', expression: 'document.title' });
+    expect(ctx.capture.extracts.gdzie.value).toBe('popup');
+
+    await RUNNERS.tab(ctx, { do: 'tab', action: 'select', index: 0 });
+    expect(ctx.cdp).toBe(lane);
+    await RUNNERS.tab(ctx, { do: 'tab', action: 'select', index: 1 });
+    await RUNNERS.tab(ctx, { do: 'tab', action: 'close' });
+    expect(ctx.cdp).toBe(lane);
+  });
+
+  it('runFlow attaches a CDP session to the tab a `tab new` step opened', async () => {
+    const { engine, calls } = harness();
+    const dir = await tmp();
+    const result = await engine.runFlow(
+      flow([
+        { do: 'tab', action: 'new', url: 'http://localhost:4300/popup' },
+        { do: 'evaluate', name: 'tytul', expression: 'document.title' },
+      ]),
+      dir,
+      { cwd: dir },
+    );
+    expect(result.completed).toBe(true);
+    const attached = callsOf(calls, 'newCDPSession').map(([page]) => page);
+    expect(attached).toHaveLength(2);
+    expect(attached[0]).not.toBe(attached[1]);
+  });
+});
+
+describe('globToRegExp speaks the same glob as page.route', () => {
+  // `route` gives its pattern to Playwright while `wait --url` / `verify url` translate theirs here; one
+  // config used to block `**/api/{users,posts}` and then wait forever for `**/{cart,checkout}`.
+  const cases = [
+    ['**/cart', 'http://x/cart', true],
+    ['**/{cart,checkout}', 'http://x/checkout', true],
+    ['**/api/{users,posts}', 'http://x/api/users', true],
+    ['**/*.{png,jpg}', 'http://x/a/b.png', true],
+    // A literal `?`, not "any character": `verify url` used to pass on a URL that only looked alike.
+    ['**/cart?id=1', 'http://x/cart?id=1', true],
+    ['**/cart?id=1', 'http://x/cartXid=1', false],
+    // `/**/` may match nothing at all — a baseURL pattern must find the page at the root.
+    ['http://localhost:3000/**/items', 'http://localhost:3000/items', true],
+    ['http://localhost:3000/**/items', 'http://localhost:3000/a/b/items', true],
+    ['http://localhost:*/x', 'http://localhost:4571/x', true],
+    ['http://localhost:*/x', 'http://localhost:4571/a/x', false],
+    ['**/a\\*b', 'http://x/a*b', true],
+    ['**/a\\*b', 'http://x/aQb', false],
+  ];
+
+  it('matches what Playwright matches for the patterns a config writes', () => {
+    for (const [pattern, url, expected] of cases) {
+      expect([pattern, url, globToRegExp(String(pattern)).test(String(url))]).toEqual([pattern, url, expected]);
+    }
+  });
+
+  it('refuses an unbalanced group instead of matching nothing for the rest of the run', () => {
+    expect(() => globToRegExp('**/a{b')).toThrow(String.raw`unmatched '{'`);
+    expect(() => globToRegExp('**/a}b')).toThrow(String.raw`unmatched '}'`);
+  });
+});
+
+describe('what a run leaves behind goes through the redactor too', () => {
+  it('runBatch masks the secret in <stamp>/_manifest.json and in the JUnit file', async () => {
+    const secret = `Tajne-Haslo-42`;
+    const { engine } = harness({ texts: { '[data-testid=pass]': secret } });
+    const dir = await tmp();
+    const config = {
+      configPath: path.join(dir, 'read.config.json'),
+      outputDir: path.join(dir, 'out'),
+      snapshots: [
+        flow([{ do: 'verify', kind: 'value', selector: '[data-testid=pass]', text: 'cos-innego' }], {
+          name: 'logowanie',
+        }),
+      ],
+    };
+    const run = await engine.runBatch(config, {
+      stamp: '2026-09-02_10-00',
+      cwd: dir,
+      secretValues: [secret],
+      junit: path.join(dir, 'junit.xml'),
+    });
+    expect(run.snapshots[0].completed).toBe(false);
+    const manifest = await readFile(path.join(config.outputDir, '2026-09-02_10-00', '_manifest.json'), 'utf8');
+    const junit = await readFile(path.join(dir, 'junit.xml'), 'utf8');
+    expect(manifest).toContain(MASK);
+    expect(manifest).not.toContain(secret);
+    expect(junit).not.toContain(secret);
+  });
+});
+
+describe('a `frame <n>` scope reaches every CSS step — and says so where it cannot', () => {
+  /** @param {any} extra */
+  const scoped = async (extra) => {
+    const dir = await tmp();
+    const child = { name: () => 'child', locator: (/** @type {string} */ sel) => extra.frameLocator(sel) };
+    const main = { name: () => '' };
+    const page = {
+      mainFrame: () => main,
+      frames: () => [main, child],
+      locator: (/** @type {string} */ sel) => extra.pageLocator(sel),
+      url: () => 'http://x/',
+    };
+    const ctx = makeStepContext({
+      page: /** @type {any} */ (page),
+      context: /** @type {any} */ ({}),
+      cdp: /** @type {any} */ ({ send: async () => ({ result: { type: 'string', value: 'MAIN' } }) }),
+      recorder: /** @type {any} */ ({}),
+      dir,
+      timeoutMs: 200,
+      mode: 'batch',
+    });
+    ctx.frame = child;
+    return ctx;
+  };
+
+  it('`eval` without `--el` refuses the scope instead of answering about the main document', async () => {
+    const ctx = await scoped({ frameLocator: () => undefined, pageLocator: () => undefined });
+    await expect(RUNNERS.evaluate(ctx, { do: 'evaluate', name: 'x', expression: 'document.title' })).rejects.toThrow(
+      /frame scope does not reach eval/u,
+    );
+    ctx.frame = ctx.page.mainFrame();
+    expect(await RUNNERS.evaluate(ctx, { do: 'evaluate', name: 'x', expression: 'document.title' })).toBe('MAIN');
+  });
+
+  it('`shot --el` takes the element of the scoped frame, not a like-named one on the page', async () => {
+    /** @type {string[]} */
+    const asked = [];
+    const shot = (/** @type {string} */ where) => ({
+      first() {
+        return this;
+      },
+      screenshot: async () => {
+        asked.push(where);
+        return Buffer.from('89504e470d0a1a0a', 'hex');
+      },
+      evaluate: async () => undefined,
+    });
+    const ctx = await scoped({ frameLocator: () => shot('frame'), pageLocator: () => shot('page') });
+    await RUNNERS.screenshot(ctx, { do: 'screenshot', name: 'w-ramce', selector: '#child-btn' });
+    await Promise.allSettled(ctx.capture.pending ?? []);
+    expect(asked).toEqual(['frame']);
   });
 });

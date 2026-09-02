@@ -21,7 +21,7 @@
 // go into the page / the POST body and NOWHERE else — every log line, error message and thrown
 // `AuthError` names a variable or a step, never a value, and passes through `redact()` on top.
 
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { DEFAULT_VIEWPORT } from './isolation.mjs';
@@ -329,6 +329,22 @@ export const resolveStatePath = (auth, baseDir) => path.resolve(baseDir ?? proce
 /** The OAuth sidecar with the token's expiry — mtime alone lies when the IdP gives 5 minutes. */
 export const metaPath = (/** @type {string} */ statePath) => `${statePath}.meta.json`;
 
+/**
+ * Write the session state so a reader never sees half of it. Both writers truncate their target
+ * in place — `writeFile` here, `context.storageState({ path })` in playwright-core — and a lane
+ * of another run opens exactly this file with `newContext({ storageState })`. A rename is atomic
+ * on both platforms, so a concurrent reader gets the old file or the new one, never a prefix.
+ * @param {string} file
+ * @param {(target: string) => Promise<unknown>} write what puts the bytes at `target`
+ * @returns {Promise<void>}
+ */
+async function writeAtomic(file, write) {
+  await mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${String(process.pid)}.tmp`;
+  await write(tmp);
+  await rename(tmp, file);
+}
+
 // ── ensureSession ────────────────────────────────────────────────────────────
 
 /**
@@ -460,15 +476,18 @@ async function oauthSession(oauth, statePath, run) {
   if (typeof accessToken !== 'string' || accessToken === '') {
     throw new AuthError(`OAuth ${url}: the response has no access_token`);
   }
-  await mkdir(path.dirname(statePath), { recursive: true });
-  await writeFile(statePath, `${JSON.stringify(oauthStorageState(oauth.store, accessToken), null, 2)}\n`, 'utf8');
+  await writeAtomic(statePath, (target) =>
+    writeFile(target, `${JSON.stringify(oauthStorageState(oauth.store, accessToken), null, 2)}\n`, 'utf8'),
+  );
   const expiresAtMs = tokenExpiresAt(payload, run.now());
   // The expiry straight from the response into the sidecar: the mtime would lie when the IdP gives
   // the token 5 minutes and `maxAgeMinutes` stands at 60.
-  await writeFile(
-    metaPath(statePath),
-    `${JSON.stringify({ expiresAtMs: expiresAtMs ?? null, obtainedAt: new Date(run.now()).toISOString() }, null, 2)}\n`,
-    'utf8',
+  await writeAtomic(metaPath(statePath), (target) =>
+    writeFile(
+      target,
+      `${JSON.stringify({ expiresAtMs: expiresAtMs ?? null, obtainedAt: new Date(run.now()).toISOString() }, null, 2)}\n`,
+      'utf8',
+    ),
   );
   run.log(`auth: session saved → ${statePath}`);
   return {
@@ -533,8 +552,7 @@ async function loginSession(login, statePath, run) {
         );
       }
     }
-    await mkdir(path.dirname(statePath), { recursive: true });
-    await context.storageState({ path: statePath });
+    await writeAtomic(statePath, (target) => context.storageState({ path: target }));
     run.log(`auth: session saved → ${statePath}`);
     return { storageState: statePath, method: 'login', reused: false, reason: run.reason };
   } finally {

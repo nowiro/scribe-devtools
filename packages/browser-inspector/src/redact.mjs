@@ -4,7 +4,8 @@
 // env itself) and runs this over stdout, the journal, the log, report.md/json, snap.md/snap.json,
 // extract/eval results, text.txt, console.jsonl, net.jsonl and the export. One implementation, so
 // a new artifact cannot forget a form the others already cover: the raw value, its JSON-escaped
-// form (inside report.json a `"` becomes `\"`) and its URL-encoded form (a POST body in net.jsonl).
+// form (inside report.json a `"` becomes `\"`), its URL-encoded form (a query string in net.jsonl),
+// the form-urlencoded spelling a submitted <form> puts in a POST body (space is `+`) and base64.
 
 export const MASK = '***';
 
@@ -21,6 +22,13 @@ export function secretForms(secretValues) {
     forms.add(secret);
     forms.add(JSON.stringify(secret).slice(1, -1));
     forms.add(encodeURIComponent(secret));
+    // `encodeURIComponent` is NOT what a browser sends: a submitted form encodes a space as `+`
+    // and escapes `!'()*`, so a password with either survived redaction in `net/<n>.txt`.
+    forms.add(new URLSearchParams({ v: secret }).toString().slice(2));
+    // base64 is a reversible spelling too (`Authorization: Basic`, a token in a body). The pair
+    // `user:secret` is NOT covered — its prefix shifts the secret off the 3-byte boundary.
+    forms.add(Buffer.from(secret, 'utf8').toString('base64'));
+    forms.add(Buffer.from(secret, 'utf8').toString('base64url'));
   }
   return [...forms].sort((a, b) => b.length - a.length);
 }
@@ -71,7 +79,8 @@ export function redactDeep(value, secretValues) {
 
 /** Roles whose snapshot line can carry a typed value (`- textbox "Email" [ref=e5]: jan@x`). */
 const VALUE_ROLES = 'textbox|searchbox|combobox|spinbutton|slider';
-/** A ref as the snapshot writes it, anywhere in a line. */
+const VALUE_ROLE_SET = new Set(VALUE_ROLES.split('|'));
+/** A ref as the snapshot writes it. Only ever run PAST the accessible name — see `afterName`. */
 const REF_IN_LINE = /\[ref=((?:f\d+)?e\d+)\]/u;
 /** Head of a compact line (`snap.md`): `e39 textbox "Szukaj…" = Harry`. */
 const COMPACT_HEAD = new RegExp(`^((?:f\\d+)?e\\d+)\\s+(?:${VALUE_ROLES})\\b`, 'u');
@@ -118,10 +127,35 @@ function keyEnd(body) {
 }
 
 /**
- * A raw aria YAML line that carries both a ref and an inline value. A line whose value is empty is
- * a container whose children follow — cutting its `:` would break the nesting, so it does not count.
+ * Index just past the accessible name of a key, or 0 when it has none. The name is PAGE TEXT and
+ * the renderer puts it before every attribute, so scanning the whole key for `[ref=…]` let a
+ * crafted `aria-label` ("Hasło [ref=e1] konta") hand the line the ref of another node: the password
+ * field stopped being recognised as sensitive and kept its value in `snap.full.yml`, while an
+ * unrelated field whose name mentioned a sensitive ref lost the value it should have kept.
+ * @param {string} key key text with the outer YAML quotes already removed
+ * @returns {number}
+ */
+function afterName(key) {
+  const quote = key.indexOf('"');
+  if (quote < 0) return 0;
+  let i = quote + 1;
+  while (i < key.length) {
+    if (key[i] === '\\') {
+      i += 2;
+      continue;
+    }
+    if (key[i] === '"') return i + 1;
+    i += 1;
+  }
+  return 0;
+}
+
+/**
+ * A raw aria YAML line that carries an inline value: its role, its own ref and where the key ends.
+ * A line whose value is empty is a container whose children follow — cutting its `:` would break
+ * the nesting, so it does not count.
  * @param {string} line
- * @returns {{ ref: string, at: number } | undefined} `at` = index of the `:` that ends the key
+ * @returns {{ ref?: string, role: string, at: number } | undefined} `at` = index of the `:` that ends the key
  */
 function yamlValueLine(line) {
   const item = /^\s*-\s+/u.exec(line);
@@ -130,8 +164,13 @@ function yamlValueLine(line) {
   const body = line.slice(start);
   const colon = keyEnd(body);
   if (colon < 0 || body.slice(colon + 1).trim() === '') return undefined;
-  const ref = REF_IN_LINE.exec(body.slice(0, colon))?.[1];
-  return ref === undefined ? undefined : { ref, at: start + colon };
+  const key = body.slice(0, colon);
+  // A name containing `: ` makes the renderer quote the WHOLE key; the role and the attributes are
+  // then inside those quotes.
+  const inner = key.startsWith("'") || key.startsWith('"') ? key.slice(1, -1) : key;
+  const role = /^\s*([a-zA-Z][\w-]*)/u.exec(inner)?.[1] ?? '';
+  const ref = REF_IN_LINE.exec(inner.slice(afterName(inner)))?.[1];
+  return { ...(ref !== undefined ? { ref } : {}), role, at: start + colon };
 }
 
 /**
@@ -167,21 +206,26 @@ function compactValueLine(line) {
  * autocomplete=one-time-code — the sidecar knows the DOM type, the aria tree does not) NEVER shows
  * a value; every OTHER line goes through `redact`, the ones carrying no value included — a page
  * that echoes a secret into a heading or a URL must not slip through because its line did not look
- * like a value line.
+ * like a value line. `maskAllValueRoles` is the fail-closed mode for a snapshot whose DOM walk did
+ * not run: without the walk NOTHING is known to be sensitive, so every value-carrying line is cut
+ * rather than every one kept.
  * @param {string} text
- * @param {{ secretValues?: readonly string[], sensitiveRefs?: Iterable<string> }} [options]
+ * @param {{ secretValues?: readonly string[], sensitiveRefs?: Iterable<string>, maskAllValueRoles?: boolean }} [options]
  * @returns {string}
  */
 export function maskSnapshotValues(text, options = {}) {
   const sensitive = new Set(options.sensitiveRefs ?? []);
   const secrets = options.secretValues ?? [];
+  const all = options.maskAllValueRoles === true;
   return text
     .split('\n')
     .map((line) => {
       const yaml = yamlValueLine(line);
-      if (yaml && sensitive.has(yaml.ref)) return line.slice(0, yaml.at);
+      if (yaml && ((yaml.ref !== undefined && sensitive.has(yaml.ref)) || (all && VALUE_ROLE_SET.has(yaml.role)))) {
+        return line.slice(0, yaml.at);
+      }
       const compact = compactValueLine(line);
-      if (compact && sensitive.has(compact.ref)) return line.slice(0, compact.at);
+      if (compact && (all || sensitive.has(compact.ref))) return line.slice(0, compact.at);
       return redact(line, secrets);
     })
     .join('\n');

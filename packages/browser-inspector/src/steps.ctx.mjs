@@ -92,26 +92,26 @@ export async function writeSnapshotFiles(ctx, text, base) {
     'snapshot walk',
   );
   const entries = joined ?? boxJoin(text, []).entries;
+  // A walk that did not run knows NOTHING about `type=password` / `autocomplete=one-time-code` —
+  // the aria tree does not carry the DOM type. Degrading to "nothing is sensitive" turned a lost
+  // round trip (a navigation mid-evaluate, a page that patched a DOM prototype) into a plain-text
+  // password in snap.md and snap.full.yml, so unknown sensitivity cuts every value instead.
+  const valuesUnknown = joined === undefined;
   const secretValues = ctx.secretValues;
+  const mask = { sensitiveRefs: sensitiveRefs(entries), secretValues, maskAllValueRoles: valuesUnknown };
   const sidecar = maskSnapshotEntries(entries, { secretValues });
-  const compact = maskSnapshotValues(compactSnapshot(text, { sidecar: entries }), {
-    sensitiveRefs: sensitiveRefs(entries),
-    secretValues,
-  });
+  const compact = maskSnapshotValues(compactSnapshot(text, { sidecar: entries }), mask);
   const files = [`${base}.full.yml`, `${base}.md`, `${base}.json`];
   await mkdir(ctx.dir, { recursive: true });
   await Promise.all([
-    writeFile(
-      path.join(ctx.dir, files[0]),
-      maskSnapshotValues(text, { sensitiveRefs: sensitiveRefs(entries), secretValues }),
-      'utf8',
-    ),
+    writeFile(path.join(ctx.dir, files[0]), maskSnapshotValues(text, mask), 'utf8'),
     writeFile(path.join(ctx.dir, files[1]), compact, 'utf8'),
     writeFile(path.join(ctx.dir, files[2]), `${JSON.stringify(sidecar, null, 2)}\n`, 'utf8'),
   ]);
   // `compact` is what `snap --diff` compares against next time (the session keeps it as
   // `prevCompact` when it prints); it is the masked text, so a diff never leaks a value either.
-  ctx.lastSnapshot = { text, entries, compact, at: Date.now() };
+  // `valuesUnknown` travels with the entries so stdout (`maskLines`) applies the same policy.
+  ctx.lastSnapshot = { text, entries, compact, at: Date.now(), ...(valuesUnknown ? { valuesUnknown } : {}) };
   return files;
 }
 
@@ -122,6 +122,7 @@ export async function writeSnapshotFiles(ctx, text, base) {
  *   dir: string, timeoutMs: number, mode: 'batch' | 'session', snapshot?: any, session?: any,
  *   values?: Record<string, string>, secretValues?: string[], files?: Record<string, any>, cwd?: string,
  *   laneTab?: PageLike, snapshotIndex?: number,
+ *   cdpFor?: (page: PageLike) => Promise<CdpLike | undefined>,
  * }} input
  * @returns {StepContext & Record<string, any>}
  */
@@ -189,6 +190,15 @@ export function makeStepContext(input) {
     setPage: (page) => {
       ctx.page = page;
       ctx.frame = undefined;
+    },
+    // `setPage` alone left `ctx.cdp` on the tab the step just LEFT, and CDP is what `eval` without
+    // `--el` and every screenshot but an element one use — so after `tab new` the report mixed two
+    // documents: `extract` from the new tab, `eval` and `final.png` from the old one. The session
+    // re-arms after each command; a batch has to do it inside the step, hence this hook.
+    rearmCdp: async () => {
+      if (!input.cdpFor) return;
+      const next = await input.cdpFor(ctx.page);
+      if (next) ctx.cdp = next;
     },
     attachPage: (page) => attachRecorder(page, { into: /** @type {Recorder} */ (ctx.recorder) }),
   };

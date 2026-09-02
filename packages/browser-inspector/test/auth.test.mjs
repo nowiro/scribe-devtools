@@ -56,7 +56,22 @@ function fakeEngine(fakeOptions = {}) {
   const fake = createFakeBrowser(fakeOptions);
   const engine = createEngine({ launch: async () => fake, prewarm: false, env: {} });
   closers.push(engine);
-  return { fake, engine, calls: fake.calls };
+  // The fake context RECORDS `storageState({ path })` without writing; the real one leaves the
+  // file behind and `loginSession` renames it into place, so the fake has to leave bytes too.
+  const wrapped = {
+    ...engine,
+    freshContext: async (/** @type {any} */ options) => {
+      const pair = await engine.freshContext(options);
+      const inner = pair.context.storageState.bind(pair.context);
+      pair.context.storageState = async (/** @type {any} */ opts) => {
+        const state = await inner(opts);
+        if (opts?.path) await writeFile(opts.path, `${JSON.stringify(state)}\n`, 'utf8');
+        return state;
+      };
+      return pair;
+    },
+  };
+  return { fake, engine: wrapped, calls: fake.calls };
 }
 
 /** @param {number} [port] @param {import('../fixtures/kc-token.mjs').TokenServerOptions} [options] */
@@ -291,7 +306,13 @@ describe('ensureSession — login through the engine', () => {
       ['[data-testid=field-pass]', PASS, expect.anything()],
     ]);
     expect(callsOf(calls, 'click')).toHaveLength(1);
-    expect(callsOf(calls, 'storageState')).toEqual([[{ path: statePath }]]);
+    // Written beside the target and renamed onto it: a lane of another run reads this exact file
+    // with `newContext({ storageState })`, and a truncate-in-place write can hand it half a JSON.
+    const saved = callsOf(calls, 'storageState');
+    expect(saved).toHaveLength(1);
+    expect(saved[0][0].path).not.toBe(statePath);
+    expect(existsSync(statePath)).toBe(true);
+    expect(existsSync(saved[0][0].path)).toBe(false);
     expect(callsOf(calls, 'context.close')).toHaveLength(1);
     // A fresh context (never the scratch lane), with service workers allowed (DESIGN.md §2.3 point 7).
     expect(callsOf(calls, 'newContext').at(-1)?.[0]).toMatchObject({ serviceWorkers: 'allow' });

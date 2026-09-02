@@ -21,6 +21,75 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Fixed
 
+- **`maskSnapshotValues` brało ref z NAZWY pola, nie z jego atrybutu.** Łatka niżej w tej samej
+  sekcji zastąpiła regexp parserem, ale ref wyszukiwała jako pierwsze `[ref=…]` w kluczu — a nazwa
+  dostępna może ten tekst zawierać dosłownie. Pole hasła o nazwie `Kod [ref=e9]` podstawiało cudzy
+  ref, kontrola `sensitive` chybiała i **wartość znów zostawała jawna**; w drugą stronę kasowało
+  wartość niewinnego pola. Pięć niezależnych zgłoszeń. `afterName()` przeskakuje teraz cytowany
+  przebieg nazwy i czyta ref dopiero za nią.
+
+- **`sidecarFromPage` parował węzły `<iframe>` z `page.frames()` po POZYCJI.** Pusta, ukryta albo
+  zagnieżdżona ramka przesuwała cały join, więc pole hasła z ramki dostawało flagi obcego elementu
+  — traciło `sensitive` i wyciekało. Funkcja była martwa do czasu naprawy sidecara wyżej, która ją
+  ożywiła: **przetestowana** nie znaczyło **poprawna**. Każdy węzeł rozwiązuje teraz własną ramkę
+  przez swój ref (`aria-ref=eN` → `contentFrame()`); parowanie pozycyjne zostaje jako fallback.
+
+- **Kompakt wstawiał wpisaną wartość w miejsce NAZWY** dla pola bez etykiety, i doklejał ją jako
+  sufiks kontenera. Oba sloty są poza tym, na co patrzy maska wartości, więc `sensitive: true` nic
+  nie dawało. `textUnder` pomija role niosące wartość.
+
+- **Degradacja chodzenia po DOM gubiła flagi `sensitive`** — a brak flagi znaczył jawne hasło.
+  Teraz fail-closed: nieudany sidecar maskuje wartości WSZYSTKICH ról, które mogą je nieść.
+
+- **`_manifest.json` i plik `--junit` pisały się bez redakcji** obok starannie zamaskowanego
+  `report.json` — sekret z komunikatu kroku lądował jawnie w pliku obok.
+
+- **`secretForms` znało trzy postacie sekretu zamiast sześciu.** Hasło ze spacją albo `!` nie było
+  maskowane w ciele POST (zapis formularza koduje spację jako `+`) ani w nagłówku `Basic`. Doszedł
+  zapis formularza, base64 i base64url.
+
+- **`ctx.cdp` zostawał na starej karcie po `tab new` / `tab select`** — `eval` i `shot` czytały inną
+  kartę niż ta, którą opisuje raport. Nowy `ctx.rearmCdp()` po każdym `setPage`.
+
+- **Sesja zostawała na zamkniętej karcie:** popup, który zamyka się sam, blokował wszystkie dalsze
+  komendy. Handler `page.on('close')` wraca na kartę lane'a.
+
+- **`export` zamieniał ref z iframe (`f1eN`) na niekwalifikowany selektor** — odtworzony flow klikał
+  INNY element i meldował `completed: true`. `durableSelector` zwraca teraz `inFrame`, liczone na
+  żywym elemencie, nie z kształtu refa (prefiks `f<seq>` nosi też dokument główny po nawigacji).
+
+- **`report.json.text.truncated` był zawsze `false`** — raport twierdził, że ma cały tekst strony,
+  choć `text.txt` urwał się na 20 000 znaków. Flaga bierze się teraz z długości mierzonej W STRONIE.
+
+- **`elements.truncated` liczyło się wobec capa, nie wobec tego, co raport listuje** — mapa strony
+  z ramką twierdziła, że jest kompletna.
+
+- **`selectorFor` w mapie elementów nie sprawdzał unikalności** — `elements.md` podawał selektory
+  trafiające w INNY element (`#id` z shadow roota trafiał w light DOM).
+
+- **`eval` i `shot --el` ignorowały zakres `frame <n>`**, choć DESIGN i pomoc kroku obiecują inaczej.
+
+- **`globToRegExp` nie był globem Playwrighta** — `{a,b}` nie działało, a `?` znaczyło „dowolny
+  znak", więc `route` i `wait --url` rozumiały ten sam wzorzec inaczej. Przepisane 1:1 na reguły
+  `globToRegexPattern` z playwright-core 1.62.1.
+
+- **`storageState` snapshotu był po cichu nadpisywany sesją `auth`** — snapshot startował na cudzym
+  koncie. Taki config jest teraz odrzucany z komunikatem wskazującym obejście.
+
+- **Zapis stanu sesji `auth` nie był atomowy** — równoległe przebiegi mogły zobaczyć plik w połowie.
+  Nowy `writeAtomic` (zapis do `.tmp` + `rename`).
+
+- **`el` w sesji nie schodziło do iframe'ów**, więc ta sama strona dawała `el 1` w sesji
+  i `elements.total 3` w batchu. **`dom Δ` nie działało w popupie** — obserwator wisiał na
+  `about:blank`, który nawigacja zastąpiła.
+
+- **`invalid` nie było w `KEPT_ATTRS`** — po odrzuconej walidacji kompakt był identyczny, a
+  `snap --diff` mówił „0 changed".
+
+- **`video: true` w kroku `goto` przechodziło walidację i nie robiło nic.**
+
+- **`loadConfig` nie zdejmował BOM-a** — config zapisany przez PowerShell padał z „not valid JSON".
+
 - **Wartość pola hasła zostawała jawnie w `snap.full.yml`, gdy etykieta pola zawierała dwukropek.**
   Trzy niezależne agenty audytu wskazały to samo miejsce: `maskSnapshotValues` rozpoznawało linię
   wzorcem `- rola "nazwa" [ref=eN]: wartość`, w którym część na nazwę nie mogła przekroczyć `:`.

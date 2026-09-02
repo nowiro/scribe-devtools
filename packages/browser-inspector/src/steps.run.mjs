@@ -122,24 +122,54 @@ function uploadPayload(ctx, name) {
 }
 
 /**
- * A Playwright URL glob (`**\/cart`, `http://localhost:*\/x`) → RegExp; `verify url` and `wait url`
- * share it so both mean the same thing.
+ * A Playwright URL glob (`**\/cart`, `http://localhost:*\/x`, `**\/{cart,checkout}`) → RegExp, by the
+ * SAME rules `page.route` applies to the same string. It has to be the same language: `route` hands
+ * its pattern to Playwright and `wait --url` / `verify url` translate theirs here, so one config
+ * used to block `**\/api/{users,posts}` and then wait forever for a URL it could never match. The
+ * differences that bit: `{a,b}` is an alternation, `?` is a literal, `\x` escapes, and `/**\/` may
+ * match nothing at all (`http://x/**\/items` must match `http://x/items`).
  * @param {string} pattern
  * @returns {RegExp}
  */
 export function globToRegExp(pattern) {
-  let source = '';
+  const escaped = new Set([...'$^+.*()|\\?{}[]']);
+  const tokens = ['^'];
+  let inGroup = false;
   for (let i = 0; i < pattern.length; i += 1) {
     const ch = pattern[i];
+    if (ch === '\\' && i + 1 < pattern.length) {
+      const next = pattern[(i += 1)];
+      tokens.push(escaped.has(next) ? `\\${next}` : next);
+      continue;
+    }
     if (ch === '*') {
-      if (pattern[i + 1] === '*') {
-        source += '.*';
+      const before = pattern[i - 1];
+      let stars = 1;
+      while (pattern[i + 1] === '*') {
+        stars += 1;
         i += 1;
-      } else source += '[^/]*';
-    } else if (ch === '?') source += '.';
-    else source += ch.replace(/[.+^${}()|[\]\\]/gu, '\\$&');
+      }
+      if (stars === 1) tokens.push('([^/]*)');
+      else if (pattern[i + 1] === '/') {
+        tokens.push(before === '/' ? '((.+/)|)' : '(.*/)');
+        i += 1;
+      } else tokens.push('(.*)');
+      continue;
+    }
+    if (ch === '{') {
+      if (inGroup) throw new Error(`invalid url pattern ${JSON.stringify(pattern)}: nested '{' is not supported`);
+      inGroup = true;
+      tokens.push('(');
+    } else if (ch === '}') {
+      if (!inGroup) throw new Error(`invalid url pattern ${JSON.stringify(pattern)}: unmatched '}'`);
+      inGroup = false;
+      tokens.push(')');
+    } else if (ch === ',' && inGroup) tokens.push('|');
+    else tokens.push(escaped.has(ch) ? `\\${ch}` : ch);
   }
-  return new RegExp(`^${source}$`, 'u');
+  if (inGroup) throw new Error(`invalid url pattern ${JSON.stringify(pattern)}: unmatched '{'`);
+  tokens.push('$');
+  return new RegExp(tokens.join(''), 'u');
 }
 
 /**
@@ -214,29 +244,58 @@ function maskLines(ctx, lines) {
   return maskSnapshotValues(lines.join('\n'), {
     sensitiveRefs: sensitiveRefs(entries),
     secretValues: ctx.secretValues,
+    // The snapshot whose walk failed has no sensitivity to go by: stdout follows the file.
+    maskAllValueRoles: ctx.lastSnapshot?.valuesUnknown === true,
   }).split('\n');
 }
 
 /**
  * The durable selector of a ref, resolved on the live element (`data-testid` → `#id` → `[name]` →
  * `a[href]` → `role=`), the sidecar of the last snapshot as the fallback when the element refuses
- * `evaluate` (gone with a navigation, cross-origin frame). `undefined` when nothing durable exists.
+ * `evaluate` (gone with a navigation, cross-origin frame). `selector` is `undefined` when nothing
+ * durable exists.
+ *
+ * `inFrame` is the second half of the answer, and the selector alone cannot carry it: it is
+ * computed inside the element's OWN document, while a config step resolves it in the main one. A
+ * ref inside an `<iframe>` therefore exported as a bare selector that replayed against a
+ * like-named element of the parent — or against nothing. The ref prefix does not help: after any
+ * navigation the MAIN document's refs carry an `f<seq>` too.
  * @param {Ctx} ctx @param {string} ref
- * @returns {Promise<string | undefined>}
+ * @returns {Promise<{ selector?: string, inFrame: boolean }>}
  */
 export async function durableSelector(ctx, ref) {
+  const locator = ctx.page.locator(`aria-ref=${ref}`).first();
+  const budget = Math.min(ctx.timeoutMs, 1000);
   const live = await degradeTo(
     undefined,
     Promise.resolve()
-      .then(() => ctx.page.locator(`aria-ref=${ref}`).first().evaluate(locatorForElement))
+      .then(() => locator.evaluate(locatorForElement))
       .catch(() => undefined),
-    Math.min(ctx.timeoutMs, 1000),
+    budget,
     `locator ${ref}`,
   );
-  if (typeof live === 'string' && live !== '') return live;
-  const entry = (ctx.lastSnapshot?.entries ?? []).find((/** @type {any} */ e) => e?.ref === ref);
-  if (!entry) return undefined;
-  return entry.selector ?? locatorFor(entry);
+  const selector =
+    typeof live === 'string' && live !== ''
+      ? live
+      : (() => {
+          const entry = (ctx.lastSnapshot?.entries ?? []).find((/** @type {any} */ e) => e?.ref === ref);
+          return entry ? (entry.selector ?? locatorFor(entry)) : undefined;
+        })();
+  if (selector === undefined) return { selector: undefined, inFrame: false };
+  const inFrame = await degradeTo(
+    false,
+    Promise.resolve()
+      .then(() =>
+        locator.evaluate((/** @type {any} */ el) => {
+          const view = el.ownerDocument?.defaultView;
+          return Boolean(view && view.top !== view);
+        }),
+      )
+      .catch(() => false),
+    budget,
+    `frame of ${ref}`,
+  );
+  return { selector, inFrame: inFrame === true };
 }
 
 /** Console entry types → the three levels of `--level`; `pageerror` counts as an error. */
@@ -533,7 +592,7 @@ export const RUNNERS = {
       format,
       ...(typeof s.quality === 'number' ? { quality: s.quality } : {}),
       fullPage: s.fullPage === true,
-      ...(target ? { selector: target } : {}),
+      ...(target ? { selector: target, root: frameFor(ctx, target) } : {}),
       ...(typeof s.mark === 'string' ? { mark: `aria-ref=${s.mark}` } : {}),
       timeoutMs: ctx.timeoutMs,
     });
@@ -574,7 +633,17 @@ export const RUNNERS = {
         label,
       );
       text = stringifyResult(value);
-    } else text = await evaluateWithTimeout(ctx.cdp, expression, { timeoutMs, label });
+    } else {
+      // CDP evaluates in the MAIN frame's context, whatever `ctx.frame` says, and the result
+      // mapping of DESIGN.md §2.2 is pinned to that path. Answering with another document's state
+      // under a `frame <n>` scope is the one outcome that must not happen quietly.
+      // `frame 0` / `frame main` IS the main frame — CDP already evaluates there.
+      const scope = frameFor(ctx, '');
+      if (scope && ctx.page.mainFrame?.() !== scope) {
+        throw new Error('eval: the frame scope does not reach eval — use `eval --el <eN|selector>` or `frame main`');
+      }
+      text = await evaluateWithTimeout(ctx.cdp, expression, { timeoutMs, label });
+    }
     if (ctx.lines && ctx.session && typeof s.name !== 'string') {
       // The session policy of §4.4: inline up to 300 chars, longer to `eval-NNN.txt`.
       let file;
@@ -862,6 +931,7 @@ export const RUNNERS = {
         ctx.attachPage(page);
         if (typeof s.url === 'string') await page.goto(s.url, opts(ctx));
         ctx.setPage(page);
+        await ctx.rearmCdp?.();
         return;
       }
       case 'select': {
@@ -870,6 +940,7 @@ export const RUNNERS = {
         if (!page) throw new Error(`tab ${String(s.index)}: only ${String(pages.length)} tab(s) open`);
         await page.bringToFront?.();
         ctx.setPage(page);
+        await ctx.rearmCdp?.();
         return;
       }
       default: {
@@ -877,6 +948,7 @@ export const RUNNERS = {
           throw new Error('tab close: the lane tab stays open — close a popup or `tab new` tab');
         const closing = ctx.page;
         ctx.setPage(ctx.laneTab);
+        await ctx.rearmCdp?.();
         await closing.close();
       }
     }
@@ -1079,11 +1151,11 @@ export const RUNNERS = {
   locator: async (ctx, s) => {
     const lines = sessionLines(ctx, 'locator');
     await ctx.sel(s);
-    const selector = await durableSelector(ctx, String(s.ref));
+    const { selector, inFrame } = await durableSelector(ctx, String(s.ref));
     if (!selector) {
       throw new Error(`no durable selector for ${String(s.ref)} (no data-testid, id, name or href) — see snap.json`);
     }
-    lines.push(selector);
+    lines.push(inFrame ? `${selector}${SEP}inside an iframe — a config needs a "frame" step first` : selector);
     return selector;
   },
   run: async (ctx, s) => {

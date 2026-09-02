@@ -108,8 +108,13 @@ export const CONTEXT_ROLES = new Set(['article', 'listitem', 'region', 'group', 
 /** Roles whose inline text is a typed value, rendered as `= value` (and never for sensitive refs). */
 const VALUE_ROLES = new Set(['textbox', 'searchbox', 'combobox', 'spinbutton', 'slider']);
 
-/** Attributes worth keeping in the compact, in this order; `cursor`, `box`, `active`, `level` are dropped. */
-const KEPT_ATTRS = ['checked', 'disabled', 'expanded', 'selected', 'pressed'];
+/**
+ * Attributes worth keeping in the compact, in this order; `cursor`, `box`, `active`, `level` are
+ * dropped. `invalid` earns its place because it is the only one that CHANGES in answer to what the
+ * agent just did: without it a rejected form renders the same line as before the submit, so
+ * `snap --diff` answered `0 changed` to "did the validation pass?".
+ */
+const KEPT_ATTRS = ['checked', 'disabled', 'invalid', 'expanded', 'selected', 'pressed'];
 
 /** Runs of look-alike siblings fold when there are at least this many … */
 const FOLD_MIN_RUN = 3;
@@ -298,7 +303,10 @@ function isVisible(node) {
 }
 
 /**
- * All text under a node (inline value, text leaves, inline texts of descendants), joined.
+ * All text under a node (text leaves, inline texts of descendants), joined. The inline text of a
+ * VALUE role is NOT text on screen but what is typed in the field, and it is only ever allowed in
+ * the `= value` slot the masker knows: promoted into a name (a password input with no label) or
+ * into the message of a `dialog`, it slipped past `sensitiveRefs` and reached snap.md.
  * @param {SnapNode[]} nodes
  * @param {SnapNode} node
  * @param {number} [max]
@@ -309,7 +317,7 @@ export function textUnder(nodes, node, max = 200) {
   const parts = [];
   /** @param {SnapNode} n */
   const walk = (n) => {
-    if (n.text) parts.push(n.text);
+    if (n.text && !VALUE_ROLES.has(n.role)) parts.push(n.text);
     for (const child of n.children) walk(nodes[child]);
   };
   walk(node);
@@ -956,12 +964,15 @@ export function sensitiveRefs(entries) {
 
 /**
  * The DOM side of the box-join, taken from a live page: `walkInteractive` in the main frame and in
- * every child frame the snapshot shows as an `iframe` node. Frame sequences are not exposed by the
- * public API, so the i-th `iframe` node that has ref-bearing children (document order) is paired
- * with the i-th entry of `page.frames().slice(1)` (attach order) — the same order for the static
- * pages this tool targets, and a mismatch only costs a selector, never a ref. This is the shape the
- * engine's `snapshotTools.boxJoin(page, yaml)` expects; it never calls `ariaSnapshot`, so the ref
- * map an agent holds stays intact. A frame that refuses `evaluate` (cross-origin, detached) is skipped.
+ * every child frame the snapshot shows as an `iframe` node. Each `iframe` node is resolved through
+ * its OWN ref (`aria-ref=eN` → `contentFrame()`), because `page.frames()` and the aria tree are not
+ * the same list: a `display:none` frame (analytics, consent) is in one and not the other, and a
+ * nested frame attaches out of document order — pairing by position then handed the login widget
+ * the walk of a different document, which costs the `sensitive` flag, not just a selector, and left
+ * the password in snap.md. Positional pairing survives only as the fallback for a page object
+ * without handles (a fake). This is the shape the engine's `snapshotTools.boxJoin(page, yaml)`
+ * expects; it never calls `ariaSnapshot`, so the ref map an agent holds stays intact. A frame that
+ * refuses `evaluate` (cross-origin, detached) is skipped.
  * @param {PageLike} page
  * @param {string} boxesYaml  The full `ariaSnapshot({ mode: 'ai', boxes: true })` text (without boxes → no selectors).
  * @returns {Promise<SidecarEntry[]>}
@@ -971,17 +982,28 @@ export async function sidecarFromPage(page, boxesYaml) {
   const main = /** @type {WalkEntry[]} */ ((await page.evaluate(walkInteractive)) ?? []);
   /** @type {Record<string, readonly WalkEntry[]>} */
   const frames = {};
-  const iframeSeqs = nodes
-    .filter((n) => n.role === 'iframe' && n.kind === 'node')
-    .map((n) => {
-      const child = nodes.find((c) => c.ref && c.parent === n.index);
-      return child?.ref ? (/^f(\d+)e/u.exec(child.ref)?.[1] ?? '') : '';
-    })
-    .filter(Boolean);
   const children = typeof page.frames === 'function' ? page.frames().slice(1) : [];
-  for (const [i, seq] of iframeSeqs.entries()) {
-    const frame = children[i];
-    if (!frame) break;
+  /** @param {string} ref */
+  const frameOfRef = async (ref) => {
+    try {
+      const handle = await page.locator(`aria-ref=${ref}`).first().elementHandle?.();
+      return (await handle?.contentFrame?.()) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  let position = 0;
+  for (const node of nodes) {
+    if (node.role !== 'iframe' || node.kind !== 'node') continue;
+    // Every `iframe` node consumes one position, ref-bearing children or not — an empty frame that
+    // did not consume one used to shift every frame after it.
+    const fallback = children[position];
+    position += 1;
+    const child = nodes.find((c) => c.ref && c.parent === node.index);
+    const seq = child?.ref ? (/^f(\d+)e/u.exec(child.ref)?.[1] ?? '') : '';
+    if (!seq) continue;
+    const frame = (node.ref ? await frameOfRef(node.ref) : undefined) ?? fallback;
+    if (!frame) continue;
     const walk = await frame.evaluate(walkInteractive).catch(() => undefined);
     if (Array.isArray(walk)) frames[seq] = walk;
   }
