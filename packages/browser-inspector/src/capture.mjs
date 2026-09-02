@@ -206,11 +206,34 @@ function evidenceInPage(caps) {
     });
   }
   const full = caps.wantText ? (document.body?.innerText ?? '') : '';
+  // Cache hits from the Resource Timing API, in the round trip that is happening anyway. Chrome
+  // sets `deliveryType: 'cache'` on an entry served from the HTTP cache (memory or disk); the
+  // `transferSize === 0 && decodedBodySize > 0` pair is the pre-`deliveryType` spelling of the same
+  // thing and covers a browser that does not report it. A cross-origin entry without
+  // Timing-Allow-Origin also reports `transferSize: 0`, but with `decodedBodySize: 0` — hence both
+  // halves of the condition. Counted per DOCUMENT (the buffer is cleared on navigation), which is
+  // what the question behind the number asks: did THIS run's page come out of the warm cache.
+  const cached = (/** @type {any} */ e) =>
+    e.deliveryType === 'cache' || (e.transferSize === 0 && e.decodedBodySize > 0);
+  let cacheHits = 0;
+  let cacheHitsDocument = 0;
+  try {
+    for (const entry of performance.getEntriesByType('resource')) if (cached(entry)) cacheHits += 1;
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (nav && cached(nav)) {
+      cacheHits += 1;
+      cacheHitsDocument = 1;
+    }
+  } catch {
+    // A document without the Resource Timing API answers "no hits", never breaks the report.
+  }
   return {
     text: full.slice(0, caps.textCap),
     textLength: full.length,
     elements,
     count,
+    cacheHits,
+    cacheHitsDocument,
   };
 }
 
@@ -219,6 +242,7 @@ function evidenceInPage(caps) {
  * @property {{ content: string, truncated: boolean }} text
  * @property {{ entries: any[], total: number, truncated: boolean } | undefined} elements
  * @property {number} elCount visible interactive elements — the `el 61→63` delta of a session line
+ * @property {{ hits: number, document: number }} [cache] responses this document took from the HTTP cache
  */
 
 /**
@@ -232,7 +256,12 @@ export async function pageEvidence(page, options = {}) {
   const wantElements = options.elements !== false;
   const wantText = options.text !== false;
   /** @type {Evidence} */
-  const empty = { text: { content: '', truncated: false }, elements: wantElements ? undefined : undefined, elCount: 0 };
+  const empty = {
+    text: { content: '', truncated: false },
+    elements: wantElements ? undefined : undefined,
+    elCount: 0,
+    cache: { hits: 0, document: 0 },
+  };
   const raw = await degradeTo(
     undefined,
     page.evaluate(evidenceInPage, { textCap: TEXT_CAP, elementsCap: ELEMENTS_CAP, wantText, wantElements }),
@@ -248,6 +277,10 @@ export async function pageEvidence(page, options = {}) {
     text: { content: text, truncated: textLength > text.length },
     elements: wantElements ? { entries, total: count, truncated: count > entries.length } : undefined,
     elCount: count,
+    cache: {
+      hits: typeof raw.cacheHits === 'number' ? raw.cacheHits : 0,
+      document: typeof raw.cacheHitsDocument === 'number' ? raw.cacheHitsDocument : 0,
+    },
   };
 }
 

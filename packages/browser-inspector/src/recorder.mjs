@@ -128,8 +128,6 @@ export function createRecorder(options = {}) {
     tabs: [],
     visitedOrigins: [],
     inFlight: 0,
-    cacheHits: 0,
-    cacheHitsDocument: 0,
     bodies: new Map(),
     /** Main-frame navigations since reset — the session line says `navigated` when this moved. */
     navigations: 0,
@@ -172,8 +170,6 @@ export function createRecorder(options = {}) {
       recorder.dialogs = [];
       recorder.tabs = [];
       recorder.inFlight = 0;
-      recorder.cacheHits = 0;
-      recorder.cacheHitsDocument = 0;
       recorder.bodies = new Map();
       recorder.navigations = 0;
       recorder.serviceWorkerSeen = false;
@@ -257,15 +253,9 @@ export function attachRecorder(page, options = {}) {
     const status = response.status();
     const headers = safeHeaders(response);
     const contentType = headers['content-type'];
-    const fromCache = safeCall(() => response.fromCache()) === true;
-    if (fromCache) {
-      recorder.cacheHits += 1;
-      if (entry?.resourceType === 'document') recorder.cacheHitsDocument += 1;
-    }
     if (entry) {
       entry.status = status;
       if (contentType) entry.contentType = contentType.split(';')[0].trim();
-      entry.fromCache = fromCache;
       const length = Number(headers['content-length']);
       if (Number.isFinite(length)) entry.size = length;
     }
@@ -429,8 +419,6 @@ function safeCall(fn) {
  *   failedRequests: { entries: { url: string, failure: string }[], truncated: boolean },
  *   dialogs: DialogEntry[],
  *   tabs: TabEntry[],
- *   cacheHits: number,
- *   cacheHitsDocument: number,
  * }}
  */
 export function summarize(recorder) {
@@ -452,7 +440,5 @@ export function summarize(recorder) {
     },
     dialogs: [...recorder.dialogs],
     tabs: [...recorder.tabs],
-    cacheHits: recorder.cacheHits,
-    cacheHitsDocument: recorder.cacheHitsDocument,
   };
 }

@@ -435,9 +435,11 @@ export function createContext(options = {}) {
 
   const sweepSessions = async () => {
     const now = Date.now();
+    let expired = 0;
     for (const [name, s] of [...sessions]) {
       if (now - s.lastUsedAt < sessionTtlMs) continue;
       sessions.delete(name);
+      expired += 1;
       log(`session ${name} expired after ${formatMs(sessionTtlMs)} ms`);
       try {
         await (await engine()).closeSession?.(name);
@@ -445,7 +447,12 @@ export function createContext(options = {}) {
         log(`closeSession ${name}: ${messageOf(error)}`);
       }
     }
-    armIdle();
+    // ONLY when this sweep changed something. `armIdle` restarts the countdown from zero, and the
+    // sweep runs every `min(sessionTtlMs / 2, 30 s)` — with the defaults that is every 30 s against
+    // an idle budget of 30 min, so an unconditional call here pushed the deadline forever and the
+    // keeper never exited (probe: with sweep 100 ms against idle 500 ms, `onIdle` never fires; with
+    // sweep 30 s it fires at 513 ms). A sweep that expired nothing is not activity.
+    if (expired > 0) armIdle();
   };
 
   if (options.onIdle) {

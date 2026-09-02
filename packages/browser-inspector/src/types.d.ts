@@ -183,7 +183,6 @@ export interface NetEntry {
   contentType?: string;
   size?: number;
   ms?: number;
-  fromCache?: boolean;
   failure?: string;
   resourceType?: string;
   /** Why the recorder kept no body: a stream, a type it does not keep, a body over the limit, a read that never returned. */
@@ -217,8 +216,6 @@ export interface RecorderLike {
   visitedOrigins: string[];
   /** Requests in flight right now — the `settled` wait polls this. */
   inFlight: number;
-  cacheHits: number;
-  cacheHitsDocument: number;
   /** Bodies kept for `browser-inspector net <n> --body` (≤ 64 KB, json/text only). */
   bodies?: Map<number, string>;
   /** Entries after the given cursor — `browser-inspector console`/`browser-inspector net` print only those. */

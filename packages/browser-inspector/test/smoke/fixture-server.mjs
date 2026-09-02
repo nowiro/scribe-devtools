@@ -53,8 +53,15 @@ export function startFixtureServer(port, options = {}) {
       return;
     }
     // No caching headers on purpose: the app-factory static server sends none either, and a
-    // `cacheHitsDocument > 0` here would be the engine's bug, not the fixture's.
-    res.writeHead(200, { 'content-type': MIME.get(path.extname(file)) ?? 'application/octet-stream' });
+    // `cacheHitsDocument > 0` here would be the engine's bug, not the fixture's. The ONE exception
+    // is `cacheable.css`, which exists so a test can prove the opposite: the scrub clears storage
+    // and NOT the HTTP cache, so the second run on the same lane must take it from cache and
+    // `timing.cacheHits` must see it (DESIGN.md §2.3).
+    const cacheable = path.basename(file) === 'cacheable.css';
+    res.writeHead(200, {
+      'content-type': MIME.get(path.extname(file)) ?? 'application/octet-stream',
+      ...(cacheable ? { 'cache-control': 'max-age=60' } : {}),
+    });
     createReadStream(file).pipe(res);
   });
   return new Promise((resolve, reject) => {

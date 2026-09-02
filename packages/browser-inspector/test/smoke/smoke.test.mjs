@@ -145,6 +145,25 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     });
   }, 60_000);
 
+  it('the scrub keeps the HTTP cache: the second run on the same lane counts cacheHits (AC-12)', async () => {
+    // The number this pins is a design claim, not a detail: `SCRUB_STORAGE_TYPES` deliberately omits
+    // `all`, so the scrub clears storage and leaves the HTTP cache — that is what makes a warm run
+    // 20 ms instead of 250. It is also the guard this metric never had: `cacheHits` was read from
+    // `response.fromCache()`, a method playwright-core does not have, so it reported 0 for every run
+    // ever measured and no test noticed. A positive assertion is the only kind that would have.
+    const flow = { url: a.url('cache.html'), steps: [{ do: 'waitFor', selector: '[data-testid=cache-heading]' }] };
+    const first = await run(flow);
+    expect(first.completed).toBe(true);
+    // `cacheable.css` is the only fixture the server sends with `Cache-Control` — cold, it is a miss.
+    expect(first.report.timing.cacheHits).toBe(0);
+    const second = await run(flow);
+    expect(second.completed).toBe(true);
+    expect(second.report.timing.ctx).toBe('reused');
+    expect(second.report.timing.cacheHits).toBeGreaterThan(0);
+    // The document itself carries no caching headers, so it is fetched again both times.
+    expect(second.report.timing.cacheHitsDocument).toBe(0);
+  });
+
   it('a failing step writes final.png and the Error: form; evaluate maps like the old runner', async () => {
     const result = await run({
       url: a.url('storage.html'),

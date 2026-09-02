@@ -54,6 +54,22 @@ describe('idle and sessions', () => {
     expect(keeperLog(h)).toContain('shutdown: idle');
   }, 20000);
 
+  it('the TTL sweep does not push the idle deadline: a sweep every 100 ms, idle budget 800 ms', async () => {
+    // The regression this pins: `sweepSessions` used to call `armIdle()` unconditionally, and
+    // `armIdle` restarts the countdown from zero. The sweep runs every `min(sessionTtlMs / 2, 30 s)`
+    // — with production defaults every 30 s against an idle budget of 30 min — so the deadline was
+    // pushed forever and the keeper never exited. The existing tests could not see it: they set a
+    // short IDLE_MS with the default SESSION_TTL_MS, so no sweep ever fired inside the test. Only a
+    // sweep FASTER than the idle budget reproduces it, which is exactly the production ratio.
+    const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '800', BROWSER_INSPECTOR_SESSION_TTL_MS: '200' });
+    const up = await runBrowserInspector(['up'], h);
+    const info = { pid: Number(/pid (\d+)/u.exec(up.lines[0])?.[1] ?? -1) };
+    // ~8 sweeps fit inside the idle budget; before the fix every one of them reset it to 800 ms.
+    await until(() => !isAlive(info.pid), 6000);
+    expect(isAlive(info.pid)).toBe(false);
+    expect(keeperLog(h)).toContain('shutdown: idle');
+  }, 20000);
+
   it('an open session blocks idle until `browser-inspector close`', async () => {
     const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '200' });
     await runBrowserInspector(['up'], h);

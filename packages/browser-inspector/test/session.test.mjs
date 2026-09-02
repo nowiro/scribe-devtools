@@ -135,7 +135,6 @@ function fakeRequest(page, r) {
     request: () => request,
     status: () => r.status ?? 200,
     headers: () => ({ 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) }),
-    fromCache: () => false,
     text: async () => body,
   });
   page.emit('requestfinished', request);

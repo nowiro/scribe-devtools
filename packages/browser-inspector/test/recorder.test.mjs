@@ -19,13 +19,12 @@ const request = (spec = {}) => ({
   failure: () => (spec.failure ? { errorText: spec.failure } : null),
 });
 
-/** @param {any} req @param {Partial<{ status: number, headers: Record<string, string>, fromCache: boolean, body: string }>} spec */
+/** @param {any} req @param {Partial<{ status: number, headers: Record<string, string>, body: string }>} spec */
 const response = (req, spec = {}) => ({
   request: () => req,
   status: () => spec.status ?? 200,
   url: () => req.url(),
   headers: () => spec.headers ?? { 'content-type': 'application/json' },
-  fromCache: () => spec.fromCache === true,
   text: async () => spec.body ?? '{"ok":true}',
 });
 
@@ -60,32 +59,25 @@ describe('attachRecorder', () => {
     page.emit('request', doc);
     page.emit('request', api);
     expect(recorder.inFlight).toBe(2);
-    page.emit(
-      'response',
-      response(doc, { fromCache: true, headers: { 'content-type': 'text/html', 'content-length': '512' } }),
-    );
+    page.emit('response', response(doc, { headers: { 'content-type': 'text/html', 'content-length': '512' } }));
     page.emit('requestfinished', doc);
     page.emit('response', response(api, { status: 404, body: '{"error":"cart not found"}' }));
     page.emit('requestfinished', api);
     await recorder.settle();
     expect(recorder.inFlight).toBe(0);
     expect(recorder.networkTotal).toBe(2);
-    expect(recorder.cacheHits).toBe(1);
-    expect(recorder.cacheHitsDocument).toBe(1);
     expect(recorder.network[0]).toMatchObject({
       id: 1,
       method: 'GET',
       status: 200,
       contentType: 'text/html',
       size: 512,
-      fromCache: true,
     });
     expect(recorder.network[1]).toMatchObject({
       id: 2,
       method: 'POST',
       status: 404,
       failure: 'HTTP 404',
-      fromCache: false,
     });
     expect(typeof recorder.network[1].ms).toBe('number');
     const summary = summarize(recorder);
@@ -97,7 +89,6 @@ describe('attachRecorder', () => {
       entries: [{ url: 'http://localhost:4300/api/zgloszenia', failure: 'HTTP 404' }],
       truncated: false,
     });
-    expect(summary.cacheHits).toBe(1);
     expect(JSON.stringify(summary)).not.toContain('startedAt');
   });
 

@@ -5,6 +5,46 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Fixed
+
+- **Keeper wychodził z bezczynności dopiero po zabiciu procesu — timer był resetowany co 30 s.**
+  `sweepSessions` (zamiatanie sesji po TTL) kończył się bezwarunkowym `armIdle()`, a `armIdle` kasuje
+  timer i ustawia **pełny** budżet od nowa. Zamiatanie chodzi co `min(sessionTtlMs / 2, 30 s)`, czyli
+  z domyślnymi ustawieniami co 30 s wobec budżetu 30 minut — deadline był więc przesuwany w
+  nieskończoność i keeper (razem z Chrome, 150–960 MB) żył do restartu maszyny. Sonda bez przeglądarki,
+  przeskalowana do tej samej proporcji: przy zamiataniu co 100 ms i budżecie 500 ms `onIdle` **nie
+  wystrzelił ani razu**; przy zamiataniu co 30 s wystrzelił po 513 ms. Naprawa: zamiatanie uzbraja
+  timer tylko wtedy, gdy faktycznie wygasiło sesję — zamiatanie, które nic nie zmieniło, nie jest
+  aktywnością. Cały strojony wybór `IDLE_MS_DEFAULT = 30 min` (§2.5: „5 minut zamieniało większość
+  drugich wywołań w zimne") dotąd nie miał żadnego znaczenia.
+- **Test regresji, którego brakowało.** Istniejące testy nie mogły tego zobaczyć: ustawiały krótki
+  `IDLE_MS` przy **domyślnym** `SESSION_TTL_MS`, więc w ciągu dwusekundowego testu zamiatanie nie
+  odpalało ani razu. Nowy test odwraca proporcję na produkcyjną (zamiatanie co 100 ms, budżet 800 ms,
+  ~8 zamiatań w oknie) i przechodzi przez prawdziwy proces keepera. Sprawdzone: oblewa na kodzie
+  sprzed naprawy, przechodzi po niej.
+
+- **`timing.cacheHits` mierzy wreszcie cokolwiek — dotąd był strukturalnie zerowy.** Rejestrator liczył
+  trafienia cache'u przez `response.fromCache()`, a takiej metody **nie ma w playwright-core 1.62.1**
+  (`grep` po całym pakiecie: zero trafień; `types.d.ts` zna tylko `fromServiceWorker()`). Wywołanie
+  rzucało `TypeError`, `safeCall` je połykał, licznik zostawał na zerze — we **wszystkich 86 plikach
+  `report.json`** w `bench/out/` `cacheHits` i `cacheHitsDocument` to `(0, 0)`. Metryka jest w kontrakcie
+  `report.json` (punkt synchronizacji z app-factory w AGENTS.md), ma własną kolumnę w `bench/BUDGET.md`
+  i podpiera tezę projektu z §2.3, że scrub zostawia cache HTTP — a nie mierzyła nic od początku.
+  Źródłem jest teraz **Resource Timing API strony**, czytane w tym samym przelocie co dowód końcowy
+  (`capture.mjs`), więc bez dodatkowego obiegu do przeglądarki: wpis liczy się jako trafienie, gdy
+  `deliveryType === 'cache'` albo `transferSize === 0 && decodedBodySize > 0` (druga forma to zapis
+  sprzed `deliveryType`; oba warunki razem odsiewają cross-origin bez `Timing-Allow-Origin`, które też
+  raportuje `transferSize: 0`, ale z `decodedBodySize: 0`). Liczone per dokument, bo bufor Resource
+  Timing zeruje się przy nawigacji.
+- **Test, którego brak pozwolił temu przeżyć.** Stary test rejestratora budował atrapę odpowiedzi
+  **z metodą `fromCache`**, której prawdziwy obiekt nie ma — sprawdzał więc własną atrapę. Zamiast niego
+  smoke na prawdziwym Chrome: fixture `cache.html` linkuje `cacheable.css`, jedyny plik, który serwer
+  testowy wysyła z `Cache-Control: max-age=60`; pierwszy przebieg ma `cacheHits: 0`, drugi na tym samym
+  (wyszorowanym) lane'ie musi mieć `> 0`, a `cacheHitsDocument` zostaje `0`, bo dokument nagłówków
+  cache'u nie ma. Asercja w obie strony — inaczej przechodziłaby na zepsutym liczniku.
+- Przy okazji usunięte martwe pole `NetEntry.fromCache`: rejestrator je ustawiał, `report.json` go nie
+  niósł (sprawdzone na artefaktach), czytały je wyłącznie testy.
+
 ### Changed
 
 - **Start klienta o 13 ms krótszy: `Intl.DateTimeFormat` budowany leniwie** (`src/cli.mjs`). Konstruktor

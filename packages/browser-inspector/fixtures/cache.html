@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cache</title>
+    <!-- The only fixture asset the server sends with `Cache-Control`: the second run on a scrubbed
+         lane must take it from the HTTP cache, because the scrub clears storage and NOT the cache
+         (DESIGN.md §2.3 — `SCRUB_STORAGE_TYPES` deliberately omits `all`). That is what makes the
+         warm path warm, and `timing.cacheHits` is the number that proves it. -->
+    <link rel="stylesheet" href="cacheable.css" />
+  </head>
+  <body>
+    <h1 data-testid="cache-heading">Cache</h1>
+  </body>
+</html>

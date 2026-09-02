@@ -288,8 +288,12 @@ export function createFlowRunner(input) {
       shotsMs,
       settleMs,
       totalMs: ms(started),
-      cacheHits: summary.cacheHits,
-      cacheHitsDocument: summary.cacheHitsDocument,
+      // From the page's Resource Timing API, collected inside `finalEvidence` (`capture.mjs`), not
+      // from the recorder: `response.fromCache()` does not exist in playwright-core 1.62.1, so the
+      // previous counter reported 0 for every run ever measured — the call threw and the guard
+      // swallowed it. Counted per document, which is the question the number answers.
+      cacheHits: evidence.cache?.hits ?? 0,
+      cacheHitsDocument: evidence.cache?.document ?? 0,
     };
 
     const built = buildReport({
