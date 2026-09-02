@@ -11,8 +11,8 @@
 //   2. Files (`upload`, `eval --file`, `route --file`, `state load`, `script`) are read relative to
 //      THIS cwd. The keeper may sit in another cwd with other rights.
 //   3. The fallback: a batch runs in-process when no keeper answers within 3 s (`timing.mode =
-//      "fallback"`). A session command never falls back — an in-process `bi open` would close the
-//      browser on exit and `bi click e5` would lie about a ref it never had (exit 2 instead).
+//      "fallback"`). A session command never falls back — an in-process `browser-inspector open` would close the
+//      browser on exit and `browser-inspector click e5` would lie about a ref it never had (exit 2 instead).
 
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -34,7 +34,7 @@ import { KEEPER_UNAVAILABLE, formatDoctor, formatMs } from './print.mjs';
 /** @typedef {import('./cli.mjs').ParsedArgs} ParsedArgs */
 
 const PACKAGE_DIR = fileURLToPath(new URL('..', import.meta.url));
-const BIN_PATH = path.join(PACKAGE_DIR, 'bin', 'bi.mjs');
+const BIN_PATH = path.join(PACKAGE_DIR, 'bin', 'browser-inspector.mjs');
 const KEEPER_MODULE = fileURLToPath(new URL('./keeper.mjs', import.meta.url));
 
 /** Inline file content up to this size; above it the keeper gets an absolute path. */
@@ -42,7 +42,7 @@ export const INLINE_FILE_MAX = 1024 * 1024;
 export const CONNECT_TIMEOUT_MS = 3000;
 export const CONNECT_RETRY_MS = 25;
 /**
- * A request with no line from the keeper for this long is abandoned (`BI_REQUEST_TIMEOUT_MS`).
+ * A request with no line from the keeper for this long is abandoned (`BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS`).
  * Generous — a 6-flow app-factory batch with `networkidle` waits is a minute, not ten — because
  * its only job is to make a wedged keeper impossible to hang an agent's shell on: progress lines
  * reset it, so a long batch that is still reporting snapshots is never cut.
@@ -77,16 +77,16 @@ export function packageVersion() {
  * @typedef {object} Identity
  * @property {string} hash
  * @property {string} pipe
- * @property {string} key pid/lock/log file key — the hash, plus a suffix when `BI_SOCKET` overrides the pipe
+ * @property {string} key pid/lock/log file key — the hash, plus a suffix when `BROWSER_INSPECTOR_SOCKET` overrides the pipe
  * @property {string} tmpdir
  * @property {Record<string, any>} browserOpts what the keeper launches with
  * @property {string} pwVersion
- * @property {string} biPath
+ * @property {string} binPath
  * @property {string} version
  */
 
 /**
- * Hash + pipe + file key for this client. With `BI_SOCKET` two agents share the hash but not the
+ * Hash + pipe + file key for this client. With `BROWSER_INSPECTOR_SOCKET` two agents share the hash but not the
  * keeper, so the pid/lock files get a suffix of the socket name — otherwise the second keeper
  * would find the first one's lock and exit 0 while its client waits on an empty pipe.
  * @param {{ env: NodeJS.ProcessEnv, browser?: Record<string, any>, packageDir?: string }} input
@@ -97,12 +97,13 @@ export function computeIdentity(input) {
   const parts = collectIdentity({ packageDir: input.packageDir ?? PACKAGE_DIR, env, browser: input.browser ?? {} });
   const hash = identityHash(parts);
   const pipe = pipeName(hash, { env });
-  const key = env.BI_SOCKET ? `${hash}-${fnv1a(env.BI_SOCKET)}` : hash;
+  const key = env.BROWSER_INSPECTOR_SOCKET ? `${hash}-${fnv1a(env.BROWSER_INSPECTOR_SOCKET)}` : hash;
   return {
     hash,
     pipe,
     key,
-    tmpdir: env.BI_TMPDIR && env.BI_TMPDIR !== '' ? env.BI_TMPDIR : os.tmpdir(),
+    tmpdir:
+      env.BROWSER_INSPECTOR_TMPDIR && env.BROWSER_INSPECTOR_TMPDIR !== '' ? env.BROWSER_INSPECTOR_TMPDIR : os.tmpdir(),
     browserOpts: {
       ...(parts.channel ? { channel: parts.channel } : {}),
       ...(parts.executablePath ? { executablePath: parts.executablePath } : {}),
@@ -110,7 +111,7 @@ export function computeIdentity(input) {
       args: [...(parts.args ?? [])],
     },
     pwVersion: parts.pwVersion,
-    biPath: parts.binRealpath,
+    binPath: parts.binRealpath,
     version: parts.pkgVersion,
   };
 }
@@ -118,7 +119,7 @@ export function computeIdentity(input) {
 // ── Values and files ─────────────────────────────────────────────────────────
 
 /**
- * Split one line of a `bi script` file into argv the way a POSIX shell would for the simple
+ * Split one line of a `browser-inspector script` file into argv the way a POSIX shell would for the simple
  * cases: whitespace separates, `"…"` and `'…'` group, `\"` escapes inside double quotes.
  * The engine (`runScript`) must split with THIS function so the value addresses match.
  * @param {string} line
@@ -294,7 +295,7 @@ export function resolveValues(parsed, input) {
 
 /**
  * @param {string} file
- * @returns {{ pid: number, pipe: string, token: string, listeningAt?: number, processStartAt?: number, startedAt?: number, biPath?: string, version?: string } | undefined}
+ * @returns {{ pid: number, pipe: string, token: string, listeningAt?: number, processStartAt?: number, startedAt?: number, binPath?: string, version?: string } | undefined}
  */
 export function readPidFile(file) {
   try {
@@ -337,8 +338,8 @@ export function spawnKeeper(identity, env) {
     identity.key,
     '--browser',
     JSON.stringify(identity.browserOpts),
-    '--bi',
-    identity.biPath,
+    '--bin',
+    identity.binPath,
     '--pw',
     identity.pwVersion,
   ];
@@ -359,7 +360,7 @@ const sleep = (/** @type {number} */ ms) => new Promise((resolve) => setTimeout(
 export async function ensureKeeper(identity, options) {
   const env = options.env;
   const allowSpawn = options.spawn !== false;
-  const timeoutMs = options.timeoutMs ?? Number(env.BI_CONNECT_TIMEOUT_MS ?? CONNECT_TIMEOUT_MS);
+  const timeoutMs = options.timeoutMs ?? Number(env.BROWSER_INSPECTOR_CONNECT_TIMEOUT_MS ?? CONNECT_TIMEOUT_MS);
   const pidPath = pidFile(identity.key, identity.tmpdir);
   const deadline = performance.now() + timeoutMs;
   let spawned = false;
@@ -374,13 +375,16 @@ export async function ensureKeeper(identity, options) {
         lastError = /** @type {NodeJS.ErrnoException} */ (error).code ?? messageOf(error);
       }
     }
-    if (!allowSpawn) throw new KeeperUnavailableError(info ? `${lastError} on ${identity.pipe}` : 'not running');
+    // The pipe is not repeated in the reason: `browser-inspector status` prints it, and a full pipe
+    // name would push the FAIL line past 160 characters.
+    if (!allowSpawn)
+      throw new KeeperUnavailableError(info ? `${lastError} on the pipe (stale pid file?)` : 'not running');
     if (!spawned) {
       spawnKeeper(identity, env);
       spawned = true;
     }
     if (performance.now() >= deadline) {
-      throw new KeeperUnavailableError(`no keeper on ${identity.pipe} after ${formatMs(timeoutMs)} ms (${lastError})`);
+      throw new KeeperUnavailableError(`no keeper after ${formatMs(timeoutMs)} ms (${lastError})`);
     }
     await sleep(CONNECT_RETRY_MS);
   }
@@ -414,7 +418,11 @@ export function exchange(socket, request, onProgress, options = {}) {
       if (watchdog) clearTimeout(watchdog);
       if (timeoutMs <= 0) return;
       watchdog = setTimeout(
-        () => finish(undefined, `no answer from the keeper within ${formatMs(timeoutMs)} ms (bi status, bi stop)`),
+        () =>
+          finish(
+            undefined,
+            `no answer from the keeper within ${formatMs(timeoutMs)} ms (browser-inspector status, browser-inspector stop)`,
+          ),
         timeoutMs,
       );
     };
@@ -446,8 +454,9 @@ export function exchange(socket, request, onProgress, options = {}) {
  */
 export async function runViaKeeper(request, options) {
   const { socket, token } = await ensureKeeper(options.identity, options);
-  const raw = Number(options.env.BI_REQUEST_TIMEOUT_MS);
-  const timeoutMs = Number.isFinite(raw) && options.env.BI_REQUEST_TIMEOUT_MS !== undefined ? raw : REQUEST_TIMEOUT_MS;
+  const raw = Number(options.env.BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS);
+  const timeoutMs =
+    Number.isFinite(raw) && options.env.BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS !== undefined ? raw : REQUEST_TIMEOUT_MS;
   return exchange(socket, { ...request, token }, options.onProgress, { timeoutMs });
 }
 
@@ -463,12 +472,12 @@ export async function runInProcess(request, options) {
   const ctx = keeper.createContext({
     env: options.env,
     browserOpts: options.identity.browserOpts,
-    engineModule: options.env.BI_ENGINE_MODULE,
+    engineModule: options.env.BROWSER_INSPECTOR_ENGINE_MODULE,
     mode: options.mode,
     info: {
       hash: options.identity.hash,
       pipe: '(in-process)',
-      biPath: options.identity.biPath,
+      binPath: options.identity.binPath,
       version: options.identity.version,
     },
   });
@@ -488,9 +497,9 @@ function probePipe(pipe, suffix) {
 }
 
 /**
- * `bi doctor`: does a keeper spawned by a client INSIDE A SHELL outlive that shell? Some hosts
+ * `browser-inspector doctor`: does a keeper spawned by a client INSIDE A SHELL outlive that shell? Some hosts
  * (VS Code, Job Objects) kill the tree — then every call is cold and the agent should know.
- * The probe keeper has its own pipe (`BI_SOCKET`), so the working keeper is untouched.
+ * The probe keeper has its own pipe (`BROWSER_INSPECTOR_SOCKET`), so the working keeper is untouched.
  * @param {{ env: NodeJS.ProcessEnv, cwd: string, identity: Identity }} input
  * @returns {Promise<{ line: string, survives: boolean, spawnToListenMs: number, firstJobMs: number, warmMs: number }>}
  */
@@ -498,7 +507,11 @@ export async function doctor(input) {
   const { env, cwd, identity } = input;
   const suffix = `doctor-${String(process.pid)}-${Math.random().toString(36).slice(2, 8)}`;
   const pipe = probePipe(identity.pipe, suffix);
-  const probeEnv = { ...env, BI_SOCKET: pipe, BI_IDLE_MS: env.BI_IDLE_MS ?? '120000' };
+  const probeEnv = {
+    ...env,
+    BROWSER_INSPECTOR_SOCKET: pipe,
+    BROWSER_INSPECTOR_IDLE_MS: env.BROWSER_INSPECTOR_IDLE_MS ?? '120000',
+  };
   const probe = computeIdentity({ env: probeEnv });
   const cmdline = `"${process.execPath}" "${BIN_PATH}" up`;
   const t0 = performance.now();
@@ -557,7 +570,7 @@ export async function doctor(input) {
     firstJobMs,
     warmMs,
     hash: identity.hash,
-    biPath: identity.biPath,
+    binPath: identity.binPath,
   });
   return { line, survives, spawnToListenMs, firstJobMs, warmMs };
 }
@@ -624,7 +637,7 @@ export async function main(argv, io = {}) {
       case 'export':
         return await runSessionLike(parsed, { env, cwd, print, argv });
       default:
-        stderr.write(`bi: unknown mode\n`);
+        stderr.write(`browser-inspector: unknown mode\n`);
         return 2;
     }
   } catch (error) {
@@ -636,7 +649,7 @@ export async function main(argv, io = {}) {
       stderr.write(`${error.errors.map((e) => `config: ${e}`).join('\n')}\n`);
       return 2;
     }
-    stderr.write(`bi: ${messageOf(error)}\n`);
+    stderr.write(`browser-inspector: ${messageOf(error)}\n`);
     return 2;
   }
 }
@@ -673,11 +686,12 @@ async function control(mode, io) {
     }
     // A pid file with nobody behind the pipe is a keeper that died with its shell (or a reboot):
     // the next keeper start removes it itself, but the path is the concrete remedy when it does not.
+    // Its own line: with the pipe and a tmpdir path, one line would pass 160 characters.
     const pidPath = pidFile(identity.key, identity.tmpdir);
-    const stale = fs.existsSync(pidPath)
-      ? ` · stale pid file ${pidPath.replaceAll('\\', '/')} (removed on the next start)`
-      : '';
-    io.print([`${mode === 'stop' ? 'ok ' : ''}keeper not running · hash ${identity.hash} · ${identity.pipe}${stale}`]);
+    const lines = [`${mode === 'stop' ? 'ok ' : ''}keeper not running · hash ${identity.hash} · ${identity.pipe}`];
+    if (fs.existsSync(pidPath))
+      lines.push(`stale pid file ${pidPath.replaceAll('\\', '/')} — removed on the next start`);
+    io.print(lines);
     return 0;
   }
 }
@@ -701,7 +715,7 @@ async function runBatchLike(parsed, io) {
     values,
     secretValues,
     files,
-    ...(parsed.mode === 'script' && env.BI_SESSION ? { session: env.BI_SESSION } : {}),
+    ...(parsed.mode === 'script' && env.BROWSER_INSPECTOR_SESSION ? { session: env.BROWSER_INSPECTOR_SESSION } : {}),
     ...(parsed.mode === 'script' && parsed.options.out !== undefined ? { out: parsed.options.out } : {}),
   };
   const total = parsed.mode === 'batch' && config ? config.snapshots.length : 0;
@@ -737,9 +751,11 @@ async function runBatchLike(parsed, io) {
 async function runSessionLike(parsed, io) {
   const { env, cwd } = io;
   const { values, secretValues, files } = resolveValues(parsed, { env, cwd });
-  const session = parsed.options.session ?? (env.BI_SESSION && env.BI_SESSION !== '' ? env.BI_SESSION : undefined);
+  const session =
+    parsed.options.session ??
+    (env.BROWSER_INSPECTOR_SESSION && env.BROWSER_INSPECTOR_SESSION !== '' ? env.BROWSER_INSPECTOR_SESSION : undefined);
   if (!daemonEnabled(env)) {
-    io.print([KEEPER_UNAVAILABLE('keeper disabled (BI_DAEMON=0 or CI; BI_DAEMON=1 overrides)')]);
+    io.print([KEEPER_UNAVAILABLE('disabled (BROWSER_INSPECTOR_DAEMON=0 or CI)')]);
     return 2;
   }
   const identity = computeIdentity({ env });

@@ -5,10 +5,10 @@
 //   scripts — the repository's own tooling (CODE-INDEX generator, docs generator);
 //   bench   — the benchmark harness' self-tests (pin of @playwright/mcp, token counting);
 //   smoke   — ONE real Chrome/Edge through fixtures served by node:http (`npm run smoke`,
-//             last step of `npm run verify`; `BI_SKIP_SMOKE=1` only on a machine without a browser);
-//   compat  — spawns bin/bi.mjs on the app-factory config fixture and reads report.json
+//             last step of `npm run verify`; `BROWSER_INSPECTOR_SKIP_SMOKE=1` only on a machine without a browser);
+//   compat  — spawns bin/browser-inspector.mjs on the app-factory config fixture and reads report.json
 //             with a copy of evaluateReports() — the drop-in guarantee;
-//   perf    — opt-in via `BI_PERF=1`: timing assertions are flaky on a loaded machine and must
+//   perf    — opt-in via `BROWSER_INSPECTOR_PERF=1`: timing assertions are flaky on a loaded machine and must
 //             never turn a red gate into a coin toss.
 //
 // Include patterns are globs, never lists of names — an enumerating list silently runs zero tests
@@ -17,7 +17,7 @@
 // Tests live under `packages/*/test/` (DESIGN.md §8), the tooling tests next to their scripts.
 import { defineConfig } from 'vitest/config';
 
-const perf = process.env.BI_PERF === '1' || process.env.BI_PERF === 'true';
+const perf = process.env.BROWSER_INSPECTOR_PERF === '1' || process.env.BROWSER_INSPECTOR_PERF === 'true';
 
 const node = (name: string, include: string[], exclude: string[] = []) => ({
   test: {

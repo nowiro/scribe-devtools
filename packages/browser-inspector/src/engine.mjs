@@ -8,7 +8,7 @@
 // context+page pair for the runs that must be fresh (auth, video, `isolation: "fresh"`, `--fresh`),
 // `runFlow` (navigation, steps under a deadline, final evidence, report.json/md + manifest on disk)
 // and the health rules: a disconnected browser is fatal, a crashed renderer rebuilds the lane's
-// tab at the next scrub, `BI_MAX_JOBS` / `BI_MAX_RSS_MB` recycle the browser BETWEEN jobs.
+// tab at the next scrub, `BROWSER_INSPECTOR_MAX_JOBS` / `BROWSER_INSPECTOR_MAX_RSS_MB` recycle the browser BETWEEN jobs.
 //
 // The keeper (`keeper.mjs`) drives this through `createEngine(browserOpts, { log, env })`,
 // `ready`, `runFlow`, `finishRun`, `status`, `recycle`, `on('disconnected')`, `close` — the same
@@ -82,7 +82,7 @@ export const E_BROWSER_MISSING = 'E_BROWSER_MISSING';
  * then `SetLayerTreeFrameSink` on the next paint) and the GPU-process round trip blocks the
  * renderer main thread for 80–490 ms (Chrome 152 headless, Windows, trace in
  * docs/handoff/FINAL.md). A warm run that starts 300 ms after the previous one lands exactly on
- * it — the bench's `bi-warm` was 746 ms against 355 ms for `bi-warm-tight`. Software compositing
+ * it — the bench's `browser-inspector-warm` was 746 ms against 355 ms for `browser-inspector-warm-tight`. Software compositing
  * has no frame sink to release; WebGL keeps working (only the layer-tree compositing moves to the
  * CPU), goto/click/screenshot stay at 16–48 ms.
  */
@@ -136,7 +136,7 @@ export class BrowserMissingError extends Error {
   constructor(attempts) {
     super(
       `${E_BROWSER_MISSING}: no usable browser.\n${attempts.map((a) => `  tried ${a}`).join('\n')}\n` +
-        'Install Google Chrome or Microsoft Edge, or point browser.executablePath / BI_BROWSER_PATH at a Chromium binary.',
+        'Install Google Chrome or Microsoft Edge, or point browser.executablePath / BROWSER_INSPECTOR_BROWSER_PATH at a Chromium binary.',
     );
     this.name = 'BrowserMissingError';
     this.code = E_BROWSER_MISSING;
@@ -146,22 +146,22 @@ export class BrowserMissingError extends Error {
 
 /**
  * What `launchBrowser` will try, in order — pure, so the order and the env overrides are a unit
- * test: `BI_BROWSER_PATH` / `executablePath` win outright, `BI_CHANNEL` / `channel` narrow the list,
- * `BI_BROWSER_ARGS` REPLACES the flags entirely (a container needs `--no-sandbox` and nothing else).
+ * test: `BROWSER_INSPECTOR_BROWSER_PATH` / `executablePath` win outright, `BROWSER_INSPECTOR_CHANNEL` / `channel` narrow the list,
+ * `BROWSER_INSPECTOR_BROWSER_ARGS` REPLACES the flags entirely (a container needs `--no-sandbox` and nothing else).
  * @param {BrowserOptions} [browser]
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {{ attempts: { channel?: string, executablePath?: string }[], headless: boolean, args: string[] }}
  */
 export function launchPlan(browser = {}, env = process.env) {
   const headless = browser.headless !== false;
-  const envArgs = env.BI_BROWSER_ARGS?.split(/\s+/u).filter(Boolean);
+  const envArgs = env.BROWSER_INSPECTOR_BROWSER_ARGS?.split(/\s+/u).filter(Boolean);
   const args = envArgs ?? [
     ...(headless && browser.fastHeadless !== false ? FAST_HEADLESS_ARGS : []),
     ...(browser.args ?? []),
   ];
-  const executablePath = env.BI_BROWSER_PATH || browser.executablePath;
+  const executablePath = env.BROWSER_INSPECTOR_BROWSER_PATH || browser.executablePath;
   if (executablePath) return { attempts: [{ executablePath }], headless, args };
-  const channel = env.BI_CHANNEL || browser.channel;
+  const channel = env.BROWSER_INSPECTOR_CHANNEL || browser.channel;
   const channels = channel ? [channel] : ['chrome', 'msedge'];
   return { attempts: channels.map((c) => ({ channel: c })), headless, args };
 }
@@ -414,13 +414,16 @@ export function createEngine(first = {}, hooks = undefined) {
   const options = normalizeOptions(first, hooks);
   const env = options.env ?? process.env;
   const browserOpts = options.browser ?? {};
-  const maxJobs = options.maxJobs ?? (Number(env.BI_MAX_JOBS) || MAX_JOBS_DEFAULT);
-  const maxRssMb = options.maxRssMb ?? (Number(env.BI_MAX_RSS_MB) || MAX_RSS_MB_DEFAULT);
-  const laneIdleMs = options.laneIdleMs ?? (Number(env.BI_LANE_IDLE_MS) || LANE_IDLE_MS_DEFAULT);
-  const scrubOpMs = options.scrubOpMs ?? (Number(env.BI_SCRUB_OP_MS) || SCRUB_OP_MS_DEFAULT);
+  const maxJobs = options.maxJobs ?? (Number(env.BROWSER_INSPECTOR_MAX_JOBS) || MAX_JOBS_DEFAULT);
+  const maxRssMb = options.maxRssMb ?? (Number(env.BROWSER_INSPECTOR_MAX_RSS_MB) || MAX_RSS_MB_DEFAULT);
+  const laneIdleMs = options.laneIdleMs ?? (Number(env.BROWSER_INSPECTOR_LANE_IDLE_MS) || LANE_IDLE_MS_DEFAULT);
+  const scrubOpMs = options.scrubOpMs ?? (Number(env.BROWSER_INSPECTOR_SCRUB_OP_MS) || SCRUB_OP_MS_DEFAULT);
   const log = options.log ?? (() => {});
   const motion = browserOpts.motion === 'reduce' ? 'reduce' : 'no-preference';
-  const versions = { bi: packageVersion(PACKAGE_DIR), 'playwright-core': playwrightCoreVersion(PACKAGE_DIR) };
+  const versions = {
+    'browser-inspector': packageVersion(PACKAGE_DIR),
+    'playwright-core': playwrightCoreVersion(PACKAGE_DIR),
+  };
 
   /** @type {any} */
   let browser = null;
@@ -877,7 +880,7 @@ export function createEngine(first = {}, hooks = undefined) {
 
   async function closeBrowser() {
     const old = browser;
-    // A session cannot outlive its browser: an agent's `bi click` after a recycle must hear "no
+    // A session cannot outlive its browser: an agent's `browser-inspector click` after a recycle must hear "no
     // open session", not "Target closed" from a context that no longer exists.
     for (const name of [...sessions.keys()]) await endSession(name).catch(() => {});
     browser = null;
@@ -1301,7 +1304,7 @@ export function createEngine(first = {}, hooks = undefined) {
       captureElements: snapshot.captureElements !== false,
       timing,
       engine: {
-        bi: versions.bi,
+        'browser-inspector': versions['browser-inspector'],
         'playwright-core': versions['playwright-core'],
         browser: browserLabel(),
         flags,
@@ -1344,7 +1347,7 @@ export function createEngine(first = {}, hooks = undefined) {
         type: snapshot.type === 'page' ? 'page' : 'flow',
         url: snapshot.url,
         stamp: laneOpts.stamp,
-        version: versions.bi,
+        version: versions['browser-inspector'],
         startedAt,
         render: snapshot.render,
       },
@@ -1385,7 +1388,7 @@ export function createEngine(first = {}, hooks = undefined) {
       {
         stamp: run.stamp,
         config: configPath,
-        version: versions.bi,
+        version: versions['browser-inspector'],
         ...(run.startedAt ? { startedAt: run.startedAt } : {}),
         timing: { mode: run.mode, launchMs, clientMs: run.totalMs ?? 0 },
       },
@@ -1398,7 +1401,11 @@ export function createEngine(first = {}, hooks = undefined) {
     if (typeof run.options?.junit === 'string' && run.options.junit !== '') {
       const junitFile = path.resolve(run.cwd ?? process.cwd(), run.options.junit);
       await mkdir(path.dirname(junitFile), { recursive: true });
-      await writeFile(junitFile, renderJUnit(path.basename(configPath || 'bi'), manifest.snapshots), 'utf8');
+      await writeFile(
+        junitFile,
+        renderJUnit(path.basename(configPath || 'browser-inspector'), manifest.snapshots),
+        'utf8',
+      );
       files.push(junitFile);
     }
     return { files, manifest };
@@ -1449,7 +1456,7 @@ export function createEngine(first = {}, hooks = undefined) {
       files: {},
       timing,
       engine: {
-        bi: versions.bi,
+        'browser-inspector': versions['browser-inspector'],
         'playwright-core': versions['playwright-core'],
         browser: browserLabel(),
         flags,
@@ -1598,7 +1605,7 @@ export function createEngine(first = {}, hooks = undefined) {
   /** @type {Map<string, Session>} */
   const sessions = new Map();
   /** A session step waits this long for an action before it is a FAIL (the config default). */
-  const sessionTimeoutMs = Number(env.BI_STEP_TIMEOUT_MS) || 10_000;
+  const sessionTimeoutMs = Number(env.BROWSER_INSPECTOR_STEP_TIMEOUT_MS) || 10_000;
 
   /**
    * Counted by `probe` after every command: the roles an agent can act on. Kept as a selector
@@ -1677,7 +1684,7 @@ export function createEngine(first = {}, hooks = undefined) {
   }
 
   /**
-   * Create a session on `bi open`: a fresh context (the prewarmed spare, or a recording one for
+   * Create a session on `browser-inspector open`: a fresh context (the prewarmed spare, or a recording one for
    * `--video`), the recorder, the step context that every later command reuses.
    * @param {string} name
    * @param {{ cwd: string, out?: string, video?: boolean, secretValues?: string[] }} where
@@ -1741,7 +1748,7 @@ export function createEngine(first = {}, hooks = undefined) {
       laneTab: pair.page,
       secretValues: [...session.secretValues],
     });
-    ctx.unsafe = env.BI_UNSAFE === '1';
+    ctx.unsafe = env.BROWSER_INSPECTOR_UNSAFE === '1';
     // The durable selector of a ref is captured WHEN the action resolves it (§4.5): the element is
     // there (`count() > 0` just passed) and may be gone right after the click.
     const baseSel = ctx.sel;
@@ -1912,7 +1919,8 @@ export function createEngine(first = {}, hooks = undefined) {
     if (!def) return answer(2, [formatFail(head, `unknown command ${JSON.stringify(String(step.do))}`)]);
 
     if (!session) {
-      if (canonical !== 'goto') return answer(1, [formatFail(head, `no open session "${name}" → bi open <url>`)]);
+      if (canonical !== 'goto')
+        return answer(1, [formatFail(head, `no open session "${name}" → browser-inspector open <url>`)]);
       session = await openSession(name, {
         cwd: cmd.cwd,
         out: cmd.out,
@@ -1920,12 +1928,17 @@ export function createEngine(first = {}, hooks = undefined) {
         secretValues: cmd.secretValues,
       });
     } else if (canonical === 'goto' && step.video === true && !session.videoDir) {
-      return answer(1, [formatFail(head, 'the session is not recording — bi close, then bi open <url> --video')]);
+      return answer(1, [
+        formatFail(
+          head,
+          'the session is not recording — browser-inspector close, then browser-inspector open <url> --video',
+        ),
+      ]);
     }
-    if (canonical === 'run' && env.BI_UNSAFE !== '1') {
+    if (canonical === 'run' && env.BROWSER_INSPECTOR_UNSAFE !== '1') {
       // Refused BEFORE anything runs, with exit 2: this is the one RCE-equivalent command (§2.6).
       return answer(2, [
-        formatFail(head, 'refused: set BI_UNSAFE=1 (the file runs inside the keeper — RCE-equivalent)'),
+        formatFail(head, 'refused: set BROWSER_INSPECTOR_UNSAFE=1 (the file runs inside the keeper — RCE-equivalent)'),
       ]);
     }
     for (const v of cmd.secretValues ?? []) if (typeof v === 'string' && v !== '') session.secretValues.add(v);
@@ -1943,7 +1956,7 @@ export function createEngine(first = {}, hooks = undefined) {
     ctx.capture.pending = [];
     ctx.capture.extracts = {};
     ctx.capture.verifications = [];
-    ctx.unsafe = env.BI_UNSAFE === '1';
+    ctx.unsafe = env.BROWSER_INSPECTOR_UNSAFE === '1';
     session.lastUsedAt = Date.now();
     session.commands += 1;
     session.resolving = {};
@@ -2075,7 +2088,7 @@ export function createEngine(first = {}, hooks = undefined) {
     lines = lines.map(redactor);
 
     // The journal: the step as parsed (never a resolved secret), the verdict, the selector the
-    // action resolved for its ref(s) — what `bi export` replays tomorrow.
+    // action resolved for its ref(s) — what `browser-inspector export` replays tomorrow.
     /** @type {Record<string, string>} */
     const resolved = {};
     let selector;
@@ -2136,7 +2149,7 @@ export function createEngine(first = {}, hooks = undefined) {
   }
 
   /**
-   * `bi script <file>`: the lines of a session, one command each, run in one process. Values
+   * `browser-inspector script <file>`: the lines of a session, one command each, run in one process. Values
    * arrive under `script[<line index>]` — split with the client's own `splitCommandLine`, so the
    * addresses agree (docs/handoff/WP5.md). Stops at the first FAIL like an `&&` chain would.
    * @param {string[]} lines every line of the file, comments included (indexes = addresses)
@@ -2178,7 +2191,7 @@ export function createEngine(first = {}, hooks = undefined) {
   }
 
   /**
-   * `bi export <flow.json>`: the journal of a session → a batch config (WP4's `exportFlow`).
+   * `browser-inspector export <flow.json>`: the journal of a session → a batch config (WP4's `exportFlow`).
    * @param {string} name
    * @param {{ file: string, force?: boolean, cwd: string, out?: string, secretValues?: string[] }} opts
    */
@@ -2205,7 +2218,7 @@ export function createEngine(first = {}, hooks = undefined) {
   }
 
   /**
-   * What `bi status` prints and what the keeper's recycling and `warm|first` rule read. Cheap by
+   * What `browser-inspector status` prints and what the keeper's recycling and `warm|first` rule read. Cheap by
    * contract: `modeFor()` calls it at the start of EVERY job, so nothing here may spawn a process
    * — the RSS is the last `sampleRss()` result.
    */
@@ -2303,5 +2316,5 @@ export function createEngine(first = {}, hooks = undefined) {
 
 /** @typedef {ReturnType<typeof createEngine>} Engine */
 
-/** Whether the package directory carries the portable marker — informational for `bi status`. */
+/** Whether the package directory carries the portable marker — informational for `browser-inspector status`. */
 export const isPortable = () => existsSync(path.join(PACKAGE_DIR, 'PORTABLE'));

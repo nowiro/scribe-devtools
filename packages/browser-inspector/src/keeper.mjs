@@ -11,7 +11,7 @@
 // socket could unlink a live keeper's.
 //
 // The engine is reached through a small interface (`docs/handoff/WP5.md`) so a fake engine can
-// drive every test on a real pipe without a browser: `BI_ENGINE_MODULE` names the module.
+// drive every test on a real pipe without a browser: `BROWSER_INSPECTOR_ENGINE_MODULE` names the module.
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -76,7 +76,7 @@ const PACKAGE_DIR = fileURLToPath(new URL('..', import.meta.url));
  * @property {(name: string) => Promise<void> | void} [closeSession]
  * @property {() => Record<string, any>} [status] `{ launches, launchMs, lanes, routes, browser, rssMb, … }`, or
  * @property {() => Record<string, any>} [stats] the same under the engine's own name
- * @property {Record<string, string>} [versions] `{ bi, 'playwright-core' }`
+ * @property {Record<string, string>} [versions] `{ 'browser-inspector', 'playwright-core' }`
  * @property {() => Promise<void> | void} [recycle] `browser.close()` + launch, between jobs
  * @property {() => Promise<unknown>} [sampleRss] sample the browser's RSS in the background (cached for `status`)
  * @property {(lane: number) => Promise<unknown>} [scrubIfDirty] the post-response scrub of a batch lane
@@ -276,7 +276,7 @@ export async function acquireLock(lockPath, pid, options = {}) {
  * One promise chain per key (`lane:<n>`, `session:<name>`): jobs on the same key run one after
  * another, different keys run concurrently. `queuedMs` is how long a job waited for its
  * predecessor — the scrub of the previous run lands there for a client that connects < 15 ms
- * after the previous answer (`bi-warm-tight`).
+ * after the previous answer (`browser-inspector-warm-tight`).
  */
 export function createQueues() {
   /** @type {Map<string, Promise<unknown>>} */
@@ -341,7 +341,7 @@ export function createQueues() {
 // ── Engine loading ───────────────────────────────────────────────────────────
 
 /**
- * Resolve `BI_ENGINE_MODULE` (a relative path is relative to `src/`, an absolute path is a file, a
+ * Resolve `BROWSER_INSPECTOR_ENGINE_MODULE` (a relative path is relative to `src/`, an absolute path is a file, a
  * bare name is a package), call its `createEngine({ browser, env, log, onDisconnected })` and wait
  * for the browser: `ready` when the engine exposes one, else one `warm()` — the launch runs while
  * the first client is already connected and queued, that is the whole point of listen-first.
@@ -383,7 +383,7 @@ const statusOf = (/** @type {EngineLike} */ eng) => eng.status?.() ?? eng.stats?
  * @property {EngineLike | Promise<EngineLike>} [engine] an already created engine (tests, fallback)
  * @property {TimingMode} [mode] a fixed mode (`fallback` / `no-daemon`); the keeper computes `warm|first`
  * @property {(line: string) => void} [log]
- * @property {Record<string, any>} [info] `{ pid, hash, pipe, biPath, version, key, startedAt }`
+ * @property {Record<string, any>} [info] `{ pid, hash, pipe, binPath, version, key, startedAt }`
  * @property {number} [idleMs]
  * @property {number} [sessionTtlMs]
  * @property {number} [maxJobs]
@@ -402,10 +402,10 @@ export function createContext(options = {}) {
   const sessions = new Map();
   /** Every secret ever seen by this process — the log is redacted against all of them. */
   const secrets = new Set();
-  const idleMs = options.idleMs ?? intEnv(env, 'BI_IDLE_MS', IDLE_MS_DEFAULT);
-  const sessionTtlMs = options.sessionTtlMs ?? intEnv(env, 'BI_SESSION_TTL_MS', SESSION_TTL_MS_DEFAULT);
-  const maxJobs = options.maxJobs ?? intEnv(env, 'BI_MAX_JOBS', MAX_JOBS_DEFAULT);
-  const maxRssMb = options.maxRssMb ?? intEnv(env, 'BI_MAX_RSS_MB', MAX_RSS_MB_DEFAULT);
+  const idleMs = options.idleMs ?? intEnv(env, 'BROWSER_INSPECTOR_IDLE_MS', IDLE_MS_DEFAULT);
+  const sessionTtlMs = options.sessionTtlMs ?? intEnv(env, 'BROWSER_INSPECTOR_SESSION_TTL_MS', SESSION_TTL_MS_DEFAULT);
+  const maxJobs = options.maxJobs ?? intEnv(env, 'BROWSER_INSPECTOR_MAX_JOBS', MAX_JOBS_DEFAULT);
+  const maxRssMb = options.maxRssMb ?? intEnv(env, 'BROWSER_INSPECTOR_MAX_RSS_MB', MAX_RSS_MB_DEFAULT);
 
   /** @type {Promise<EngineLike> | undefined} */
   let enginePromise = options.engine ? Promise.resolve(options.engine) : undefined;
@@ -423,16 +423,20 @@ export function createContext(options = {}) {
 
   const engine = () => {
     if (enginePromise === undefined) {
-      enginePromise = loadEngine(options.engineModule ?? env.BI_ENGINE_MODULE, options.browserOpts ?? {}, {
-        log,
-        env,
-        // A browser that died under the keeper (killed, crashed, closed by hand) is not something to
-        // hide behind a relaunch: the keeper exits 1 and the next client starts a fresh one (§2.2).
-        onDisconnected: () => {
-          log('browser disconnected — exiting 1');
-          options.onIdle?.('disconnected');
+      enginePromise = loadEngine(
+        options.engineModule ?? env.BROWSER_INSPECTOR_ENGINE_MODULE,
+        options.browserOpts ?? {},
+        {
+          log,
+          env,
+          // A browser that died under the keeper (killed, crashed, closed by hand) is not something to
+          // hide behind a relaunch: the keeper exits 1 and the next client starts a fresh one (§2.2).
+          onDisconnected: () => {
+            log('browser disconnected — exiting 1');
+            options.onIdle?.('disconnected');
+          },
         },
-      });
+      );
       enginePromise.then(
         () => log('engine ready'),
         (error) => {
@@ -493,8 +497,8 @@ export function createContext(options = {}) {
 
   /**
    * Recycle ONLY between jobs, with nothing in the queues, no session open and no lane busy: a
-   * `browser.close()` under an agent's session would turn every following `bi click` into
-   * "Target closed" while `bi status` still listed the session. When it cannot run now it stays
+   * `browser.close()` under an agent's session would turn every following `browser-inspector click` into
+   * "Target closed" while `browser-inspector status` still listed the session. When it cannot run now it stays
    * due and is re-checked after the next job.
    */
   const maybeRecycle = (/** @type {EngineLike} */ eng) => {
@@ -515,7 +519,7 @@ export function createContext(options = {}) {
   /**
    * The RSS sample is off the job path by design (§2.2: `tasklist` is 70 ms — three of them per
    * call would be the whole 5× margin): every `RSS_CHECK_EVERY` jobs, after the answer, cached in
-   * the engine for the next `maybeRecycle` and for `bi status`.
+   * the engine for the next `maybeRecycle` and for `browser-inspector status`.
    */
   const maybeSampleRss = (/** @type {EngineLike} */ eng) => {
     if (!eng.sampleRss || jobs - lastRssSampleJob < RSS_CHECK_EVERY) return;
@@ -651,7 +655,7 @@ const engineOr = (job) =>
  * One request → one done line (progress lines go through `onProgress`). Both the socket server and
  * the in-process path call this — the same dispatch, the same engine calls, no second code path.
  * @param {KeeperRequest} request
- * @param {KeeperContext & { onProgress?: (p: KeeperProgress['progress']) => void, stop?: () => void }} ctx
+ * @param {KeeperContext & { onProgress?: (p: KeeperProgress['progress']) => void, stop?: () => void, releaseFiles?: () => void }} ctx
  * @returns {Promise<KeeperDone>}
  */
 export async function handleRequest(request, ctx) {
@@ -687,6 +691,9 @@ export async function handleRequest(request, ctx) {
     case 'doctor':
       return done(0, await statusLines(ctx));
     case 'stop': {
+      // The pid and lock files go BEFORE the answer: a `status` issued right after `stop` returns
+      // must not call the file of a keeper that is exiting cleanly stale.
+      ctx.releaseFiles?.();
       const line = `ok keeper stopping · pid ${String(ctx.info.pid ?? process.pid)}`;
       queueMicrotask(() => ctx.stop?.());
       return done(0, [line]);
@@ -736,11 +743,16 @@ async function statusLines(ctx) {
   }
   const browserRss = Number(engineStatus.browserRssMb ?? engineStatus.rssMb ?? 0);
   const uptimeMs = Date.now() - Number(info.startedAt ?? Date.now());
+  // Four lines, not two: with the full pipe name the headline plus counters passed 160 characters,
+  // counters plus versions pass 40 tokens, and the absolute bin path is (like the doctor line) the
+  // one thing allowed past the cap — so it stands alone, sharing its budget with nothing.
   const lines = [
     [
       statusHeadline(ctx, 'running'),
       `up ${formatMs(uptimeMs / 1000)} s`,
       `rss ${String(rssMb)} MB${browserRss > 0 ? ` (browser ${String(browserRss)} MB)` : ''}`,
+    ].join(' · '),
+    [
       `jobs ${String(stats.jobs)}`,
       `lanes ${String(Array.isArray(engineStatus.lanes) ? engineStatus.lanes.length : (engineStatus.lanes ?? 0))}`,
       `routes ${String(engineStatus.routes ?? 0)}`,
@@ -748,12 +760,12 @@ async function statusLines(ctx) {
       `queued ${String(ctx.queues.pending())}`,
     ].join(' · '),
     [
-      `bi ${String(info.version ?? '?')}`,
+      `browser-inspector ${String(info.version ?? '?')}`,
       `playwright-core ${String(info.pwVersion ?? engineStatus.pwVersion ?? pwVersion ?? '?')}`,
       `node ${process.versions.node}`,
       `browser ${String(engineStatus.browser ?? engineState)}`,
-      String(info.biPath ?? '').replaceAll('\\', '/'),
     ].join(' · '),
+    String(info.binPath ?? '').replaceAll('\\', '/'),
   ];
   for (const s of ctx.sessions.values()) {
     lines.push(
@@ -764,7 +776,7 @@ async function statusLines(ctx) {
 }
 
 /**
- * `bi <config.json>`: the config is loaded HERE too (the client validated it already — cheap), the
+ * `browser-inspector <config.json>`: the config is loaded HERE too (the client validated it already — cheap), the
  * snapshots go round-robin to `parallel` lanes, each lane is a queue key, so two batches from two
  * shells serialize per lane and report the wait as `queuedMs`.
  * @param {Extract<import('./cli.mjs').ParsedArgs, { mode: 'batch' }>} parsed
@@ -1146,7 +1158,7 @@ async function runSession(parsed, request, ctx, secretValues) {
 }
 
 /**
- * `bi script <file>`: the client read the file (`files[<file>]`), the engine runs the lines in one go.
+ * `browser-inspector script <file>`: the client read the file (`files[<file>]`), the engine runs the lines in one go.
  * @param {Extract<import('./cli.mjs').ParsedArgs, { mode: 'script' }>} parsed
  * @param {KeeperRequest} request
  * @param {KeeperContext} ctx
@@ -1238,12 +1250,12 @@ async function runExport(parsed, request, ctx) {
  * @typedef {object} KeeperOptions
  * @property {string} hash identity hash (the client computed it; the keeper trusts it)
  * @property {string} pipe pipe / socket path to listen on
- * @property {string} [key] file key for pid/lock/log (`hash`, or `hash-<fnv(BI_SOCKET)>`)
+ * @property {string} [key] file key for pid/lock/log (`hash`, or `hash-<fnv(BROWSER_INSPECTOR_SOCKET)>`)
  * @property {Record<string, any>} [browserOpts]
  * @property {NodeJS.ProcessEnv} [env]
  * @property {string} [tmpdir]
  * @property {string} [engineModule]
- * @property {string} [biPath]
+ * @property {string} [binPath]
  * @property {string} [version]
  * @property {string} [pwVersion]
  * @property {(code: number) => void} [exit] defaults to `process.exit`
@@ -1257,7 +1269,7 @@ async function runExport(parsed, request, ctx) {
 export async function startKeeper(options) {
   const env = options.env ?? process.env;
   const exit = options.exit ?? ((/** @type {number} */ code) => process.exit(code));
-  const tmpdir = options.tmpdir ?? env.BI_TMPDIR ?? os.tmpdir();
+  const tmpdir = options.tmpdir ?? env.BROWSER_INSPECTOR_TMPDIR ?? os.tmpdir();
   const key = options.key ?? options.hash;
   const pidPath = pidFile(key, tmpdir);
   const lockPath = lockFile(key, tmpdir);
@@ -1307,14 +1319,14 @@ export async function startKeeper(options) {
   const ctx = createContext({
     env,
     browserOpts: options.browserOpts ?? {},
-    engineModule: options.engineModule ?? env.BI_ENGINE_MODULE,
+    engineModule: options.engineModule ?? env.BROWSER_INSPECTOR_ENGINE_MODULE,
     log,
     info: {
       pid: process.pid,
       hash: options.hash,
       key,
       pipe: options.pipe,
-      biPath: options.biPath ?? path.join(PACKAGE_DIR, 'bin', 'bi.mjs'),
+      binPath: options.binPath ?? path.join(PACKAGE_DIR, 'bin', 'browser-inspector.mjs'),
       version: options.version ?? readVersion(),
       pwVersion: options.pwVersion,
       startedAt,
@@ -1403,7 +1415,7 @@ export async function startKeeper(options) {
     }
     if (typeof request?.token !== 'string' || request.token !== token) {
       log('rejected a request with a bad token');
-      write(done(2, ['FAIL keeper: bad token (stale pid file? bi doctor)']));
+      write(done(2, ['FAIL keeper: bad token (stale pid file? browser-inspector doctor)']));
       socket.end();
       return;
     }
@@ -1413,7 +1425,8 @@ export async function startKeeper(options) {
       const result = await handleRequest(request, {
         ...ctx,
         onProgress: (progress) => write({ progress }),
-        stop: () => void shutdown('bi stop', 0),
+        stop: () => void shutdown('browser-inspector stop', 0),
+        releaseFiles,
       });
       write(result);
     } catch (error) {
@@ -1447,7 +1460,7 @@ export async function startKeeper(options) {
     }
   }
   const listeningAt = Date.now();
-  // spawn→listen, the number `bi doctor` and the `first` manifest report (`timing.keeperStartMs`).
+  // spawn→listen, the number `browser-inspector doctor` and the `first` manifest report (`timing.keeperStartMs`).
   ctx.info.keeperStartMs = Math.max(0, listeningAt - Math.round(performance.timeOrigin));
   fs.writeFileSync(
     pidPath,
@@ -1461,7 +1474,7 @@ export async function startKeeper(options) {
       startedAt,
       listeningAt,
       processStartAt: Math.round(performance.timeOrigin),
-      biPath: ctx.info.biPath,
+      binPath: ctx.info.binPath,
     }),
     { mode: 0o600 },
   );
@@ -1494,15 +1507,15 @@ function readVersion() {
 }
 
 /**
- * Spawn a detached keeper — used by the client and by `bi doctor`. Never unlinks anything.
- * @param {{ hash: string, pipe: string, key?: string, browserOpts?: Record<string, any>, env?: NodeJS.ProcessEnv, engineModule?: string, biPath?: string, pwVersion?: string }} options
+ * Spawn a detached keeper — used by the client and by `browser-inspector doctor`. Never unlinks anything.
+ * @param {{ hash: string, pipe: string, key?: string, browserOpts?: Record<string, any>, env?: NodeJS.ProcessEnv, engineModule?: string, binPath?: string, pwVersion?: string }} options
  * @returns {number | undefined} the child pid
  */
 export function spawnKeeper(options) {
   const args = [KEEPER_PATH, '--hash', options.hash, '--pipe', options.pipe, '--key', options.key ?? options.hash];
   if (options.browserOpts) args.push('--browser', JSON.stringify(options.browserOpts));
   if (options.engineModule) args.push('--engine', options.engineModule);
-  if (options.biPath) args.push('--bi', options.biPath);
+  if (options.binPath) args.push('--bin', options.binPath);
   if (options.pwVersion) args.push('--pw', options.pwVersion);
   const child = spawn(process.execPath, args, {
     detached: true,
@@ -1530,6 +1543,8 @@ function parseKeeperArgv(argv) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === KEEPER_PATH) {
+  // The name a process list shows for the detached keeper — the agent never sees this process otherwise.
+  process.title = 'browser-inspector-keeper';
   const args = parseKeeperArgv(process.argv.slice(2));
   if (!args.hash || !args.pipe) {
     process.stderr.write(
@@ -1550,7 +1565,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === KEEPER_PATH) {
     key: args.key || args.hash,
     browserOpts,
     engineModule: args.engine || undefined,
-    biPath: args.bi || undefined,
+    binPath: args.bin || undefined,
     pwVersion: args.pw || undefined,
   }).catch((error) => {
     process.stderr.write(`keeper failed: ${messageOf(error)}\n`);

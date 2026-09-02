@@ -327,7 +327,7 @@ export function loadConfig(configPath, cwd = process.cwd()) {
  */
 
 /**
- * `bi lint-config`: the migration a config author MAY do (DESIGN.md §3.4). Three rules, measured:
+ * `browser-inspector lint-config`: the migration a config author MAY do (DESIGN.md §3.4). Three rules, measured:
  * `networkidle` → `settled` (666–2056 ms per goto on app-factory), `wait ms` → `waitFor` / `wait --text`
  * (never `settled` — Material animations are invisible to it), `parallel` for a multi-flow config.
  * Nothing is changed; the config works as it is.

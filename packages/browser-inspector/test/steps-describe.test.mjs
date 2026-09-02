@@ -298,7 +298,7 @@ describe('helpers', () => {
 
   it('helpFor renders one row, undefined for a stranger', () => {
     const text = helpFor('shot');
-    expect(text).toContain('bi shot [name] [--full]');
+    expect(text).toContain('browser-inspector shot [name] [--full]');
     expect(text).toContain('names: screenshot, shot');
     expect(text).toContain('config fields: name: name?');
     expect(text).toContain('--full --el <string>');

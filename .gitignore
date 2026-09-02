@@ -6,10 +6,9 @@ coverage/
 .DS_Store
 Thumbs.db
 
-# Output of every `bi` run: screenshots, report.json, session journals — the page under test
-# is somebody's application and what lands here is its data. `.bi/` is the session scratch.
+# Output of every `browser-inspector` run: screenshots, report.json, session journals — the page
+# under test is somebody's application and what lands here is its data.
 .scribe-devtools/
-.bi/
 
 # The benchmark's raw results; RAPORT.md/WYNIKI.md/BUDGET.md are committed, the JSON behind them is not.
 bench/out/

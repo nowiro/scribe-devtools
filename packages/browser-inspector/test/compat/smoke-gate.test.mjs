@@ -2,12 +2,12 @@
 //
 // `tools/scripts/smoke-browser.mjs` in app-factory serves four static Angular builds, spawns
 // `node <pipeline> <config> --stamp X` and reads `<outputDir>/X/<name>/report.json` with
-// `evaluateReports()`. This file repeats EXACTLY that path against `bin/bi.mjs`: the same config
+// `evaluateReports()`. This file repeats EXACTLY that path against `bin/browser-inspector.mjs`: the same config
 // (the fixture is a verbatim copy of `read.config.browser-inspector.json`, only the ports are
 // rewritten to this package's range 4571–4574), a copy of `serveStatic` (SPA fallback and a MIME
 // table where `.js` is `text/javascript` — served as octet-stream, an Angular module is never
 // executed), and a verbatim copy of `evaluateReports()` — if app-factory's reading of the report
-// ever disagrees with what `bi` writes, this test goes red before the PR does.
+// ever disagrees with what `browser-inspector` writes, this test goes red before the PR does.
 //
 // Three modes, because they are three code paths that must produce one result:
 //   --no-daemon      the CI path (`CI=true` in the gate): engine in the client process;
@@ -28,7 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { PACKAGE_DIR, bi, cleanup, makeEnv, stopKeeper } from '../fixtures/keeper-harness.mjs';
+import { PACKAGE_DIR, runBrowserInspector, cleanup, makeEnv, stopKeeper } from '../fixtures/keeper-harness.mjs';
 
 const REPO_ROOT = path.resolve(PACKAGE_DIR, '..', '..');
 const APP_FACTORY = path.resolve(process.env.APP_FACTORY_DIR ?? path.join(REPO_ROOT, '..', 'app-factory'));
@@ -46,7 +46,8 @@ const DEAD_PORT = 4579;
 
 const buildDir = (/** @type {string} */ app) => path.join(APP_FACTORY, 'dist', 'apps', app, 'browser');
 const buildsPresent = APPS.every((app) => existsSync(path.join(buildDir(app.name), 'index.html')));
-const skipSmoke = process.env.BI_SKIP_SMOKE === '1' || process.env.BI_SKIP_SMOKE === 'true';
+const skipSmoke =
+  process.env.BROWSER_INSPECTOR_SKIP_SMOKE === '1' || process.env.BROWSER_INSPECTOR_SKIP_SMOKE === 'true';
 const skip = skipSmoke || !buildsPresent;
 if (!buildsPresent && !skipSmoke) {
   console.warn(`[smoke-gate] app-factory builds not found under ${APP_FACTORY}/dist/apps — compat gate skipped`);
@@ -168,7 +169,7 @@ function comparable(report) {
   return r;
 }
 
-describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
+describe.skipIf(skip)('compat: app-factory gate through bin/browser-inspector.mjs', () => {
   /** @type {Array<{ close: () => Promise<void> }>} */
   let servers = [];
   /** @type {ReturnType<typeof makeEnv>} */
@@ -190,9 +191,9 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
     servers = await Promise.all(APPS.map((app) => serveStatic(buildDir(app.name), app.port)));
     // The real engine: the harness wires the fake one by default (keeper tests), we drop it.
     harness = makeEnv();
-    delete harness.env.BI_ENGINE_MODULE;
-    delete harness.env.BI_FAKE_LOG;
-    work = await mkdtemp(path.join(os.tmpdir(), 'bi-gate-'));
+    delete harness.env.BROWSER_INSPECTOR_ENGINE_MODULE;
+    delete harness.env.BROWSER_INSPECTOR_FAKE_LOG;
+    work = await mkdtemp(path.join(os.tmpdir(), 'browser-inspector-gate-'));
     // The fixture config verbatim, ports rewritten; outputDir relative to the config like the gate's.
     let text = readFileSync(FIXTURE_CONFIG, 'utf8');
     for (const app of APPS)
@@ -216,13 +217,13 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
   });
 
   /**
-   * `node bin/bi.mjs <config> --stamp X …` exactly like the gate, then the gate's reading of the
+   * `node bin/browser-inspector.mjs <config> --stamp X …` exactly like the gate, then the gate's reading of the
    * reports. Records report.json and _manifest.json of the run for the cross-mode assertions.
    * @param {string} stamp
    * @param {string[]} extra
    */
   async function gate(stamp, extra) {
-    const result = await bi([configPath, '--stamp', stamp, ...extra], harness);
+    const result = await runBrowserInspector([configPath, '--stamp', stamp, ...extra], harness);
     const reports = new Map();
     for (const name of expected) {
       const file = path.join(outDir, stamp, name, 'report.json');
@@ -352,7 +353,7 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
     };
     const file = path.join(work, 'negative.config.json');
     await writeFile(file, JSON.stringify(negative, null, 2));
-    const result = await bi([file, '--stamp', '2026-09-02_10-05', '--no-daemon'], harness);
+    const result = await runBrowserInspector([file, '--stamp', '2026-09-02_10-05', '--no-daemon'], harness);
     expect(result.code).toBe(0); // a failed step is a result, not a crash (DESIGN.md §3.5)
     const dir = path.join(work, '.scribe-devtools', 'negative', '2026-09-02_10-05');
     const reports = new Map(
@@ -380,12 +381,15 @@ describe.skipIf(skip)('compat: app-factory gate through bin/bi.mjs', () => {
     expect(verdict.failures[1]).toContain('martwy-port: ');
     expect(verdict.failures[1]).toContain(dead.navigationError);
     // --fail-on-incomplete is the only way to a non-zero exit for a batch.
-    const strict = await bi([file, '--stamp', '2026-09-02_10-06', '--no-daemon', '--fail-on-incomplete'], harness);
+    const strict = await runBrowserInspector(
+      [file, '--stamp', '2026-09-02_10-06', '--no-daemon', '--fail-on-incomplete'],
+      harness,
+    );
     expect(strict.code).toBe(1);
   }, 120_000);
 
-  it('bi lint-config on the gate config prints the three migration hints (AC-16)', async () => {
-    const result = await bi(['lint-config', configPath], harness);
+  it('browser-inspector lint-config on the gate config prints the three migration hints (AC-16)', async () => {
+    const result = await runBrowserInspector(['lint-config', configPath], harness);
     expect(result.code).toBe(0);
     expect(result.lines).toEqual([
       '4× waitUntil "networkidle" → "settled" (−500…−1900 ms każdy; sonda: 666–2056 ms)',

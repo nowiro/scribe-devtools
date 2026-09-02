@@ -1,18 +1,18 @@
-# Kroki `bi` — tabela STEPS
+# Kroki `browser-inspector` — tabela STEPS
 
 Generowane z `packages/browser-inspector/src/steps.schema.mjs` — nie edytuj ręcznie. Regeneracja: `npm run docs`
 (hook pre-commit robi to sam; `npm run verify` pada, gdy plik jest nieświeży).
 
-Te same nazwy w configu batchu (`steps[].do`) i w sesji (`bi <krok> …`); aliasy działają tylko w sesji.
+Te same nazwy w configu batchu (`steps[].do`) i w sesji (`browser-inspector <krok> …`); aliasy działają tylko w sesji.
 `kind` steruje linią stdout: `action` drukuje delty (`dom Δ`, `el 61→63`, `+1 console.error`),
 `query` drukuje treść, `control` samo `ok`. Kolumna „gdzie” mówi, czy krok wolno wpisać do configu
-(`config`), wywołać w sesji (`sesja`), czy jedno i drugie. `bi help <krok>` drukuje ten sam wiersz.
+(`config`), wywołać w sesji (`sesja`), czy jedno i drugie. `browser-inspector help <krok>` drukuje ten sam wiersz.
 
 Kroków: 45.
 
 ## Tabela
 
-| krok | aliasy | kind | gdzie | sesja: `bi …` | pola configu | flagi sesji |
+| krok | aliasy | kind | gdzie | sesja: `browser-inspector …` | pola configu | flagi sesji |
 | --- | --- | --- | --- | --- | --- | --- |
 | `goto` | `open` | `action` | config + sesja | `open <url> [--wait load\|settled\|networkidle] [--video]` | `url: url`, `waitUntil: enum:load,domcontentloaded,networkidle,settled?`, `video: bool?` | `--wait: enum:load,domcontentloaded,networkidle,settled`, `--video` |
 | `back` | — | `action` | config + sesja | `back` | — | — |
@@ -57,7 +57,7 @@ Kroków: 45.
 | `trace` | — | `control` | sesja | `trace start \| trace stop [file.zip]     (batch: "trace": true on the snapshot)` | `action: enum:start,stop`, `file: string?` | — |
 | `video` | — | `control` | sesja | `video start\|stop     (start = fresh context; batch: "video": true on the snapshot)` | `action: enum:start,stop` | — |
 | `locator` | — | `query` | sesja | `locator <eN>     (durable selector: data-testid → #id → [name] → role=)` | `ref: ref` | — |
-| `run` | — | `control` | sesja | `run --file script.mjs     (BI_UNSAFE=1 only — runs code in the keeper, RCE-equivalent)` | `file: string` | `--file: string` |
+| `run` | — | `control` | sesja | `run --file script.mjs     (BROWSER_INSPECTOR_UNSAFE=1 only — runs code in the keeper, RCE-equivalent)` | `file: string` | `--file: string` |
 | `close` | — | `control` | sesja | `close     (ends the session; the keeper stays)` | — | — |
 
 ## Typy pól

@@ -260,7 +260,7 @@ describe('error paths', () => {
   });
 
   it('loadConfig turns a missing file and invalid JSON into ConfigError', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'bi-config-'));
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-config-'));
     expect(errorsOf(() => loadConfig('missing.json', dir))[0]).toMatch(/cannot read/u);
     writeFileSync(path.join(dir, 'broken.json'), '{ "snapshots": [', 'utf8');
     expect(errorsOf(() => loadConfig('broken.json', dir))[0]).toMatch(/not valid JSON/u);
@@ -275,7 +275,7 @@ describe('error paths', () => {
   });
 
   it('resolves outputDir relative to the config file, not the cwd', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'bi-config-'));
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-config-'));
     const file = path.join(dir, 'nested', '..', 'read.config.json');
     writeFileSync(
       file,

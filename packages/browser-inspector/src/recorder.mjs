@@ -5,7 +5,7 @@
 // console line twice after the second run. Per-run state is cleared by `reset()`; the origins the
 // tab visited survive it until the scrub has cleared them (`resetOrigins()`).
 //
-// Bodies: a `bi net <n> --body` needs the response body of a request that is long gone, so the
+// Bodies: a `browser-inspector net <n> --body` needs the response body of a request that is long gone, so the
 // recorder keeps json/text bodies up to 64 KB as they arrive (`captureBodies: false` turns it off).
 // Secrets never enter here — the keeper redacts on the way OUT (`redact.mjs`), one place for all.
 
@@ -46,7 +46,7 @@ export const NETWORK_CAP = 500;
 export const FAILED_REQUEST_CAP = 100;
 export const PAGE_ERROR_CAP = 100;
 export const DIALOG_CAP = 100;
-/** Response bodies kept for `bi net <n> --body`: json and text only, up to this many bytes. */
+/** Response bodies kept for `browser-inspector net <n> --body`: json and text only, up to this many bytes. */
 export const BODY_LIMIT = 64 * 1024;
 /**
  * One body read gets this long. `response.text()` on a stream that never ends (SSE, long-poll,
@@ -58,7 +58,7 @@ export const BODY_READ_MS = 2000;
  * What is worth keeping: JSON (any `+json`), plain text, HTML, XML, CSV. NOT `text/javascript` /
  * `text/css`: on an app-factory build those are the bundles (840 KB chunks, per snapshot, per run)
  * pulled through the CDP pipe while the steps are still running — nothing an agent asks
- * `bi net <n> --body` for. Streams (`text/event-stream`) are excluded by type as well.
+ * `browser-inspector net <n> --body` for. Streams (`text/event-stream`) are excluded by type as well.
  */
 export const BODY_TYPES =
   /^(?:application\/(?:json|[a-z0-9.+-]*\+json|xml)|text\/(?:plain|html|xml|csv|markdown|tab-separated-values))$/iu;
@@ -70,7 +70,7 @@ const SW_SIGNAL = /ServiceWorker|serviceWorker\.register|navigator\.serviceWorke
  * The cap timers race against body reads and `settle()`, and the read usually wins in a few ms —
  * the loser must not keep the process alive: unref'd, so an in-process run (`--no-daemon`, CI,
  * fallback) exits when the report is written instead of up to `BODY_READ_MS` later (measured:
- * every `bi-cold` paid ~1.5 s of idle wait for three finished body reads). While the browser is
+ * every `browser-inspector-cold` paid ~1.5 s of idle wait for three finished body reads). While the browser is
  * connected its pipe keeps the loop alive, so the timer still fires when a read really hangs.
  */
 const sleep = (/** @type {number} */ ms) =>
@@ -140,7 +140,7 @@ export function createRecorder(options = {}) {
      * 'block'`) that means the app under test ran WITHOUT it, and the report header says `sw=blocked`.
      */
     serviceWorkerSeen: false,
-    /** The policy the dialog listener applies: `bi dialog accept --text x --once`. */
+    /** The policy the dialog listener applies: `browser-inspector dialog accept --text x --once`. */
     dialogPolicy: { action: 'dismiss' },
     /** Set by the engine before an action so a dialog entry can say what triggered it. */
     trigger: undefined,
@@ -152,7 +152,7 @@ export function createRecorder(options = {}) {
     seq: 0,
     now,
     /**
-     * Entries after `cursor` — `bi console` / `bi net` print only what is new since the last call.
+     * Entries after `cursor` — `browser-inspector console` / `browser-inspector net` print only what is new since the last call.
      * @param {'console' | 'net' | 'dialogs'} kind @param {number} cursor
      */
     sinceLast(kind, cursor) {
@@ -273,7 +273,7 @@ export function attachRecorder(page, options = {}) {
     // as requestfailed, and it is the most common shape of a broken backend.
     if (status >= 400) recordFailure(recorder, entry, request, `HTTP ${String(status)}`);
     if (recorder.captureBodies && entry && entry.contentType) {
-      // Decided BEFORE the read, and the reason kept: `bi net <n> --body` then says why there is
+      // Decided BEFORE the read, and the reason kept: `browser-inspector net <n> --body` then says why there is
       // no body instead of "(no body captured)". `text()` on a stream never returns; a 840 KB
       // bundle would cross the pipe only to be cut to 64 KB.
       const type = entry.contentType;

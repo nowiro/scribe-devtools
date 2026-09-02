@@ -1,6 +1,6 @@
 // docs/STEPS.md — the step reference, generated from the ONE step table (`STEPS` in
 // `packages/browser-inspector/src/steps.schema.mjs`) so that the config schema, the CLI grammar,
-// `bi help <step>` and this document cannot disagree: the same object renders all four.
+// `browser-inspector help <step>` and this document cannot disagree: the same object renders all four.
 //
 // `--check` compares the rendered text with the file on disk, like `index-code.mjs --check`, and
 // the pre-commit hook regenerates the file. When the schema is absent (a tree before WP1) the
@@ -45,21 +45,21 @@ export function renderStepsDoc(steps, options = {}) {
   const where = (/** @type {any} */ step) =>
     step.batch && step.session ? 'config + sesja' : step.batch ? 'config' : 'sesja';
   const lines = [
-    '# Kroki `bi` — tabela STEPS',
+    '# Kroki `browser-inspector` — tabela STEPS',
     '',
     `Generowane z \`${SCHEMA_FILE}\` — nie edytuj ręcznie. Regeneracja: \`npm run docs\``,
     '(hook pre-commit robi to sam; `npm run verify` pada, gdy plik jest nieświeży).',
     '',
-    'Te same nazwy w configu batchu (`steps[].do`) i w sesji (`bi <krok> …`); aliasy działają tylko w sesji.',
+    'Te same nazwy w configu batchu (`steps[].do`) i w sesji (`browser-inspector <krok> …`); aliasy działają tylko w sesji.',
     '`kind` steruje linią stdout: `action` drukuje delty (`dom Δ`, `el 61→63`, `+1 console.error`),',
     '`query` drukuje treść, `control` samo `ok`. Kolumna „gdzie” mówi, czy krok wolno wpisać do configu',
-    '(`config`), wywołać w sesji (`sesja`), czy jedno i drugie. `bi help <krok>` drukuje ten sam wiersz.',
+    '(`config`), wywołać w sesji (`sesja`), czy jedno i drugie. `browser-inspector help <krok>` drukuje ten sam wiersz.',
     '',
     `Kroków: ${String(names.length)}.`,
     '',
     '## Tabela',
     '',
-    '| krok | aliasy | kind | gdzie | sesja: `bi …` | pola configu | flagi sesji |',
+    '| krok | aliasy | kind | gdzie | sesja: `browser-inspector …` | pola configu | flagi sesji |',
     '| --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const name of names) {

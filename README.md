@@ -3,13 +3,13 @@
 Narzędzia deweloperskie w duchu scribe (repozytorium siostrzane, `../scribe`): skrypty
 zamiast serwerów MCP, wyniki na dysku, zero schematów narzędzi w kontekście agenta.
 
-Pierwsze narzędzie: **browser-inspector 2** (`bi`) — patrzenie na aplikację webową przez
+Pierwsze narzędzie: **browser-inspector 2** (binarka `browser-inspector`) — patrzenie na aplikację webową przez
 prawdziwy, systemowy Chrome/Edge, z dwoma wejściami do jednej tabeli kroków:
 
 | wejście | do czego | co dostaje agent |
 | --- | --- | --- |
-| `bi <config.json> [--stamp X]` | **batch**: flow z configu JSON, drop-in dla bramki app-factory; wynik w `<outputDir>/<stamp>/<snapshot>/report.md` + `report.json` | jedna linia stdout na snapshot + `report.md` do przeczytania |
-| `bi <komenda> [args]` | **sesja interaktywna**: `bi open <url>`, `bi find <tekst>`, `bi click e45`, `bi snap`, `bi export flow.json` | jedna linia stdout na komendę |
+| `browser-inspector <config.json> [--stamp X]` | **batch**: flow z configu JSON, drop-in dla bramki app-factory; wynik w `<outputDir>/<stamp>/<snapshot>/report.md` + `report.json` | jedna linia stdout na snapshot + `report.md` do przeczytania |
+| `browser-inspector <komenda> [args]` | **sesja interaktywna**: `browser-inspector open <url>`, `browser-inspector find <tekst>`, `browser-inspector click e45`, `browser-inspector snap`, `browser-inspector export flow.json` | jedna linia stdout na komendę |
 
 Ciepła przeglądarka żyje w **keeperze** — lokalnym procesie Node z named pipe (Windows) /
 unix socketem, który startuje sam przy pierwszym użyciu i gaśnie po 30 min bezczynności. Agent go
@@ -26,7 +26,7 @@ Instrukcje dla agentów pracujących w repo: [AGENTS.md](AGENTS.md). Pomiar: [be
 
 Serwer MCP Playwrighta kosztuje agenta definicje ~70 narzędzi w każdej sesji i domyślny „settle”
 po każdej akcji; stary browser-inspector ze scribe nie kosztował nic, ale nie umiał „spojrzeć,
-potem kliknąć”. `bi` robi jedno i drugie: batch jak stary runner (ten sam config, ten sam
+potem kliknąć”. `browser-inspector` robi jedno i drugie: batch jak stary runner (ten sam config, ten sam
 `report.json`), sesja na refach `eN` z pełnego snapshotu a11y jak MCP — i w obu przypadkach do
 kontekstu agenta trafia **tylko to, co przeczyta z dysku**. Liczby (czas, tokeny, iloraz wobec
 `@playwright/mcp`) pochodzą wyłącznie z `npm run bench` — blok na końcu tego pliku i
@@ -45,24 +45,24 @@ npm run prepare   # uzbraja hook pre-commit (npm install go NIE uruchamia — ig
 npm run verify    # bramki: prettier, vitest, tsc, CODE-INDEX, STEPS.md, instrukcja, smoke
 ```
 
-Wywołanie bez `bi` na PATH: `node packages/browser-inspector/bin/bi.mjs …` albo `npm run bi -- …`.
+Wywołanie bez `browser-inspector` na PATH: `node packages/browser-inspector/bin/browser-inspector.mjs …` albo `npm run browser-inspector -- …`.
 W innym projekcie (np. app-factory) dodaj skrypt
-`"bi": "node ../scribe-devtools/packages/browser-inspector/bin/bi.mjs"` i wołaj **`pnpm bi …`**.
-Przeglądarkę wybiera `browser.channel` w configu albo `BI_CHANNEL` (`chrome` → `msedge`, pierwszy
-znaleziony); `BI_BROWSER_PATH` wskazuje plik wykonywalny wprost.
+`"browser-inspector": "node ../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs"` i wołaj **`pnpm browser-inspector …`**.
+Przeglądarkę wybiera `browser.channel` w configu albo `BROWSER_INSPECTOR_CHANNEL` (`chrome` → `msedge`, pierwszy
+znaleziony); `BROWSER_INSPECTOR_BROWSER_PATH` wskazuje plik wykonywalny wprost.
 
 Wersja **portable** (bez npm, bez builda): każda wydana wersja leży w repo jako
 [`download/scribe-devtools-portable-<wersja>.zip`](download/) z sumą kontrolną w sidecarze `.sha256`
-(ten sam plik jest assetem Release'a). Po rozpakowaniu `bi.cmd` / `./bi` albo
-`node packages/browser-inspector/bin/bi.mjs help`. Zip zawiera pakiet, `node_modules/playwright-core`
+(ten sam plik jest assetem Release'a). Po rozpakowaniu `browser-inspector.cmd` / `./browser-inspector` albo
+`node packages/browser-inspector/bin/browser-inspector.mjs help`. Zip zawiera pakiet, `node_modules/playwright-core`
 i marker `PORTABLE` (keeper pomija wtedy stempel mtime źródeł w hashu tożsamości). Buduje go
 `npm run portable` i hook pre-commit; wersja pochodzi wyłącznie z `package.json`, a build jest
 deterministyczny (ten sam stan drzewa → te same bajty).
 
-## Batch: `bi <config.json>`
+## Batch: `browser-inspector <config.json>`
 
 ```
-bi read.config.browser-inspector.json --stamp 2026-09-02_10-00
+browser-inspector read.config.browser-inspector.json --stamp 2026-09-02_10-00
 ok nowiro-strona · 1 773 ms
 ok nowiro-jezyk · 1 984 ms
 FAIL dziennik-uczen · 10 088 ms
@@ -96,7 +96,7 @@ Config: stary schemat browser-inspectora ze scribe parsuje się **bez zmian** (`
 `settleMs`, `trace`, `video`, `auth: false`. Pełna tabela kroków i pól: [docs/STEPS.md](docs/STEPS.md);
 szablon z przykładami (role, `auth`, sesja → eksport): [templates/flow.md](packages/browser-inspector/templates/flow.md).
 
-`bi lint-config <config.json>` drukuje sugestie migracji (na configu app-factory: `networkidle` →
+`browser-inspector lint-config <config.json>` drukuje sugestie migracji (na configu app-factory: `networkidle` →
 `settled`, `wait ms` → `waitFor`/`wait --text`, `parallel: 3`) — bez migracji wszystko działa jak
 dotąd, tylko wolniej.
 
@@ -107,54 +107,54 @@ stdout — keeper dostaje ją pod adresem kroku i redaguje wszędzie (`***`); po
 `one-time-code` nigdy nie mają wartości w snapshocie. Literał `value` w `auth.login` jest
 błędem walidacji.
 
-## Sesja: `bi open`, `bi find`, `bi click eN`, `bi snap`
+## Sesja: `browser-inspector open`, `browser-inspector find`, `browser-inspector click eN`, `browser-inspector snap`
 
 ```
-$ bi open http://localhost:4313/
+$ browser-inspector open http://localhost:4313/
 ok open "Księgarnia" · el 61 · err 0 · session/default/snap.md
 
-$ bi find koszyk
+$ browser-inspector find koszyk
 e45 button "Otwórz koszyk" [data-testid=header-cart-button]
 e112 button "Dodaj do koszyka" [data-testid=card-add-to-cart]
 
-$ bi click e112
+$ browser-inspector click e112
 ok click e112 · dom Δ · el 61→63 · +1 console.error
 
-$ bi click e45
+$ browser-inspector click e45
 ok click e45 · url /cart "Koszyk" · el 63→23
 
-$ bi fill e39 Harry --enter
-ok fill e39 · navigated → refs f1eN (bi snap) · el 58
+$ browser-inspector fill e39 Harry --enter
+ok fill e39 · navigated → refs f1eN (browser-inspector snap) · el 58
 
-$ bi snap --max 3
+$ browser-inspector snap --max 3
 f1e11 link "Księgarnia" → /
 f1e39 textbox "Szukaj produktów…" = Harry
 f1e41 button "Szukaj" [data-testid=search-submit]
 …+55 lines · session/default/snap.md
 
-$ bi console --level error
+$ browser-inspector console --level error
 1 new: error [cart] POST /api/cart → 404
 
-$ bi net --failed
+$ browser-inspector net --failed
 3 new · 1 failed: #7 POST /api/cart 404 12 ms
 
-$ bi net 7 --body
+$ browser-inspector net 7 --body
 404 application/json 41 B · session/default/net/7.txt
 {"error":"cart not found"}
 
-$ bi eval document.title
+$ browser-inspector eval document.title
 "Koszyk"
 
-$ bi shot koszyk --full
+$ browser-inspector shot koszyk --full
 ok shot session/default/shots/004-koszyk.png 1280x2140
 
-$ bi click e99
-FAIL click e99 · ref not found (gone, label changed or other frame) → bi snap     # exit 1
+$ browser-inspector click e99
+FAIL click e99 · ref not found (gone, label changed or other frame) → browser-inspector snap     # exit 1
 
-$ bi dialog
-policy dismiss · last: confirm "Usunąć?" → dismissed (bi click e12)
+$ browser-inspector dialog
+policy dismiss · last: confirm "Usunąć?" → dismissed (browser-inspector click e12)
 
-$ bi export flows/koszyk.json
+$ browser-inspector export flows/koszyk.json
 ok export 9 steps → flows/koszyk.json (refs → data-testid/#id/role=)
 ```
 
@@ -170,42 +170,42 @@ domyślnie `--max 25` z markerem nadmiaru, `--diff` (od poprzedniego widoku), `-
 Refy `eN` (`f<seq>eN` po nawigacji i w iframe’ach) pochodzą z **pełnego** `ariaSnapshot({ mode: 'ai' })`
 — zmiana etykiety elementu daje nowy ref, stary kończy się `FAIL … ref not found` od razu, nie po
 timeoucie; linia akcji mówi, kiedy patrzeć znowu (`navigated`, `dom Δ`, `el a→b`). Klucz sesji to
-**tylko nazwa** (`--session`, `BI_SESSION`, domyślnie `default`) — `cd` w powłoce nie otwiera drugiej
+**tylko nazwa** (`--session`, `BROWSER_INSPECTOR_SESSION`, domyślnie `default`) — `cd` w powłoce nie otwiera drugiej
 sesji. Pliki sesji: `<out>/session/<name>/` (`snap.md`, `snap.full.yml`, `snap.json`,
 `journal.jsonl`, `console.jsonl`, `net.jsonl`, `net/<n>.txt`, `shots/`, `eval-NNN.txt`, `trace.zip`,
-`video/`). Dialogi: polityka PRZED akcją (`bi dialog accept|dismiss [--text] [--once]`),
-`beforeunload` zawsze akceptowany. `bi frame <n>` zmienia zakres tylko dla selektorów CSS,
-`eval` i `extract` — refy z ramek rozwiązują się bez niego. `bi run --file s.mjs` (kod w keeperze)
-istnieje wyłącznie pod `BI_UNSAFE=1` i jest jawnie RCE-równoważny — nigdy w configu ani w CI.
+`video/`). Dialogi: polityka PRZED akcją (`browser-inspector dialog accept|dismiss [--text] [--once]`),
+`beforeunload` zawsze akceptowany. `browser-inspector frame <n>` zmienia zakres tylko dla selektorów CSS,
+`eval` i `extract` — refy z ramek rozwiązują się bez niego. `browser-inspector run --file s.mjs` (kod w keeperze)
+istnieje wyłącznie pod `BROWSER_INSPECTOR_UNSAFE=1` i jest jawnie RCE-równoważny — nigdy w configu ani w CI.
 
-`bi export flow.json` zapisuje dziennik sesji jako config batchu: refy → trwałe selektory
+`browser-inspector export flow.json` zapisuje dziennik sesji jako config batchu: refy → trwałe selektory
 (`[data-testid=…]` → `#id` → `[name=…]` → `role=`), `@{NAZWA}` → `valueFromEnv`, istniejący plik
 wymaga `--force`, ref bez trwałego selektora = odmowa z nazwą kroku (klikaj w elementy z etykietą,
-nie w bezimienne `generic`). Dla CI bez keepera: `bi script plik.txt --no-daemon` wykonuje te same
+nie w bezimienne `generic`). Dla CI bez keepera: `browser-inspector script plik.txt --no-daemon` wykonuje te same
 linie w jednym procesie (stop na pierwszym FAIL, exit = pierwszy niezerowy).
 
-## Keeper: `bi up`, `bi status`, `bi stop`, `bi doctor`
+## Keeper: `browser-inspector up`, `browser-inspector status`, `browser-inspector stop`, `browser-inspector doctor`
 
-Keeper startuje sam przy pierwszym `bi` (także batchu). W sesji agenta warto go podnieść jawnie
+Keeper startuje sam przy pierwszym `browser-inspector` (także batchu). W sesji agenta warto go podnieść jawnie
 jako hook **SessionStart**, żeby pierwsze wywołanie w sesji było już ciepłe — np. w
 `.claude/settings.json`:
 
 ```json
-{ "hooks": { "SessionStart": [{ "hooks": [{ "type": "command", "command": "pnpm bi up" }] }] } }
+{ "hooks": { "SessionStart": [{ "hooks": [{ "type": "command", "command": "pnpm browser-inspector up" }] }] } }
 ```
 
-`bi status` drukuje pid, hash tożsamości, pipe, RSS, liczbę zadań, lane’y i sesje; `bi stop`
-zamyka; `bi doctor` sprawdza, czy keeper **przeżywa wyjście powłoki** (część hostów — VS Code,
+`browser-inspector status` drukuje pid, hash tożsamości, pipe, RSS, liczbę zadań, lane’y i sesje; `browser-inspector stop`
+zamyka; `browser-inspector doctor` sprawdza, czy keeper **przeżywa wyjście powłoki** (część hostów — VS Code,
 pnpm z Job Object — zabija drzewo procesów; wtedy każde wywołanie jest zimne):
 
 ```
-$ bi doctor
-ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · D:/github/scribe-devtools/packages/browser-inspector/bin/bi.mjs
+$ browser-inspector doctor
+ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · D:/github/scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs
 ```
 
 Tożsamość keepera = hash z wersji pakietu, `playwright-core`, Node, kanału/ścieżki przeglądarki,
-flag, proxy, `realpath(bin/bi.mjs)` i stempla mtime `src/**` — edycja źródeł albo drugi checkout
-dostają **inny** pipe, stary keeper nie jest już trafiany. Plik pid (`bi-<hash>.json` z tokenem),
+flag, proxy, `realpath(bin/browser-inspector.mjs)` i stempla mtime `src/**` — edycja źródeł albo drugi checkout
+dostają **inny** pipe, stary keeper nie jest już trafiany. Plik pid (`browser-inspector-<hash>.json` z tokenem),
 lock (`O_EXCL`) i log leżą w `os.tmpdir()`; token chroni połączenie (pierwsza linia każdego
 żądania). **Na Windows tryb pliku `0600` nic nie znaczy — token chroni ACL katalogu `%TEMP%`
 użytkownika**, więc keeper zakłada, że `%TEMP%` nie jest współdzielony między kontami.
@@ -223,59 +223,77 @@ robi `Network.clearBrowserCache`). `serviceWorkers: 'block'` obowiązuje tylko n
 (nagłówek raportu `sw=blocked`, gdy aplikacja próbowała rejestracji); sesje i konteksty `fresh`
 mają `allow`.
 
-Zmienne środowiskowe: `BI_DAEMON=0` (bez keepera) / `BI_DAEMON=1` (keeper mimo CI), `BI_SOCKET`
-(własny pipe — dwa agenty, dwa keepery), `BI_SESSION`, `BI_IDLE_MS` (30 min), `BI_SESSION_TTL_MS`
-(60 min), `BI_LANE_IDLE_MS`, `BI_MAX_JOBS`, `BI_MAX_RSS_MB` (recykling przeglądarki **między
+Zmienne środowiskowe: `BROWSER_INSPECTOR_DAEMON=0` (bez keepera) / `BROWSER_INSPECTOR_DAEMON=1` (keeper mimo CI), `BROWSER_INSPECTOR_SOCKET`
+(własny pipe — dwa agenty, dwa keepery), `BROWSER_INSPECTOR_SESSION`, `BROWSER_INSPECTOR_IDLE_MS` (30 min), `BROWSER_INSPECTOR_SESSION_TTL_MS`
+(60 min), `BROWSER_INSPECTOR_LANE_IDLE_MS`, `BROWSER_INSPECTOR_MAX_JOBS`, `BROWSER_INSPECTOR_MAX_RSS_MB` (recykling przeglądarki **między
 zadaniami, przy pustej kolejce, bez otwartej sesji i zajętego lane’u** — należny recykling czeka na
-`bi close`; RSS Chrome + rendererów próbkowany w tle co 10 zadań, nigdy na ścieżce zadania),
-`BI_CHANNEL`, `BI_BROWSER_PATH`, `BI_BROWSER_ARGS`, `BI_STEP_TIMEOUT_MS` (limit kroku sesji),
-`BI_SCRUB_OP_MS` (limit jednej operacji scrubu, 2000 — zawieszony renderer kończy się odbudową
-karty, nie zawieszonym lane’em), `BI_REQUEST_TIMEOUT_MS` (klient porzuca keepera bez żadnej linii
-przez 10 min: batch idzie w procesie, sesja `exit 2`), `BI_UNSAFE` (**wchodzi do hasha
-tożsamości** — keeper z `BI_UNSAFE=1` to osobny proces, którego zwykły klient nie trafi);
-testowe: `BI_TMPDIR` (pliki pid/lock/log), `BI_CONNECT_TIMEOUT_MS`, `BI_ENGINE_MODULE`,
-`BI_SKIP_SMOKE`, `BI_PERF`, `APP_FACTORY_DIR`.
+`browser-inspector close`; RSS Chrome + rendererów próbkowany w tle co 10 zadań, nigdy na ścieżce zadania),
+`BROWSER_INSPECTOR_CHANNEL`, `BROWSER_INSPECTOR_BROWSER_PATH`, `BROWSER_INSPECTOR_BROWSER_ARGS`, `BROWSER_INSPECTOR_STEP_TIMEOUT_MS` (limit kroku sesji),
+`BROWSER_INSPECTOR_SCRUB_OP_MS` (limit jednej operacji scrubu, 2000 — zawieszony renderer kończy się odbudową
+karty, nie zawieszonym lane’em), `BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS` (klient porzuca keepera bez żadnej linii
+przez 10 min: batch idzie w procesie, sesja `exit 2`), `BROWSER_INSPECTOR_UNSAFE` (**wchodzi do hasha
+tożsamości** — keeper z `BROWSER_INSPECTOR_UNSAFE=1` to osobny proces, którego zwykły klient nie trafi);
+testowe: `BROWSER_INSPECTOR_TMPDIR` (pliki pid/lock/log), `BROWSER_INSPECTOR_CONNECT_TIMEOUT_MS`, `BROWSER_INSPECTOR_ENGINE_MODULE`,
+`BROWSER_INSPECTOR_SKIP_SMOKE`, `BROWSER_INSPECTOR_PERF`, `APP_FACTORY_DIR`.
 
 Pliki pid/lock w `%TEMP%` przeżywają restart, a Windows recyklinguje pidy: keeper uznaje plik z
-„żywym” pidem za stary, gdy ma ponad 5 s i nikt nie odpowiada na pipe (sam go sprząta); `bi stop` /
-`bi status` bez keepera wypisują ścieżkę takiego pliku.
+„żywym” pidem za stary, gdy ma ponad 5 s i nikt nie odpowiada na pipe (sam go sprząta); `browser-inspector stop` /
+`browser-inspector status` bez keepera wypisują ścieżkę takiego pliku.
 
 ## CI
 
 Na runnerze CI (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `TF_BUILD`, `JENKINS_URL`, `TEAMCITY_VERSION`,
 `BUILDKITE`, `CIRCLECI`) keeper nigdy nie startuje: batch idzie w procesie (`timing.mode:
 no-daemon`), komendy sesyjne kończą się `exit 2` (`FAIL keeper unavailable…`) — dla CI jest
-`bi script`. `--junit plik.xml` + `--fail-on-incomplete` robią z batchu bramę:
+`browser-inspector script`. `--junit plik.xml` + `--fail-on-incomplete` robią z batchu bramę:
 
 ```
-node ../scribe-devtools/packages/browser-inspector/bin/bi.mjs read.config.json --stamp "$STAMP" --junit bi.xml --fail-on-incomplete
+node ../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs read.config.json --stamp "$STAMP" --junit browser-inspector.xml --fail-on-incomplete
 ```
 
-Bramka app-factory (`pnpm smoke:browser`) woła `bi` dokładnie tak (stary argument `--stamp X`
+Bramka app-factory (`pnpm smoke:browser`) woła `browser-inspector` dokładnie tak (stary argument `--stamp X`
 bez zmian) i czyta `report.json` własną funkcją `evaluateReports()` — jej kopia jest testem
 zgodności w tym repo (`test/compat/smoke-gate.test.mjs`: `--no-daemon`, keeper dwa razy z rzędu,
 `--parallel 3`, identyczne `report.json`).
 
+## VS Code i GitHub Copilot
+
+Repozytorium jest przygotowane do pracy w VS Code z GitHub Copilotem (tryb agent) tak samo jak z Claude Code:
+
+- `.github/copilot-instructions.md` — karta repo i kanoniczna kopia bloku instrukcji `browser-inspector` (ta sama,
+  którą mierzy bench i którą kopiuje repozytorium aplikacji; `npm run verify` pilnuje równości trzech egzemplarzy);
+  `.github/instructions/*.instructions.md` — reguły per obszar (`source`, `tests`, `docs`, `scripts-bench`) dołączane
+  automatycznie według `applyTo`.
+- Prompt files (`.github/prompts/`): `/migrate-from-mcp-playwright` prowadzi migrację repozytorium aplikacji (Nx
+  monorepo) z serwera MCP Playwrighta na `browser-inspector` — opis w
+  [PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md](PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md); `/browser-session` to pętla „spójrz, potem
+  kliknij" dla sesji interaktywnej.
+- `.vscode/tasks.json` — bramki jako zadania (Terminal → Run Task: `verify`, `test`, `smoke`, `bench`, `portable`,
+  `docs`) i komendy narzędzia (`browser-inspector: doctor | up | stop | batch z fixture`); `.vscode/settings.json`
+  włącza prettier, prompt files, instrukcje i AGENTS.md; `.vscode/extensions.json` poleca prettier, vitest i Copilot Chat.
+- `.vscode/mcp.json` zawiera serwer `@playwright/mcp` wyłącznie na potrzeby benchu — do pracy z `browser-inspector`
+  nie jest potrzebny, a w repozytorium aplikacji ma zniknąć (krok 4 promptu migracji).
+
 ## Migracja ze scribe (`integrations/browser-inspector`)
 
 1. Config bez zmian; zamiast `node <scribe>/integrations/dist/browser-inspector/read-browser-inspector.js <config> --stamp X`
-   wołaj `node <scribe-devtools>/packages/browser-inspector/bin/bi.mjs <config> --stamp X` (albo
-   `pnpm bi <config> --stamp X`). Katalog wyniku, `report.json` (`completed`, `steps[].description/ok/error`,
+   wołaj `node <scribe-devtools>/packages/browser-inspector/bin/browser-inspector.mjs <config> --stamp X` (albo
+   `pnpm browser-inspector <config> --stamp X`). Katalog wyniku, `report.json` (`completed`, `steps[].description/ok/error`,
    `navigationError`), `_manifest.json` — bez zmian; `report.md` jest krótszy (sekcje warunkowe).
-2. `bi lint-config` mówi, co warto zmienić w configu (`settled`, `waitFor`, `parallel`). Nowe kroki:
+2. `browser-inspector lint-config` mówi, co warto zmienić w configu (`settled`, `waitFor`, `parallel`). Nowe kroki:
    `verify`, `form`, `snapshot`, `storage`, `state`, `route`, `dialog`, `tab`, `frame`, `mouse`,
    `resize`, `pdf`, `fetch`, `offline`, `upload`, `drag`, `check`/`uncheck`, `type`, `back`/`forward`/`reload`.
 3. Blok `auth` (login formularzem raz + `storageState`, OAuth/Keycloak) działa jak w scribe;
    `storageState` jest teraz względem **katalogu configu**, nie cwd.
 4. Bramka `smoke-browser.mjs` w app-factory znajduje runner sama (`findRunner`: `SCRIBE_DEVTOOLS_DIR`,
    `../scribe-devtools`, potem stary scribe) — nic do zmiany poza sklonowaniem tego repo obok.
-5. Nowość, której scribe nie miał: sesja interaktywna i `bi export` — patrz wyżej.
+5. Nowość, której scribe nie miał: sesja interaktywna i `browser-inspector export` — patrz wyżej.
 
 ## Układ repozytorium
 
 ```
-packages/browser-inspector/   # @scribe-devtools/browser-inspector — bin/bi.mjs, src/, test/, fixtures/, templates/
-bench/                        # pomiar bi vs @playwright/mcp 0.0.80: RAPORT.md, WYNIKI.md, BUDGET.md, probes/
+packages/browser-inspector/   # @scribe-devtools/browser-inspector — bin/browser-inspector.mjs, src/, test/, fixtures/, templates/
+bench/                        # pomiar browser-inspector vs @playwright/mcp 0.0.80: RAPORT.md, WYNIKI.md, BUDGET.md, probes/
 scripts/                      # index-code, gen-steps-doc, check-instruction-sync, portable-zip
 docs/                         # DESIGN.md (kontrakt), PLAN.md, ACCEPTANCE.md, STEPS.md (generowane), handoff/
 ```
@@ -290,20 +308,20 @@ docs/                         # DESIGN.md (kontrakt), PLAN.md, ACCEPTANCE.md, ST
 | `npm run code-index` / `npm run docs` | regeneracja `CODE-INDEX.md` / `docs/STEPS.md` |
 | `npm run bench` | pomiar w `bench/` (RAPORT.md, WYNIKI.md, BUDGET.md, blok niżej) |
 | `npm run portable` | zip portable |
-| `npm run bi -- <args>` | `bi` bez PATH |
+| `npm run browser-inspector -- <args>` | `browser-inspector` bez PATH |
 
 <!-- BENCH:START -->
 
-Pomiar z 2026-09-02T02:10:21.641Z (`npm run bench`, Chrome/152, @playwright/mcp 0.0.80):
+Pomiar z 2026-09-02T05:45:38.102Z (`npm run bench`, Chrome/152, @playwright/mcp 0.0.80):
 
 | wariant | mediana | p90 | × vs MCP naive | × vs MCP lean settle 100 |
 | --- | ---: | ---: | ---: | ---: |
-| bi-warm (2.+ wywołanie, przerwa 300 ms) | **358 ms** | 366 ms | 10,8× | 4,6× |
-| bi-warm-tight (bez przerwy) | **355 ms** | 370 ms | 10,9× | 4,6× |
-| bi-first (keeper startuje w stoperze) | **1385 ms** | 1395 ms | 3,5× (vs 1. przebieg) | 1,4× (vs 1. przebieg) |
-| bi-cold (`--no-daemon`, CI) | **2077 ms** | 2145 ms | 2,3× (vs 1. przebieg) | 0,9× (vs 1. przebieg) |
-| MCP naive / lean / lean settle 100 (warm) | 3871 / 3898 / 1648 ms | — | — | — |
+| browser-inspector-warm (2.+ wywołanie, przerwa 300 ms) | **348 ms** | 365 ms | 8,3× | 2,9× |
+| browser-inspector-warm-tight (bez przerwy) | **333 ms** | 337 ms | 8,7× | 3,1× |
+| browser-inspector-first (keeper startuje w stoperze) | **1478 ms** | 1533 ms | 2,5× (vs 1. przebieg) | 1,2× (vs 1. przebieg) |
+| browser-inspector-cold (`--no-daemon`, CI) | **1548 ms** | 1557 ms | 2,4× (vs 1. przebieg) | 1,1× (vs 1. przebieg) |
+| MCP naive / lean / lean settle 100 (warm) | 2886 / 3390 / 1025 ms | — | — | — |
 
-Tokeny (o200k) na sesję z jednym zadaniem: **bi batch 400** (blok AGENTS.md 146 + komenda, stdout i cały `report.md`), bi-interactive-naive 745, bi-interactive-lean 558 — wobec MCP naive 6814 / lean 5499. Szczegóły: [bench/RAPORT.md](bench/RAPORT.md), budżet vs pomiar: [bench/BUDGET.md](bench/BUDGET.md).
+Tokeny (o200k) na sesję z jednym zadaniem: **browser-inspector batch 414** (blok AGENTS.md 158 + komenda, stdout i cały `report.md`), browser-inspector-interactive-naive 799, browser-inspector-interactive-lean 612 — wobec MCP naive 6814 / lean 5499. Szczegóły: [bench/RAPORT.md](bench/RAPORT.md), budżet vs pomiar: [bench/BUDGET.md](bench/BUDGET.md).
 
 <!-- BENCH:END -->

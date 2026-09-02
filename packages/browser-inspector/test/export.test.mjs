@@ -20,7 +20,7 @@ import {
 } from '../src/session-log.mjs';
 
 const SECRET = 'hunter2!ą';
-const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'bi-wp4-export-'));
+const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-wp4-export-'));
 
 /**
  * A session as the engine would journal it: open, look, act on refs, fill from env, capture.

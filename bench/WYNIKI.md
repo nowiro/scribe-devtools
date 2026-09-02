@@ -5,120 +5,120 @@ Podsumowanie i czas: [RAPORT.md](RAPORT.md).
 
 | wariant | stały | zmienny | razem |
 | --- | ---: | ---: | ---: |
-| bi batch | 146 | 254 | **400** |
-| bi batch (pnpm bi) | 146 | 256 | **402** |
-| bi-interactive-naive | 146 | 599 | **745** |
-| bi-interactive-lean | 146 | 412 | **558** |
+| browser-inspector batch | 158 | 256 | **414** |
+| browser-inspector batch (pnpm browser-inspector) | 158 | 258 | **416** |
+| browser-inspector-interactive-naive | 158 | 641 | **799** |
+| browser-inspector-interactive-lean | 158 | 454 | **612** |
 | mcp-naive | 4069 | 2745 | **6814** |
 | mcp-lean | 4069 | 1430 | **5499** |
 
-## bi batch
+## browser-inspector batch
 
-`{"dir":"D:\\github\\scribe-devtools\\bench\\out\\bi\\batch\\runs\\2000-01-06_00-00\\zgloszenie-serwisowe","problems":[]}`
-
-| pozycja | bajty | tokeny |
-| --- | ---: | ---: |
-| instrukcja w AGENTS.md (blok INSTRUCTION) | 437 | 146 |
-| komenda agenta (bi read.config.json) | 19 | 4 |
-| stdout przebiegu | 65 | 27 |
-| report.md w całości | 692 | 223 |
-| **razem** | **1213** | **400** |
-
-## bi batch (pnpm bi)
+`{"dir":"D:\\github\\scribe-devtools\\bench\\out\\browser-inspector\\batch\\runs\\2000-01-06_00-00\\zgloszenie-serwisowe","problems":[]}`
 
 | pozycja | bajty | tokeny |
 | --- | ---: | ---: |
-| instrukcja w AGENTS.md (blok INSTRUCTION) | 437 | 146 |
-| komenda agenta (pnpm bi read.config.json) | 24 | 6 |
+| instrukcja w AGENTS.md (blok INSTRUCTION) | 527 | 158 |
+| komenda agenta (browser-inspector read.config.json) | 34 | 6 |
 | stdout przebiegu | 65 | 27 |
 | report.md w całości | 692 | 223 |
-| **razem** | **1218** | **402** |
+| **razem** | **1318** | **414** |
 
-## bi-interactive-naive
+## browser-inspector batch (pnpm browser-inspector)
+
+| pozycja | bajty | tokeny |
+| --- | ---: | ---: |
+| instrukcja w AGENTS.md (blok INSTRUCTION) | 527 | 158 |
+| komenda agenta (pnpm browser-inspector read.config.json) | 39 | 8 |
+| stdout przebiegu | 65 | 27 |
+| report.md w całości | 692 | 223 |
+| **razem** | **1323** | **416** |
+
+## browser-inspector-interactive-naive
 
 `{"commands":17,"problems":[]}`
 
 | pozycja | bajty | tokeny |
 | --- | ---: | ---: |
-| instrukcja w AGENTS.md (blok INSTRUCTION) | 437 | 146 |
-| → bi open http://localhost:4300/ | 30 | 9 |
-| ← open stdout | 106 | 33 |
-| → bi snap | 7 | 2 |
+| instrukcja w AGENTS.md (blok INSTRUCTION) | 527 | 158 |
+| → browser-inspector open http://localhost:4300/ | 45 | 11 |
+| ← open stdout | 115 | 35 |
+| → browser-inspector snap | 22 | 4 |
 | ← snap stdout | 708 | 223 |
-| → bi click e28 | 12 | 4 |
+| → browser-inspector click e28 | 27 | 6 |
 | ← click stdout | 22 | 7 |
-| → bi snap --diff | 14 | 4 |
-| ← snap stdout | 66 | 16 |
-| → bi get [data-testid=error-email] | 32 | 9 |
+| → browser-inspector snap --diff | 29 | 6 |
+| ← snap stdout | 75 | 18 |
+| → browser-inspector get [data-testid=error-email] | 47 | 11 |
 | ← get stdout | 28 | 8 |
-| → bi shot walidacja | 17 | 5 |
-| ← shot stdout | 86 | 25 |
-| → bi form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 117 | 43 |
+| → browser-inspector shot walidacja | 32 | 7 |
+| ← shot stdout | 95 | 27 |
+| → browser-inspector form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 132 | 45 |
 | ← form stdout | 26 | 8 |
-| → bi select e14 zmiana | 20 | 6 |
+| → browser-inspector select e14 zmiana | 35 | 8 |
 | ← select stdout | 22 | 7 |
-| → bi click e22 | 12 | 4 |
+| → browser-inspector click e22 | 27 | 6 |
 | ← click stdout | 22 | 7 |
-| → bi click e26 | 12 | 4 |
+| → browser-inspector click e26 | 27 | 6 |
 | ← click stdout | 22 | 7 |
-| → bi click e28 | 12 | 4 |
+| → browser-inspector click e28 | 27 | 6 |
 | ← click stdout | 22 | 7 |
-| → bi wait --sel [data-testid=confirmation] | 40 | 10 |
+| → browser-inspector wait --sel [data-testid=confirmation] | 55 | 12 |
 | ← wait stdout | 34 | 8 |
-| → bi get [data-testid=ticket-id] | 30 | 9 |
+| → browser-inspector get [data-testid=ticket-id] | 45 | 11 |
 | ← get stdout | 8 | 5 |
-| → bi get [data-testid=ticket-category] | 36 | 9 |
+| → browser-inspector get [data-testid=ticket-category] | 51 | 11 |
 | ← get stdout | 6 | 2 |
-| → bi get [data-testid=ticket-priority] | 36 | 10 |
+| → browser-inspector get [data-testid=ticket-priority] | 51 | 12 |
 | ← get stdout | 9 | 4 |
-| → bi console --errors | 19 | 4 |
+| → browser-inspector console --errors | 34 | 6 |
 | ← console stdout | 212 | 64 |
-| → bi shot potwierdzenie | 21 | 6 |
-| ← shot stdout | 90 | 26 |
-| **razem** | **2393** | **745** |
+| → browser-inspector shot potwierdzenie | 36 | 8 |
+| ← shot stdout | 99 | 28 |
+| **razem** | **2774** | **799** |
 
-## bi-interactive-lean
+## browser-inspector-interactive-lean
 
 `{"commands":17,"problems":[]}`
 
 | pozycja | bajty | tokeny |
 | --- | ---: | ---: |
-| instrukcja w AGENTS.md (blok INSTRUCTION) | 437 | 146 |
-| → bi open http://localhost:4300/ | 30 | 9 |
-| ← open stdout | 105 | 33 |
-| → bi find Wyślij | 15 | 5 |
+| instrukcja w AGENTS.md (blok INSTRUCTION) | 527 | 158 |
+| → browser-inspector open http://localhost:4300/ | 45 | 11 |
+| ← open stdout | 114 | 35 |
+| → browser-inspector find Wyślij | 30 | 7 |
 | ← find stdout | 53 | 17 |
-| → bi click e28 | 12 | 4 |
+| → browser-inspector click e28 | 27 | 6 |
 | ← click stdout | 22 | 7 |
-| → bi snap --diff | 14 | 4 |
-| ← snap stdout | 65 | 16 |
-| → bi get [data-testid=error-email] | 32 | 9 |
+| → browser-inspector snap --diff | 29 | 6 |
+| ← snap stdout | 74 | 18 |
+| → browser-inspector get [data-testid=error-email] | 47 | 11 |
 | ← get stdout | 28 | 8 |
-| → bi shot walidacja | 17 | 5 |
-| ← shot stdout | 85 | 25 |
-| → bi form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 131 | 41 |
+| → browser-inspector shot walidacja | 32 | 7 |
+| ← shot stdout | 94 | 27 |
+| → browser-inspector form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 146 | 43 |
 | ← form stdout | 26 | 8 |
-| → bi select #category zmiana | 26 | 6 |
+| → browser-inspector select #category zmiana | 41 | 8 |
 | ← select stdout | 28 | 7 |
-| → bi click [data-testid=priority-krytyczny] | 41 | 12 |
+| → browser-inspector click [data-testid=priority-krytyczny] | 56 | 14 |
 | ← click stdout | 51 | 15 |
-| → bi click #consent | 17 | 5 |
+| → browser-inspector click #consent | 32 | 7 |
 | ← click stdout | 27 | 8 |
-| → bi click e28 | 12 | 4 |
+| → browser-inspector click e28 | 27 | 6 |
 | ← click stdout | 22 | 7 |
-| → bi wait --sel [data-testid=confirmation] | 40 | 10 |
+| → browser-inspector wait --sel [data-testid=confirmation] | 55 | 12 |
 | ← wait stdout | 34 | 8 |
-| → bi get [data-testid=ticket-id] | 30 | 9 |
+| → browser-inspector get [data-testid=ticket-id] | 45 | 11 |
 | ← get stdout | 8 | 5 |
-| → bi get [data-testid=ticket-category] | 36 | 9 |
+| → browser-inspector get [data-testid=ticket-category] | 51 | 11 |
 | ← get stdout | 6 | 2 |
-| → bi get [data-testid=ticket-priority] | 36 | 10 |
+| → browser-inspector get [data-testid=ticket-priority] | 51 | 12 |
 | ← get stdout | 9 | 4 |
-| → bi console --errors | 19 | 4 |
+| → browser-inspector console --errors | 34 | 6 |
 | ← console stdout | 212 | 64 |
-| → bi shot potwierdzenie | 21 | 6 |
-| ← shot stdout | 89 | 26 |
-| **razem** | **1836** | **558** |
+| → browser-inspector shot potwierdzenie | 36 | 8 |
+| ← shot stdout | 98 | 28 |
+| **razem** | **2217** | **612** |
 
 ## mcp-naive
 

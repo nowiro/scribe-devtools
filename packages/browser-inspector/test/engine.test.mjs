@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 async function tmp() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'bi-engine-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'browser-inspector-engine-'));
   dirs.push(dir);
   return dir;
 }
@@ -86,13 +86,17 @@ describe('launchPlan / launchBrowser', () => {
     expect(plan.args).toEqual([...FAST_HEADLESS_ARGS]);
   });
 
-  it('narrows by channel, lets an executable path win, replaces args from BI_BROWSER_ARGS, drops the flags when asked', () => {
+  it('narrows by channel, lets an executable path win, replaces args from BROWSER_INSPECTOR_BROWSER_ARGS, drops the flags when asked', () => {
     expect(launchPlan({ channel: 'msedge' }, {}).attempts).toEqual([{ channel: 'msedge' }]);
-    expect(launchPlan({ channel: 'msedge' }, { BI_CHANNEL: 'chrome' }).attempts).toEqual([{ channel: 'chrome' }]);
-    expect(launchPlan({}, { BI_BROWSER_PATH: 'C:/x/chrome.exe' }).attempts).toEqual([
+    expect(launchPlan({ channel: 'msedge' }, { BROWSER_INSPECTOR_CHANNEL: 'chrome' }).attempts).toEqual([
+      { channel: 'chrome' },
+    ]);
+    expect(launchPlan({}, { BROWSER_INSPECTOR_BROWSER_PATH: 'C:/x/chrome.exe' }).attempts).toEqual([
       { executablePath: 'C:/x/chrome.exe' },
     ]);
-    expect(launchPlan({ args: ['--foo'] }, { BI_BROWSER_ARGS: '--no-sandbox' }).args).toEqual(['--no-sandbox']);
+    expect(launchPlan({ args: ['--foo'] }, { BROWSER_INSPECTOR_BROWSER_ARGS: '--no-sandbox' }).args).toEqual([
+      '--no-sandbox',
+    ]);
     expect(launchPlan({ fastHeadless: false, args: ['--foo'] }, {}).args).toEqual(['--foo']);
     expect(launchPlan({ headless: false }, {}).args).toEqual([]);
   });
@@ -255,7 +259,9 @@ describe('runFlow — step mapping', () => {
     const result = await engine.runFlow(flow([{ do: 'click', ref: 'e99' }]), dir);
     expect(performance.now() - started).toBeLessThan(100);
     expect(result.completed).toBe(false);
-    expect(result.report.steps[0].error).toBe('Error: ref not found (gone, label changed or other frame) → bi snap');
+    expect(result.report.steps[0].error).toBe(
+      'Error: ref not found (gone, label changed or other frame) → browser-inspector snap',
+    );
     expect(callsOf(calls, 'ariaSnapshot')).toHaveLength(1);
     expect(callsOf(calls, 'click')).toHaveLength(0);
   });

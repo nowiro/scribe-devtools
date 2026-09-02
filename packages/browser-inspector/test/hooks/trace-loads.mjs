@@ -1,8 +1,8 @@
-// trace-loads.mjs — `node --import=./test/hooks/trace-loads.mjs bin/bi.mjs help` records every
-// module the process resolves into the file named by BI_TRACE_LOADS (one URL per line).
+// trace-loads.mjs — `node --import=./test/hooks/trace-loads.mjs bin/browser-inspector.mjs help` records every
+// module the process resolves into the file named by BROWSER_INSPECTOR_TRACE_LOADS (one URL per line).
 //
 // The client's start budget (DESIGN.md §2.4) dies quietly: one `import { something } from
-// './engine.mjs'` added for convenience and `bi help` goes from 48 to 300 ms with no test red.
+// './engine.mjs'` added for convenience and `browser-inspector help` goes from 48 to 300 ms with no test red.
 // test/client-imports.test.mjs reads this file and fails on playwright-core, engine.mjs or
 // steps.run.mjs — the three imports that carry the browser.
 //
@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import { register, registerHooks } from 'node:module';
 import { isMainThread } from 'node:worker_threads';
 
-const out = process.env.BI_TRACE_LOADS;
+const out = process.env.BROWSER_INSPECTOR_TRACE_LOADS;
 
 /** @param {string} url */
 function record(url) {

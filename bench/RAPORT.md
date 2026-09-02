@@ -1,108 +1,108 @@
-# RAPORT.md — bi (browser-inspector 2) vs @playwright/mcp: czas i tokeny
+# RAPORT.md — browser-inspector 2 vs @playwright/mcp: czas i tokeny
 
-To samo zadanie QA na tym samym formularzu (`bench/task.mjs`, 18 kroków), wykonane przez `bi` w każdym wariancie z
+To samo zadanie QA na tym samym formularzu (`bench/task.mjs`, 18 kroków), wykonane przez `browser-inspector` w każdym wariancie z
 DESIGN.md §9 i przez serwer MCP Playwrighta w trzech wariantach, zmierzone dwiema miarami: **ile czasu** od `spawn` do
 `exit` prawdziwego procesu klienta i **ile tokenów** wchodzi do okna kontekstu agenta. Raport generuje `npm run bench` —
 każda liczba niżej pochodzi z przebiegu, żadna nie jest wpisana ręcznie.
 
-Środowisko: 2026-09-02T02:10:21.641Z · 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 rdzeni, 32 GB) · win32 10.0.26200 · Node 26.5.0 · bi 0.1.0 · playwright-core 1.62.1 · Chrome/152 · @playwright/mcp 0.0.80 (24 narzędzi w `tools/list`).
+Środowisko: 2026-09-02T05:45:38.102Z · 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 rdzeni, 32 GB) · win32 10.0.26200 · Node 26.5.0 · browser-inspector 0.1.0 · playwright-core 1.62.1 · Chrome/152 · @playwright/mcp 0.0.80 (24 narzędzi w `tools/list`).
 Powtórzenia: cold/first ×3, warm n=10 po obu stronach, przerwa 300 ms po obu stronach.
 
 ## Tabela nagłówkowa
 
 | wariant | mediana | p90 | n · tryb | × vs MCP naive | × vs MCP lean | × vs MCP lean `--timeout-settle 100` |
 | --- | ---: | ---: | --- | ---: | ---: | ---: |
-| bi-warm | **358 ms** | 366 ms | 10 · `warm` | **10,8×** | **10,9×** | **4,6×** |
-| bi-warm-tight | **355 ms** | 370 ms | 10 · `warm` | **10,9×** | **11,0×** | **4,6×** |
-| bi-first | **1385 ms** | 1395 ms | 3 · `first` | **3,5×** (vs 1. przebieg) | **3,5×** (vs 1. przebieg) | **1,4×** (vs 1. przebieg) |
-| bi-cold | **2077 ms** | 2145 ms | 3 · `no-daemon` | **2,3×** (vs 1. przebieg) | **2,3×** (vs 1. przebieg) | **0,9×** (vs 1. przebieg) |
-| bi-warm-fresh | **765 ms** | 789 ms | 10 · `warm` | **5,1×** | **5,1×** | **2,2×** |
-| bi-first, first-ever (pierwsze w tym przebiegu benchu, n=1, poza ilorazami) | 1408 ms | — | 1 · `first` | — | — | — |
-| MCP naive (agent poznaje ekran) | 3871 ms (warm) | 3969 ms | 10 · 1. przebieg 4860 ms | — | — | — |
-| MCP lean (agent zna selektory) | 3898 ms (warm) | 4461 ms | 10 · 1. przebieg 4810 ms | — | — | — |
-| MCP lean `--timeout-settle 100` | 1648 ms (warm) | 1727 ms | 10 · 1. przebieg 1911 ms | — | — | — |
+| browser-inspector-warm | **348 ms** | 365 ms | 10 · `warm` | **8,3×** | **9,7×** | **2,9×** |
+| browser-inspector-warm-tight | **333 ms** | 337 ms | 10 · `warm` | **8,7×** | **10,2×** | **3,1×** |
+| browser-inspector-first | **1478 ms** | 1533 ms | 3 · `first` | **2,5×** (vs 1. przebieg) | **2,8×** (vs 1. przebieg) | **1,2×** (vs 1. przebieg) |
+| browser-inspector-cold | **1548 ms** | 1557 ms | 3 · `no-daemon` | **2,4×** (vs 1. przebieg) | **2,7×** (vs 1. przebieg) | **1,1×** (vs 1. przebieg) |
+| browser-inspector-warm-fresh | **796 ms** | 828 ms | 10 · `warm` | **3,6×** | **4,3×** | **1,3×** |
+| browser-inspector-first, first-ever (pierwsze w tym przebiegu benchu, n=1, poza ilorazami) | 1507 ms | — | 1 · `first` | — | — | — |
+| MCP naive (agent poznaje ekran) | 2886 ms (warm) | 2903 ms | 10 · 1. przebieg 3661 ms | — | — | — |
+| MCP lean (agent zna selektory) | 3390 ms (warm) | 3404 ms | 10 · 1. przebieg 4136 ms | — | — | — |
+| MCP lean `--timeout-settle 100` | 1025 ms (warm) | 1052 ms | 10 · 1. przebieg 1729 ms | — | — | — |
 
-**Wniosek z tabeli:** ścieżka ciepła `bi-warm` (mediana 358 ms, p90 366 ms) jest **10,8× vs domyślne** ustawienia MCP (naive warm 3871 ms), 10,9× vs MCP lean i **~4,6× vs zestrojony settle 100** (1648 ms) — dwie trzecie różnicy to domyślna polityka `--timeout-settle 500` serwera po każdej akcji, nie architektura. 5× jest własnością **każdego wywołania po pierwszym**; `bi-first` (1385 ms) i `bi-cold` (2077 ms) to fizyka startu Chrome i są raportowane osobno, poza progiem 5×.
+**Wniosek z tabeli:** ścieżka ciepła `browser-inspector-warm` (mediana 348 ms, p90 365 ms) jest **8,3× vs domyślne** ustawienia MCP (naive warm 2886 ms), 9,7× vs MCP lean i **~2,9× vs zestrojony settle 100** (1025 ms) — dwie trzecie różnicy to domyślna polityka `--timeout-settle 500` serwera po każdej akcji, nie architektura. 5× jest własnością **każdego wywołania po pierwszym**; `browser-inspector-first` (1478 ms) i `browser-inspector-cold` (1548 ms) to fizyka startu Chrome i są raportowane osobno, poza progiem 5×.
 
 ```mermaid
 xychart-beta
     title "Czas zadania (ms, mediany, cieplo)"
-    x-axis ["bi-warm", "bi-warm-tight", "bi-warm-fresh", "MCP naive", "MCP lean", "MCP lean settle 100"]
-    y-axis "ms" 0 --> 5000
-    bar [358, 355, 765, 3871, 3898, 1648]
+    x-axis ["browser-inspector-warm", "browser-inspector-warm-tight", "browser-inspector-warm-fresh", "MCP naive", "MCP lean", "MCP lean settle 100"]
+    y-axis "ms" 0 --> 4000
+    bar [348, 333, 796, 2886, 3390, 1025]
 ```
 
 ```mermaid
 xychart-beta
     title "Czas zadania na zimno (ms, mediany)"
-    x-axis ["bi-first", "bi-cold", "MCP naive 1. przebieg", "MCP lean 1. przebieg"]
-    y-axis "ms" 0 --> 6000
-    bar [1385, 2077, 4860, 4810]
+    x-axis ["browser-inspector-first", "browser-inspector-cold", "MCP naive 1. przebieg", "MCP lean 1. przebieg"]
+    y-axis "ms" 0 --> 5000
+    bar [1478, 1548, 3661, 4136]
 ```
 
 ## Tokeny (o200k)
 
 Dwie kolumny, bo mieszanie ich zaciera obraz. **Stały** płaci się w KAŻDEJ sesji, zanim padnie pierwsze pytanie: po stronie
-MCP definicje narzędzi z `tools/list` (+ `initialize`), po stronie `bi` blok instrukcji w AGENTS.md. **Zmienny** płaci się za
-wykonanie zadania: po stronie MCP argumenty i tekst odpowiedzi każdego wywołania, po stronie `bi` komendy, stdout i
+MCP definicje narzędzi z `tools/list` (+ `initialize`), po stronie `browser-inspector` blok instrukcji w AGENTS.md. **Zmienny** płaci się za
+wykonanie zadania: po stronie MCP argumenty i tekst odpowiedzi każdego wywołania, po stronie `browser-inspector` komendy, stdout i
 przeczytany w całości `report.md` (batch) albo same linie stdout (sesja — zrzuty to pliki, których agent nie czyta).
 
 | wariant | stały | zmienny | razem na sesję |
 | --- | ---: | ---: | ---: |
-| **bi batch** — `bi read.config.json`, stdout, cały `report.md` | 146 | 254 | **400** |
-| bi batch przez `pnpm bi` (skrypt pakietu) | 146 | 256 | **402** |
-| **bi-interactive-naive** — gołe `bi snap`, potem refy (17 komend) | 146 | 599 | **745** |
-| **bi-interactive-lean** — `bi find` + selektory (17 komend) | 146 | 412 | **558** |
+| **browser-inspector batch** — `browser-inspector read.config.json`, stdout, cały `report.md` | 158 | 256 | **414** |
+| browser-inspector batch przez `pnpm browser-inspector` (skrypt pakietu) | 158 | 258 | **416** |
+| **browser-inspector-interactive-naive** — gołe `browser-inspector snap`, potem refy (17 komend) | 158 | 641 | **799** |
+| **browser-inspector-interactive-lean** — `browser-inspector find` + selektory (17 komend) | 158 | 454 | **612** |
 | MCP Playwright — agent poznaje ekran | 4069 | 2745 | **6814** |
 | MCP Playwright — agent zna selektory | 4069 | 1430 | **5499** |
 
 ```mermaid
 xychart-beta
     title "Tokeny na sesje z jednym przebiegiem zadania"
-    x-axis ["bi batch", "bi batch (pnpm bi)", "bi-interactive-naive", "bi-interactive-lean", "MCP naive", "MCP lean"]
+    x-axis ["browser-inspector batch", "browser-inspector batch (pnpm browser-inspector)", "browser-inspector-interactive-naive", "browser-inspector-interactive-lean", "MCP naive", "MCP lean"]
     y-axis "tokeny" 0 --> 8000
-    bar [400, 402, 745, 558, 6814, 5499]
+    bar [414, 416, 799, 612, 6814, 5499]
 ```
 
-Batch `bi` kosztuje **400** tokenów na sesję wobec 6814 (MCP naive) i 5499 (MCP lean) — **17,0×** / 13,7× mniej. Sam koszt stały: 146 vs 4069.
+Batch `browser-inspector` kosztuje **414** tokenów na sesję wobec 6814 (MCP naive) i 5499 (MCP lean) — **16,5×** / 13,3× mniej. Sam koszt stały: 158 vs 4069.
 
 ### Gdzie idą tokeny (najdroższe pozycje kosztu zmiennego)
 
-**bi batch**
+**browser-inspector batch**
 
 | pozycja | tokeny |
 | --- | ---: |
 | report.md w całości | 223 |
 | stdout przebiegu | 27 |
-| komenda agenta (bi read.config.json) | 4 |
+| komenda agenta (browser-inspector read.config.json) | 6 |
 
-**bi batch (pnpm bi)**
+**browser-inspector batch (pnpm browser-inspector)**
 
 | pozycja | tokeny |
 | --- | ---: |
 | report.md w całości | 223 |
 | stdout przebiegu | 27 |
-| komenda agenta (pnpm bi read.config.json) | 6 |
+| komenda agenta (pnpm browser-inspector read.config.json) | 8 |
 
-**bi-interactive-naive**
+**browser-inspector-interactive-naive**
 
 | pozycja | tokeny |
 | --- | ---: |
 | ← snap stdout | 223 |
 | ← console stdout | 64 |
-| → bi form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 43 |
-| ← open stdout | 33 |
-| ← shot stdout | 26 |
+| → browser-inspector form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 45 |
+| ← open stdout | 35 |
+| ← shot stdout | 28 |
 
-**bi-interactive-lean**
+**browser-inspector-interactive-lean**
 
 | pozycja | tokeny |
 | --- | ---: |
 | ← console stdout | 64 |
-| → bi form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 41 |
-| ← open stdout | 33 |
-| ← shot stdout | 26 |
-| ← shot stdout | 25 |
+| → browser-inspector form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij." | 43 |
+| ← open stdout | 35 |
+| ← shot stdout | 28 |
+| ← shot stdout | 27 |
 
 **mcp-naive**
 
@@ -124,23 +124,23 @@ Batch `bi` kosztuje **400** tokenów na sesję wobec 6814 (MCP naive) i 5499 (MC
 | ← browser_click (odpowiedź) | 125 |
 | ← browser_console_messages (odpowiedź) | 118 |
 
-## Sesja interaktywna (`bi-interactive`)
+## Sesja interaktywna (`browser-inspector-interactive`)
 
-Każda komenda to osobny proces `node bin/bi.mjs` przez keepera (czas = spawn → exit). Dwa warianty: `naive` (agent patrzy
-gołym `bi snap` i działa na refach) i `lean` (agent zna selektory, `bi find` tylko dla przycisku). Oba oglądają stan po
-pierwszym kliku (`bi snap --diff`).
+Każda komenda to osobny proces `node bin/browser-inspector.mjs` przez keepera (czas = spawn → exit). Dwa warianty: `naive` (agent patrzy
+gołym `browser-inspector snap` i działa na refach) i `lean` (agent zna selektory, `browser-inspector find` tylko dla przycisku). Oba oglądają stan po
+pierwszym kliku (`browser-inspector snap --diff`).
 
 | wariant | komend | czas całej sesji | komenda: mediana / p90 | tokeny | bramka |
 | --- | ---: | ---: | ---: | ---: | --- |
-| bi-interactive-naive | 17 | 2499 ms | 117 / 164 ms | 745 | ok |
-| bi-interactive-lean | 17 | 2349 ms | 108 / 146 ms | 558 | ok |
+| browser-inspector-interactive-naive | 17 | 2751 ms | 131 / 180 ms | 799 | ok |
+| browser-inspector-interactive-lean | 17 | 2628 ms | 125 / 160 ms | 612 | ok |
 
-<details><summary>bi-interactive-naive — komendy i stdout</summary>
+<details><summary>browser-inspector-interactive-naive — komendy i stdout</summary>
 
 ```
-$ bi open http://localhost:4300/   # 575 ms, exit 0
-ok open "Zgłoszenie serwisowe" · el 12 · err 0 · .scribe/browser-inspector/session/bench-naive/snap.md
-$ bi snap   # 127 ms, exit 0
+$ browser-inspector open http://localhost:4300/   # 582 ms, exit 0
+ok open "Zgłoszenie serwisowe" · el 12 · err 0 · .scribe-devtools/browser-inspector/session/bench-naive/snap.md
+$ browser-inspector snap   # 134 ms, exit 0
 h1 "Zgłoszenie serwisowe"
 e6 link "Na górę" → #top [data-testid=nav-top]
 e7 link "Formularz" → #form [data-testid=nav-form]
@@ -156,95 +156,95 @@ e22 radio "Krytyczny" [data-testid=priority-krytyczny]
 e24 textbox "Opis" [data-testid=field-description]
 e26 checkbox "Zgadzam się na przetwarzanie danych" [data-testid=field-consent]
 e28 button "Wyślij zgłoszenie" [data-testid=submit]
-$ bi click e28   # 164 ms, exit 0
+$ browser-inspector click e28   # 180 ms, exit 0
 ok click e28 · dom Δ
-$ bi snap --diff   # 112 ms, exit 0
-0 changed · .scribe/browser-inspector/session/bench-naive/snap.md
-$ bi get [data-testid=error-email]   # 100 ms, exit 0
+$ browser-inspector snap --diff   # 121 ms, exit 0
+0 changed · .scribe-devtools/browser-inspector/session/bench-naive/snap.md
+$ browser-inspector get [data-testid=error-email]   # 117 ms, exit 0
 Podaj poprawny adres e-mail.
-$ bi shot walidacja   # 117 ms, exit 0
-ok shot .scribe/browser-inspector/session/bench-naive/shots/001-walidacja.png 1280x720
-$ bi form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 138 ms, exit 0
+$ browser-inspector shot walidacja   # 124 ms, exit 0
+ok shot .scribe-devtools/browser-inspector/session/bench-naive/shots/001-walidacja.png 1280x720
+$ browser-inspector form "e10=Jan Kowalski" e12=jan.kowalski@example.com "e24=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 156 ms, exit 0
 ok form 3 fields · dom Δ
-$ bi select e14 zmiana   # 111 ms, exit 0
+$ browser-inspector select e14 zmiana   # 131 ms, exit 0
 ok select e14 = zmiana
-$ bi click e22   # 138 ms, exit 0
+$ browser-inspector click e22   # 155 ms, exit 0
 ok click e22 · dom Δ
-$ bi click e26   # 136 ms, exit 0
+$ browser-inspector click e26   # 150 ms, exit 0
 ok click e26 · dom Δ
-$ bi click e28   # 142 ms, exit 0
+$ browser-inspector click e28   # 155 ms, exit 0
 ok click e28 · dom Δ
-$ bi wait --sel [data-testid=confirmation]   # 118 ms, exit 0
+$ browser-inspector wait --sel [data-testid=confirmation]   # 126 ms, exit 0
 ok wait [data-testid=confirmation]
-$ bi get [data-testid=ticket-id]   # 104 ms, exit 0
+$ browser-inspector get [data-testid=ticket-id]   # 133 ms, exit 0
 ALM-1001
-$ bi get [data-testid=ticket-category]   # 108 ms, exit 0
+$ browser-inspector get [data-testid=ticket-category]   # 123 ms, exit 0
 zmiana
-$ bi get [data-testid=ticket-priority]   # 104 ms, exit 0
+$ browser-inspector get [data-testid=ticket-priority]   # 130 ms, exit 0
 krytyczny
-$ bi console --errors   # 94 ms, exit 0
+$ browser-inspector console --errors   # 112 ms, exit 0
 2 new:
 error Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:4300/api/zgloszenia:0)
 error [zgloszenia] zapis nie powiodl sie: HTTP 404 (http://localhost:4300/:125)
-$ bi shot potwierdzenie   # 108 ms, exit 0
-ok shot .scribe/browser-inspector/session/bench-naive/shots/002-potwierdzenie.png 1280x720
+$ browser-inspector shot potwierdzenie   # 118 ms, exit 0
+ok shot .scribe-devtools/browser-inspector/session/bench-naive/shots/002-potwierdzenie.png 1280x720
 ```
 
 </details>
 
-<details><summary>bi-interactive-lean — komendy i stdout</summary>
+<details><summary>browser-inspector-interactive-lean — komendy i stdout</summary>
 
 ```
-$ bi open http://localhost:4300/   # 528 ms, exit 0
-ok open "Zgłoszenie serwisowe" · el 12 · err 0 · .scribe/browser-inspector/session/bench-lean/snap.md
-$ bi find Wyślij   # 120 ms, exit 0
+$ browser-inspector open http://localhost:4300/   # 554 ms, exit 0
+ok open "Zgłoszenie serwisowe" · el 12 · err 0 · .scribe-devtools/browser-inspector/session/bench-lean/snap.md
+$ browser-inspector find Wyślij   # 133 ms, exit 0
 e28 button "Wyślij zgłoszenie" [data-testid=submit]
-$ bi click e28   # 146 ms, exit 0
+$ browser-inspector click e28   # 160 ms, exit 0
 ok click e28 · dom Δ
-$ bi snap --diff   # 103 ms, exit 0
-0 changed · .scribe/browser-inspector/session/bench-lean/snap.md
-$ bi get [data-testid=error-email]   # 100 ms, exit 0
+$ browser-inspector snap --diff   # 125 ms, exit 0
+0 changed · .scribe-devtools/browser-inspector/session/bench-lean/snap.md
+$ browser-inspector get [data-testid=error-email]   # 110 ms, exit 0
 Podaj poprawny adres e-mail.
-$ bi shot walidacja   # 108 ms, exit 0
-ok shot .scribe/browser-inspector/session/bench-lean/shots/001-walidacja.png 1280x720
-$ bi form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 121 ms, exit 0
+$ browser-inspector shot walidacja   # 124 ms, exit 0
+ok shot .scribe-devtools/browser-inspector/session/bench-lean/shots/001-walidacja.png 1280x720
+$ browser-inspector form "#name=Jan Kowalski" #email=jan.kowalski@example.com "#description=Formularz nie zapisuje zgloszenia po kliknieciu Wyslij."   # 140 ms, exit 0
 ok form 3 fields · dom Δ
-$ bi select #category zmiana   # 104 ms, exit 0
+$ browser-inspector select #category zmiana   # 122 ms, exit 0
 ok select #category = zmiana
-$ bi click [data-testid=priority-krytyczny]   # 123 ms, exit 0
+$ browser-inspector click [data-testid=priority-krytyczny]   # 143 ms, exit 0
 ok click [data-testid=priority-krytyczny] · dom Δ
-$ bi click #consent   # 129 ms, exit 0
+$ browser-inspector click #consent   # 147 ms, exit 0
 ok click #consent · dom Δ
-$ bi click e28   # 138 ms, exit 0
+$ browser-inspector click e28   # 160 ms, exit 0
 ok click e28 · dom Δ
-$ bi wait --sel [data-testid=confirmation]   # 108 ms, exit 0
+$ browser-inspector wait --sel [data-testid=confirmation]   # 144 ms, exit 0
 ok wait [data-testid=confirmation]
-$ bi get [data-testid=ticket-id]   # 108 ms, exit 0
+$ browser-inspector get [data-testid=ticket-id]   # 119 ms, exit 0
 ALM-1001
-$ bi get [data-testid=ticket-category]   # 101 ms, exit 0
+$ browser-inspector get [data-testid=ticket-category]   # 120 ms, exit 0
 zmiana
-$ bi get [data-testid=ticket-priority]   # 99 ms, exit 0
+$ browser-inspector get [data-testid=ticket-priority]   # 110 ms, exit 0
 krytyczny
-$ bi console --errors   # 101 ms, exit 0
+$ browser-inspector console --errors   # 99 ms, exit 0
 2 new:
 error Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:4300/api/zgloszenia:0)
 error [zgloszenia] zapis nie powiodl sie: HTTP 404 (http://localhost:4300/:125)
-$ bi shot potwierdzenie   # 109 ms, exit 0
-ok shot .scribe/browser-inspector/session/bench-lean/shots/002-potwierdzenie.png 1280x720
+$ browser-inspector shot potwierdzenie   # 115 ms, exit 0
+ok shot .scribe-devtools/browser-inspector/session/bench-lean/shots/002-potwierdzenie.png 1280x720
 ```
 
 </details>
 
 ## keeper-survives-shell
 
-`bi up` w podprocesie powłoki, wyjście powłoki, `bi status` z nowego procesu: czy keeper przeżył? Jeśli host zabija drzewo
+`browser-inspector up` w podprocesie powłoki, wyjście powłoki, `browser-inspector status` z nowego procesu: czy keeper przeżył? Jeśli host zabija drzewo
 (Job Object), każde wywołanie agenta jest zimne i 5× dostaje tylko bench.
 
-| powłoka | przeżył | `bi up` w powłoce | `bi status` po wyjściu | uwaga |
+| powłoka | przeżył | `browser-inspector up` w powłoce | `browser-inspector status` po wyjściu | uwaga |
 | --- | --- | ---: | ---: | --- |
-| cmd | **yes** | 590 ms | 107 ms |  |
-| bash | **yes** | 609 ms | 106 ms |  |
-| pwsh | **yes** | 828 ms | 105 ms |  |
+| cmd | **yes** | 658 ms | 140 ms |  |
+| bash | **yes** | 644 ms | 134 ms |  |
+| pwsh | **yes** | 940 ms | 124 ms |  |
 
 ## app-factory (6 snapshotów, buildy na 4311–4314)
 
@@ -252,10 +252,10 @@ Config: `D:\github\app-factory\read.config.browser-inspector.json` (kopia z wła
 
 | config | parallel | przebiegi (ms) | completed | tryb |
 | --- | ---: | --- | ---: | --- |
-| bez zmian | 1 | 14 044 · 10 183 | 6/6 | warm, warm |
-| bez zmian | 3 | 5743 · 4803 | 6/6 | warm, warm |
-| po migracji `settled` | 1 | 9989 · 8970 | 6/6 | warm, warm |
-| po migracji `settled` | 3 | 4726 · 4265 | 6/6 | warm, warm |
+| bez zmian | 1 | 12 026 · 9681 | 6/6 | warm, warm |
+| bez zmian | 3 | 5506 · 4700 | 6/6 | warm, warm |
+| po migracji `settled` | 1 | 9059 · 8589 | 6/6 | warm, warm |
+| po migracji `settled` | 3 | 4229 · 4222 | 6/6 | warm, warm |
 
 ## Parytet z @playwright/mcp (macierz DESIGN.md §7)
 
@@ -275,17 +275,17 @@ zrzuty (`checkFindings` w `bench/task.mjs`). Porównanie opisuje więc różne d
 ## Metodyka i zasady uczciwości (DESIGN.md §9)
 
 1. **Ten sam tokenizer po obu stronach** (`o200k_base` — proxy; wiarygodny jest stosunek, nie liczba absolutna).
-2. **Liczone jest to, co wchodzi do kontekstu**: dla `bi` blok AGENTS.md jako koszt stały + komenda + stdout + `report.md` w
+2. **Liczone jest to, co wchodzi do kontekstu**: dla `browser-inspector` blok AGENTS.md jako koszt stały + komenda + stdout + `report.md` w
    całości (batch) / same linie stdout (sesja); dla MCP `tools/list` + `initialize` jako koszt stały + argumenty i tekst
    odpowiedzi każdego wywołania (jawne `browser_snapshot`, bo 0.0.80 linkuje snapshot w pliku, a agent i tak musi go zobaczyć).
-3. **Czas od `spawn` do `exit` prawdziwego procesu klienta** (`node bin/bi.mjs …`), nigdy import w procesie benchu; po stronie
+3. **Czas od `spawn` do `exit` prawdziwego procesu klienta** (`node bin/browser-inspector.mjs …`), nigdy import w procesie benchu; po stronie
    MCP czas zadania na serwerze podniesionym raz (1. przebieg n=1 osobno, kolejne z medianą).
-4. **Przerwa 300 ms między powtórzeniami po obu stronach** — scrub `bi` i `about:blank` MCP są poza stoperem tylko wtedy;
-   `bi-warm-tight` pokazuje, co się dzieje bez przerwy.
+4. **Przerwa 300 ms między powtórzeniami po obu stronach** — scrub `browser-inspector` i `about:blank` MCP są poza stoperem tylko wtedy;
+   `browser-inspector-warm-tight` pokazuje, co się dzieje bez przerwy.
 5. **`timing.mode` każdego przebiegu jest walidowany**: przebieg z trybem innym niż oczekiwany w kolumnie (np. `first` w warm)
    jest wypisany pogrubieniem w tabeli nagłówkowej i unieważnia pomiar tej kolumny.
-6. **`bi-cold` czeka na zniknięcie pid klienta i potomnych `chrome.exe`** przed następnym powtórzeniem; `bi-first` zatrzymuje
-   keepera (`bi stop`) i czeka tak samo. „first-ever” (pierwsze wywołanie w przebiegu benchu) jest osobno, poza ilorazami.
+6. **`browser-inspector-cold` czeka na zniknięcie pid klienta i potomnych `chrome.exe`** przed następnym powtórzeniem; `browser-inspector-first` zatrzymuje
+   keepera (`browser-inspector stop`) i czeka tak samo. „first-ever” (pierwsze wywołanie w przebiegu benchu) jest osobno, poza ilorazami.
 7. **Ta sama strona dla obu stron**: statyczna kopia formularza (`bench/app/`, `bench/serve.mjs`, bez nagłówków cache, bez
    dev-servera), `/api/zgloszenia` zawsze 404 — awaria widoczna wyłącznie w konsoli i sieci.
 8. Wersje i sprzęt w nagłówku; każdy iloraz liczy się wobec pomiaru MCP 0.0.80 z tego samego dnia i tej samej maszyny.

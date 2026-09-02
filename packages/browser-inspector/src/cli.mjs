@@ -1,9 +1,9 @@
-// cli.mjs — the pure argv parser of `bi` (DESIGN.md §3.1): two entrances, one grammar.
+// cli.mjs — the pure argv parser of `browser-inspector` (DESIGN.md §3.1): two entrances, one grammar.
 //
-//   bi <config.json> [--stamp X] [--only n] [--parallel N] [--fresh] [--junit f] [--fail-on-incomplete] [--no-daemon]
-//   bi <command> [args] [--session NAME] [--out DIR] [--soft]      — a session step from the STEPS table
-//   bi script <file> [--out DIR] [--no-daemon]
-//   bi up | status | stop | doctor | help [command] | export <flow.json> [--session NAME] [--force] | lint-config <config>
+//   browser-inspector <config.json> [--stamp X] [--only n] [--parallel N] [--fresh] [--junit f] [--fail-on-incomplete] [--no-daemon]
+//   browser-inspector <command> [args] [--session NAME] [--out DIR] [--soft]      — a session step from the STEPS table
+//   browser-inspector script <file> [--out DIR] [--no-daemon]
+//   browser-inspector up | status | stop | doctor | help [command] | export <flow.json> [--session NAME] [--force] | lint-config <config>
 //
 // Nothing here touches the disk or the environment: the result says what to do and the client
 // does it. A typo fails HERE, in the client, with the help line of the step — never as a
@@ -226,11 +226,13 @@ export function bindPositionals(positionals, argvSpec, command, help) {
       bound[name] = positionals[index];
       index += 1;
     } else if (!optional) {
-      throw new CliError(`${command}: missing <${name}> — usage: bi ${help}`);
+      throw new CliError(`${command}: missing <${name}> — usage: browser-inspector ${help}`);
     }
   }
   if (index < positionals.length) {
-    throw new CliError(`${command}: unexpected argument ${JSON.stringify(positionals[index])} — usage: bi ${help}`);
+    throw new CliError(
+      `${command}: unexpected argument ${JSON.stringify(positionals[index])} — usage: browser-inspector ${help}`,
+    );
   }
   return bound;
 }
@@ -248,11 +250,11 @@ export function parseSessionCommand(command, args, steps = STEPS) {
   if (name === undefined || !Object.hasOwn(steps, name)) {
     const hint = suggest(command, ALL_SPELLINGS);
     throw new CliError(
-      `unknown command ${JSON.stringify(command)}${hint ? ` — did you mean "${hint}"?` : ''} (bi help lists the commands)`,
+      `unknown command ${JSON.stringify(command)}${hint ? ` — did you mean "${hint}"?` : ''} (browser-inspector help lists the commands)`,
     );
   }
   const def = steps[name];
-  if (!def.session) throw new CliError(`"${name}" is a config step, not a session command (bi help)`);
+  if (!def.session) throw new CliError(`"${name}" is a config step, not a session command (browser-inspector help)`);
   const { positionals, flags } = splitFlags(args, { ...def.flags, ...SESSION_FLAGS }, command);
   /** @type {Record<string, any>} */
   const options = {};
@@ -268,14 +270,16 @@ export function parseSessionCommand(command, args, steps = STEPS) {
   try {
     fields = def.fromArgv ? def.fromArgv(bound, flags) : genericFromArgv(bound, flags, def);
   } catch (error) {
-    throw new CliError(`${command}: ${error instanceof Error ? error.message : String(error)} — usage: bi ${def.help}`);
+    throw new CliError(
+      `${command}: ${error instanceof Error ? error.message : String(error)} — usage: browser-inspector ${def.help}`,
+    );
   }
   /** @type {Record<string, unknown> & { do: string }} */
   const step = { do: name, ...fields };
   // `--soft` belongs to the step when the step knows it (verify), to the options otherwise.
   if (options.soft === true && Object.hasOwn(def.config, 'soft')) step.soft = true;
-  const errors = validateSteps([step], `bi ${command}`, { mode: 'session' });
-  if (errors.length > 0) throw new CliError(`${errors.join('\n')}\nusage: bi ${def.help}`);
+  const errors = validateSteps([step], `browser-inspector ${command}`, { mode: 'session' });
+  if (errors.length > 0) throw new CliError(`${errors.join('\n')}\nusage: browser-inspector ${def.help}`);
   return { name, step, options };
 }
 
@@ -359,7 +363,7 @@ const isBuiltin = (word) => ['script', 'export', 'lint-config', 'run', 'help', .
  */
 function looksLikeBatch(args) {
   const first = args[0];
-  // `run` is also a session step (`bi run --file s.mjs`): only `run <config.json>` is the batch alias.
+  // `run` is also a session step (`browser-inspector run --file s.mjs`): only `run <config.json>` is the batch alias.
   if (first === 'run') return args.slice(1).some((a) => !a.startsWith('-') && a.endsWith('.json'));
   if (first.endsWith('.json')) return true;
   return first.startsWith('--') && args.some((a) => !a.startsWith('-') && a.endsWith('.json'));
@@ -367,7 +371,7 @@ function looksLikeBatch(args) {
 
 /** @param {readonly string[]} args @returns {ParsedArgs} */
 function parseBatch(args) {
-  const { positionals, flags } = splitFlags(args, BATCH_FLAGS, 'batch (bi <config.json>)');
+  const { positionals, flags } = splitFlags(args, BATCH_FLAGS, 'batch (browser-inspector <config.json>)');
   if (positionals.length !== 1 || !positionals[0].endsWith('.json')) {
     throw new CliError(
       `batch takes exactly one <config.json>${positionals.length > 1 ? ` (got ${positionals.map((p) => JSON.stringify(p)).join(', ')})` : ''}`,
@@ -417,7 +421,7 @@ function parseExport(args) {
 }
 
 /**
- * `bi help` — the whole grammar on one screen; `bi help <command>` — one row of the table.
+ * `browser-inspector help` — the whole grammar on one screen; `browser-inspector help <command>` — one row of the table.
  * @param {string} [command]
  * @returns {string}
  */
@@ -430,15 +434,16 @@ export function usage(command) {
   const byKind = (/** @type {string} */ kind) => session.filter((n) => STEPS[n].kind === kind);
   const spell = (/** @type {string} */ n) => [n, ...STEPS[n].aliases].join('|');
   return [
-    'bi <config.json> [--stamp YYYY-MM-DD_HH-MM] [--only name]… [--parallel N] [--fresh] [--junit f.xml] [--fail-on-incomplete] [--no-daemon]',
-    'bi <command> [args] [--session NAME] [--out DIR] [--soft]        (session — needs the keeper; exit 1 = FAIL)',
-    'bi script <file> [--out DIR] [--no-daemon]                        (session commands, one per line, one process)',
-    'bi up | status | stop | doctor | help [command] | export <flow.json> [--session NAME] [--force] | lint-config <config.json>',
+    'browser-inspector <config.json> [--stamp YYYY-MM-DD_HH-MM] [--only name]… [--parallel N] [--fresh]   (batch; alias: run)',
+    '                                [--junit f.xml] [--fail-on-incomplete] [--no-daemon]',
+    'browser-inspector <command> [args] [--session NAME] [--out DIR] [--soft]   (session — needs the keeper; exit 1 = FAIL)',
+    'browser-inspector script <file> [--out DIR] [--no-daemon]                   (session commands, one per line, one process)',
+    'browser-inspector up | status | stop | doctor | help [command] | export <flow.json> [--session NAME] [--force] | lint-config <config.json>',
     '',
     `actions:  ${byKind('action').map(spell).join(' ')}`,
     `queries:  ${byKind('query').map(spell).join(' ')}`,
     `control:  ${byKind('control').map(spell).join(' ')}`,
     '',
-    'bi help <command> shows the arguments; docs/STEPS.md lists the config fields of every step.',
+    'browser-inspector help <command> shows the arguments; docs/STEPS.md lists the config fields of every step.',
   ].join('\n');
 }

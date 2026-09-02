@@ -41,7 +41,7 @@
 <script>
   // The fixture's own credentials — the fake application's, not a config's. Two ways in, like a
   // real SPA behind Keycloak: the form (writes `session` + a cookie) and an access token under
-  // `access_token` (the OAuth path of bi writes it through storageState; the user comes from the
+  // `access_token` (the OAuth path of browser-inspector writes it through storageState; the user comes from the
   // JWT's `preferred_username`). `login-count` rides along in localStorage, so a storageState that
   // was captured after ONE login shows 1 in every run that reuses it.
   const USERS = { alice: 'wonderland-42' };

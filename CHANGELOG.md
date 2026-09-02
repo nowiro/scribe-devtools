@@ -5,6 +5,43 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Changed — BREAKING
+
+- **Skrót `bi` znika z narzędzia — wszędzie pełna nazwa `browser-inspector`** (reguła właściciela; narzędzie
+  ma jeden dzień, więc bez aliasów zgodności). Binarka: `bin/browser-inspector.mjs`,
+  `"bin": { "browser-inspector" }`, skrypt `npm run browser-inspector` w korzeniu i `pnpm browser-inspector`
+  w app-factory (było `bi`). Zmienne środowiskowe: prefiks `BROWSER_INSPECTOR_` zamiast `BI_` dla każdej bez
+  wyjątku (`_DAEMON`, `_SOCKET`, `_TMPDIR`, `_IDLE_MS`, `_SESSION_TTL_MS`, `_SESSION`, `_UNSAFE`,
+  `_ENGINE_MODULE`, `_STEP_TIMEOUT_MS`, `_CHANNEL`, `_BROWSER_PATH`, `_BROWSER_ARGS`, `_MAX_JOBS`,
+  `_MAX_RSS_MB`, `_LANE_IDLE_MS`, `_SCRUB_OP_MS`, `_REQUEST_TIMEOUT_MS`, `_CONNECT_TIMEOUT_MS`; testowe
+  `_TRACE_LOADS`, `_PERF`, `_PERF_CLIENT_MS`, `_SKIP_SMOKE`, `_FAKE_*`). Tożsamość keepera: pipe
+  `\\.\pipe\browser-inspector-<user>-<hash>` / `browser-inspector-<uid>-<hash>.sock`, pliki pid/lock/log
+  `browser-inspector-<hash>.*`, katalogi tymczasowe `browser-inspector-*`, tytuł procesu
+  `browser-inspector-keeper`, argument `--bin` (było `--bi`). W plikach wyjściowych i protokole: `binPath`
+  (było `biPath`), `engine['browser-inspector']` i `tooling.script` w `report.json`, JUnit
+  `name="browser-inspector"` / `classname="browser-inspector.<suite>"`, prefiks błędów na stderr
+  `browser-inspector:`. Podpowiedzi w stdout mówią `browser-inspector snap` / `browser-inspector up | doctor`
+  (słowa wokół nazwy skrócone, żeby linie zostały ≤ 160 znaków / ≤ 40 tokenów; `KEEPER_UNAVAILABLE` brzmi
+  `sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon`, a powód nie powtarza
+  nazwy pipe — `no keeper after 3 000 ms (no pid file)`; `browser-inspector status` ma cztery linie: nagłówek
+  z pipe, `up`, `rss` / liczniki / wersje / sama ścieżka `bin/browser-inspector.mjs` — jedyna linia ponad
+  160 znaków, jak w `doctor`; `keeper not running` podaje nieaktualny plik pid w osobnej linii). Zip portable: shimy `browser-inspector.cmd` /
+  `browser-inspector`. Bench: warianty `browser-inspector-warm`, `-warm-tight`, `-warm-fresh`, `-first`,
+  `-cold`, `-interactive-naive/lean`, moduł `bench/browser-inspector-run.mjs` (było `bench/bi-run.mjs`).
+  Blok instrukcji w AGENTS.md przepisany z pełną nazwą: **158 tokenów o200k** (było 146), limit w
+  `scripts/check-instruction-sync.mjs` i AC-6 podniesiony **ze 150 do 200** — właściciel świadomie płaci
+  tokenami za pełną nazwę; blok zostaje tak krótki, jak nazwa pozwala. Katalogi wyjściowe
+  `.scribe-devtools/browser-inspector/…` bez zmian (już były pełną nazwą). README, AGENTS.md, DESIGN
+  (§2.1, §2.4, §2.5, §3.1, §4.4, §5, §8, §9), ACCEPTANCE (AC-1…AC-20), PLAN, szablon flow, `docs/STEPS.md`
+  (generowany) i `.gitignore` (`.bi/` usunięte — nic go nie tworzy) przepisane. AGENTS.md §Wydanie: rozwój
+  toczy się pod numerem wydanej wersji aż do podbicia przy następnym wydaniu — zamrożony jest tylko wydany zip.
+
+### Fixed
+
+- `browser-inspector stop` usuwa pliki pid i lock **przed** odpowiedzią `ok keeper stopping`, więc `status`
+  wydany zaraz po `stop` mówi `keeper not running`, a nie `stale pid file` (keeper kończył się poprawnie,
+  ale sprzątał dopiero po zamknięciu przeglądarki). Test: `stop` → `status` bez linii o pliku pid.
+
 ### Changed
 
 - Domyślny katalog wyników to **`.scribe-devtools/`** (było `.scribe/`): `DEFAULT_OUTPUT_DIR`
@@ -24,7 +61,7 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   niezmieniony pakiet nie dokłada bloba do historii; `zipEntries` czyta katalog centralny bez
   zewnętrznego `tar`. Wersja pochodzi wyłącznie z `packages/browser-inspector/package.json`, a build
   odmawia, gdy korzeń podaje inną (`readVersion`). Testy: determinizm (dwa buildy → jeden hash),
-  `buildPortable` z `changed`, separatory `/`, round-trip zip → unpack → `bi help`.
+  `buildPortable` z `changed`, separatory `/`, round-trip zip → unpack → `browser-inspector help`.
 
 ## 0.1.0 — 2026-09-02
 

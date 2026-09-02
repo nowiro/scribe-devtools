@@ -51,13 +51,13 @@ export function fnv1a(text) {
  * @property {string} [executablePath]
  * @property {boolean} [headless]
  * @property {readonly string[]} [args] browser args from the config
- * @property {string} [browserArgsEnv] `BI_BROWSER_ARGS`
+ * @property {string} [browserArgsEnv] `BROWSER_INSPECTOR_BROWSER_ARGS`
  * @property {string} [httpProxy] `HTTP_PROXY`
  * @property {string} [httpsProxy] `HTTPS_PROXY`
  * @property {string} [noProxy] `NO_PROXY`
- * @property {string} binRealpath `realpath(bin/bi.mjs)` — two checkouts get two keepers
+ * @property {string} binRealpath `realpath(bin/browser-inspector.mjs)` — two checkouts get two keepers
  * @property {string | number} [srcStamp] max mtime of `src/**` ('' in a portable zip)
- * @property {boolean} [unsafe] `BI_UNSAFE=1` — an unsafe keeper is a separate identity
+ * @property {boolean} [unsafe] `BROWSER_INSPECTOR_UNSAFE=1` — an unsafe keeper is a separate identity
  */
 
 /**
@@ -82,7 +82,7 @@ export function identityHash(parts) {
     parts.noProxy ?? '',
     parts.binRealpath,
     parts.srcStamp === undefined ? '' : String(parts.srcStamp),
-    // `BI_UNSAFE=1` is part of WHO the keeper is: `bi run --file` is gated on the keeper's env,
+    // `BROWSER_INSPECTOR_UNSAFE=1` is part of WHO the keeper is: `browser-inspector run --file` is gated on the keeper's env,
     // so a client without the variable must never reach a keeper that has it (or the reverse).
     parts.unsafe === true ? 'unsafe' : '',
   ].join('|');
@@ -149,29 +149,29 @@ export function collectIdentity(input) {
   const env = input.env ?? process.env;
   const browser = input.browser ?? {};
   const packageDir = input.packageDir;
-  const binFile = path.join(packageDir, 'bin', 'bi.mjs');
+  const binFile = path.join(packageDir, 'bin', 'browser-inspector.mjs');
   let binRealpath = binFile;
   try {
     binRealpath = realpathSync(binFile);
   } catch {
-    // Before WP5 lands bin/bi.mjs the path is still a stable identity input.
+    // Before WP5 lands bin/browser-inspector.mjs the path is still a stable identity input.
   }
   const portable = existsSync(path.join(packageDir, PORTABLE_MARKER));
   return {
     pkgVersion: packageVersion(packageDir),
     pwVersion: playwrightCoreVersion(packageDir),
     nodeMajor: input.nodeMajor ?? Number(process.versions.node.split('.')[0]),
-    channel: env.BI_CHANNEL ?? browser.channel ?? '',
-    executablePath: env.BI_BROWSER_PATH ?? browser.executablePath ?? '',
+    channel: env.BROWSER_INSPECTOR_CHANNEL ?? browser.channel ?? '',
+    executablePath: env.BROWSER_INSPECTOR_BROWSER_PATH ?? browser.executablePath ?? '',
     headless: browser.headless !== false,
     args: browser.args ?? [],
-    browserArgsEnv: env.BI_BROWSER_ARGS ?? '',
+    browserArgsEnv: env.BROWSER_INSPECTOR_BROWSER_ARGS ?? '',
     httpProxy: env.HTTP_PROXY ?? env.http_proxy ?? '',
     httpsProxy: env.HTTPS_PROXY ?? env.https_proxy ?? '',
     noProxy: env.NO_PROXY ?? env.no_proxy ?? '',
     binRealpath: binRealpath.replaceAll('\\', '/'),
     srcStamp: portable ? '' : srcStamp(path.join(packageDir, 'src')),
-    unsafe: env.BI_UNSAFE === '1',
+    unsafe: env.BROWSER_INSPECTOR_UNSAFE === '1',
   };
 }
 
@@ -179,23 +179,23 @@ export function collectIdentity(input) {
 const safeName = (/** @type {string} */ name) => name.replace(/[^A-Za-z0-9_-]/gu, '_') || 'user';
 
 /**
- * Where the keeper listens. `BI_SOCKET` wins (two agents, two keepers). Windows: a named pipe
- * `\\.\pipe\bi-<user>-<hash>`; elsewhere `$XDG_RUNTIME_DIR` (or the tmpdir) `/bi-<uid>-<hash>.sock`.
+ * Where the keeper listens. `BROWSER_INSPECTOR_SOCKET` wins (two agents, two keepers). Windows: a named pipe
+ * `\\.\pipe\browser-inspector-<user>-<hash>`; elsewhere `$XDG_RUNTIME_DIR` (or the tmpdir) `/browser-inspector-<uid>-<hash>.sock`.
  * @param {string} hash
  * @param {{ platform?: NodeJS.Platform, env?: NodeJS.ProcessEnv, user?: string, uid?: number | string, tmpdir?: string }} [options]
  * @returns {string}
  */
 export function pipeName(hash, options = {}) {
   const env = options.env ?? process.env;
-  if (env.BI_SOCKET) return env.BI_SOCKET;
+  if (env.BROWSER_INSPECTOR_SOCKET) return env.BROWSER_INSPECTOR_SOCKET;
   const platform = options.platform ?? process.platform;
   if (platform === 'win32') {
     const user = options.user ?? userName();
-    return `\\\\.\\pipe\\bi-${safeName(user)}-${hash}`;
+    return `\\\\.\\pipe\\browser-inspector-${safeName(user)}-${hash}`;
   }
   const uid = options.uid ?? (typeof process.getuid === 'function' ? process.getuid() : 'u');
   const dir = env.XDG_RUNTIME_DIR && env.XDG_RUNTIME_DIR !== '' ? env.XDG_RUNTIME_DIR : (options.tmpdir ?? os.tmpdir());
-  return path.join(dir, `bi-${String(uid)}-${hash}.sock`);
+  return path.join(dir, `browser-inspector-${String(uid)}-${hash}.sock`);
 }
 
 /** @returns {string} */
@@ -207,12 +207,15 @@ function userName() {
   }
 }
 
-/** `<tmpdir>/bi-<hash>.json` — `{ pid, pipe, token, version, startedAt, biPath }`, written by the keeper. */
-export const pidFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) => path.join(tmpdir, `bi-${hash}.json`);
-/** `<tmpdir>/bi-<hash>.lock` — taken with `O_EXCL` by the keeper; the second keeper exits 0. */
-export const lockFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) => path.join(tmpdir, `bi-${hash}.lock`);
-/** `<tmpdir>/bi-<hash>.log` — truncated at 1 MB, never a secret value. */
-export const logFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) => path.join(tmpdir, `bi-${hash}.log`);
+/** `<tmpdir>/browser-inspector-<hash>.json` — `{ pid, pipe, token, version, startedAt, binPath }`, written by the keeper. */
+export const pidFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) =>
+  path.join(tmpdir, `browser-inspector-${hash}.json`);
+/** `<tmpdir>/browser-inspector-<hash>.lock` — taken with `O_EXCL` by the keeper; the second keeper exits 0. */
+export const lockFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) =>
+  path.join(tmpdir, `browser-inspector-${hash}.lock`);
+/** `<tmpdir>/browser-inspector-<hash>.log` — truncated at 1 MB, never a secret value. */
+export const logFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) =>
+  path.join(tmpdir, `browser-inspector-${hash}.log`);
 
 /**
  * `<out>/session/<name>` — the session directory (snap.md, journal.jsonl, shots/, …).
@@ -249,8 +252,8 @@ export function isCI(env) {
 }
 
 /**
- * Whether a client should talk to (and start) the keeper. `BI_DAEMON=1` wins over CI detection —
- * the explicit way to get the warm path on a runner; `BI_DAEMON=0` and `--no-daemon` win over
+ * Whether a client should talk to (and start) the keeper. `BROWSER_INSPECTOR_DAEMON=1` wins over CI detection —
+ * the explicit way to get the warm path on a runner; `BROWSER_INSPECTOR_DAEMON=0` and `--no-daemon` win over
  * everything else.
  * @param {NodeJS.ProcessEnv} env
  * @param {{ noDaemon?: boolean }} [options]
@@ -258,7 +261,7 @@ export function isCI(env) {
  */
 export function daemonEnabled(env, options = {}) {
   if (options.noDaemon === true) return false;
-  const flag = env.BI_DAEMON;
+  const flag = env.BROWSER_INSPECTOR_DAEMON;
   if (flag === '0' || flag === 'false') return false;
   if (flag === '1' || flag === 'true') return true;
   return !isCI(env);

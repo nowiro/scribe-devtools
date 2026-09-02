@@ -1,15 +1,15 @@
-# Szablon flow dla `bi` (browser-inspector 2)
+# Szablon flow dla `browser-inspector`
 
-`bi` patrzy na aplikację webową przez prawdziwy Chrome/Edge i **cały wynik zostawia w plikach**.
+`browser-inspector` patrzy na aplikację webową przez prawdziwy Chrome/Edge i **cały wynik zostawia w plikach**.
 Dwa wejścia do jednej tabeli kroków ([docs/STEPS.md](../../../docs/STEPS.md)):
 
-- **batch** — `bi flow.json [--stamp X]`: flow z configu, wynik w
+- **batch** — `browser-inspector flow.json [--stamp X]`: flow z configu, wynik w
   `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko
   przy porażce) + `report.json`, `elements.md`, `text.txt`, zrzuty. Pętla: **uruchom → przeczytaj
   `report.md` → popraw flow → uruchom ponownie**. To jest ścieżka bramki CI.
-- **sesja** — `bi open <url>`, `bi find <tekst>`, `bi click e45`, `bi snap`: „spójrz, potem kliknij”
+- **sesja** — `browser-inspector open <url>`, `browser-inspector find <tekst>`, `browser-inspector click e45`, `browser-inspector snap`: „spójrz, potem kliknij”
   na refach `eN` z pełnego snapshotu a11y; jedna linia stdout na komendę. Sesję kończy
-  `bi export flow.json`, który zapisuje ją jako config batchu — i od tej chwili powtarza się bez agenta.
+  `browser-inspector export flow.json`, który zapisuje ją jako config batchu — i od tej chwili powtarza się bez agenta.
 
 Nieudany krok to **wynik, nie crash**: raport mówi, który krok padł i czemu, `final.png` powstaje,
 a batch kończy się kodem 0 (`--fail-on-incomplete` daje 1). Kod 2 = błąd fatalny (config, brak
@@ -51,12 +51,12 @@ Pola snapshotu poza `name`/`type`/`url`/`steps`: `waitUntil` (`load` domyślnie;
 "auto" | "always" | "never"`, `dialogs: "dismiss" | "accept"`, `routes[]` (blokady/podmiany
 odpowiedzi przed pierwszym `goto`), `trace`, `video`, `auth: false`. `type: "page"` = samo wejście
 i `page.png`. Stary config (skryba, `networkidle`, `wait ms`) parsuje się bez zmian —
-`bi lint-config flow.json` podpowiada, co warto zmienić.
+`browser-inspector lint-config flow.json` podpowiada, co warto zmienić.
 
 ## Kroki, po które sięga się najczęściej
 
-Pełna lista z polami i flagami sesji: [docs/STEPS.md](../../../docs/STEPS.md) (`bi help <krok>`
-drukuje ten sam wiersz). Te same nazwy w configu (`steps[].do`) i w sesji (`bi <krok> …`).
+Pełna lista z polami i flagami sesji: [docs/STEPS.md](../../../docs/STEPS.md) (`browser-inspector help <krok>`
+drukuje ten sam wiersz). Te same nazwy w configu (`steps[].do`) i w sesji (`browser-inspector <krok> …`).
 
 | krok                                                                                     | do czego                                                                                                                    |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -133,20 +133,20 @@ Trzy chwyty, które ten przykład ilustruje:
 ## Sesja → flow: zapis tego, co agent wyklikał
 
 ```
-bi open http://localhost:4313/          # ok open "Księgarnia" · el 61 · err 0 · …/session/default/snap.md
-bi find koszyk                          # e45 button "Otwórz koszyk" [data-testid=header-cart-button]
-bi fill e39 Harry --enter               # ok fill e39 · navigated → refs f1eN (bi snap) · el 58
-bi snap --diff                          # tylko linie dodane/usunięte od poprzedniego widoku
-bi click e112 && bi get e45             # ok click e112 · dom Δ · el 61→63   /   "1"
-bi export flows/koszyk.json             # ok export 5 steps → flows/koszyk.json (refs → data-testid/#id/role=)
+browser-inspector open http://localhost:4313/                # ok open "Księgarnia" · el 61 · err 0 · …/session/default/snap.md
+browser-inspector find koszyk                                # e45 button "Otwórz koszyk" [data-testid=header-cart-button]
+browser-inspector fill e39 Harry --enter                     # ok fill e39 · navigated → refs f1eN (browser-inspector snap) · el 58
+browser-inspector snap --diff                                # tylko linie dodane/usunięte od poprzedniego widoku
+browser-inspector click e112 && browser-inspector get e45    # ok click e112 · dom Δ · el 61→63   /   "1"
+browser-inspector export flows/koszyk.json                   # ok export 5 steps → flows/koszyk.json (refs → data-testid/#id/role=)
 ```
 
 Eksport zamienia refy na trwałe selektory (`[data-testid=…]` → `#id` → `[name=…]` → `role=`),
 wartości z `@{NAZWA}`/`--env` na `valueFromEnv`, pomija komendy sesyjne bez odpowiednika w
 configu (`find`, `console`, `net`) i **odmawia**, gdy jakiś ref nie ma trwałego selektora — klikaj
 w elementy interaktywne z etykietą (`find` pokazuje je obok bezimiennych `generic`). Plik
-eksportu to zwykły config: `bi flows/koszyk.json` od razu działa. Dla CI bez keepera te same
-linie wykona `bi script plik.txt --no-daemon` (jedna komenda na linię, stop na pierwszym FAIL).
+eksportu to zwykły config: `browser-inspector flows/koszyk.json` od razu działa. Dla CI bez keepera te same
+linie wykona `browser-inspector script plik.txt --no-daemon` (jedna komenda na linię, stop na pierwszym FAIL).
 
 ## Blok `auth` — logowanie raz, sesja z pliku
 
@@ -179,7 +179,7 @@ W `auth.login.steps` każdy `fill` musi mieć `valueFromEnv` — literał jest b
 
 ## Zasady, które czynią flow utrzymywalnym
 
-1. **Selektory bierz z `elements.md` albo z `bi find`.** Każdy raport (domyślnie) ma mapę
+1. **Selektory bierz z `elements.md` albo z `browser-inspector find`.** Każdy raport (domyślnie) ma mapę
    elementów interaktywnych z gotowymi selektorami; pierwszy przebieg może być samym
    `type: "page"`. W sesji `find` daje ref **i** selektor w jednej linii.
 2. **`extract`/`verify` zamiast czytania całego tekstu strony.** Asercja „saldo wynosi X” to jeden
@@ -190,7 +190,7 @@ W `auth.login.steps` każdy `fill` musi mieć `valueFromEnv` — literał jest b
 4. **Proś front o `data-testid`.** Selektor pozycyjny pęka przy każdym refactoringu;
    `[data-testid=zapisz]` przeżywa wszystko — i to on ląduje w eksporcie sesji.
 5. **`waitFor`/`wait --text` zamiast `wait ms`.** Sen jest zawsze za długi albo za krótki; czekanie
-   na element/tekst kończy się dokładnie wtedy, gdy strona jest gotowa (`bi lint-config` to
+   na element/tekst kończy się dokładnie wtedy, gdy strona jest gotowa (`browser-inspector lint-config` to
    wypunktuje).
 6. **`--stamp` przy porównaniach.** Dwa przebiegi z tym samym stemplem piszą do tego samego
    katalogu — diff raportów przed/po zmianie to zwykły `diff`.

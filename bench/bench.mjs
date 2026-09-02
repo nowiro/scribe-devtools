@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// bench.mjs — the orchestration: one task (bench/task.mjs), every `bi` variant of DESIGN.md §9 as
-// real processes (bi-run.mjs), three MCP variants (mcp-run.mjs), the same 300 ms gap on both
+// bench.mjs — the orchestration: one task (bench/task.mjs), every `browser-inspector` variant of DESIGN.md §9 as
+// real processes (browser-inspector-run.mjs), three MCP variants (mcp-run.mjs), the same 300 ms gap on both
 // sides, medians + p90, the correctness gate on every variant, and the generated files:
 // RAPORT.md, WYNIKI.md, BUDGET.md, bench/out/results.json and the BENCH:START/END block of the
 // root README. Nothing in those files is typed by hand.
 //
-//   npm run bench [-- --only bi|mcp] [--reps 3] [--warm 10] [--assert-speedup 5] [--skip-app-factory]
+//   npm run bench [-- --only browser-inspector|mcp] [--reps 3] [--warm 10] [--assert-speedup 5] [--skip-app-factory]
 //
 // `--only` writes `.partial` files — half a measurement must not silently replace the committed
-// reports. `--assert-speedup N` exits 1 when the MEDIAN of `bi-warm` is not at least N× faster
+// reports. `--assert-speedup N` exits 1 when the MEDIAN of `browser-inspector-warm` is not at least N× faster
 // than the median of MCP naive warm (opt-in, not part of `npm run verify`).
 //
 // Ports: 4300 (the form) and 4311–4314 (app-factory builds). The app-factory smoke gate uses the
@@ -34,7 +34,7 @@ import {
   timeCold,
   timeFirst,
   timeWarm,
-} from './bi-run.mjs';
+} from './browser-inspector-run.mjs';
 import { renderBudget } from './budget.mjs';
 import { mcpVersion, runVariant, timeVariant } from './mcp-run.mjs';
 import { renderRaport, renderReadmeBlock, renderWyniki } from './raport.mjs';
@@ -104,7 +104,8 @@ const log = (text) => process.stdout.write(`[bench] ${text}\n`);
 
 async function main() {
   const only = flag('only', undefined);
-  if (only !== undefined && !['bi', 'mcp'].includes(only)) throw new Error(`--only: "bi" or "mcp", not "${only}"`);
+  if (only !== undefined && !['browser-inspector', 'mcp'].includes(only))
+    throw new Error(`--only: "browser-inspector" or "mcp", not "${only}"`);
   const REPS = Number(flag('reps', '3'));
   const WARM = Number(flag('warm', '10'));
   if (!Number.isInteger(REPS) || REPS < 1)
@@ -140,19 +141,21 @@ async function main() {
       warmN: WARM,
       only: only ?? null,
     },
-    bi: {},
+    browserInspector: {},
     mcp: {},
   };
   try {
-    if (only !== 'mcp') results.bi = await measureBi({ REPS, WARM, fixture });
-    if (only !== 'bi') results.mcp = await measureMcp({ WARM });
+    if (only !== 'mcp') results.browserInspector = await measureBrowserInspector({ REPS, WARM, fixture });
+    if (only !== 'browser-inspector') results.mcp = await measureMcp({ WARM });
   } finally {
     for (const s of servers) await s.close();
     releaseLock();
   }
-  results.meta.versions.bi = results.bi?.batchSample?.engine?.bi ?? results.bi?.versions?.bi;
-  results.meta.versions.playwrightCore = results.bi?.batchSample?.engine?.['playwright-core'];
-  results.meta.versions.browser = results.bi?.batchSample?.engine?.browser;
+  results.meta.versions.browserInspector =
+    results.browserInspector?.batchSample?.engine?.['browser-inspector'] ??
+    results.browserInspector?.versions?.browserInspector;
+  results.meta.versions.playwrightCore = results.browserInspector?.batchSample?.engine?.['playwright-core'];
+  results.meta.versions.browser = results.browserInspector?.batchSample?.engine?.browser;
 
   fs.writeFileSync(path.join(OUT, 'results.json'), `${JSON.stringify(results, null, 2)}\n`, 'utf8');
   const suffix = only ? '.partial' : '';
@@ -164,58 +167,68 @@ async function main() {
     `done → bench/WYNIKI${suffix}.md, bench/RAPORT${suffix}.md, bench/BUDGET${suffix}.md${only ? '' : ', README.md (BENCH block)'}, bench/out/results.json`,
   );
 
-  const warm = results.bi?.warm?.stats?.median;
+  const warm = results.browserInspector?.warm?.stats?.median;
   const naive = results.mcp?.time?.find((/** @type {any} */ t) => t.name === 'mcp-naive')?.warm?.median;
   if (warm && naive)
-    log(`bi-warm ${String(warm)} ms vs MCP naive warm ${String(naive)} ms → ${(naive / warm).toFixed(2)}×`);
+    log(
+      `browser-inspector-warm ${String(warm)} ms vs MCP naive warm ${String(naive)} ms → ${(naive / warm).toFixed(2)}×`,
+    );
   if (assertSpeedup !== undefined) {
     const need = Number(assertSpeedup);
     if (!warm || !naive) throw new Error('--assert-speedup needs both sides measured (no --only)');
     const speedup = naive / warm;
-    const modesOk = results.bi.warm.validModes;
+    const modesOk = results.browserInspector.warm.validModes;
     if (speedup < need || !modesOk) {
       process.stderr.write(
-        `[bench] FAIL speedup ${speedup.toFixed(2)}× < ${String(need)}× (bi-warm median ${String(warm)} ms, p90 ${String(results.bi.warm.stats.p90)} ms; MCP naive warm median ${String(naive)} ms${modesOk ? '' : `; modes ${results.bi.warm.modes.join(',')}`})\n`,
+        `[bench] FAIL speedup ${speedup.toFixed(2)}× < ${String(need)}× (browser-inspector-warm median ${String(warm)} ms, p90 ${String(results.browserInspector.warm.stats.p90)} ms; MCP naive warm median ${String(naive)} ms${modesOk ? '' : `; modes ${results.browserInspector.warm.modes.join(',')}`})\n`,
       );
       process.exitCode = 1;
       return;
     }
-    log(`ok speedup ${speedup.toFixed(2)}× ≥ ${String(need)}× (p90 bi-warm ${String(results.bi.warm.stats.p90)} ms)`);
+    log(
+      `ok speedup ${speedup.toFixed(2)}× ≥ ${String(need)}× (p90 browser-inspector-warm ${String(results.browserInspector.warm.stats.p90)} ms)`,
+    );
   }
 }
 
 /**
- * The `bi` side, in the order DESIGN.md §9 lists the variants: cold (no keeper), first (keeper in
- * the stopwatch), then the warm family on the keeper `bi-first` left running, the interactive
+ * The `browser-inspector` side, in the order DESIGN.md §9 lists the variants: cold (no keeper), first (keeper in
+ * the stopwatch), then the warm family on the keeper `browser-inspector-first` left running, the interactive
  * sessions on the same keeper, app-factory, and the shell survival probes on their own pipes.
  * @param {{ REPS: number, WARM: number, fixture: ReturnType<typeof appFactoryFixture> }} options
  */
-async function measureBi({ REPS, WARM, fixture }) {
-  const outDir = path.join(OUT, 'bi');
+async function measureBrowserInspector({ REPS, WARM, fixture }) {
+  const outDir = path.join(OUT, 'browser-inspector');
   const env = benchEnv(outDir);
   const { configPath } = prepareBatchConfig(path.join(outDir, 'batch'));
-  /** @type {import('./bi-run.mjs').BenchContext} */
+  /** @type {import('./browser-inspector-run.mjs').BenchContext} */
   const ctx = { env, cwd: outDir, outDir, configPath, log };
   /** @type {any} */
-  const bi = {};
+  const browserInspector = {};
   try {
-    log(`bi: cold ×${String(REPS)}`);
-    bi.cold = await timeCold(ctx, REPS);
-    log(`bi: first (first-ever + ×${String(REPS)})`);
-    bi.first = await timeFirst(ctx, REPS);
-    log(`bi: warm n=${String(WARM)}, gap 300 ms`);
-    bi.warm = await timeWarm(ctx, { name: 'bi-warm', n: WARM, gapMs: 300, day: 3 });
-    log(`bi: warm-tight n=${String(WARM)}, no gap`);
-    bi.tight = await timeWarm(ctx, { name: 'bi-warm-tight', n: WARM, gapMs: 0, day: 4 });
-    log(`bi: warm-fresh n=${String(WARM)}, --fresh`);
-    bi.fresh = await timeWarm(ctx, { name: 'bi-warm-fresh', n: WARM, gapMs: 300, extraArgs: ['--fresh'], day: 5 });
+    log(`browser-inspector: cold ×${String(REPS)}`);
+    browserInspector.cold = await timeCold(ctx, REPS);
+    log(`browser-inspector: first (first-ever + ×${String(REPS)})`);
+    browserInspector.first = await timeFirst(ctx, REPS);
+    log(`browser-inspector: warm n=${String(WARM)}, gap 300 ms`);
+    browserInspector.warm = await timeWarm(ctx, { name: 'browser-inspector-warm', n: WARM, gapMs: 300, day: 3 });
+    log(`browser-inspector: warm-tight n=${String(WARM)}, no gap`);
+    browserInspector.tight = await timeWarm(ctx, { name: 'browser-inspector-warm-tight', n: WARM, gapMs: 0, day: 4 });
+    log(`browser-inspector: warm-fresh n=${String(WARM)}, --fresh`);
+    browserInspector.fresh = await timeWarm(ctx, {
+      name: 'browser-inspector-warm-fresh',
+      n: WARM,
+      gapMs: 300,
+      extraArgs: ['--fresh'],
+      day: 5,
+    });
 
     // Tokens: one more warm run, read the way the agent reads it (stdout + the whole report.md).
     await sleep(300);
     const sample = await runBatch(ctx, { stamp: makeStamp(0, new Date(2000, 0, 6, 0, 0)) });
-    bi.batchTokens = batchTokens(sample);
-    bi.batchTokensPnpm = batchTokens(sample, { command: COMMAND_PNPM });
-    bi.batchSample = {
+    browserInspector.batchTokens = batchTokens(sample);
+    browserInspector.batchTokensPnpm = batchTokens(sample, { command: COMMAND_PNPM });
+    browserInspector.batchSample = {
       dir: sample.dir,
       stdout: sample.stdout.trimEnd(),
       wallMs: sample.wallMs,
@@ -226,17 +239,17 @@ async function measureBi({ REPS, WARM, fixture }) {
       reportMdTokens: measure('report.md', sample.reportMd).tokens,
     };
 
-    bi.interactive = [];
+    browserInspector.interactive = [];
     for (const kind of /** @type {const} */ (['naive', 'lean'])) {
-      log(`bi: interactive ${kind}`);
+      log(`browser-inspector: interactive ${kind}`);
       try {
-        bi.interactive.push(await runInteractive(kind, ctx));
+        browserInspector.interactive.push(await runInteractive(kind, ctx));
       } catch (error) {
         // A failed session is a result (the gate lists it), not the end of the measurement.
         const message = error instanceof Error ? error.message.split('\n')[0] : String(error);
-        log(`bi-interactive-${kind} failed: ${message}`);
-        bi.interactive.push({
-          name: `bi-interactive-${kind}`,
+        log(`browser-inspector-interactive-${kind} failed: ${message}`);
+        browserInspector.interactive.push({
+          name: `browser-inspector-interactive-${kind}`,
           kind,
           commands: [],
           wallMs: 0,
@@ -250,14 +263,14 @@ async function measureBi({ REPS, WARM, fixture }) {
 
     if (fixture) {
       try {
-        bi.appFactory = await measureAppFactory(ctx, fixture, REPS);
+        browserInspector.appFactory = await measureAppFactory(ctx, fixture, REPS);
       } catch (error) {
         const message = error instanceof Error ? error.message.split('\n')[0] : String(error);
-        bi.appFactory = { available: false, reason: `run failed: ${message}` };
+        browserInspector.appFactory = { available: false, reason: `run failed: ${message}` };
         log(`app-factory failed: ${message}`);
       }
     } else {
-      bi.appFactory = {
+      browserInspector.appFactory = {
         available: false,
         reason: `no app-factory config/builds under ${String(process.env.BENCH_APP_FACTORY ?? '../app-factory')} (or --skip-app-factory)`,
       };
@@ -265,20 +278,20 @@ async function measureBi({ REPS, WARM, fixture }) {
   } finally {
     await stopKeeper(ctx);
   }
-  log('bi: keeper-survives-shell');
-  bi.shells = await keeperSurvivesShell(ctx);
-  return bi;
+  log('browser-inspector: keeper-survives-shell');
+  browserInspector.shells = await keeperSurvivesShell(ctx);
+  return browserInspector;
 }
 
 /**
  * app-factory: the 6 snapshots with `--parallel 1` and `3`, the config unchanged and with
  * `networkidle` → `settled`, `min(2, REPS)` runs each (the first run of a lane pays its context).
- * @param {import('./bi-run.mjs').BenchContext} ctx
+ * @param {import('./browser-inspector-run.mjs').BenchContext} ctx
  * @param {NonNullable<ReturnType<typeof appFactoryFixture>>} fixture
  * @param {number} REPS
  */
 async function measureAppFactory(ctx, fixture, REPS) {
-  log('bi: app-factory parallel 1 / 3, config unchanged and with settled');
+  log('browser-inspector: app-factory parallel 1 / 3, config unchanged and with settled');
   const dir = path.join(ctx.outDir, 'app-factory');
   const runs = [];
   let day = 10;

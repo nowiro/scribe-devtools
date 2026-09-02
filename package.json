@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Developer tools in the scribe spirit: scripts instead of MCP servers, results on disk. Home of browser-inspector 2 (`bi`) — batch flows and an interactive session on one step table over playwright-core — and of its benchmark against @playwright/mcp.",
+  "description": "Developer tools in the scribe spirit: scripts instead of MCP servers, results on disk. Home of browser-inspector 2 — batch flows and an interactive session on one step table over playwright-core — and of its benchmark against @playwright/mcp.",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=22"
@@ -24,7 +24,7 @@
     "portable": "node scripts/portable-zip.mjs",
     "bench": "npm run bench --workspace bench",
     "prepare": "git config core.hooksPath .githooks || exit 0",
-    "bi": "node packages/browser-inspector/bin/bi.mjs"
+    "browser-inspector": "node packages/browser-inspector/bin/browser-inspector.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

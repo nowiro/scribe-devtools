@@ -1,7 +1,7 @@
 // The session half of the engine on a FakePage (DESIGN.md §4; AC-8, AC-9, AC-14): one line per
 // command with the deltas, `console`/`net` only since the last call, a dead ref failing at once,
 // `snap --max` with the overflow marker, `frame` never snapshotting a subtree, dialogs by policy,
-// tabs, `run --file` refused without BI_UNSAFE=1, the journal + export, `bi script` addressing —
+// tabs, `run --file` refused without BROWSER_INSPECTOR_UNSAFE=1, the journal + export, `browser-inspector script` addressing —
 // and the token budget of every line, counted with the bench's tokenizer.
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -62,7 +62,7 @@ async function harness(fakeOptions = {}, engineOptions = {}) {
   const fake = createFakeBrowser(options);
   const engine = createEngine({ launch: async () => fake, prewarm: false, env: {}, ...engineOptions });
   engines.push(engine);
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'bi-session-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'browser-inspector-session-'));
   dirs.push(cwd);
   const out = path.join(cwd, 'out');
   /** @param {import("../src/types.js").Step} step @param {Record<string, any>} [extra] */
@@ -163,7 +163,7 @@ describe('session: open, deltas, one line per command', () => {
     const h = await harness();
     const result = await h.run({ do: 'click', ref: 'e1' });
     expect(result.exit).toBe(1);
-    expect(result.lines).toEqual(['FAIL click e1 · no open session "default" → bi open <url>']);
+    expect(result.lines).toEqual(['FAIL click e1 · no open session "default" → browser-inspector open <url>']);
   });
 
   it('an action line carries dom Δ, el a→b and +N console.error; a query prints content', async () => {
@@ -192,7 +192,7 @@ describe('session: open, deltas, one line per command', () => {
     expect(named.lines).toEqual(['ok get suma ← #total · text of #total']);
   });
 
-  it('a navigation prints `navigated → refs f<seq>eN (bi snap)` and a same-document URL change prints the path', async () => {
+  it('a navigation prints `navigated → refs f<seq>eN (browser-inspector snap)` and a same-document URL change prints the path', async () => {
     const h = await harness();
     await h.open('http://localhost:4300/');
     const page = h.page();
@@ -204,7 +204,7 @@ describe('session: open, deltas, one line per command', () => {
       },
     };
     const nav = await h.run({ do: 'click', ref: 'e3' });
-    expect(nav.lines).toEqual(['ok click e3 · navigated → refs f1eN (bi snap) · el 23']);
+    expect(nav.lines).toEqual(['ok click e3 · navigated → refs f1eN (browser-inspector snap) · el 23']);
     assertBudget(nav.lines);
     const journal = readJournal(path.join(h.dir, 'journal.jsonl'));
     expect(journal.at(-1)).toMatchObject({
@@ -274,7 +274,9 @@ describe('session: refs', () => {
     const result = await h.run({ do: 'click', ref: 'e99' });
     expect(performance.now() - started).toBeLessThan(500);
     expect(result.exit).toBe(1);
-    expect(result.lines).toEqual(['FAIL click e99 · ref not found (gone, label changed or other frame) → bi snap']);
+    expect(result.lines).toEqual([
+      'FAIL click e99 · ref not found (gone, label changed or other frame) → browser-inspector snap',
+    ]);
     assertBudget(result.lines);
     const refreshes = callsOf(h.calls, 'ariaSnapshot').slice(snapshotsBefore);
     expect(refreshes).toHaveLength(1);
@@ -417,7 +419,7 @@ describe('session: console and net', () => {
     const all = await h.run({ do: 'net', all: true, tail: 1 });
     expect(all.lines).toEqual([
       '3 total:',
-      '…2 older (bi net --all --tail N)',
+      '…2 older (browser-inspector net --all --tail N)',
       expect.stringMatching(/^#3 GET \/api\/ping net::ERR_FAILED [01] ms$/u),
     ]);
     expect(await readFile(path.join(h.dir, 'net.jsonl'), 'utf8')).toContain('"url":"http://localhost:4300/api/cart"');
@@ -525,7 +527,7 @@ describe('session: shot, eval, run, close, export, script', () => {
     );
   });
 
-  it('run --file is refused with exit 2 without BI_UNSAFE=1 and runs the module with it', async () => {
+  it('run --file is refused with exit 2 without BROWSER_INSPECTOR_UNSAFE=1 and runs the module with it', async () => {
     const files = {
       's.mjs': { base64: Buffer.from('export default async (page) => page.url();').toString('base64'), size: 44 },
     };
@@ -534,12 +536,12 @@ describe('session: shot, eval, run, close, export, script', () => {
     const refused = await h.run({ do: 'run', file: 's.mjs' }, { files });
     expect(refused.exit).toBe(2);
     expect(refused.lines).toEqual([
-      'FAIL run --file s.mjs · refused: set BI_UNSAFE=1 (the file runs inside the keeper — RCE-equivalent)',
+      'FAIL run --file s.mjs · refused: set BROWSER_INSPECTOR_UNSAFE=1 (the file runs inside the keeper — RCE-equivalent)',
     ]);
     assertBudget(refused.lines);
     expect(existsSync(path.join(h.dir, 'run-001.mjs'))).toBe(false);
 
-    const unsafe = await harness({}, { env: { BI_UNSAFE: '1' } });
+    const unsafe = await harness({}, { env: { BROWSER_INSPECTOR_UNSAFE: '1' } });
     await unsafe.open('http://localhost:4300/');
     const ran = await unsafe.run({ do: 'run', file: 's.mjs' }, { files });
     expect(ran.exit, ran.lines.join('\n')).toBe(0);
@@ -614,7 +616,7 @@ describe('session: shot, eval, run, close, export, script', () => {
     expect(result.lines).toEqual([
       expect.stringMatching(/^ok open "Sklep" · el 61 · err 0 · /u),
       'ok fill e2 + Enter',
-      'FAIL click e99 · ref not found (gone, label changed or other frame) → bi snap',
+      'FAIL click e99 · ref not found (gone, label changed or other frame) → browser-inspector snap',
     ]);
     expect(callsOf(h.calls, 'fill').at(-1)?.slice(0, 2)).toEqual(['aria-ref=e2', 's3cret']);
     expect(callsOf(h.calls, 'click')).toHaveLength(0);

@@ -498,7 +498,7 @@ function renderTree(nodes, ctx) {
 }
 
 /**
- * `… ×32 similar (e228–e1220): "The Lord of the Rings", "1984", "The Hobbit" … · bi find <text>` —
+ * `… ×32 similar (e228–e1220): "The Lord of the Rings", "1984", "The Hobbit" … · browser-inspector find <text>` —
  * the ref range of what was folded plus the first labels, so the agent knows what is behind the
  * fold and how to reach one item.
  * @param {SnapNode[]} nodes
@@ -514,7 +514,7 @@ function foldLine(nodes, hidden) {
     .map((name) => (name && name.length > 30 ? `${name.slice(0, 29)}…` : name));
   const shown = labels.slice(0, 3).map((l) => quote(l ?? ''));
   const sample = shown.length ? `: ${shown.join(', ')}${labels.length > 3 ? ' …' : ''}` : '';
-  return `… ×${hidden.length} similar${range}${sample} · bi find <text>`;
+  return `… ×${hidden.length} similar${range}${sample} · browser-inspector find <text>`;
 }
 
 /**
@@ -570,7 +570,7 @@ export function aroundRef(aiYaml, ref, options = {}) {
 }
 
 /**
- * `bi find <text>`: every node whose name, inline text, url or placeholder contains the text
+ * `browser-inspector find <text>`: every node whose name, inline text, url or placeholder contains the text
  * (case-insensitive), reported as the compact line of the node itself when it is visible, else of
  * its nearest visible ancestor, else as `<ref> <role> "<text>"` so the match still has an address.
  * Deduplicated by ref, capped at 10; `total` says how many there were.
@@ -999,7 +999,7 @@ export function snapshotArtifacts(boxesYaml, entries, options = {}) {
 export class RefNotFoundError extends Error {
   /** @param {string} ref */
   constructor(ref) {
-    // The message IS the stdout reason: `FAIL click e99 · ref not found (…) → bi snap`.
+    // The message IS the stdout reason: `FAIL click e99 · ref not found (…) → browser-inspector snap`.
     super(REF_NOT_FOUND);
     this.name = 'RefNotFoundError';
     this.code = 'E_REF_NOT_FOUND';

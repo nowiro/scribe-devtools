@@ -11,7 +11,7 @@
 //   oauth  — `auth.oauth`: ONE POST to the token endpoint (`tokenUrl` or the Keycloak layout),
 //            the access token written under the localStorage key the application reads it from.
 //
-// The difference between "bi can fill a login form" (any flow could, from day one) and "bi can log
+// The difference between "browser-inspector can fill a login form" (any flow could, from day one) and "browser-inspector can log
 // in" is this file: without it five snapshots are five logins, and with MFA or a lockout after N
 // attempts, five failures. `auth: false` on a snapshot opts out — the anonymous view of the same
 // run (`storageStateFor`), the way a permission gate is tested in both directions.

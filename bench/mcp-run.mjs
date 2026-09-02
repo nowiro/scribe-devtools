@@ -163,7 +163,7 @@ export async function performNaive(call, shot) {
 
   const snapshot3 = await call('browser_snapshot', {});
   await call('browser_take_screenshot', { filename: shot('naive-potwierdzenie'), scale: 'css' });
-  // The console is a separate call and a separate result in the context — `bi` has it in the report.
+  // The console is a separate call and a separate result in the context — `browser-inspector` has it in the report.
   const consoleDump = await call('browser_console_messages', { onlyErrors: true });
 
   return {
@@ -262,7 +262,7 @@ export async function runVariant(variant, outputDir, extra = []) {
  * launches Chrome), the next ones ride a warm process and an open browser. Between repetitions a
  * navigation to `about:blank` resets the page OUTSIDE the stopwatch (the form is gone after the
  * task and `browser_navigate` to the same URL would not reload it) and the bench waits `gapMs`
- * (300 ms, DESIGN.md §9 — the same gap as on the `bi` side).
+ * (300 ms, DESIGN.md §9 — the same gap as on the `browser-inspector` side).
  * @param {'naive' | 'lean'} variant
  * @param {string} outputDir
  * @param {number} reps runs after the first one

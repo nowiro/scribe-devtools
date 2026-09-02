@@ -1,6 +1,6 @@
 # browser-inspector 2 — projekt (docs/DESIGN.md), wersja po dwóch recenzjach
 
-Repozytorium: `D:/github/scribe-devtools` (workspace `packages/browser-inspector`, bench w `bench/`), binarka `bi`. Proza po polsku, identyfikatory i komentarze w kodzie po angielsku. Wersja **finalna po dwóch recenzjach adwersarialnych**: każdy bloker został wchłonięty albo odrzucony z uzasadnieniem w §11. Największa zmiana: model izolacji batchu (§2.3). Recenzje wykazały, że scrub kontekstu wpadał do stopera następnego wywołania; sonda rewizyjna wykazała, że proponowany przez recenzentów ping-pong dwóch kart kosztuje więcej niż problem, który rozwiązuje (goto na świeżej karcie 215–243 ms vs 49–74 ms na tej samej). Rozwiązanie: **jedna trwała karta, szorowana w miejscu** (CDP `DOMStorage.clear` + skrypt generacji + `Page.resetNavigationHistory`), scrub ≈ 12–35 ms.
+Repozytorium: `D:/github/scribe-devtools` (workspace `packages/browser-inspector`, bench w `bench/`), binarka `browser-inspector`. Proza po polsku, identyfikatory i komentarze w kodzie po angielsku. Wersja **finalna po dwóch recenzjach adwersarialnych**: każdy bloker został wchłonięty albo odrzucony z uzasadnieniem w §11. Największa zmiana: model izolacji batchu (§2.3). Recenzje wykazały, że scrub kontekstu wpadał do stopera następnego wywołania; sonda rewizyjna wykazała, że proponowany przez recenzentów ping-pong dwóch kart kosztuje więcej niż problem, który rozwiązuje (goto na świeżej karcie 215–243 ms vs 49–74 ms na tej samej). Rozwiązanie: **jedna trwała karta, szorowana w miejscu** (CDP `DOMStorage.clear` + skrypt generacji + `Page.resetNavigationHistory`), scrub ≈ 12–35 ms.
 
 **Skąd liczby.** Trzy źródła: tabela właściciela (Chrome headless, statyczny Angular; node 72, import playwright-core 250, launch 440, newPage 122, goto fresh 289 / cached 49, click 44, screenshot 90, close 178), sondy projektowe z 2026-09-01 rano (`probe7–11.mjs`, `client-time.mjs`, `pipe-probe2.mjs`) i **sondy rewizyjne z 2026-09-01 po recenzjach** (`probe-tab.mjs`, `probe-tab2.mjs`, `probe-tab3.mjs`, `tok.mjs`; aplikacje app-factory 4311–4314 serwowane kopią `serveStatic` ze `smoke-browser.mjs`; skrypty trafiają do `bench/probes/`). Gdzie źródła się różnią, budżet bierze liczbę **gorszą** (medianę) i nazywa różnicę.
 
@@ -22,7 +22,7 @@ Repozytorium: `D:/github/scribe-devtools` (workspace `packages/browser-inspector
 | zrzut viewportu: PW / CDP `Page.captureScreenshot({optimizeForSpeed})` PNG / JPEG q80 / PW fullPage | 38–44 / 14–30 (**budżet 25**) / 14–29 / 67–88 ms |
 | `ariaSnapshot({mode:'ai'})`: wizard / bookstore (47,8 KB, 952 linii) · box-join ref→selektor | 26 / 85 ms · 16 ms, 136/136 |
 | CDP `Runtime.evaluate({timeout:200})` na `while(true){}` · `browser.close()` | „Execution was terminated” po ~205 ms, strona żyje · 162–169 ms |
-| **tokeny o200k próbek z tego dokumentu** (ten sam tokenizer co bench): `report.md` §5.1 / blok AGENTS.md §8 / linia sesji / linia snapshotu bez–z `--names` / `bi snap` 25 linii / 40 linii | **187 / 146 / 18–27 / 19–31 / ~370 / ~590** |
+| **tokeny o200k próbek z tego dokumentu** (ten sam tokenizer co bench): `report.md` §5.1 / blok AGENTS.md §8 / linia sesji / linia snapshotu bez–z `--names` / `browser-inspector snap` 25 linii / 40 linii | **187 / 158 / 18–27 / 19–31 / ~370 / ~590** |
 
 **Fakty z `playwright-core` 1.62.1 (coreBundle.js), sprawdzone przed tą wersją:** (a) silnik `aria-ref` = `_lastAriaSnapshotForQuery.info.get(ref)` + `element.isConnected` — rozwiązuje refy z mapy **ostatniego** `ariaSnapshot` w danej ramce, nie z elementu; (b) `ariaSnapshotWithRefs` nadpisuje tę mapę przy **każdym** wywołaniu (dowolny węzeł, dowolny tryb); (c) `computeAriaRef`: element dostaje nowy ref, gdy zmieni się jego `role` **lub** `name`; (d) prefiks `f<seq>` to `frameSeq` dokumentu — `_jumpToAriaRefFrameIfNeeded` kieruje `aria-ref=f3e7` do ramki o `frame.seq === 3`, więc refy z iframe’ów w pełnym snapshocie `ai` rozwiązują się bez przełączania zakresu; (e) `ariaSnapshot` z `selector` i trybem ≠ `ai` idzie w tryb `default`; (f) Chrome startuje z `--remote-debugging-pipe` — brak portu TCP.
 
@@ -30,9 +30,9 @@ Repozytorium: `D:/github/scribe-devtools` (workspace `packages/browser-inspector
 
 ## 1. Teza
 
-Serwer MCP Playwrighta kosztuje agenta ~4 tys. tokenów definicji w każdej sesji i 500 ms „settle” po każdej akcji (domyślne `--timeout-settle 500` w 0.0.80); stary browser-inspector nie kosztował nic, ale nie umiał „spojrzeć, potem kliknąć”. `bi` robi jedno i drugie z **jedną tabelą kroków** (`STEPS`) wykonywaną przez **jeden silnik** na playwright-core, do której prowadzą **dwa wejścia**: `bi <config.json>` (batch, drop-in dla bramki app-factory) i `bi <komenda>` (pętla interaktywna na refach z publicznego `page.ariaSnapshot({ mode: 'ai' })`). Ciepła przeglądarka żyje w **keeperze** — zwykłym lokalnym procesie Node z named pipe/unix socketem, który startuje sam przy pierwszym użyciu, gaśnie po bezczynności i którego agent nigdy nie widzi: agent dalej uruchamia CLI i czyta pliki, zero schematów narzędzi w kontekście. Zarzut „trwały proces to serwer” dotyczył kosztu definicji i reinwencji MCP; keeper nie płaci ani jednego, ani drugiego.
+Serwer MCP Playwrighta kosztuje agenta ~4 tys. tokenów definicji w każdej sesji i 500 ms „settle” po każdej akcji (domyślne `--timeout-settle 500` w 0.0.80); stary browser-inspector nie kosztował nic, ale nie umiał „spojrzeć, potem kliknąć”. `browser-inspector` robi jedno i drugie z **jedną tabelą kroków** (`STEPS`) wykonywaną przez **jeden silnik** na playwright-core, do której prowadzą **dwa wejścia**: `browser-inspector <config.json>` (batch, drop-in dla bramki app-factory) i `browser-inspector <komenda>` (pętla interaktywna na refach z publicznego `page.ariaSnapshot({ mode: 'ai' })`). Ciepła przeglądarka żyje w **keeperze** — zwykłym lokalnym procesie Node z named pipe/unix socketem, który startuje sam przy pierwszym użyciu, gaśnie po bezczynności i którego agent nigdy nie widzi: agent dalej uruchamia CLI i czyta pliki, zero schematów narzędzi w kontekście. Zarzut „trwały proces to serwer” dotyczył kosztu definicji i reinwencji MCP; keeper nie płaci ani jednego, ani drugiego.
 
-Liczby, uczciwie: ścieżka ciepła mieści 18-krokowe flow benchu w **546 ms budżetu = 5,3× vs MCP warm 2,9 s** (próg 5× = 580 ms, **margines 34 ms = 6 %**) i 6,6× vs 1. przebieg MCP 3,6 s — ale tylko **1,8× vs `mcp-lean --timeout-settle 100`** (1,0 s), bo dwie trzecie różnicy to domyślna polityka settle serwera, nie architektura; ta kolumna stoi w tabeli nagłówkowej RAPORT.md. Wywołania bez przerwy (`bi-warm-tight`) płacą scrub poprzedniego przebiegu w kolejce: 561 ms = 5,2×. Ścieżka zimna to **1,47 s** (pierwsze wywołanie w sesji, keeper startuje w stoperze; 2,4×) albo **1,62 s** (`--no-daemon`, CI; 2,2×) — start Chrome jest fizyką, nie architekturą. Tokeny (o200k): batch ≈ **365** na sesję (146 stałe + ~220 zmienne), sesja interaktywna ≈ **550** bez pełnego `bi snap`, ≈ **950** z jednym, ≈ 1 700 z trzema — wobec 5 549–6 747 MCP.
+Liczby, uczciwie: ścieżka ciepła mieści 18-krokowe flow benchu w **546 ms budżetu = 5,3× vs MCP warm 2,9 s** (próg 5× = 580 ms, **margines 34 ms = 6 %**) i 6,6× vs 1. przebieg MCP 3,6 s — ale tylko **1,8× vs `mcp-lean --timeout-settle 100`** (1,0 s), bo dwie trzecie różnicy to domyślna polityka settle serwera, nie architektura; ta kolumna stoi w tabeli nagłówkowej RAPORT.md. Wywołania bez przerwy (`browser-inspector-warm-tight`) płacą scrub poprzedniego przebiegu w kolejce: 561 ms = 5,2×. Ścieżka zimna to **1,47 s** (pierwsze wywołanie w sesji, keeper startuje w stoperze; 2,4×) albo **1,62 s** (`--no-daemon`, CI; 2,2×) — start Chrome jest fizyką, nie architekturą. Tokeny (o200k): batch ≈ **365** na sesję (146 stałe + ~220 zmienne), sesja interaktywna ≈ **550** bez pełnego `browser-inspector snap`, ≈ **950** z jednym, ≈ 1 700 z trzema — wobec 5 549–6 747 MCP.
 
 ---
 
@@ -41,28 +41,28 @@ Liczby, uczciwie: ścieżka ciepła mieści 18-krokowe flow benchu w **546 ms bu
 ### 2.1 Model procesów
 
 ```
-agent ──sh──▶ node bin/bi.mjs <cmd>       klient: node:net/fs/path/child_process/os, 72 ms budżetu, BEZ playwright-core i BEZ steps.run
-                 │  NDJSON po \\.\pipe\bi-<user>-<hash>  (Windows) / $XDG_RUNTIME_DIR|tmpdir/bi-<uid>-<hash>.sock
+agent ──sh──▶ node bin/browser-inspector.mjs <cmd>       klient: node:net/fs/path/child_process/os, 72 ms budżetu, BEZ playwright-core i BEZ steps.run
+                 │  NDJSON po \\.\pipe\browser-inspector-<user>-<hash>  (Windows) / $XDG_RUNTIME_DIR|tmpdir/browser-inspector-<uid>-<hash>.sock
                  ▼
-        bi-keeper (src/keeper.mjs)          playwright-core + systemowy Chrome/Edge; jeden na użytkownika × tożsamość (§2.5)
+        browser-inspector-keeper (src/keeper.mjs)          playwright-core + systemowy Chrome/Edge; jeden na użytkownika × tożsamość (§2.5)
           ├─ scratch[0]     — kontekst batchowy + JEDNA trwała karta, szorowana w miejscu po każdym przebiegu (goto 55 ms)
           ├─ scratch[1..N-1] — lane’y --parallel N: takie same konteksty, tworzone na żądanie, zamykane po 5 min bezczynności
           ├─ spare          — jedna gotowa para kontekst+strona (prewarm) dla --fresh / auth / video
           └─ session:<name> — kontekst + karty + dziennik sesji interaktywnej (klucz = tylko nazwa, §4.5)
 ```
 
-`--no-daemon` (albo `BI_DAEMON=0`, albo automatycznie na CI — §2.5): klient importuje `src/engine.mjs` sam i wykonuje **batch** w procesie — ten sam kod, bez gniazda. To ścieżka bramki CI (`smoke-browser.mjs` pod `CI=true`) i ścieżka awaryjna, gdy keeper nie wstaje. **Komendy sesyjne nie mają fallbacku** (recenzja #2: `bi open` w procesie kończyłby się zamknięciem przeglądarki, a `bi click e5` kłamałby „ref not found”): bez keepera kończą się `exit 2` i linią `FAIL keeper unavailable: <powód> — session needs keeper (bi up, bi doctor); batch works with --no-daemon`. Dla CI bez keepera jest `bi script <plik>` — lista komend sesji wykonana w jednym procesie (§3.1). Test pilnuje identyczności `report.json` z obu ścieżek batchu modulo `timing`/`engine`.
+`--no-daemon` (albo `BROWSER_INSPECTOR_DAEMON=0`, albo automatycznie na CI — §2.5): klient importuje `src/engine.mjs` sam i wykonuje **batch** w procesie — ten sam kod, bez gniazda. To ścieżka bramki CI (`smoke-browser.mjs` pod `CI=true`) i ścieżka awaryjna, gdy keeper nie wstaje. **Komendy sesyjne nie mają fallbacku** (recenzja #2: `browser-inspector open` w procesie kończyłby się zamknięciem przeglądarki, a `browser-inspector click e5` kłamałby „ref not found”): bez keepera kończą się `exit 2` i linią `FAIL keeper unavailable: <powód> — sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon`. Dla CI bez keepera jest `browser-inspector script <plik>` — lista komend sesji wykonana w jednym procesie (§3.1). Test pilnuje identyczności `report.json` z obu ścieżek batchu modulo `timing`/`engine`.
 
 ### 2.2 Silnik (`src/engine.mjs`, `src/recorder.mjs`, `src/isolation.mjs`)
 
 `createEngine(browserOpts)` → `{ runFlow(snapshot, dir, laneOpts), runCommand(session, step, args), runScript(lines), session(name), scrub(lane), close() }`.
 
-- `launchBrowser()`: `chromium.launch({ channel: 'chrome' | 'msedge', headless, args })` z kolejnością prób i `E_BROWSER_MISSING` z listą prób; `browser.executablePath` / `BI_BROWSER_PATH` wygrywa; `BI_BROWSER_ARGS` nadpisuje flagi w całości. Domyślne `args` w headless: `--disable-frame-rate-limit --disable-gpu-vsync` (`browser.fastHeadless: false` wyłącza) — dźwignia mierzona osobno, **budżet §6 jej nie zakłada**. `browser.motion: "reduce"` jest opcją (sonda: zero zysku, zmienia aplikację), widoczną w nagłówku raportu jako `motion=reduce`.
-- **Rejestrator** (`src/recorder.mjs`): podpięty RAZ na stronę przed nawigacją (`console`, `pageerror`, `request/requestfinished/requestfailed`, `response`, `dialog`, `popup`, `framenavigated`, `crash`); kursory „od ostatniego wywołania” per sesja; liczy `response.fromCache()` → `timing.cacheHits`; przechowuje ciała odpowiedzi ≤ 64 KB dla `application/json|text/*` (`captureBodies: false` wyłącza) dla `bi net <n> --body`; nigdy nie loguje wartości sekretów (§2.6).
+- `launchBrowser()`: `chromium.launch({ channel: 'chrome' | 'msedge', headless, args })` z kolejnością prób i `E_BROWSER_MISSING` z listą prób; `browser.executablePath` / `BROWSER_INSPECTOR_BROWSER_PATH` wygrywa; `BROWSER_INSPECTOR_BROWSER_ARGS` nadpisuje flagi w całości. Domyślne `args` w headless: `--disable-frame-rate-limit --disable-gpu-vsync` (`browser.fastHeadless: false` wyłącza) — dźwignia mierzona osobno, **budżet §6 jej nie zakłada**. `browser.motion: "reduce"` jest opcją (sonda: zero zysku, zmienia aplikację), widoczną w nagłówku raportu jako `motion=reduce`.
+- **Rejestrator** (`src/recorder.mjs`): podpięty RAZ na stronę przed nawigacją (`console`, `pageerror`, `request/requestfinished/requestfailed`, `response`, `dialog`, `popup`, `framenavigated`, `crash`); kursory „od ostatniego wywołania” per sesja; liczy `response.fromCache()` → `timing.cacheHits`; przechowuje ciała odpowiedzi ≤ 64 KB dla `application/json|text/*` (`captureBodies: false` wyłącza) dla `browser-inspector net <n> --body`; nigdy nie loguje wartości sekretów (§2.6).
 - Każdy krok jedzie przez `withDeadline` (port z wersji TS). `evaluate`/`eval` = CDP `Runtime.evaluate({ expression, returnByValue: true, awaitPromise: true, timeout })` **opięte także `withDeadline`**, bo `timeout` CDP przerywa tylko część synchroniczną — wisząca obietnica kończy się deadlinem kroku (strona żyje). Mapowanie wyniku 1:1 ze starym `page.evaluate(expression)`: `undefined` → literał `undefined`, string → bez zmian, reszta → `JSON.stringify`; wartość nieserializowalna (DOM node) → FAIL kroku z komunikatem CDP; wyjątek → FAIL z `exceptionDetails.exception.description` obciętym do pierwszej linii (`Error: uczen widzi przycisk nauczyciela` — dokładnie forma, którą drukuje dziś bramka; fixture w `test/compat`).
 - Zrzuty viewportu: CDP `Page.captureScreenshot({ format, quality, optimizeForSpeed: true })`; `fullPage`, element i nie-Chromium → `page.screenshot`. PNG domyślnie, JPEG opt-in (w CDP nie jest szybszy). Zapis asynchroniczny równolegle z krokami; przed `report.json` keeper czeka na wszystkie zapisy.
 - `waitUntil: "settled"` = `load` + 100 ms bez żądań w locie (licznik z rejestratora) + cap `settleMs` (2000, nigdy nie pada). `networkidle` honorowane 1:1.
-- **Zdrowie**: `browser.on('disconnected')` ⇒ keeper `exit(1)`; `page.on('crash')` na karcie scratch ⇒ lane `unhealthy`, scrub odbudowuje kartę (close + newPage; `timing.tab = "new"`); po `BI_MAX_JOBS` (200) zadaniach albo RSS Chrome > `BI_MAX_RSS_MB` (1024) keeper **między zadaniami** robi `browser.close()` + nowy launch (następne wywołanie ma `timing.mode = "first"`).
+- **Zdrowie**: `browser.on('disconnected')` ⇒ keeper `exit(1)`; `page.on('crash')` na karcie scratch ⇒ lane `unhealthy`, scrub odbudowuje kartę (close + newPage; `timing.tab = "new"`); po `BROWSER_INSPECTOR_MAX_JOBS` (200) zadaniach albo RSS Chrome > `BROWSER_INSPECTOR_MAX_RSS_MB` (1024) keeper **między zadaniami** robi `browser.close()` + nowy launch (następne wywołanie ma `timing.mode = "first"`).
 
 ### 2.3 Konteksty, izolacja, poprawność — jedna karta, szorowana w miejscu
 
@@ -82,11 +82,11 @@ Dokument poprzedniego przebiegu **zostaje załadowany** aż do następnego `goto
 
 Co zostaje celowo: cache HTTP, code-cache V8, ciepły renderer. Statyczny `serveStatic` app-factory nie wysyła `ETag`/`Last-Modified`/`Cache-Control` (sprawdzone), więc Chrome nic z niego nie cache’uje; **nginx/`serve` wysyłają `Last-Modified` i heurystyczna świeżość (10 % wieku) może podać stary `index.html` po rebuildzie** — dlatego rejestrator liczy `cacheHits` (`timing.cacheHits`, osobno `cacheHitsDocument`), BUDGET.md czerwieni wiersz > 0 dla dokumentu głównego, a `isolation: "fresh"` / `--fresh` daje świeży kontekst z puli spare + `Network.clearBrowserCache`. `report.json.timing` mówi `ctx: reused | fresh`, `tab: kept | new`.
 
-`needsFreshContext(snapshot)` = `isolation === 'fresh'` ∨ `auth`/`storageState` ∨ `video` ∨ `--fresh`. `--parallel N`: lane’y `scratch[1..N-1]` są **takimi samymi trwałymi kontekstami** (nie świeżymi — świeży kontekst kosztuje 190–441 ms na pierwszym goto), tworzone przy pierwszym użyciu, szorowane tak samo, zamykane po `BI_LANE_IDLE_MS` (300 000). Dla app-factory z `parallel: 3` czas ≈ max(lane), nie sum(flow). Domyślnie `parallel: 1`.
+`needsFreshContext(snapshot)` = `isolation === 'fresh'` ∨ `auth`/`storageState` ∨ `video` ∨ `--fresh`. `--parallel N`: lane’y `scratch[1..N-1]` są **takimi samymi trwałymi kontekstami** (nie świeżymi — świeży kontekst kosztuje 190–441 ms na pierwszym goto), tworzone przy pierwszym użyciu, szorowane tak samo, zamykane po `BROWSER_INSPECTOR_LANE_IDLE_MS` (300 000). Dla app-factory z `parallel: 3` czas ≈ max(lane), nie sum(flow). Domyślnie `parallel: 1`.
 
-### 2.4 Klient (`bin/bi.mjs` + `src/client.mjs`)
+### 2.4 Klient (`bin/browser-inspector.mjs` + `src/client.mjs`)
 
-Importuje wyłącznie `node:net`, `node:fs`, `node:path`, `node:child_process`, `node:os` oraz `src/steps.schema.mjs`, `src/cli.mjs`, `src/config.mjs`, `src/paths.mjs`, `src/print.mjs` — **nigdy** `playwright-core`, `engine.mjs` ani `steps.run.mjs`. Hash tożsamości to FNV-1a w JS (bez `node:crypto`). Strażnicy (recenzje #1/#2: bez nich start klienta cicho rośnie z 48 do 300 ms i teza pada): `test/client-imports.test.mjs` uruchamia `node --import=./test/hooks/trace-loads.mjs bin/bi.mjs help` i sprawdza listę załadowanych modułów; `test/perf/client-start.perf.test.mjs`: mediana z 5 × `spawn(node bin/bi.mjs help)` ≤ 120 ms.
+Importuje wyłącznie `node:net`, `node:fs`, `node:path`, `node:child_process`, `node:os` oraz `src/steps.schema.mjs`, `src/cli.mjs`, `src/config.mjs`, `src/paths.mjs`, `src/print.mjs` — **nigdy** `playwright-core`, `engine.mjs` ani `steps.run.mjs`. Hash tożsamości to FNV-1a w JS (bez `node:crypto`). Strażnicy (recenzje #1/#2: bez nich start klienta cicho rośnie z 48 do 300 ms i teza pada): `test/client-imports.test.mjs` uruchamia `node --import=./test/hooks/trace-loads.mjs bin/browser-inspector.mjs help` i sprawdza listę załadowanych modułów; `test/perf/client-start.perf.test.mjs`: mediana z 5 × `spawn(node bin/browser-inspector.mjs help)` ≤ 120 ms.
 
 Protokół: jedna linia JSON żądania `{ v: 1, token, cwd, argv, values, secretValues, files, session, out }`, linie `{ progress }` (batch: jedna na zakończony snapshot) i `{ done: true, exit, lines, files }`. **Bez `env`** (recenzja #2): klient rozwiązuje `valueFromEnv` / `--env NAZWA` / `@{NAZWA}` u siebie i wysyła **tylko** wartości pod adresami kroków (`values: { "snapshots[3].steps[4].value": "…", "argv.fill.value": "…" }`) plus `secretValues` (wartości pochodzące z env), które keeper trzyma per zadanie/sesja i **redaguje** (`***`) wszędzie (§2.6). Pliki (`route --file`, `upload`, `eval --file`, `state load`, `script`) czyta **klient** względem swojego cwd i wysyła treść (≤ 1 MB, base64) albo ścieżkę absolutną (większe uploady) — keeper może mieć inne cwd i uprawnienia. Klient parsuje argv z tabeli `STEPS` (schemat), więc literówka pada w kliencie; drukuje `lines`, kończy kodem `exit`; przy `keeper: fallback` (tylko batch) dopisuje to do stdout i `timing.mode`.
 
@@ -94,22 +94,22 @@ Protokół: jedna linia JSON żądania `{ v: 1, token, cwd, argv, values, secret
 
 | aspekt | decyzja |
 | --- | --- |
-| tożsamość | `hash = fnv1a(pkgVersion \| playwright-core version \| node major \| channel \| executablePath \| headless \| args \| BI_BROWSER_ARGS \| HTTP_PROXY \| HTTPS_PROXY \| NO_PROXY \| realpath(bin/bi.mjs) \| srcStamp)`; `srcStamp` = max mtime plików `src/**` (pomijany, gdy w katalogu pakietu leży marker `PORTABLE` z zipa) — dwa checkouty tej samej wersji i edycja `src/` w developmencie dostają **inny pipe**; keeper ze starym kodem nie jest już trafiany (recenzja #1: WP5/WP6 byłyby flaky od pierwszego dnia); `bi status` drukuje hash i ścieżkę |
-| plik pid | `os.tmpdir()/bi-<hash>.json` = `{ pid, pipe, token, version, startedAt, biPath }`; token = 32 losowe bajty (`crypto.randomBytes` w **keeperze**, klient tylko czyta plik); pierwsza linia każdego połączenia musi go nieść. Na POSIX tryb `0600` jest realny; **na Windows `fs.mode` nic nie znaczy** — token chroni ACL katalogu `%TEMP%` użytkownika i tak jest to napisane w README, nie „0600” |
-| nadpisania | `BI_SOCKET=<pipe>` (dwa agenty, dwa keepery), `BI_DAEMON=0` / `--no-daemon`, `BI_DAEMON=1` (jawne odwrócenie wykrycia CI), `BI_IDLE_MS`, `BI_SESSION_TTL_MS`, `BI_LANE_IDLE_MS`, `BI_MAX_JOBS`, `BI_MAX_RSS_MB`, `BI_BROWSER_PATH`, `BI_BROWSER_ARGS`, `BI_CHANNEL`, `BI_SESSION`, `BI_UNSAFE` |
-| wykrywanie CI | `isCI(env)` = którakolwiek z `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `TF_BUILD`, `JENKINS_URL`, `TEAMCITY_VERSION`, `BUILDKITE`, `CIRCLECI` (czysta funkcja, testowana) ⇒ bez keepera; `BI_DAEMON=1` wygrywa. **Nigdy `isTTY`** (Bash Claude Code nie jest TTY) |
-| start | klient: connect → ENOENT/ECONNREFUSED → **nigdy nie unlinkuje** gniazda → `spawn(process.execPath, [keeper.mjs], { detached: true, stdio: 'ignore', windowsHide: true }).unref()` → retry connect co 25 ms do 3 s. Keeper: bierze lockfile `bi-<hash>.lock` przez `O_EXCL` (z pid), sam sprząta stale socket/pid (po `kill(pid, 0)`), **nasłuchuje NAJPIERW** (45 ms od spawnu), potem `import('./engine.mjs')` i `launch`; zadania kolejkują się za `browserReady`. Wyścig POSIX z recenzji #1 jest wykluczony, bo klient nie unlinkuje; wyścig dwóch keeperów kończy się `EEXIST` na locku → exit 0 |
-| auto-start | dla KAŻDEJ komendy, także `bi <config.json>`; `bi up` jawnie jako hook `SessionStart` agenta |
+| tożsamość | `hash = fnv1a(pkgVersion \| playwright-core version \| node major \| channel \| executablePath \| headless \| args \| BROWSER_INSPECTOR_BROWSER_ARGS \| HTTP_PROXY \| HTTPS_PROXY \| NO_PROXY \| realpath(bin/browser-inspector.mjs) \| srcStamp)`; `srcStamp` = max mtime plików `src/**` (pomijany, gdy w katalogu pakietu leży marker `PORTABLE` z zipa) — dwa checkouty tej samej wersji i edycja `src/` w developmencie dostają **inny pipe**; keeper ze starym kodem nie jest już trafiany (recenzja #1: WP5/WP6 byłyby flaky od pierwszego dnia); `browser-inspector status` drukuje hash i ścieżkę |
+| plik pid | `os.tmpdir()/browser-inspector-<hash>.json` = `{ pid, pipe, token, version, startedAt, binPath }`; token = 32 losowe bajty (`crypto.randomBytes` w **keeperze**, klient tylko czyta plik); pierwsza linia każdego połączenia musi go nieść. Na POSIX tryb `0600` jest realny; **na Windows `fs.mode` nic nie znaczy** — token chroni ACL katalogu `%TEMP%` użytkownika i tak jest to napisane w README, nie „0600” |
+| nadpisania | `BROWSER_INSPECTOR_SOCKET=<pipe>` (dwa agenty, dwa keepery), `BROWSER_INSPECTOR_DAEMON=0` / `--no-daemon`, `BROWSER_INSPECTOR_DAEMON=1` (jawne odwrócenie wykrycia CI), `BROWSER_INSPECTOR_IDLE_MS`, `BROWSER_INSPECTOR_SESSION_TTL_MS`, `BROWSER_INSPECTOR_LANE_IDLE_MS`, `BROWSER_INSPECTOR_MAX_JOBS`, `BROWSER_INSPECTOR_MAX_RSS_MB`, `BROWSER_INSPECTOR_BROWSER_PATH`, `BROWSER_INSPECTOR_BROWSER_ARGS`, `BROWSER_INSPECTOR_CHANNEL`, `BROWSER_INSPECTOR_SESSION`, `BROWSER_INSPECTOR_UNSAFE` |
+| wykrywanie CI | `isCI(env)` = którakolwiek z `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `TF_BUILD`, `JENKINS_URL`, `TEAMCITY_VERSION`, `BUILDKITE`, `CIRCLECI` (czysta funkcja, testowana) ⇒ bez keepera; `BROWSER_INSPECTOR_DAEMON=1` wygrywa. **Nigdy `isTTY`** (Bash Claude Code nie jest TTY) |
+| start | klient: connect → ENOENT/ECONNREFUSED → **nigdy nie unlinkuje** gniazda → `spawn(process.execPath, [keeper.mjs], { detached: true, stdio: 'ignore', windowsHide: true }).unref()` → retry connect co 25 ms do 3 s. Keeper: bierze lockfile `browser-inspector-<hash>.lock` przez `O_EXCL` (z pid), sam sprząta stale socket/pid (po `kill(pid, 0)`), **nasłuchuje NAJPIERW** (45 ms od spawnu), potem `import('./engine.mjs')` i `launch`; zadania kolejkują się za `browserReady`. Wyścig POSIX z recenzji #1 jest wykluczony, bo klient nie unlinkuje; wyścig dwóch keeperów kończy się `EEXIST` na locku → exit 0 |
+| auto-start | dla KAŻDEJ komendy, także `browser-inspector <config.json>`; `browser-inspector up` jawnie jako hook `SessionStart` agenta |
 | awaria startu | brak połączenia po 3 s ⇒ **batch** wykonuje się w procesie (`keeper: fallback`, `timing.mode = "fallback"`); **sesja** ⇒ `exit 2` z komunikatem (§2.1) |
-| bezczynność | `BI_IDLE_MS` domyślnie **1 800 000 (30 min)** — pętla agent↔człowiek ma dłuższe przerwy, 5 min zamieniało większość „drugich” wywołań w `first` (1,47 s); koszt ~150–250 MB RAM widać w `bi status` (RSS). Timer liczony **od końca ostatniego zadania i tylko przy pustych kolejkach**; otwarta sesja podtrzymuje do `BI_SESSION_TTL_MS` (3 600 000) od ostatniej komendy; `bi close` zamyka od razu |
-| zdrowie | §2.2: `disconnected` ⇒ exit 1; `crash` ⇒ odbudowa karty lane’u; recykling po `BI_MAX_JOBS`/RSS; `browser.isConnected()` przed każdym zadaniem |
+| bezczynność | `BROWSER_INSPECTOR_IDLE_MS` domyślnie **1 800 000 (30 min)** — pętla agent↔człowiek ma dłuższe przerwy, 5 min zamieniało większość „drugich” wywołań w `first` (1,47 s); koszt ~150–250 MB RAM widać w `browser-inspector status` (RSS). Timer liczony **od końca ostatniego zadania i tylko przy pustych kolejkach**; otwarta sesja podtrzymuje do `BROWSER_INSPECTOR_SESSION_TTL_MS` (3 600 000) od ostatniej komendy; `browser-inspector close` zamyka od razu |
+| zdrowie | §2.2: `disconnected` ⇒ exit 1; `crash` ⇒ odbudowa karty lane’u; recykling po `BROWSER_INSPECTOR_MAX_JOBS`/RSS; `browser.isConnected()` przed każdym zadaniem |
 | współbieżność | kolejka per klucz: `lane:<n>`, `session:<name>`; równoległy batch czeka i dostaje `timing.queuedMs`; named pipe w Windows przy zajętym keeperze czeka w `WaitNamedPipe` (kolejka, nie wyścig) |
-| przetrwanie powłoki | sprawdzone empirycznie tylko w Bash Claude Code (heartbeat żył w następnym wywołaniu). VS Code / Copilot CLI / pnpm z Job Object mogą zabić drzewo (Node nie ustawia `CREATE_BREAKAWAY_FROM_JOB`) — wtedy każde wywołanie jest zimne + 45 ms spawnu. Dlatego: `bi doctor` (spawn keepera → wyjście powłoki → connect z nowego procesu; drukuje `keeper survives shell: yes|no`, czasy, hash, ścieżkę), `timing.mode ∈ warm|first|fallback|no-daemon` w **każdym** `report.json`, wariant benchu `keeper-survives-shell` |
-| sterowanie | `bi up`, `bi status` (pid, hash, ścieżka, wersje, RSS, zadania od startu, sesje z cwd/out, lane’y, route’y), `bi stop`, `bi doctor`; log `os.tmpdir()/bi-<hash>.log` (obcinany przy 1 MB) — nigdy wartości sekretów |
+| przetrwanie powłoki | sprawdzone empirycznie tylko w Bash Claude Code (heartbeat żył w następnym wywołaniu). VS Code / Copilot CLI / pnpm z Job Object mogą zabić drzewo (Node nie ustawia `CREATE_BREAKAWAY_FROM_JOB`) — wtedy każde wywołanie jest zimne + 45 ms spawnu. Dlatego: `browser-inspector doctor` (spawn keepera → wyjście powłoki → connect z nowego procesu; drukuje `keeper survives shell: yes|no`, czasy, hash, ścieżkę), `timing.mode ∈ warm|first|fallback|no-daemon` w **każdym** `report.json`, wariant benchu `keeper-survives-shell` |
+| sterowanie | `browser-inspector up`, `browser-inspector status` (pid, hash, ścieżka, wersje, RSS, zadania od startu, sesje z cwd/out, lane’y, route’y), `browser-inspector stop`, `browser-inspector doctor`; log `os.tmpdir()/browser-inspector-<hash>.log` (obcinany przy 1 MB) — nigdy wartości sekretów |
 
 ### 2.6 Sekrety i bezpieczeństwo
 
-`value` w krokach `auth.login` = błąd walidacji; `auth.oauth` wyłącznie `*FromEnv`; `valueFromEnv` rozwiązywane w kliencie w czasie przebiegu (config parsuje się bez sekretu; brak zmiennej jest nazwany, `exit 2`). Składnia w sesji: `--env NAZWA` albo `@{NAZWA}` w `fill`/`form` (literały zaczynające się od `@` bez klamry są literałami; `@{FOO}` bez zmiennej = błąd nazwany, nie wpisanie „@{FOO}” do formularza). `describe` echuje tylko nazwę zmiennej. Keeper trzyma `secretValues` per zadanie/sesja i **redaguje** je (`redact()` z `src/redact.mjs`, jedna funkcja) w: stdout, `journal.jsonl`, logu, `report.md/json`, `snap.md/snap.json` (wartości textboxów), `extract`, `eval`, `text.txt`, `console.jsonl`, `net.jsonl`, eksporcie (tam `valueFromEnv`); pola `type=password` i `autocomplete=one-time-code` **nigdy** nie mają `= wartość` w snapshocie. Jeden test przechodzi przez `fill/form/storage set/eval` i sprawdza wszystkie miejsca. Transport tylko lokalny, z tokenem, bez `env`. Nie ma ścieżek DELETE poza `storage … clear` w piaskownicy własnego kontekstu. `eval`/`evaluate` wykonuje JS **w kontekście strony**; `bi run --file s.mjs` (`export default async (page, context) => …` w keeperze) istnieje **wyłącznie w sesji pod `BI_UNSAFE=1`** i jest jawnie nazwane RCE-równoważnym jak `run_code_unsafe` MCP — nigdy w configu batchu ani w CI.
+`value` w krokach `auth.login` = błąd walidacji; `auth.oauth` wyłącznie `*FromEnv`; `valueFromEnv` rozwiązywane w kliencie w czasie przebiegu (config parsuje się bez sekretu; brak zmiennej jest nazwany, `exit 2`). Składnia w sesji: `--env NAZWA` albo `@{NAZWA}` w `fill`/`form` (literały zaczynające się od `@` bez klamry są literałami; `@{FOO}` bez zmiennej = błąd nazwany, nie wpisanie „@{FOO}” do formularza). `describe` echuje tylko nazwę zmiennej. Keeper trzyma `secretValues` per zadanie/sesja i **redaguje** je (`redact()` z `src/redact.mjs`, jedna funkcja) w: stdout, `journal.jsonl`, logu, `report.md/json`, `snap.md/snap.json` (wartości textboxów), `extract`, `eval`, `text.txt`, `console.jsonl`, `net.jsonl`, eksporcie (tam `valueFromEnv`); pola `type=password` i `autocomplete=one-time-code` **nigdy** nie mają `= wartość` w snapshocie. Jeden test przechodzi przez `fill/form/storage set/eval` i sprawdza wszystkie miejsca. Transport tylko lokalny, z tokenem, bez `env`. Nie ma ścieżek DELETE poza `storage … clear` w piaskownicy własnego kontekstu. `eval`/`evaluate` wykonuje JS **w kontekście strony**; `browser-inspector run --file s.mjs` (`export default async (page, context) => …` w keeperze) istnieje **wyłącznie w sesji pod `BROWSER_INSPECTOR_UNSAFE=1`** i jest jawnie nazwane RCE-równoważnym jak `run_code_unsafe` MCP — nigdy w configu batchu ani w CI.
 
 ---
 
@@ -118,13 +118,13 @@ Protokół: jedna linia JSON żądania `{ v: 1, token, cwd, argv, values, secret
 ### 3.1 Dwa wejścia, jedna gramatyka
 
 ```
-bi <config.json> [--stamp X] [--only nazwa] [--parallel N] [--fresh] [--junit f.xml] [--fail-on-incomplete] [--no-daemon]   # batch (alias: bi run …)
-bi <komenda> [args] [--session NAME] [--out DIR] [--soft]                                                                  # sesja interaktywna (wymaga keepera)
-bi script <plik> [--out DIR] [--no-daemon]            # lista komend sesji (jedna na linię) w JEDNYM procesie — CI bez keepera
-bi up | status | stop | doctor | help [komenda] | export <flow.json> [--session NAME] [--force] | lint-config <config.json>
+browser-inspector <config.json> [--stamp X] [--only nazwa] [--parallel N] [--fresh] [--junit f.xml] [--fail-on-incomplete] [--no-daemon]   # batch (alias: browser-inspector run …)
+browser-inspector <komenda> [args] [--session NAME] [--out DIR] [--soft]                                                                  # sesja interaktywna (wymaga keepera)
+browser-inspector script <plik> [--out DIR] [--no-daemon]            # lista komend sesji (jedna na linię) w JEDNYM procesie — CI bez keepera
+browser-inspector up | status | stop | doctor | help [komenda] | export <flow.json> [--session NAME] [--force] | lint-config <config.json>
 ```
 
-Pierwszy argument kończący się na `.json` = batch, więc wywołanie bramki app-factory `node <pipeline> <config> --stamp X` działa **bez zmiany argumentów** (`--stamp X` i `--stamp=X`, wzorzec `YYYY-MM-DD_HH-MM` jak w `read-runtime`; bench generuje poprawny stempel zamiast `--stamp bench`). Nieznana flaga jest błędem (exit 2). `bi` na PATH nie jest założeniem: README i AGENTS.md app-factory dokumentują skrypt `"bi": "node ../scribe-devtools/packages/browser-inspector/bin/bi.mjs"` (`pnpm bi …`) i shim `tools/bi.cmd`/`tools/bi`; bench liczy tokeny obu form komendy.
+Pierwszy argument kończący się na `.json` = batch, więc wywołanie bramki app-factory `node <pipeline> <config> --stamp X` działa **bez zmiany argumentów** (`--stamp X` i `--stamp=X`, wzorzec `YYYY-MM-DD_HH-MM` jak w `read-runtime`; bench generuje poprawny stempel zamiast `--stamp bench`). Nieznana flaga jest błędem (exit 2). `browser-inspector` na PATH nie jest założeniem: README i AGENTS.md app-factory dokumentują skrypt `"browser-inspector": "node ../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs"` (`pnpm browser-inspector …`); bench liczy tokeny obu form komendy.
 
 ### 3.2 Tabela kroków — jedno źródło prawdy, dwa pliki
 
@@ -135,8 +135,8 @@ Pierwszy argument kończący się na `.json` = batch, więc wywołanie bramki ap
 export const STEPS = {
   click: {
     kind: 'action',                                          // action | query | control — steruje deltami w linii stdout
-    argv: ['target'],                                        // pozycyjne w sesji: bi click e12
-    flags: { double: 'bool', right: 'bool', mod: 'list' },   // bi click e12 --double --mod ctrl,shift
+    argv: ['target'],                                        // pozycyjne w sesji: browser-inspector click e12
+    flags: { double: 'bool', right: 'bool', mod: 'list' },   // browser-inspector click e12 --double --mod ctrl,shift
     config: { selector: 'string?', ref: 'ref?', button: 'enum:left,right,middle?', count: 'int?', modifiers: 'list?' },
     validate: (s, where) => needOneOf(s, where, ['selector', 'ref']),
     describe: (s) => `click ${targetOf(s)}${s.count === 2 ? ' (double)' : ''}`,   // nigdy nie echuje wartości fill
@@ -150,9 +150,9 @@ export const RUNNERS = {
 };
 ```
 
-`ctx.sel(s)`: `s.ref` (`e12`, `f3e7`) → `aria-ref=<ref>` **dosłownie**, poprzedzone `locator.count()`; 0 trafień ⇒ pełny `page.ariaSnapshot({ mode: 'ai' })` (odświeża mapę refów: element o tej samej roli i nazwie dostaje ten sam ref), ponowne `count()`, dalej 0 ⇒ `FAIL … ref e12 not found (gone, label changed or other frame) → bi snap` **od razu**, bez czekania na actionability; `s.selector` → selektor Playwrighta bez zmian (`css`, `text=`, `role=`, `mat-option:has-text('…')`). Ta sama tabela waliduje config (`snapshots[i].steps[j]: …`), parsuje argv, opisuje krok w raporcie, generuje `bi help <krok>` i `docs/STEPS.md`. **Walidacja**: `ref` w configu batchu bez wcześniejszego kroku `snapshot` w tym samym flow = błąd (`mapa refów pusta`), a `export` zawsze zamienia refy na selektory (test negatywny).
+`ctx.sel(s)`: `s.ref` (`e12`, `f3e7`) → `aria-ref=<ref>` **dosłownie**, poprzedzone `locator.count()`; 0 trafień ⇒ pełny `page.ariaSnapshot({ mode: 'ai' })` (odświeża mapę refów: element o tej samej roli i nazwie dostaje ten sam ref), ponowne `count()`, dalej 0 ⇒ `FAIL … ref e12 not found (gone, label changed or other frame) → browser-inspector snap` **od razu**, bez czekania na actionability; `s.selector` → selektor Playwrighta bez zmian (`css`, `text=`, `role=`, `mat-option:has-text('…')`). Ta sama tabela waliduje config (`snapshots[i].steps[j]: …`), parsuje argv, opisuje krok w raporcie, generuje `browser-inspector help <krok>` i `docs/STEPS.md`. **Walidacja**: `ref` w configu batchu bez wcześniejszego kroku `snapshot` w tym samym flow = błąd (`mapa refów pusta`), a `export` zawsze zamienia refy na selektory (test negatywny).
 
-Pełna lista (te same nazwy w configu i CLI; stare nazwy zachowane): `goto` (sesja: `open`), `back`, `forward`, `reload`, `click`, `fill` (`value` | `valueFromEnv`; `--enter`; `--env`), `type` (`--slowly`), `form` (`e3="Jan" e5=@{APP_PASS}`), `press`, `hover`, `select`, `check`, `uncheck`, `drag`, `upload`, `scroll`, `wait` (`ms` | `text` | `textGone` | `url`), `waitFor` (selektor + `state`), `screenshot` (`shot`; `fullPage`, `ref`/`selector`, `format`, `quality`, `mark`), `pdf`, `extract` (`get`; `--value`), `evaluate` (`eval`; `expression`, `timeout`, `--file`, `--el`), `snapshot` (`snap`), `find`, `verify` (`visible` | `hidden` | `text` | `value` | `list` | `url` | `title` | `count`; `soft`), `resize`, `route` / `unroute` / `routes`, `offline`, `fetch`, `dialog`, `tab` / `tabs`, `frame`, `mouse`, `storage` (`cookies` | `local` | `session` × `list` | `get` | `set` | `del` | `clear`), `state` (`save` | `load`), `console` (`--level`), `net` (`net <n> [--body] [--req]`), `trace`, `video`, `locator`, `run` (sesja, `BI_UNSAFE=1`), `close`.
+Pełna lista (te same nazwy w configu i CLI; stare nazwy zachowane): `goto` (sesja: `open`), `back`, `forward`, `reload`, `click`, `fill` (`value` | `valueFromEnv`; `--enter`; `--env`), `type` (`--slowly`), `form` (`e3="Jan" e5=@{APP_PASS}`), `press`, `hover`, `select`, `check`, `uncheck`, `drag`, `upload`, `scroll`, `wait` (`ms` | `text` | `textGone` | `url`), `waitFor` (selektor + `state`), `screenshot` (`shot`; `fullPage`, `ref`/`selector`, `format`, `quality`, `mark`), `pdf`, `extract` (`get`; `--value`), `evaluate` (`eval`; `expression`, `timeout`, `--file`, `--el`), `snapshot` (`snap`), `find`, `verify` (`visible` | `hidden` | `text` | `value` | `list` | `url` | `title` | `count`; `soft`), `resize`, `route` / `unroute` / `routes`, `offline`, `fetch`, `dialog`, `tab` / `tabs`, `frame`, `mouse`, `storage` (`cookies` | `local` | `session` × `list` | `get` | `set` | `del` | `clear`), `state` (`save` | `load`), `console` (`--level`), `net` (`net <n> [--body] [--req]`), `trace`, `video`, `locator`, `run` (sesja, `BROWSER_INSPECTOR_UNSAFE=1`), `close`.
 
 `verify kind: list` = `{ do: 'verify', kind: 'list', selector|ref, items: […] }`: każdy `items[i]` jest widocznym tekstem potomka w podanej kolejności. `verify` zatrzymuje flow jak każdy krok; `soft: true` (sesja: `--soft`) zapisuje wynik do `verifications[]`, nie zmienia `completed`, a `report.md` dostaje sekcję `## verify` z wierszami FAIL.
 
@@ -193,7 +193,7 @@ Domyślne: `waitUntil: "load"`, `isolation: "reuse"`, `captureElements: true` �
 
 ### 3.4 Migracja app-factory (opcjonalna) i policzony czas
 
-`bi lint-config read.config.browser-inspector.json` drukuje: `4× waitUntil "networkidle" → "settled" (−500…−1900 ms każdy; sonda: 666–2056 ms)`, `7× wait ms (razem 4200 ms snu) → waitFor <selector> / wait --text` (animacje Material 600–700 ms — `settled` ich **nie** widzi, więc lint nie proponuje `settled` dla tych kroków), `parallel: 3 (6 flow → 3 lane)`. Bez migracji wszystko działa jak dziś (`networkidle` 1:1): **≈ 8–10 s wall** (4 × networkidle 0,7–2,1 s + 4,2 s snu + ~0,7 s kroków i zrzutów + 5 scrubów × 12–35 ms) — na tym configu 5× nie ma i dokument tego nie obiecuje; po migracji ≈ 2,5 s sekwencyjnie i **≈ 1,3–1,6 s z `parallel: 3`** (lane 1–2 płacą raz 115 + 190–441 ms świeżego kontekstu, potem są ciepłe). To wybór autora configu, nie narzędzia.
+`browser-inspector lint-config read.config.browser-inspector.json` drukuje: `4× waitUntil "networkidle" → "settled" (−500…−1900 ms każdy; sonda: 666–2056 ms)`, `7× wait ms (razem 4200 ms snu) → waitFor <selector> / wait --text` (animacje Material 600–700 ms — `settled` ich **nie** widzi, więc lint nie proponuje `settled` dla tych kroków), `parallel: 3 (6 flow → 3 lane)`. Bez migracji wszystko działa jak dziś (`networkidle` 1:1): **≈ 8–10 s wall** (4 × networkidle 0,7–2,1 s + 4,2 s snu + ~0,7 s kroków i zrzutów + 5 scrubów × 12–35 ms) — na tym configu 5× nie ma i dokument tego nie obiecuje; po migracji ≈ 2,5 s sekwencyjnie i **≈ 1,3–1,6 s z `parallel: 3`** (lane 1–2 płacą raz 115 + 190–441 ms świeżego kontekstu, potem są ciepłe). To wybór autora configu, nie narzędzia.
 
 ### 3.5 Kody wyjścia
 
@@ -206,12 +206,12 @@ Batch: **0** zawsze (nieudany krok to wynik w raporcie), **1** tylko z `--fail-o
 ### 4.1 Pętla agenta
 
 ```
-bi open http://localhost:4313/      → 1 linia + snap.md/snap.json na dysku
-bi find koszyk                        → ≤10 linii z refami (główny sposób patrzenia)
-bi click e45                          → 1 linia z deltami; snap odświeżany leniwie
-bi snap --diff                        → tylko linie dodane/usunięte od poprzedniego snap
-bi shot koszyk && bi console          → ścieżka pliku; nowe wpisy konsoli od ostatniego wywołania
-bi export flows/koszyk.json           → dziennik sesji → config flow do powtarzania bez agenta
+browser-inspector open http://localhost:4313/      → 1 linia + snap.md/snap.json na dysku
+browser-inspector find koszyk                        → ≤10 linii z refami (główny sposób patrzenia)
+browser-inspector click e45                          → 1 linia z deltami; snap odświeżany leniwie
+browser-inspector snap --diff                        → tylko linie dodane/usunięte od poprzedniego snap
+browser-inspector shot koszyk && browser-inspector console          → ścieżka pliku; nowe wpisy konsoli od ostatniego wywołania
+browser-inspector export flows/koszyk.json           → dziennik sesji → config flow do powtarzania bez agenta
 ```
 
 ### 4.2 Refy — semantyka wg coreBundle, nie założona
@@ -219,7 +219,7 @@ bi export flows/koszyk.json           → dziennik sesji → config flow do powt
 - **Ref = (element, rola, nazwa) z OSTATNIEGO snapshotu w danej ramce.** Przeżywa zmiany DOM w SPA, dopóki element jest podłączony i zachowuje rolę i nazwę (sonda: `e172` → `e172`); zmiana etykiety („Dodaj do koszyka” → „W koszyku”) daje **nowy ref**, stary jest martwy mimo tego samego elementu; nawigacja dokumentu daje nowy `frameSeq` (refy `f1eN`, `f2eN`), stare przestają się rozwiązywać.
 - **Reguła keepera: w sesji wykonuje się WYŁĄCZNIE pełny `page.ariaSnapshot({ mode: 'ai', boxes: true })`** — każdy snapshot poddrzewa, z `depth` albo w trybie `default` nadpisałby mapę i unieważnił wszystkie inne refy (fałszywe „ref not found”). `--around`, `--grep`, `--max`, `--diff`, `verify list` i `find` są **filtrami w JS po pełnym YAML**. Test regresji: po `verify list` i `find` ref sprzed nadal się rozwiązuje.
 - `sel()` robi `count()` przed akcją; 0 ⇒ pełny snapshot ⇒ `count()` ⇒ 0 ⇒ `FAIL` w kilkadziesiąt ms z podpowiedzią (smoke: zmiana etykiety po kliknięciu → stary ref FAIL < 100 ms).
-- Linia akcji mówi, czy warto patrzeć znowu: `navigated` (refy nieważne — `bi snap`), `dom Δ` (licznik `MutationObserver` ze skryptu init sesji), `el 61→63` (1 evaluate, 6 ms), `+1 console.error`, `+2 net failed`, `dialog …`. Pełny `ariaSnapshot` (26–85 ms) wykonuje się dopiero przy `snap`/`find` albo gdy `count()` nie znajdzie refa.
+- Linia akcji mówi, czy warto patrzeć znowu: `navigated` (refy nieważne — `browser-inspector snap`), `dom Δ` (licznik `MutationObserver` ze skryptu init sesji), `el 61→63` (1 evaluate, 6 ms), `+1 console.error`, `+2 net failed`, `dialog …`. Pełny `ariaSnapshot` (26–85 ms) wykonuje się dopiero przy `snap`/`find` albo gdy `count()` nie znajdzie refa.
 
 ### 4.3 Format snapshotu (`src/snapshot.mjs`, funkcje czyste)
 
@@ -234,74 +234,74 @@ h2 "Nowości"
 e112 button "Dodaj do koszyka" [data-testid=card-add-to-cart]
 ```
 
-`bi snap` drukuje ten widok z **`--max 25`** (≈ 370 tok.; `--max 40` ≈ 590 — więcej niż `browser_snapshot` MCP 534, dlatego nie jest domyślne; nadmiar: `…+55 lines · session/default/snap.md`), `--diff`, `--around e45` (sąsiedztwo w kompakcie), `--grep tekst`, `--names`, `--all` (pełne drzewo do pliku, nie na stdout). `bi find <tekst>` = `findInSnapshot()` po pełnym YAML (także po tekście liści), do 10 linii kompaktu — ~40–100 tok.
+`browser-inspector snap` drukuje ten widok z **`--max 25`** (≈ 370 tok.; `--max 40` ≈ 590 — więcej niż `browser_snapshot` MCP 534, dlatego nie jest domyślne; nadmiar: `…+55 lines · session/default/snap.md`), `--diff`, `--around e45` (sąsiedztwo w kompakcie), `--grep tekst`, `--names`, `--all` (pełne drzewo do pliku, nie na stdout). `browser-inspector find <tekst>` = `findInSnapshot()` po pełnym YAML (także po tekście liści), do 10 linii kompaktu — ~40–100 tok.
 
 ### 4.4 Dokładny stdout (każda linia ≤ 40 tokenów o200k; zmierzone 18–27)
 
 ```
-$ bi open http://localhost:4313/
+$ browser-inspector open http://localhost:4313/
 ok open "Księgarnia" · el 61 · err 0 · session/default/snap.md
 
-$ bi find koszyk
+$ browser-inspector find koszyk
 e45 button "Otwórz koszyk" [data-testid=header-cart-button]
 e112 button "Dodaj do koszyka" [data-testid=card-add-to-cart]
 
-$ bi click e112
+$ browser-inspector click e112
 ok click e112 · dom Δ · el 61→63 · +1 console.error
 
-$ bi click e45
+$ browser-inspector click e45
 ok click e45 · url /cart "Koszyk" · el 63→23
 
-$ bi fill e39 Harry --enter
-ok fill e39 · navigated → refs f1eN (bi snap) · el 58
+$ browser-inspector fill e39 Harry --enter
+ok fill e39 · navigated → refs f1eN (browser-inspector snap) · el 58
 
-$ bi snap --max 3
+$ browser-inspector snap --max 3
 f1e11 link "Księgarnia" → /
 f1e39 textbox "Szukaj produktów…" = Harry
 f1e41 button "Szukaj" [data-testid=search-submit]
 …+55 lines · session/default/snap.md
 
-$ bi console --level error
+$ browser-inspector console --level error
 1 new: error [cart] POST /api/cart → 404
 
-$ bi net --failed
+$ browser-inspector net --failed
 3 new · 1 failed: #7 POST /api/cart 404 12 ms
 
-$ bi net 7 --body
+$ browser-inspector net 7 --body
 404 application/json 41 B · session/default/net/7.txt
 {"error":"cart not found"}
 
-$ bi eval document.title
+$ browser-inspector eval document.title
 "Koszyk"
 
-$ bi shot koszyk --full
+$ browser-inspector shot koszyk --full
 ok shot session/default/shots/004-koszyk.png 1280x2140
 
-$ bi click e99
-FAIL click e99 · ref not found (gone, label changed or other frame) → bi snap     # exit 1
+$ browser-inspector click e99
+FAIL click e99 · ref not found (gone, label changed or other frame) → browser-inspector snap     # exit 1
 
-$ bi dialog
-policy dismiss · last: confirm "Usunąć?" → dismissed (bi click e12)
+$ browser-inspector dialog
+policy dismiss · last: confirm "Usunąć?" → dismissed (browser-inspector click e12)
 
-$ bi export flows/koszyk.json
+$ browser-inspector export flows/koszyk.json
 ok export 9 steps → flows/koszyk.json (refs → data-testid/#id/role=)
 
-$ bi doctor
-ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · D:/github/scribe-devtools/packages/browser-inspector/bin/bi.mjs
+$ browser-inspector doctor
+ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · D:/github/scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs
 ```
 
 Zasady (`src/print.mjs`, testowane): jedna linia na sukces, ≤ 160 znaków, prefiks `ok | FAIL`, separator ` · `, ścieżki względne do cwd; `console`, `net`, `find`, `snap`, `eval` (≤ 300 znaków, dłuższe → `eval-NNN.txt`), `extract` drukują treść, bo treść JEST wynikiem; `console --level info|warn|error` (poziom włącza cięższe, jak MCP), `--errors` = `--level error`; `console`/`net` drukują **tylko wpisy od ostatniego wywołania** z prefiksem `N new:` (`--all`, `--failed`, `--tail N`); `net <n>` drukuje status, typ, rozmiar i ≤ 20 linii ciała (`--req` = nagłówki żądania), całość do `net/<n>.txt`.
 
 ### 4.5 Pliki sesji, dialogi, karty, ramki, eksport
 
-**Klucz sesji = tylko nazwa** (`--session`, `BI_SESSION`, domyślnie `default`) per keeper — nie `<cwd>|<name>`, bo `cd` w Bash albo subagent z innym cwd tworzyłby drugą sesję bez ostrzeżenia. Katalog `out` ustalany przy `bi open` (`--out`, domyślnie `./.scribe-devtools/browser-inspector`) i zapamiętany w sesji; `bi status` pokazuje `session default · cwd D:/x · out …`. `<out>/session/<name>/`: `snap.md`, `snap.full.yml`, `snap.json`, `journal.jsonl` (komenda, wynik, ms, url, **selektor rozwiązany przy akcji**), `console.jsonl`, `net.jsonl`, `net/<n>.txt`, `shots/NNN-<name>.png`, `pdf/`, `eval-NNN.txt`, `trace.zip`, `video/`. Tylko najnowszy snapshot — historia w dzienniku.
+**Klucz sesji = tylko nazwa** (`--session`, `BROWSER_INSPECTOR_SESSION`, domyślnie `default`) per keeper — nie `<cwd>|<name>`, bo `cd` w Bash albo subagent z innym cwd tworzyłby drugą sesję bez ostrzeżenia. Katalog `out` ustalany przy `browser-inspector open` (`--out`, domyślnie `./.scribe-devtools/browser-inspector`) i zapamiętany w sesji; `browser-inspector status` pokazuje `session default · cwd D:/x · out …`. `<out>/session/<name>/`: `snap.md`, `snap.full.yml`, `snap.json`, `journal.jsonl` (komenda, wynik, ms, url, **selektor rozwiązany przy akcji**), `console.jsonl`, `net.jsonl`, `net/<n>.txt`, `shots/NNN-<name>.png`, `pdf/`, `eval-NNN.txt`, `trace.zip`, `video/`. Tylko najnowszy snapshot — historia w dzienniku.
 
-- **Dialogi**: polityka PRZED akcją (`bi dialog accept|dismiss [--text …] [--once]`, domyślnie `dismiss`), każdy dialog logowany i pokazany w linii; `beforeunload` jest **zawsze akceptowany** (inaczej blokuje nawigację) z wpisem `· dialog beforeunload → accepted`; `bi dialog` bez argumentów = polityka + ostatni dialog. Zero blokad w keeperze.
-- **Karty**: `bi tabs`, `bi tab new [url]`, `bi tab 2`, `bi tab close`; popupy przez `context.on('page')`; w batchu popupy trafiają do `report.json.tabs[] = [{ url, title, openedAt }]`, zanim scrub je zamknie.
-- **Ramki**: pełny snapshot `ai` **zawiera iframe’y** z refami `f<seq>eN`, które rozwiązują się bez przełączania (fakt (d)); `bi frame 2` / `bi frame main` zmienia zakres tylko dla **selektorów CSS/tekstowych, `eval`, `extract`** (`frame.locator`), nigdy nie robi snapshotu poddrzewa.
-- **Route**: `bi route "**/api/*" --block | --status 500 --body '{"e":1}' | --file odp.json | --delay 300`, `bi unroute [wzorzec]`, `bi routes`; `bi offline on|off`; `bi fetch <url> [--method] [--body]` = `fetch` w kontekście strony.
+- **Dialogi**: polityka PRZED akcją (`browser-inspector dialog accept|dismiss [--text …] [--once]`, domyślnie `dismiss`), każdy dialog logowany i pokazany w linii; `beforeunload` jest **zawsze akceptowany** (inaczej blokuje nawigację) z wpisem `· dialog beforeunload → accepted`; `browser-inspector dialog` bez argumentów = polityka + ostatni dialog. Zero blokad w keeperze.
+- **Karty**: `browser-inspector tabs`, `browser-inspector tab new [url]`, `browser-inspector tab 2`, `browser-inspector tab close`; popupy przez `context.on('page')`; w batchu popupy trafiają do `report.json.tabs[] = [{ url, title, openedAt }]`, zanim scrub je zamknie.
+- **Ramki**: pełny snapshot `ai` **zawiera iframe’y** z refami `f<seq>eN`, które rozwiązują się bez przełączania (fakt (d)); `browser-inspector frame 2` / `browser-inspector frame main` zmienia zakres tylko dla **selektorów CSS/tekstowych, `eval`, `extract`** (`frame.locator`), nigdy nie robi snapshotu poddrzewa.
+- **Route**: `browser-inspector route "**/api/*" --block | --status 500 --body '{"e":1}' | --file odp.json | --delay 300`, `browser-inspector unroute [wzorzec]`, `browser-inspector routes`; `browser-inspector offline on|off`; `browser-inspector fetch <url> [--method] [--body]` = `fetch` w kontekście strony.
 - **Eksport** (`src/session-log.mjs → exportFlow`): każda akcja na refie zapisuje selektor rozwiązany **w chwili akcji** (`locator('aria-ref=eN').evaluate(locatorFor)`, 14 ms) z preferencją `[data-testid=…]` → `#id` → `[name=…]` → `role=button[name="…"]`; wartości z `--env`/`@{NAZWA}` stają się `valueFromEnv`; eksport pisze **nowy plik** (istniejący wymaga `--force`); test: żadna wartość sekretu nie ląduje w eksporcie, dzienniku, raporcie ani stdout.
-- **`bi script plik.txt`**: te same linie co w powłoce, jedna na linię, wykonane w jednym procesie (bez keepera, `--no-daemon` honorowane); stdout = te same linie; exit = pierwszy niezerowy; jedyna ścieżka sesyjna dla CI.
+- **`browser-inspector script plik.txt`**: te same linie co w powłoce, jedna na linię, wykonane w jednym procesie (bez keepera, `--no-daemon` honorowane); stdout = te same linie; exit = pierwszy niezerowy; jedyna ścieżka sesyjna dla CI.
 
 ---
 
@@ -355,7 +355,7 @@ Przy porażce nagłówek to `# wizard-formularz — FAIL 9/16 · 1 812 ms · war
   "elements": { "entries": [{ "kind": "button", "name": "Wyślij zgłoszenie", "selector": "[data-testid=\"submit\"]" }], "total": 21, "truncated": false },
   "files": { "elements": "elements.md", "text": "text.txt" },
   "timing": { "mode": "warm", "ctx": "reused", "tab": "kept", "lane": 0, "queuedMs": 0, "scrubMs": 14, "gotoMs": 53, "stepsMs": 371, "captureMs": 12, "writeMs": 9, "totalMs": 446, "cacheHits": 0, "cacheHitsDocument": 0 },
-  "engine": { "bi": "0.1.0", "playwright-core": "1.62.1", "browser": "Chrome/140", "flags": ["--disable-frame-rate-limit", "--disable-gpu-vsync"], "motion": "no-preference", "serviceWorkers": "block", "generation": 41 }
+  "engine": { "browser-inspector": "0.1.0", "playwright-core": "1.62.1", "browser": "Chrome/140", "flags": ["--disable-frame-rate-limit", "--disable-gpu-vsync"], "motion": "no-preference", "serviceWorkers": "block", "generation": 41 }
 }
 ```
 
@@ -367,7 +367,7 @@ Przy porażce nagłówek to `# wizard-formularz — FAIL 9/16 · 1 812 ms · war
 
 Flow benchu (`demo/skryba/read.config.json`, 18 kroków): waitFor, click, 2×extract, screenshot, 3×fill, select, click, fill, 2×click, waitFor, 3×extract, evaluate, screenshot. Koszty jednostkowe = liczba **gorsza** z {właściciel, sonda rano, sonda rewizyjna} po medianach: klient 72 (właściciel; sonda 48), click 44 (właściciel), goto na tej samej karcie 55 (sonda rewizyjna wizard med 53; właściciel 49), CDP-zrzut 25, pipe 5, fill 10, dowód końcowy 12 (el-count 6 + title/text/elements 6), launch 300 (sonda 158–186, właściciel 440 — wiersz „pesymistycznie”). Flagi frame-rate są domyślnie włączone, ale budżet ich **nie liczy**.
 
-| faza | warm, przerwa ≥ 250 ms (`bi-warm`) | warm bez przerwy (`bi-warm-tight`) | 1. wywołanie w sesji (`bi-first`) | `--no-daemon` (CI, `bi-cold`) |
+| faza | warm, przerwa ≥ 250 ms (`browser-inspector-warm`) | warm bez przerwy (`browser-inspector-warm-tight`) | 1. wywołanie w sesji (`browser-inspector-first`) | `--no-daemon` (CI, `browser-inspector-cold`) |
 | --- | ---: | ---: | ---: | ---: |
 | start klienta (node + `node:*` + steps.schema) | 72 | 72 | 72 | 72 |
 | spawn keepera → nasłuch | — | — | 45 | — |
@@ -399,7 +399,7 @@ Wiersze poza flow benchu (do BUDGET.md, z osobnym pomiarem):
 | sytuacja | koszt | uwaga |
 | --- | ---: | --- |
 | pierwsze wejście na **inny origin** na tej samej karcie | 75–320 | site isolation: nowy renderer per site; spare renderer Chrome pomaga raz |
-| goto po `--fresh` / lane pierwszy raz / auth / video (świeży kontekst, prewarm z puli spare) | 190–441 | `bi-warm-fresh` ≈ 546 − 55 + 441 = 932 ms = **3,1×** — ścieżka izolacyjnie świeża 5× nie robi i dokument tego nie obiecuje |
+| goto po `--fresh` / lane pierwszy raz / auth / video (świeży kontekst, prewarm z puli spare) | 190–441 | `browser-inspector-warm-fresh` ≈ 546 − 55 + 441 = 932 ms = **3,1×** — ścieżka izolacyjnie świeża 5× nie robi i dokument tego nie obiecuje |
 | scrub między snapshotami jednego batchu (w stoperze) | 12–35 | 1 origin ≈ 12, 4 originy 34; popup +20/szt.; karta po `crash` +215 (`tab: new`) |
 | app-factory, 6 snapshotów, `parallel: 1`, config bez zmian | ≈ 8 000–10 000 | 4 × networkidle (666–2056) + 4 200 snu + kroki; §3.4 |
 | app-factory po migracji (`settled`, `waitFor`), `parallel: 1` / `3` | ≈ 2 500 / 1 300–1 600 | lane 1–2 płacą raz świeży kontekst |
@@ -407,11 +407,11 @@ Wiersze poza flow benchu (do BUDGET.md, z osobnym pomiarem):
 Wnioski liczone, nie życzone:
 
 - **Warm 546 ms = 5,3×, margines 34 ms (6 %) — nazwany, nie ukryty.** Zjada go jedna pauza GC albo skan Defendera na `report.json`; dlatego bench liczy medianę z n ≥ 10, raportuje p90, a BUDGET.md czerwieni każdą fazę z rozjazdem > 25 % **oraz iloraz < 5,0**. Dźwignie mierzone osobno: flagi frame-rate (click ~32 ⇒ ~486 ms, 6,0× — domyślnie włączone, więc **pomiar prawdopodobnie wyjdzie 480–500 ms**; budżet 546 to gwarancja projektowa, nie oczekiwana wartość), CDP-zrzut (bez niego +38 ⇒ 584 ms, 4,97× — poniżej progu, stąd CDP jest domyślne), reużycie karty (świeża karta +160 ⇒ 706 ms, 4,1×; świeży kontekst ⇒ 3,1×), prewarm (−115 na każdym świeżym kontekście), `settled` (dotyczy app-factory, nie flow benchu).
-- **`bi-warm-tight` 561 ms = 5,2×**: scrub poprzedniego przebiegu wchodzi do `queuedMs` następnego, gdy klient N+1 łączy się < 15 ms po odpowiedzi dla N; oba warianty są w RAPORT.md, `queuedMs` i `scrubMs` są w `timing` i w BUDGET.md osobno.
-- **Zimno nie robi 5× w żadnym projekcie na playwright-core**: import + launch + kontekst + świeże goto = 935 ms > cały próg 720 ms. `bi-first` 1,47 s = 2,4×, `bi-cold` 1,62 s = 2,2× — obie raportowane osobno, obie nie gorsze od starej skryby (1,6 s). 5× jest własnością **każdego wywołania po pierwszym** (keeper żyje 30 min od ostatniego użycia, 60 min z otwartą sesją) albo pierwszego po `bi up`.
+- **`browser-inspector-warm-tight` 561 ms = 5,2×**: scrub poprzedniego przebiegu wchodzi do `queuedMs` następnego, gdy klient N+1 łączy się < 15 ms po odpowiedzi dla N; oba warianty są w RAPORT.md, `queuedMs` i `scrubMs` są w `timing` i w BUDGET.md osobno.
+- **Zimno nie robi 5× w żadnym projekcie na playwright-core**: import + launch + kontekst + świeże goto = 935 ms > cały próg 720 ms. `browser-inspector-first` 1,47 s = 2,4×, `browser-inspector-cold` 1,62 s = 2,2× — obie raportowane osobno, obie nie gorsze od starej skryby (1,6 s). 5× jest własnością **każdego wywołania po pierwszym** (keeper żyje 30 min od ostatniego użycia, 60 min z otwartą sesją) albo pierwszego po `browser-inspector up`.
 - **Windows**: pierwsze uruchomienie po restarcie (Defender na świeżym `chrome.exe`/`node.exe`) jest droższe; bench raportuje „steady-state cold” z n ≥ 3 medianą, a „first-ever” osobno, poza ilorazami.
 
-**Tokeny** (o200k, mierzone na próbkach z tego dokumentu i w benchu): batch = blok AGENTS.md **146** + komenda 7 + stdout ~25 + `report.md` **187** ≈ **365 na sesję** (stara skryba 767, MCP 5 549–6 747 ⇒ 15–18×). Sesja interaktywna naive (`open, find, click, snap --diff, form, click, wait, get×3, console, shot×2`; linie 18–27 tok., `find` ~40, `snap --diff` ~60) = 146 + ~400 ≈ **550**; z jednym gołym `bi snap` (~370) ≈ **950**; agent robiący `snap` po każdej z trzech nawigacji ≈ **1 700** — nadal 4× taniej niż MCP naive (6 747), a jeden `bi snap` (370) jest tańszy niż jeden `browser_snapshot` MCP (534). Wariant `pnpm bi` zamiast `bi` dodaje ~4 tok. na komendę.
+**Tokeny** (o200k, mierzone na próbkach z tego dokumentu i w benchu): batch = blok AGENTS.md **158** + komenda ~10 + stdout ~25 + `report.md` **187** ≈ **380 na sesję** (stara skryba 767, MCP 5 549–6 747 ⇒ 15–18×). Sesja interaktywna naive (`open, find, click, snap --diff, form, click, wait, get×3, console, shot×2`; linie 18–27 tok., `find` ~40, `snap --diff` ~60) = 158 + ~400 ≈ **560**; z jednym gołym `browser-inspector snap` (~370) ≈ **960**; agent robiący `snap` po każdej z trzech nawigacji ≈ **1 700** — nadal 4× taniej niż MCP naive (6 747), a jeden `browser-inspector snap` (370) jest tańszy niż jeden `browser_snapshot` MCP (534). Wariant `pnpm browser-inspector` zamiast `browser-inspector` dodaje ~4 tok. na komendę.
 
 ---
 
@@ -434,7 +434,7 @@ Wnioski liczone, nie życzone:
 | tabs (list / new / select / close) | `tab` {action, target, url}; popupy w `tabs[]` | `tabs` / `tab new\|<n>\|close` | ✅ |
 | resize | `resize` | `resize WxH` | ✅ |
 | evaluate | `evaluate` {expression, timeout} (CDP `Runtime.evaluate` + `withDeadline`) | `eval <expr> [--el eN]` | ✅ |
-| run_code_unsafe | — (odrzucone w configu bramki) | `run --file s.mjs` pod `BI_UNSAFE=1` | ⚠️ tylko sesja, jawnie RCE-równoważne |
+| run_code_unsafe | — (odrzucone w configu bramki) | `run --file s.mjs` pod `BROWSER_INSPECTOR_UNSAFE=1` | ⚠️ tylko sesja, jawnie RCE-równoważne |
 | storage_state / set_storage_state | `state` {save\|load} + `auth.storageState` | `state save\|load plik` | ✅ |
 | cookie_* (5), localstorage_* (5), sessionstorage_* (5) | `storage` {kind, op, key, value\|valueFromEnv, name} | `storage cookies\|local\|session list\|get\|set\|del\|clear` | ✅ (15 narzędzi = 1 krok) |
 | verify_element_visible / text_visible / list_visible / value | `verify` {kind: visible\|hidden\|text\|value\|list\|url\|title\|count, soft} | `verify … [--soft]` | ✅ (+ url, title, count, soft) |
@@ -459,8 +459,8 @@ scribe-devtools/
   vitest.config.mts · tsconfig.json (checkJs, noEmit) · .githooks/pre-commit
   scripts/index-code.mjs · scripts/portable-zip.mjs · scripts/check-instruction-sync.mjs · scripts/gen-steps-doc.mjs
   packages/browser-inspector/
-    package.json                    # @scribe-devtools/browser-inspector, "bin": { "bi": "bin/bi.mjs" }, playwright-core "1.62.1" (exact), engines >=22
-    bin/bi.mjs                      # wejście: parseArgs → keeper (sesja, batch) | in-process (batch --no-daemon, script)
+    package.json                    # @scribe-devtools/browser-inspector, "bin": { "browser-inspector": "bin/browser-inspector.mjs" }, playwright-core "1.62.1" (exact), engines >=22
+    bin/browser-inspector.mjs                      # wejście: parseArgs → keeper (sesja, batch) | in-process (batch --no-daemon, script)
     src/cli.mjs                     # parseArgs(argv, STEPS) → { mode, command|configPath, options } — czysta
     src/steps.schema.mjs            # STEPS: kind/argv/flags/config/validate/describe/help — importowane przez klienta
     src/steps.run.mjs               # RUNNERS: run(ctx, s) per krok — importowane tylko przez silnik
@@ -484,26 +484,26 @@ scribe-devtools/
     test/*.test.mjs                 # vitest z FakePage (PageLike)
     test/client-imports.test.mjs    # graf modułów klienta: nigdy playwright-core / engine.mjs / steps.run.mjs
     test/keeper.test.mjs            # prawdziwy pipe na losowej nazwie, silnik = fake; lock, token, idle, CI, sesje
-    test/compat/smoke-gate.test.mjs # spawn bin/bi.mjs <config app-factory> --stamp X: --no-daemon, keeper ×2, --parallel 3; kopia evaluateReports()
+    test/compat/smoke-gate.test.mjs # spawn bin/browser-inspector.mjs <config app-factory> --stamp X: --no-daemon, keeper ×2, --parallel 3; kopia evaluateReports()
     test/smoke/smoke.test.mjs       # prawdziwy Chrome: fixtures/*.html przez node:http, flow + sesja przez keepera + izolacja
-    test/perf/*.perf.test.mjs       # opt-in (BI_PERF=1): warm ≤ BI_PERF_BUDGET_MS (600); client-start ≤ 120 ms
+    test/perf/*.perf.test.mjs       # opt-in (BROWSER_INSPECTOR_PERF=1): client-start ≤ BROWSER_INSPECTOR_PERF_CLIENT_MS (120)
     test/hooks/trace-loads.mjs      # hook --import rejestrujący załadowane moduły
     fixtures/form.html · dialog.html · upload.html · drag.html · tabs.html · iframe.html · slow.html · routes.html · storage.html · relabel.html
     templates/flow.md               # dokument dla agenta (port templates/browser-inspector-flow.md)
-  bench/                            # gpt-tokenizer, @playwright/mcp "0.0.80" (exact), app/, probes/, serve.mjs, bench.mjs, bi-run.mjs, mcp-run.mjs, mcp-client.mjs, tokens.mjs, time-run.mjs, task.mjs, raport.mjs, budget.mjs
+  bench/                            # gpt-tokenizer, @playwright/mcp "0.0.80" (exact), app/, probes/, serve.mjs, bench.mjs, browser-inspector-run.mjs, mcp-run.mjs, mcp-client.mjs, tokens.mjs, time-run.mjs, task.mjs, raport.mjs, budget.mjs
 ```
 
 **Interfejs testowalności.** `run(ctx, step)` dostaje `ctx = { page, context, cdp, dir, timeoutMs, capture, recorder, sel, values, session, redact }`, gdzie `page` spełnia `PageLike` (JSDoc typedef: goto, click, fill, type, press, hover, selectOption, check, setInputFiles, dragAndDrop, waitForSelector, waitForFunction, waitForTimeout, screenshot, pdf, evaluate, locator, ariaSnapshot, title, url, goBack, goForward, reload, setViewportSize, emulateMedia, route, unroute, on/off, frames, mouse) i `cdp = { send }`. `FakePage` rejestruje wywołania i wstrzykuje błędy — pokrywa mapowanie krok→wywołanie, porażkę → `completed:false` + `final.png`, `describe` bez wartości, walidację (config app-factory jako fixture), raport, kompaktowanie i box-join (fixture YAML bookstore), `find`, `diff`, `exportFlow`, `scrubPlan`, `needsFreshContext`, parser CLI, protokół keepera, redakcję. Smoke z przeglądarką jest jeden.
 
-**Bramki.** `npm run verify` = `prettier --check` → `vitest run` (unit + keeper + compat + client-imports) → `tsc --noEmit` (checkJs) → `index-code --check` → `gen-steps-doc --check` → `check-instruction-sync` (blok w AGENTS.md ≡ `INSTRUCTION` w `bench/bi-run.mjs`) → `smoke` (`BI_SKIP_SMOKE=1` tylko bez Chrome). Hook pre-commit regeneruje CODE-INDEX.md i docs/STEPS.md.
+**Bramki.** `npm run verify` = `prettier --check` → `vitest run` (unit + keeper + compat + client-imports) → `tsc --noEmit` (checkJs) → `index-code --check` → `gen-steps-doc --check` → `check-instruction-sync` (blok w AGENTS.md ≡ `INSTRUCTION` w `bench/browser-inspector-run.mjs`) → `smoke` (`BROWSER_INSPECTOR_SKIP_SMOKE=1` tylko bez Chrome). Hook pre-commit regeneruje CODE-INDEX.md i docs/STEPS.md.
 
-**Pakowanie.** Bez bundlera: `npm run portable` pakuje `packages/browser-inspector` + `node_modules/playwright-core` + marker `PORTABLE` + shim `bi.cmd`/`bi`; po rozpakowaniu `node packages/browser-inspector/bin/bi.mjs` działa z Node ≥ 22 i systemowym Chrome/Edge. Wydanie jak w scribe: CHANGELOG `Unreleased` → wersja → tag → `gh release create` z zipem.
+**Pakowanie.** Bez bundlera: `npm run portable` pakuje `packages/browser-inspector` + `node_modules/playwright-core` + marker `PORTABLE` + shim `browser-inspector.cmd`/`browser-inspector`; po rozpakowaniu `node packages/browser-inspector/bin/browser-inspector.mjs` działa z Node ≥ 22 i systemowym Chrome/Edge. Wydanie jak w scribe: CHANGELOG `Unreleased` → wersja → tag → `gh release create` z zipem.
 
-**Integracja z app-factory** (PR ~25 linii + spec, nie „3 linie”): nowa funkcja `findRunner(env, exists, root)` w `smoke-browser.mjs` z tabelą kandydatów `[{ dir: env.SCRIBE_DEVTOOLS_DIR, pipeline: 'packages/browser-inspector/bin/bi.mjs', ready: 'node_modules/playwright-core/package.json', fix: 'npm ci --prefix <dir>' }, { dir: '../scribe-devtools', … }, { dir: findScribeDir(...), pipeline: 'integrations/dist/browser-inspector/read-browser-inspector.js', ready: <pipeline>, fix: 'npm --prefix <dir> run build' }]` zwracająca `{ dir, pipeline, fixCommand }`; `findScribeDir` **zostaje bez zmian** (jej spec też), `findRunner` dostaje własne przypadki (`SCRIBE_DEVTOOLS_DIR` wygrywa, potem `../scribe-devtools`, potem scribe). Wywołanie `spawn(node, [pipeline, CONFIG, ...forwarded])` zostaje literalnie. Pod `CI=true` bramka jedzie bez keepera; lokalnie z keeperem. Do `package.json` app-factory: skrypt `"bi"`; do AGENTS.md app-factory: dwa zdania o `pnpm bi`. Config i `evaluateReports` nietknięte; `test/compat/smoke-gate.test.mjs` powtarza dokładnie tę ścieżkę odczytu, dwa razy z rzędu przez keepera (drugi przebieg: `dziennik-uczen.completed === true`, `nowiro-jezyk.extracts['naglowek-pl']` po polsku) i z `--parallel 3` (identyczny zbiór `completed`).
+**Integracja z app-factory** (PR ~25 linii + spec, nie „3 linie”): nowa funkcja `findRunner(env, exists, root)` w `smoke-browser.mjs` z tabelą kandydatów `[{ dir: env.SCRIBE_DEVTOOLS_DIR, pipeline: 'packages/browser-inspector/bin/browser-inspector.mjs', ready: 'node_modules/playwright-core/package.json', fix: 'npm ci --prefix <dir>' }, { dir: '../scribe-devtools', … }, { dir: findScribeDir(...), pipeline: 'integrations/dist/browser-inspector/read-browser-inspector.js', ready: <pipeline>, fix: 'npm --prefix <dir> run build' }]` zwracająca `{ dir, pipeline, fixCommand }`; `findScribeDir` **zostaje bez zmian** (jej spec też), `findRunner` dostaje własne przypadki (`SCRIBE_DEVTOOLS_DIR` wygrywa, potem `../scribe-devtools`, potem scribe). Wywołanie `spawn(node, [pipeline, CONFIG, ...forwarded])` zostaje literalnie. Pod `CI=true` bramka jedzie bez keepera; lokalnie z keeperem. Do `package.json` app-factory: skrypt `"browser-inspector"`; do AGENTS.md app-factory: dwa zdania o `pnpm browser-inspector`. Config i `evaluateReports` nietknięte; `test/compat/smoke-gate.test.mjs` powtarza dokładnie tę ścieżkę odczytu, dwa razy z rzędu przez keepera (drugi przebieg: `dziennik-uczen.completed === true`, `nowiro-jezyk.extracts['naglowek-pl']` po polsku) i z `--parallel 3` (identyczny zbiór `completed`).
 
-**Instrukcja w AGENTS.md** (koszt stały **146 tokenów**, mierzony co do znaku, ≡ `INSTRUCTION` benchu):
+**Instrukcja w AGENTS.md** (koszt stały **158 tokenów** o200k przy limicie **200** — AC-6; limit podniesiony ze 150, bo właściciel płaci tokenami za pełną nazwę `browser-inspector` zamiast skrótu; mierzony co do znaku, ≡ `INSTRUCTION` benchu):
 
-> Przeglądarka: `bi <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `bi open <url>`, `bi find <tekst>` / `bi snap` dają refy `eN`; `bi click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `bi export flow.json` zapisuje sesję jako config.
+> Przeglądarka: `browser-inspector <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `browser-inspector open <url>`, `browser-inspector find <tekst>` / `browser-inspector snap` dają refy `eN`; `browser-inspector click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `browser-inspector export flow.json` zapisuje sesję jako config.
 
 ---
 
@@ -513,18 +513,18 @@ scribe-devtools/
 
 | wariant | jak mierzony | co pokazuje |
 | --- | --- | --- |
-| `bi-cold` (`--no-daemon`) | `bi stop`, czekanie na zniknięcie pid **i** potomnych `chrome.exe` (do 2 s), × 3, mediana od `spawn` do `exit` | ścieżka CI |
-| `bi-first` | `bi stop`, potem 1 wywołanie z keeperem — start keepera W stoperze (× 3, mediana; „first-ever” po restarcie n=1, poza ilorazami) | 1. użycie w sesji |
-| `bi-warm` | po `bi-first`: **n ≥ 10** wywołań z przerwą **300 ms** między nimi, mediana + p90; keeper i karta ciepłe | 2.+ użycie — tu liczy się 5× |
-| `bi-warm-tight` | jak wyżej **bez przerwy** (następny `spawn` natychmiast po `exit`); `queuedMs` z `report.json` raportowany osobno | koszt scrubu w kolejce |
-| `bi-warm-fresh` | jak `bi-warm` z `--fresh` | izolacja świeża, jawnie < 5× |
-| `bi-interactive` | `open, find, click, snap --diff, form, click, wait, get×3, console, shot×2` + wariant z jednym gołym `bi snap` — każda komenda osobnym procesem `node`; tokeny = komendy + stdout + przeczytane pliki | parytet z MCP naive |
-| `keeper-survives-shell` | `bi up` w podprocesie powłoki (`cmd /c`, `bash -c`, `pwsh -c`), wyjście powłoki, `bi status` z nowego procesu | czy 5× dostanie agent, nie tylko bench |
+| `browser-inspector-cold` (`--no-daemon`) | `browser-inspector stop`, czekanie na zniknięcie pid **i** potomnych `chrome.exe` (do 2 s), × 3, mediana od `spawn` do `exit` | ścieżka CI |
+| `browser-inspector-first` | `browser-inspector stop`, potem 1 wywołanie z keeperem — start keepera W stoperze (× 3, mediana; „first-ever” po restarcie n=1, poza ilorazami) | 1. użycie w sesji |
+| `browser-inspector-warm` | po `browser-inspector-first`: **n ≥ 10** wywołań z przerwą **300 ms** między nimi, mediana + p90; keeper i karta ciepłe | 2.+ użycie — tu liczy się 5× |
+| `browser-inspector-warm-tight` | jak wyżej **bez przerwy** (następny `spawn` natychmiast po `exit`); `queuedMs` z `report.json` raportowany osobno | koszt scrubu w kolejce |
+| `browser-inspector-warm-fresh` | jak `browser-inspector-warm` z `--fresh` | izolacja świeża, jawnie < 5× |
+| `browser-inspector-interactive` | `open, find, click, snap --diff, form, click, wait, get×3, console, shot×2` + wariant z jednym gołym `browser-inspector snap` — każda komenda osobnym procesem `node`; tokeny = komendy + stdout + przeczytane pliki | parytet z MCP naive |
+| `keeper-survives-shell` | `browser-inspector up` w podprocesie powłoki (`cmd /c`, `bash -c`, `pwsh -c`), wyjście powłoki, `browser-inspector status` z nowego procesu | czy 5× dostanie agent, nie tylko bench |
 | `app-factory` | 6 snapshotów app-factory (kopia configu + buildów) z `parallel: 1` i `3`, config bez zmian i po `lint-config` | to, na czym testuje właściciel |
 | `mcp-naive`, `mcp-lean`, **`mcp-lean --timeout-settle 100`** | serwer raz, 1. przebieg (n=1) + mediana kolejnych z przerwą 300 ms; reset `about:blank` przed stoperem | trzy kolumny w **tabeli nagłówkowej** RAPORT.md |
-| sondy | `bi-warm` bez flag frame-rate; z `motion: reduce`; ze zrzutem PW zamiast CDP; `bi` vs `pnpm bi` (tokeny) | skąd biorą się różnice |
+| sondy | `browser-inspector-warm` bez flag frame-rate; z `motion: reduce`; ze zrzutem PW zamiast CDP; `browser-inspector` vs `pnpm browser-inspector` (tokeny) | skąd biorą się różnice |
 
-Zasady uczciwości (spisane w RAPORT.md, generowane): ten sam tokenizer po obu stronach; liczone jest to, co wchodzi do kontekstu (dla `bi`: blok AGENTS.md jako koszt stały + komendy + stdout + `report.md` w całości); czas od `spawn` do `exit` prawdziwego procesu klienta; przerwa 300 ms między powtórzeniami **po obu stronach** (bo scrub `bi` i `about:blank` MCP są poza stoperem tylko wtedy); `bi-warm-tight` pokazuje, co się dzieje bez przerwy; sprzęt, wersje i `timing.mode` każdego przebiegu w nagłówku (przebieg z `mode ≠ warm` w kolumnie warm unieważnia pomiar). `bench/budget.mjs` generuje **BUDGET.md** z `report.json.timing` i `_manifest.json`: kolumna „projekt §6” obok „pomiar”, `queuedMs`/`scrubMs`/`cacheHits` osobno, każda faza z rozjazdem > 25 % i **każdy iloraz < 5,0** jako czerwony wiersz. `npm run bench` pisze `RAPORT.md`, `WYNIKI.md`, `BUDGET.md`, `bench/out/results.json` i blok `BENCH:START/END` w README; `npm run bench -- --assert-speedup 5` asertuje na **medianie** `bi-warm` wobec mediany `mcp-naive` warm i raportuje p90 (opt-in, nie w `verify`). Liczba „5×” w README jest ilorazem z pomiaru, nigdy z tego dokumentu.
+Zasady uczciwości (spisane w RAPORT.md, generowane): ten sam tokenizer po obu stronach; liczone jest to, co wchodzi do kontekstu (dla `browser-inspector`: blok AGENTS.md jako koszt stały + komendy + stdout + `report.md` w całości); czas od `spawn` do `exit` prawdziwego procesu klienta; przerwa 300 ms między powtórzeniami **po obu stronach** (bo scrub `browser-inspector` i `about:blank` MCP są poza stoperem tylko wtedy); `browser-inspector-warm-tight` pokazuje, co się dzieje bez przerwy; sprzęt, wersje i `timing.mode` każdego przebiegu w nagłówku (przebieg z `mode ≠ warm` w kolumnie warm unieważnia pomiar). `bench/budget.mjs` generuje **BUDGET.md** z `report.json.timing` i `_manifest.json`: kolumna „projekt §6” obok „pomiar”, `queuedMs`/`scrubMs`/`cacheHits` osobno, każda faza z rozjazdem > 25 % i **każdy iloraz < 5,0** jako czerwony wiersz. `npm run bench` pisze `RAPORT.md`, `WYNIKI.md`, `BUDGET.md`, `bench/out/results.json` i blok `BENCH:START/END` w README; `npm run bench -- --assert-speedup 5` asertuje na **medianie** `browser-inspector-warm` wobec mediany `mcp-naive` warm i raportuje p90 (opt-in, nie w `verify`). Liczba „5×” w README jest ilorazem z pomiaru, nigdy z tego dokumentu.
 
 ---
 
@@ -532,29 +532,29 @@ Zasady uczciwości (spisane w RAPORT.md, generowane): ten sam tokenizer po obu s
 
 | ryzyko | mitygacja |
 | --- | --- |
-| margines 5× (34 ms, 6 %) zjedzą inne maszyny / cięższe aplikacje / GC / Defender | mediana n ≥ 10 + p90; dźwignie mierzone osobno; flagi domyślnie włączone (oczekiwane 480–500 ms); BUDGET.md pokazuje fazę, która odjechała; próg dotyczy zadania referencyjnego; `bi-warm-tight` i `--fresh` raportowane jako niższe ilorazy, nie ukrywane |
+| margines 5× (34 ms, 6 %) zjedzą inne maszyny / cięższe aplikacje / GC / Defender | mediana n ≥ 10 + p90; dźwignie mierzone osobno; flagi domyślnie włączone (oczekiwane 480–500 ms); BUDGET.md pokazuje fazę, która odjechała; próg dotyczy zadania referencyjnego; `browser-inspector-warm-tight` i `--fresh` raportowane jako niższe ilorazy, nie ukrywane |
 | baseline miękki (2/3 różnicy to `--timeout-settle 500`) | kolumna `mcp-lean --timeout-settle 100` w nagłówku RAPORT.md; wniosek pisany jako „5× vs domyślne, 1,8× vs zestrojony” |
-| keeper nie przeżywa powłoki (Job Object) → każde wywołanie zimne | `bi doctor`, `timing.mode` w każdym raporcie, wariant `keeper-survives-shell`; README: `bi up` jako hook SessionStart |
-| stary keeper po edycji `src/` / dwa checkouty | hash z `realpath(bin/bi.mjs)` + `srcStamp`; `bi status` drukuje hash |
+| keeper nie przeżywa powłoki (Job Object) → każde wywołanie zimne | `browser-inspector doctor`, `timing.mode` w każdym raporcie, wariant `keeper-survives-shell`; README: `browser-inspector up` jako hook SessionStart |
+| stary keeper po edycji `src/` / dwa checkouty | hash z `realpath(bin/browser-inspector.mjs)` + `srcStamp`; `browser-inspector status` drukuje hash |
 | refy: mapa ostatniego snapshotu, zmiana etykiety = nowy ref, `f<seq>` po nawigacji | wyłącznie pełny snapshot `ai`; filtry w JS; `count()` przed akcją; test regresji „ref sprzed `verify list` żyje”; smoke „zmiana etykiety → FAIL < 100 ms”; playwright-core przypięty exact |
 | brud między przebiegami na jednej karcie | `scrubPlan` testowany; smoke: A ustawia localStorage+sessionStorage+cookie+route+dialog, B nic nie widzi; compat: app-factory dwa razy przez keepera; `Page.resetNavigationHistory`; `tab: kept\|new` w raporcie |
 | marker `__bi_gen` w sessionStorage widoczny dla aplikacji | jeden klucz, nazwany w nagłówku raportu; `isolation: "fresh"` dla purystów |
 | stale cache po rebuildzie (nginx/serve z `Last-Modified`) | `cacheHitsDocument` w raporcie + czerwony wiersz w BUDGET.md; `--fresh` = nowy kontekst + `Network.clearBrowserCache` |
 | `serviceWorkers: 'block'` zmienia aplikację | tylko na scratch; `allow` w `fresh`; `sw=blocked` w nagłówku |
 | sekrety w gnieździe / w artefaktach | protokół bez `env`; `secretValues` + `redact()` we wszystkich miejscach; pola password bez wartości w snapshocie; jeden test |
-| osierocony keeper na runnerze CI | lista `isCI`; `BI_DAEMON=1` jawnie; idle 30 min; `bi stop` |
+| osierocony keeper na runnerze CI | lista `isCI`; `BROWSER_INSPECTOR_DAEMON=1` jawnie; idle 30 min; `browser-inspector stop` |
 | keeper nie wstaje (brak Chrome, lock, antywirus) | nasłuch przed importem; 3 s retry → batch w procesie z `keeper: fallback`; sesja: `exit 2` z instrukcją; `E_BROWSER_MISSING` z listą prób |
 | wisząca strona / nierozwiązana obietnica w `evaluate` | `withDeadline` na każdym kroku i wokół `Runtime.evaluate`; `timeout` CDP przerywa część synchroniczną; kontekst sesji zamykany, przeglądarka żyje |
-| renderer crash / wzrost RSS po setkach flow | `page.on('crash')` → odbudowa karty; recykling po `BI_MAX_JOBS`/RSS między zadaniami |
+| renderer crash / wzrost RSS po setkach flow | `page.on('crash')` → odbudowa karty; recykling po `BROWSER_INSPECTOR_MAX_JOBS`/RSS między zadaniami |
 | wielkie drzewa a11y (48 KB) w kontekście | `snap --max 25`, `find`, `--diff`; pełne drzewo tylko do pliku |
 | `settled` za wcześnie (animacje Material, wolny backend) | cap + `waitFor`/`wait --text`; `networkidle` 1:1; `lint-config` proponuje `waitFor`, nie `settled`, dla `wait ms` |
-| start klienta cicho rośnie | `client-imports.test` + perf-test `bi help` ≤ 120 ms |
-| dryf docs ↔ kod | `docs/STEPS.md` generowany z `STEPS` (test świeżości), `bi help` z tej samej tabeli, instrukcja AGENTS.md ≡ `INSTRUCTION` benchu |
+| start klienta cicho rośnie | `client-imports.test` + perf-test `browser-inspector help` ≤ 120 ms |
+| dryf docs ↔ kod | `docs/STEPS.md` generowany z `STEPS` (test świeżości), `browser-inspector help` z tej samej tabeli, instrukcja AGENTS.md ≡ `INSTRUCTION` benchu |
 | kompatybilność `report.json` / bramki | config app-factory jako fixture; `smoke-gate.test` z kopią `evaluateReports()`; `navigationError` tylko gdy istnieje; forma `steps[i].error` przypięta |
 
 ### Gdzie celowo NIE dodajemy
 
-Transportu MCP/HTTP, bundlera, zoda (tabela STEPS jest schematem), własnego silnika selektorów/CDP-engine, ping-pongu kart (zmierzone: gorszy), `about:blank` między przebiegami (zmierzone: bez zysku), lean-click z `force: true`, kroku wykonującego pliki `.mjs` z configu (zostaje tylko `bi run` w sesji pod `BI_UNSAFE=1`), retry/asercji frameworkowych, Firefoksa/WebKita, `Cache-Control: max-age=0`, `reducedMotion` i JPEG jako domyślnych, „inteligentnego” settle po akcji w batchu, `isTTY` do czegokolwiek.
+Transportu MCP/HTTP, bundlera, zoda (tabela STEPS jest schematem), własnego silnika selektorów/CDP-engine, ping-pongu kart (zmierzone: gorszy), `about:blank` między przebiegami (zmierzone: bez zysku), lean-click z `force: true`, kroku wykonującego pliki `.mjs` z configu (zostaje tylko `browser-inspector run` w sesji pod `BROWSER_INSPECTOR_UNSAFE=1`), retry/asercji frameworkowych, Firefoksa/WebKita, `Cache-Control: max-age=0`, `reducedMotion` i JPEG jako domyślnych, „inteligentnego” settle po akcji w batchu, `isTTY` do czegokolwiek.
 
 ---
 
@@ -562,10 +562,10 @@ Transportu MCP/HTTP, bundlera, zoda (tabela STEPS jest schematem), własnego sil
 
 | uwaga | decyzja |
 | --- | --- |
-| Obie recenzje: **ping-pong dwóch kart scratch** (odpowiedź z czystej, scrub brudnej w tle) | **Odrzucone po pomiarze**: goto na świeżej karcie w reużytym kontekście = 212–262 ms (renderer ginie z kartą), wobec 49–74 ms na tej samej karcie — ping-pong kosztowałby +160 ms na każdym przebiegu, żeby oszczędzić ≤ 15 ms w kolejce. Zamiast tego: scrub w miejscu (`DOMStorage.clear` + skrypt generacji + `resetNavigationHistory`) 12–35 ms, i tak raportowany jako `queuedMs` w `bi-warm-tight` |
+| Obie recenzje: **ping-pong dwóch kart scratch** (odpowiedź z czystej, scrub brudnej w tle) | **Odrzucone po pomiarze**: goto na świeżej karcie w reużytym kontekście = 212–262 ms (renderer ginie z kartą), wobec 49–74 ms na tej samej karcie — ping-pong kosztowałby +160 ms na każdym przebiegu, żeby oszczędzić ≤ 15 ms w kolejce. Zamiast tego: scrub w miejscu (`DOMStorage.clear` + skrypt generacji + `resetNavigationHistory`) 12–35 ms, i tak raportowany jako `queuedMs` w `browser-inspector-warm-tight` |
 | Recenzja #2: scrub między snapshotami batchu „~110 ms: clearDataForOrigin + nowa karta” | Przyjęty co do zasady (scrub między snapshotami jest obowiązkowy i w stoperze), ale bez nowej karty: 12–35 ms |
 | Recenzja #2: `findScribeDir` ma zwracać `{ dir, pipeline, fixCommand }` | Zamiast zmiany sygnatury (łamie istniejący spec) — nowa `findRunner()` z tabelą kandydatów; `findScribeDir` i jej spec nietknięte |
-| Recenzja #1: perf-test `bi help` ≤ 100 ms | Próg testu **120 ms** (mediana z 5), bo 100 ms jest flaky na obciążonej maszynie; budżet i tak liczy klienta po 72 ms, a BUDGET.md pokazuje zmierzoną medianę |
+| Recenzja #1: perf-test `browser-inspector help` ≤ 100 ms | Próg testu **120 ms** (mediana z 5), bo 100 ms jest flaky na obciążonej maszynie; budżet i tak liczy klienta po 72 ms, a BUDGET.md pokazuje zmierzoną medianę |
 | Recenzja #2: `BUILD_ID` na liście CI | Nie — `BUILD_ID` bywa ustawiane poza CI (Netlify, lokalne skrypty); Jenkins jest pokryty przez `JENKINS_URL` |
 | Recenzja #2: kontekst nazw w `find` z przodka (domyślnie) | Przyjęte tylko pod `--names` (recenzja #1 zmierzyła +12 tok. na linię); źródło zdefiniowane w §4.3 |
 | Recenzja #1: `snap --depth` jako filtr | Nie ma `--depth` — kompakt i tak spłaszcza wcięcie; `--around` i `--grep` pokrywają potrzebę bez nowego pojęcia |

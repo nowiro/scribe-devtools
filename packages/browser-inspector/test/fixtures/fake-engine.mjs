@@ -1,15 +1,15 @@
-// fake-engine.mjs — an engine with no browser, for the keeper/client tests (BI_ENGINE_MODULE).
+// fake-engine.mjs — an engine with no browser, for the keeper/client tests (BROWSER_INSPECTOR_ENGINE_MODULE).
 //
 // It implements the interface from docs/handoff/WP5.md just far enough to observe the keeper:
-// every call is appended as one JSON line to BI_FAKE_LOG, `wait --ms N` really sleeps (queues and
+// every call is appended as one JSON line to BROWSER_INSPECTOR_FAKE_LOG, `wait --ms N` really sleeps (queues and
 // idle timers need a job that lasts), `goto` opens a session and `close` ends it, `click e404`
 // fails like a dead ref, `runFlow` writes a report.json with the timing the keeper handed over
 // and a journal that goes through the keeper's `redact` — so the secret tests can read what an
 // engine would have written. `runFlow` returns the summary shape (`FlowResult`), not a full
 // `Report`: the keeper synthesizes the manifest entry from `timing` and writes `_manifest.json`.
 //
-// Knobs (env): `BI_FAKE_LAUNCH_MS` delays `ready`; `BI_FAKE_LAUNCH_FAIL=1` makes `createEngine`
-// reject like a missing Chrome (`E_BROWSER_MISSING` with the attempts list); `BI_FAKE_SCRUB_MS`
+// Knobs (env): `BROWSER_INSPECTOR_FAKE_LAUNCH_MS` delays `ready`; `BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL=1` makes `createEngine`
+// reject like a missing Chrome (`E_BROWSER_MISSING` with the attempts list); `BROWSER_INSPECTOR_FAKE_SCRUB_MS`
 // is how long the post-response `scrubIfDirty` takes (the next job on the lane waits for it).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,16 +19,16 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** The same signature as `src/engine.mjs`: one options object `{ browser, env, log, onDisconnected }`. */
 export async function createEngine(options = {}) {
   const browserOpts = options.browser ?? {};
-  const logPath = process.env.BI_FAKE_LOG;
+  const logPath = process.env.BROWSER_INSPECTOR_FAKE_LOG;
   const record = (entry) => {
     if (!logPath) return;
     fs.appendFileSync(logPath, `${JSON.stringify({ at: Date.now(), ...entry })}\n`);
   };
-  if (process.env.BI_FAKE_LAUNCH_FAIL === '1') {
+  if (process.env.BROWSER_INSPECTOR_FAKE_LAUNCH_FAIL === '1') {
     record({ event: 'launch-failed' });
     const error = new Error(
       'E_BROWSER_MISSING: no usable browser.\n  tried channel chrome: not found\n  tried channel msedge: not found\n' +
-        'Install Google Chrome or Microsoft Edge, or point browser.executablePath / BI_BROWSER_PATH at a Chromium binary.',
+        'Install Google Chrome or Microsoft Edge, or point browser.executablePath / BROWSER_INSPECTOR_BROWSER_PATH at a Chromium binary.',
     );
     error.code = 'E_BROWSER_MISSING';
     throw error;
@@ -38,8 +38,8 @@ export async function createEngine(options = {}) {
   let jobs = 0;
   let rssSamples = 0;
   const listeners = new Map();
-  const launchDelay = Number(process.env.BI_FAKE_LAUNCH_MS ?? 0);
-  const scrubMs = Number(process.env.BI_FAKE_SCRUB_MS ?? 0);
+  const launchDelay = Number(process.env.BROWSER_INSPECTOR_FAKE_LAUNCH_MS ?? 0);
+  const scrubMs = Number(process.env.BROWSER_INSPECTOR_FAKE_SCRUB_MS ?? 0);
   /** Lanes a `runFlow` left dirty — `scrubIfDirty` clears them, like the engine's. */
   const dirty = new Set();
   record({ event: 'launch', browserOpts, pid: process.pid });
@@ -91,7 +91,7 @@ export async function createEngine(options = {}) {
           tab: 'kept',
           totalMs: Math.round(performance.now() - t0),
         },
-        engine: { bi: 'fake', browser: 'Fake/1' },
+        engine: { 'browser-inspector': 'fake', browser: 'Fake/1' },
       };
       const file = path.join(dir, 'report.json');
       fs.writeFileSync(file, JSON.stringify(report, null, 2));
@@ -131,7 +131,7 @@ export async function createEngine(options = {}) {
         return { exit: 0, lines: ['ok close'], files: [] };
       }
       if (step.do === 'click' && step.ref === 'e404') {
-        return { exit: 1, lines: ['FAIL click e404 · ref not found (gone, label changed or other frame) → bi snap'] };
+        return { exit: 1, lines: ['FAIL click e404 · ref not found (gone, label changed or other frame) → browser-inspector snap'] };
       }
       if (step.do === 'fill') {
         const value = ctx.values[`argv.fill.value`] ?? step.value ?? '';
@@ -171,14 +171,14 @@ export async function createEngine(options = {}) {
       lanes: [{ index: 0, busy: false, dirty: dirty.has(0) }],
       routes: 0,
       browser: 'Fake/1',
-      browserRssMb: Number(process.env.BI_FAKE_RSS_MB ?? 0),
+      browserRssMb: Number(process.env.BROWSER_INSPECTOR_FAKE_RSS_MB ?? 0),
       rssSamples,
       pwVersion: 'fake',
     }),
     async sampleRss() {
       rssSamples += 1;
       record({ event: 'sampleRss', jobs });
-      return Number(process.env.BI_FAKE_RSS_MB ?? 0);
+      return Number(process.env.BROWSER_INSPECTOR_FAKE_RSS_MB ?? 0);
     },
     async recycle() {
       launches += 1;

@@ -46,7 +46,7 @@ afterEach(async () => {
 });
 
 async function tmp() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'bi-auth-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'browser-inspector-auth-'));
   dirs.push(dir);
   return dir;
 }
@@ -108,7 +108,7 @@ describe('oauthTokenUrl', () => {
 describe('oauthRequestBody', () => {
   const password = {
     grantType: /** @type {const} */ ('password'),
-    clientId: 'bi-public',
+    clientId: 'browser-inspector-public',
     usernameFromEnv: 'APP_USER',
     passwordFromEnv: 'APP_PASS',
     store: { origin: 'http://localhost:4561', key: 'access_token' },
@@ -118,7 +118,12 @@ describe('oauthRequestBody', () => {
     const body = oauthRequestBody(password, {
       values: { 'auth.oauth.username': 'alice', 'auth.oauth.password': PASS },
     });
-    expect(body).toEqual({ grant_type: 'password', client_id: 'bi-public', username: 'alice', password: PASS });
+    expect(body).toEqual({
+      grant_type: 'password',
+      client_id: 'browser-inspector-public',
+      username: 'alice',
+      password: PASS,
+    });
   });
 
   it('falls back to env by the *FromEnv names, values win over env', () => {
@@ -136,7 +141,7 @@ describe('oauthRequestBody', () => {
     );
     expect(body).toEqual({
       grant_type: 'password',
-      client_id: 'bi-public',
+      client_id: 'browser-inspector-public',
       username: 'alice',
       password: PASS,
       client_secret: SECRET,
@@ -147,13 +152,17 @@ describe('oauthRequestBody', () => {
     const body = oauthRequestBody(
       {
         grantType: 'client_credentials',
-        clientId: 'bi-service',
+        clientId: 'browser-inspector-service',
         clientSecretFromEnv: 'CLIENT_SECRET',
         store: password.store,
       },
       { env: { CLIENT_SECRET: SECRET } },
     );
-    expect(body).toEqual({ grant_type: 'client_credentials', client_id: 'bi-service', client_secret: SECRET });
+    expect(body).toEqual({
+      grant_type: 'client_credentials',
+      client_id: 'browser-inspector-service',
+      client_secret: SECRET,
+    });
   });
 
   it('a missing variable is NAMED, the values that were there are not echoed', () => {
@@ -398,9 +407,9 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
     maxAgeMinutes: 60,
     reuse: true,
     oauth: {
-      keycloak: { url: `http://localhost:${String(PORT_TOKEN)}`, realm: 'bi' },
+      keycloak: { url: `http://localhost:${String(PORT_TOKEN)}`, realm: 'browser-inspector' },
       grantType: /** @type {const} */ ('password'),
-      clientId: 'bi-public',
+      clientId: 'browser-inspector-public',
       username: 'alice',
       passwordFromEnv: 'APP_PASS',
       store: { origin: 'http://localhost:4561', key: 'access_token' },
@@ -424,9 +433,9 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
     expect(info.expiresAtMs).toBeGreaterThanOrEqual(t0 + 300_000);
     expect(server.requests).toEqual([
       {
-        path: '/realms/bi/protocol/openid-connect/token',
+        path: '/realms/browser-inspector/protocol/openid-connect/token',
         grant_type: 'password',
-        client_id: 'bi-public',
+        client_id: 'browser-inspector-public',
         username: 'alice',
         hasSecret: false,
         hasPassword: true,
@@ -439,7 +448,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
     const meta = JSON.parse(await readFile(metaPath(statePath), 'utf8'));
     expect(meta.expiresAtMs).toBe(info.expiresAtMs);
     expect(log[0]).toBe(
-      `auth: oauth password (no saved session) → http://localhost:${String(PORT_TOKEN)}/realms/bi/protocol/openid-connect/token`,
+      `auth: oauth password (no saved session) → http://localhost:${String(PORT_TOKEN)}/realms/browser-inspector/protocol/openid-connect/token`,
     );
     expect(everything(log, [info, state, meta])).not.toContain(PASS);
 
@@ -480,7 +489,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
         oauth: {
           tokenUrl: server.tokenUrl,
           grantType: 'client_credentials',
-          clientId: 'bi-service',
+          clientId: 'browser-inspector-service',
           clientSecretFromEnv: 'CLIENT_SECRET',
           store: { origin: 'http://localhost:4561', key: 'access_token' },
         },
@@ -503,7 +512,7 @@ describe('ensureSession — OAuth against the Keycloak-shaped stub', () => {
     }
     expect(error).toBeInstanceOf(AuthError);
     expect(error.message).toMatch(
-      /^OAuth http:\/\/localhost:4562\/realms\/bi\/protocol\/openid-connect\/token: HTTP 401 — /u,
+      /^OAuth http:\/\/localhost:4562\/realms\/browser-inspector\/protocol\/openid-connect\/token: HTTP 401 — /u,
     );
     expect(error.message).toContain('invalid_grant');
     expect(error.message).not.toContain('wrong-one');

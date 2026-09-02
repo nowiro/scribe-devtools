@@ -11,7 +11,7 @@ import { CliError, parseArgs } from '../src/cli.mjs';
 import { computeIdentity, readFileEntry, resolveValues, splitCommandLine } from '../src/client.mjs';
 import { KEEPER_UNAVAILABLE } from '../src/print.mjs';
 import {
-  bi,
+  runBrowserInspector,
   cleanup,
   fakeLog,
   isAlive,
@@ -54,7 +54,7 @@ const writeConfig = (h, extra = {}) => {
 };
 
 /** A pipe where a keeper cannot listen: a socket path in a directory that does not exist. */
-const deadSocket = (h) => path.join(h.tmpdir, 'missing-dir', 'bi.sock');
+const deadSocket = (h) => path.join(h.tmpdir, 'missing-dir', 'browser-inspector.sock');
 
 /**
  * A fake keeper: listens on the harness pipe, writes the pid file the client reads, captures the
@@ -82,7 +82,7 @@ async function fakeKeeper(h, reply = { done: true, exit: 0, lines: ['ok fake'], 
   servers.push(server);
   // The pid is this process (the vitest worker) — the harness recognizes it and never kills it.
   fs.writeFileSync(
-    path.join(h.tmpdir, `bi-${identity.key}.json`),
+    path.join(h.tmpdir, `browser-inspector-${identity.key}.json`),
     JSON.stringify({ pid: process.pid, pipe: h.pipe, token }),
   );
   return { requests, token };
@@ -90,12 +90,12 @@ async function fakeKeeper(h, reply = { done: true, exit: 0, lines: ['ok fake'], 
 
 describe('batch without a keeper', () => {
   it('falls back in-process after the connect deadline: `keeper: fallback` on stdout, timing.mode = fallback', async () => {
-    const h = fresh({ BI_CONNECT_TIMEOUT_MS: '400' });
-    h.env.BI_SOCKET = deadSocket(h);
+    const h = fresh({ BROWSER_INSPECTOR_CONNECT_TIMEOUT_MS: '400' });
+    h.env.BROWSER_INSPECTOR_SOCKET = deadSocket(h);
     const config = writeConfig(h);
-    const run = await bi([config, '--stamp', '2026-09-01_12-00'], h);
+    const run = await runBrowserInspector([config, '--stamp', '2026-09-01_12-00'], h);
     expect(run.code).toBe(0);
-    expect(run.lines[0]).toMatch(/^keeper: fallback · no keeper on .* after 400 ms/u);
+    expect(run.lines[0]).toMatch(/^keeper: fallback · no keeper after 400 ms/u);
     expect(run.lines[1]).toMatch(/^ok 1\/1 completed · [\d ]+ ms · fallback · out\/2026-09-01_12-00$/u);
     const report = JSON.parse(
       fs.readFileSync(path.join(h.cwd, 'out', '2026-09-01_12-00', 'one', 'report.json'), 'utf8'),
@@ -111,7 +111,7 @@ describe('batch without a keeper', () => {
   it('`--no-daemon` runs in-process without spawning anything: timing.mode = no-daemon', async () => {
     const h = fresh();
     const config = writeConfig(h);
-    const run = await bi([config, '--stamp', '2026-09-01_12-01', '--no-daemon'], h);
+    const run = await runBrowserInspector([config, '--stamp', '2026-09-01_12-01', '--no-daemon'], h);
     expect(run.code).toBe(0);
     expect(run.lines).toEqual([expect.stringMatching(/^ok 1\/1 completed · [\d ]+ ms · no-daemon · /u)]);
     const report = JSON.parse(
@@ -121,24 +121,24 @@ describe('batch without a keeper', () => {
     expect(readPid(h)).toBeUndefined();
   }, 20000);
 
-  it('BI_DAEMON=0 and CI mean no keeper; BI_DAEMON=1 overrides CI', async () => {
-    const h = fresh({ BI_DAEMON: '0' });
+  it('BROWSER_INSPECTOR_DAEMON=0 and CI mean no keeper; BROWSER_INSPECTOR_DAEMON=1 overrides CI', async () => {
+    const h = fresh({ BROWSER_INSPECTOR_DAEMON: '0' });
     const config = writeConfig(h);
-    const run = await bi([config, '--stamp', '2026-09-01_12-02'], h);
+    const run = await runBrowserInspector([config, '--stamp', '2026-09-01_12-02'], h);
     expect(run.code).toBe(0);
     expect(run.lines[0]).toContain(' · no-daemon · ');
     expect(readPid(h)).toBeUndefined();
 
-    const ci = fresh({ BI_DAEMON: '', CI: 'true' });
-    delete ci.env.BI_DAEMON;
+    const ci = fresh({ BROWSER_INSPECTOR_DAEMON: '', CI: 'true' });
+    delete ci.env.BROWSER_INSPECTOR_DAEMON;
     const cfg2 = writeConfig(ci);
-    const onCi = await bi([cfg2, '--stamp', '2026-09-01_12-03'], ci);
+    const onCi = await runBrowserInspector([cfg2, '--stamp', '2026-09-01_12-03'], ci);
     expect(onCi.lines[0]).toContain(' · no-daemon · ');
     expect(readPid(ci)).toBeUndefined();
 
-    const forced = fresh({ CI: 'true', BI_DAEMON: '1' });
+    const forced = fresh({ CI: 'true', BROWSER_INSPECTOR_DAEMON: '1' });
     const cfg3 = writeConfig(forced);
-    const warm = await bi([cfg3, '--stamp', '2026-09-01_12-04'], forced);
+    const warm = await runBrowserInspector([cfg3, '--stamp', '2026-09-01_12-04'], forced);
     expect(warm.lines[0]).toContain(' · first · ');
     expect(readPid(forced)).toBeDefined();
   }, 30000);
@@ -146,7 +146,7 @@ describe('batch without a keeper', () => {
   it('a config error is exit 2 before any keeper is contacted', async () => {
     const h = fresh();
     fs.writeFileSync(path.join(h.cwd, 'bad.json'), '{"snapshots": []}');
-    const run = await bi(['bad.json'], h);
+    const run = await runBrowserInspector(['bad.json'], h);
     expect(run.code).toBe(2);
     expect(run.stderr).toContain('config:');
     expect(readPid(h)).toBeUndefined();
@@ -154,44 +154,60 @@ describe('batch without a keeper', () => {
 });
 
 describe('session without a keeper', () => {
-  it('BI_DAEMON=0: exit 2 with the FAIL keeper unavailable line, nothing spawned', async () => {
-    const h = fresh({ BI_DAEMON: '0' });
-    const run = await bi(['click', 'e5'], h);
+  it('BROWSER_INSPECTOR_DAEMON=0: exit 2 with the FAIL keeper unavailable line, nothing spawned', async () => {
+    const h = fresh({ BROWSER_INSPECTOR_DAEMON: '0' });
+    const run = await runBrowserInspector(['click', 'e5'], h);
     expect(run.code).toBe(2);
     expect(run.lines).toHaveLength(1);
     expect(run.lines[0]).toMatch(
-      /^FAIL keeper unavailable: .* — session needs keeper \(bi up, bi doctor\); batch works with --no-daemon$/u,
+      /^FAIL keeper unavailable: .* — sessions need the keeper \(browser-inspector up \| doctor\); batch: --no-daemon$/u,
     );
     expect(readPid(h)).toBeUndefined();
     expect(fakeLog(h)).toEqual([]);
   }, 20000);
 
   it('keeper does not come up: exit 2 with the reason, never a browser in-process', async () => {
-    const h = fresh({ BI_CONNECT_TIMEOUT_MS: '400' });
-    h.env.BI_SOCKET = deadSocket(h);
-    const run = await bi(['open', 'http://localhost:4521/'], h);
+    const h = fresh({ BROWSER_INSPECTOR_CONNECT_TIMEOUT_MS: '400' });
+    h.env.BROWSER_INSPECTOR_SOCKET = deadSocket(h);
+    const run = await runBrowserInspector(['open', 'http://localhost:4521/'], h);
     expect(run.code).toBe(2);
     // The spawned keeper could not listen there, so it never wrote a pid file — that is the reason.
-    expect(run.lines[0]).toBe(KEEPER_UNAVAILABLE(`no keeper on ${deadSocket(h)} after 400 ms (no pid file)`));
+    expect(run.lines[0]).toBe(KEEPER_UNAVAILABLE('no keeper after 400 ms (no pid file)'));
+    expect(run.lines[0].length).toBeLessThanOrEqual(160);
     expect(fakeLog(h)).toEqual([]);
     expect(run.ms).toBeLessThan(3000);
   }, 20000);
 
-  it('`bi status` / `bi stop` without a keeper say so with exit 0 and spawn nothing', async () => {
+  it('`browser-inspector status` / `browser-inspector stop` without a keeper say so with exit 0 and spawn nothing', async () => {
     const h = fresh();
-    const status = await bi(['status'], h);
+    const status = await runBrowserInspector(['status'], h);
     expect(status.code).toBe(0);
     expect(status.lines[0]).toMatch(/^keeper not running · hash [0-9a-f]{8} · /u);
-    const stop = await bi(['stop'], h);
+    expect(status.lines).toHaveLength(1);
+    const stop = await runBrowserInspector(['stop'], h);
     expect(stop.code).toBe(0);
     expect(stop.lines[0]).toMatch(/^ok keeper not running/u);
     expect(readPid(h)).toBeUndefined();
   }, 20000);
+
+  it('a stale pid file is named on its own line (one line would pass 160 characters)', async () => {
+    const h = fresh();
+    const identity = computeIdentity({ env: h.env });
+    const pidPath = path.join(h.tmpdir, `browser-inspector-${identity.key}.json`);
+    fs.writeFileSync(pidPath, JSON.stringify({ pid: 999_999, pipe: h.pipe, token: 'f'.repeat(64) }));
+    const status = await runBrowserInspector(['status'], h);
+    expect(status.code).toBe(0);
+    expect(status.lines).toHaveLength(2);
+    expect(status.lines[0]).toBe(`keeper not running · hash ${identity.hash} · ${h.pipe}`);
+    expect(status.lines[1]).toBe(`stale pid file ${pidPath.replaceAll('\\', '/')} — removed on the next start`);
+    for (const line of status.lines) expect(line.length, line).toBeLessThanOrEqual(160);
+    fs.unlinkSync(pidPath);
+  }, 20000);
 });
 
 describe('a keeper that never answers', () => {
-  it('is abandoned after BI_REQUEST_TIMEOUT_MS: a session command exits 2 with the reason, a batch falls back', async () => {
-    const h = fresh({ BI_REQUEST_TIMEOUT_MS: '300' });
+  it('is abandoned after BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: a session command exits 2 with the reason, a batch falls back', async () => {
+    const h = fresh({ BROWSER_INSPECTOR_REQUEST_TIMEOUT_MS: '300' });
     const identity = computeIdentity({ env: h.env });
     const server = net.createServer((socket) => {
       // Reads the request and says nothing — a wedged handler.
@@ -201,16 +217,16 @@ describe('a keeper that never answers', () => {
     await new Promise((resolve) => server.listen(h.pipe, () => resolve(undefined)));
     servers.push(server);
     fs.writeFileSync(
-      path.join(h.tmpdir, `bi-${identity.key}.json`),
+      path.join(h.tmpdir, `browser-inspector-${identity.key}.json`),
       JSON.stringify({ pid: process.pid, pipe: h.pipe, token: 'f'.repeat(64) }),
     );
     const t0 = performance.now();
-    const click = await bi(['click', 'e1', '--session', 'w'], h);
+    const click = await runBrowserInspector(['click', 'e1', '--session', 'w'], h);
     expect(performance.now() - t0).toBeLessThan(5000);
     expect(click.code).toBe(2);
     expect(click.lines[0]).toMatch(/^FAIL keeper unavailable: no answer from the keeper within 300 ms/u);
     const config = writeConfig(h);
-    const run = await bi([config, '--stamp', '2026-09-02_12-30'], h);
+    const run = await runBrowserInspector([config, '--stamp', '2026-09-02_12-30'], h);
     expect(run.code).toBe(0);
     expect(run.lines[0]).toMatch(/^keeper: fallback · no answer from the keeper within 300 ms/u);
   }, 20000);
@@ -220,7 +236,7 @@ describe('the request on the wire', () => {
   it('carries v, token, cwd, argv, values, secretValues, files, session — and no env', async () => {
     const h = fresh({ FOO: 'bar-secret' });
     const { requests, token } = await fakeKeeper(h);
-    const run = await bi(['fill', 'e3', '@{FOO}', '--session', 's1'], h);
+    const run = await runBrowserInspector(['fill', 'e3', '@{FOO}', '--session', 's1'], h);
     expect(run.code).toBe(0);
     expect(run.lines).toEqual(['ok fake']);
     expect(requests).toHaveLength(1);
@@ -251,11 +267,11 @@ describe('the request on the wire', () => {
     const h = fresh();
     delete h.env.FOO;
     const { requests } = await fakeKeeper(h);
-    const run = await bi(['fill', 'e3', '@{FOO}'], h);
+    const run = await runBrowserInspector(['fill', 'e3', '@{FOO}'], h);
     expect(run.code).toBe(2);
     expect(run.stderr).toContain('argv.fill.valueFromEnv: environment variable FOO is not set');
     expect(requests).toHaveLength(0);
-    const form = await bi(['form', 'e1=x', 'e2=@{FOO}'], h);
+    const form = await runBrowserInspector(['form', 'e1=x', 'e2=@{FOO}'], h);
     expect(form.code).toBe(2);
     expect(form.stderr).toContain('argv.form.fields[1].valueFromEnv: environment variable FOO is not set');
   }, 20000);
@@ -263,7 +279,7 @@ describe('the request on the wire', () => {
   it('`@literal` (no braces) stays a literal value, not a secret', async () => {
     const h = fresh();
     const { requests } = await fakeKeeper(h);
-    const run = await bi(['fill', 'e3', '@literal'], h);
+    const run = await runBrowserInspector(['fill', 'e3', '@literal'], h);
     expect(run.code).toBe(0);
     expect(requests[0].values).toEqual({});
     expect(requests[0].secretValues).toEqual([]);
@@ -274,14 +290,14 @@ describe('the request on the wire', () => {
     const h = fresh({ APP_PASS: 'pw-1234' });
     const { requests } = await fakeKeeper(h);
     fs.writeFileSync(path.join(h.cwd, 'photo.bin'), Buffer.from([1, 2, 3, 250]));
-    const up = await bi(['upload', 'e1', 'photo.bin'], h);
+    const up = await runBrowserInspector(['upload', 'e1', 'photo.bin'], h);
     expect(up.code).toBe(0);
     expect(requests[0].files).toEqual({
       'photo.bin': { base64: Buffer.from([1, 2, 3, 250]).toString('base64'), size: 4 },
     });
 
     fs.writeFileSync(path.join(h.cwd, 'expr.js'), 'document.title');
-    await bi(['eval', '--file', 'expr.js'], h);
+    await runBrowserInspector(['eval', '--file', 'expr.js'], h);
     expect(Buffer.from(requests[1].files['expr.js'].base64, 'base64').toString()).toBe('document.title');
 
     fs.writeFileSync(
@@ -294,13 +310,13 @@ describe('the request on the wire', () => {
         'form e1="Jan Kowalski" e2=@{APP_PASS}',
       ].join('\n'),
     );
-    const script = await bi(['script', 'flow.txt'], h);
+    const script = await runBrowserInspector(['script', 'flow.txt'], h);
     expect(script.code).toBe(0);
     expect(Object.keys(requests[2].files)).toEqual(['flow.txt']);
     expect(requests[2].values).toEqual({ 'script[2].value': 'pw-1234', 'script[4].fields[1].value': 'pw-1234' });
     expect(requests[2].secretValues).toEqual(['pw-1234']);
 
-    const missing = await bi(['upload', 'e1', 'nope.bin'], h);
+    const missing = await runBrowserInspector(['upload', 'e1', 'nope.bin'], h);
     expect(missing.code).toBe(2);
     expect(missing.stderr).toContain('argv.upload.files[0]: cannot read nope.bin');
   }, 20000);
@@ -333,13 +349,13 @@ describe('the request on the wire', () => {
         oauth: {
           tokenUrl: 'http://localhost:4521/token',
           grantType: 'client_credentials',
-          clientId: 'bi',
+          clientId: 'browser-inspector',
           clientSecretFromEnv: 'KC_SECRET',
           store: { origin: 'http://localhost:4521', key: 'token' },
         },
       },
     });
-    const run = await bi([config, '--stamp', '2026-09-01_12-05'], h);
+    const run = await runBrowserInspector([config, '--stamp', '2026-09-01_12-05'], h);
     expect(run.code).toBe(0);
     expect(requests[0].values).toEqual({
       'snapshots[1].steps[1].value': 'a@b.c',
@@ -359,7 +375,7 @@ describe('the request on the wire', () => {
         { name: 'two', type: 'page', url: 'http://localhost:4521/' },
       ],
     });
-    const run = await bi([config], h);
+    const run = await runBrowserInspector([config], h);
     expect(run.lines).toEqual(['ok x · 1 ms', 'ok 2/2 completed']);
   }, 20000);
 });
@@ -401,10 +417,10 @@ describe('pure helpers', () => {
     expect(() => readFileEntry('none', [h.cwd], 'here')).toThrow('here: cannot read none');
   });
 
-  it('computeIdentity: BI_SOCKET changes the pipe and the file key, not the hash', () => {
-    const base = computeIdentity({ env: { ...process.env, BI_SOCKET: '' } });
-    const a = computeIdentity({ env: { ...process.env, BI_SOCKET: uniquePipe(process.cwd()) } });
-    const b = computeIdentity({ env: { ...process.env, BI_SOCKET: uniquePipe(process.cwd()) } });
+  it('computeIdentity: BROWSER_INSPECTOR_SOCKET changes the pipe and the file key, not the hash', () => {
+    const base = computeIdentity({ env: { ...process.env, BROWSER_INSPECTOR_SOCKET: '' } });
+    const a = computeIdentity({ env: { ...process.env, BROWSER_INSPECTOR_SOCKET: uniquePipe(process.cwd()) } });
+    const b = computeIdentity({ env: { ...process.env, BROWSER_INSPECTOR_SOCKET: uniquePipe(process.cwd()) } });
     expect(a.hash).toBe(b.hash);
     expect(a.hash).toBe(base.hash);
     expect(a.pipe).not.toBe(b.pipe);
@@ -414,13 +430,13 @@ describe('pure helpers', () => {
   });
 });
 
-describe('`bi up` through the real keeper', () => {
-  it('starts one, and a second `bi up` reuses it', async () => {
+describe('`browser-inspector up` through the real keeper', () => {
+  it('starts one, and a second `browser-inspector up` reuses it', async () => {
     const h = fresh();
-    const first = await bi(['up'], h);
+    const first = await runBrowserInspector(['up'], h);
     expect(first.code).toBe(0);
     const pid = readPid(h).pid;
-    const second = await bi(['up'], h);
+    const second = await runBrowserInspector(['up'], h);
     expect(second.code).toBe(0);
     expect(second.lines[0]).toContain(`pid ${String(pid)}`);
     expect(isAlive(pid)).toBe(true);

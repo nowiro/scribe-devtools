@@ -1,11 +1,11 @@
-// time-run.mjs — the stopwatch side of the bench: spawning `bi` as a REAL process and timing it
+// time-run.mjs — the stopwatch side of the bench: spawning `browser-inspector` as a REAL process and timing it
 // from `spawn` to exit, valid stamps, waiting for Chrome to be gone between cold runs, and the
 // statistics every variant reports (median + p90, n).
 //
 // Two rules keep the numbers honest:
-//   1. `bi` is a real child process, never an import — the Node start, the pipe round trip and the
+//   1. `browser-inspector` is a real child process, never an import — the Node start, the pipe round trip and the
 //      client's exit are what the agent pays on every call, and an in-process call would hide them;
-//   2. cold and warm are separate numbers. `bi-cold` waits for the previous client's pid AND its
+//   2. cold and warm are separate numbers. `browser-inspector-cold` waits for the previous client's pid AND its
 //      child `chrome.exe` processes to disappear (DESIGN.md §9), otherwise the second "cold" run
 //      would inherit a warm renderer from the first.
 import { execFile, spawn } from 'node:child_process';
@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const BIN = path.join(REPO, 'packages', 'browser-inspector', 'bin', 'bi.mjs');
+export const BIN = path.join(REPO, 'packages', 'browser-inspector', 'bin', 'browser-inspector.mjs');
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -55,7 +55,7 @@ export function makeStamp(rep, base = new Date()) {
 }
 
 /**
- * @typedef {object} BiRun
+ * @typedef {object} BrowserInspectorRun
  * @property {number} code exit code
  * @property {string} stdout
  * @property {string} stderr
@@ -65,12 +65,12 @@ export function makeStamp(rep, base = new Date()) {
  */
 
 /**
- * One `node bin/bi.mjs …` process, timed from `spawn` to exit.
+ * One `node bin/browser-inspector.mjs …` process, timed from `spawn` to exit.
  * @param {string[]} args
  * @param {{ env: NodeJS.ProcessEnv, cwd: string }} options
- * @returns {Promise<BiRun>}
+ * @returns {Promise<BrowserInspectorRun>}
  */
-export function spawnBi(args, { env, cwd }) {
+export function spawnBrowserInspector(args, { env, cwd }) {
   return new Promise((resolve, reject) => {
     const t0 = performance.now();
     const child = spawn(process.execPath, [BIN, ...args], {
@@ -171,8 +171,8 @@ export function isAlive(pid) {
 }
 
 /**
- * Wait until the pids and their Chrome descendants are gone (`bi-cold` between repetitions, and
- * after `bi stop` before `bi-first`). Returns how long it took and whether it gave up.
+ * Wait until the pids and their Chrome descendants are gone (`browser-inspector-cold` between repetitions, and
+ * after `browser-inspector stop` before `browser-inspector-first`). Returns how long it took and whether it gave up.
  * @param {number[]} pids
  * @param {number} [timeoutMs]
  */

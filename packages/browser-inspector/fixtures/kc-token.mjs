@@ -17,7 +17,7 @@ const b64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url
 
 /**
  * @typedef {object} TokenServerOptions
- * @property {string} [realm] default `bi`
+ * @property {string} [realm] default `browser-inspector`
  * @property {Record<string, string>} [users] username → password (default `alice`)
  * @property {Record<string, string | null>} [clients] client_id → secret (`null` = public client)
  * @property {number} [expiresIn] seconds (default 300, Keycloak's default)
@@ -32,9 +32,9 @@ const b64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url
  * @param {TokenServerOptions} [options]
  */
 export function startTokenServer(port, options = {}) {
-  const realm = options.realm ?? 'bi';
+  const realm = options.realm ?? 'browser-inspector';
   const users = options.users ?? { alice: 'wonderland-42' };
-  const clients = options.clients ?? { 'bi-public': null, 'bi-service': 'service-secret-7' };
+  const clients = options.clients ?? { 'browser-inspector-public': null, 'browser-inspector-service': 'service-secret-7' };
   const expiresIn = options.expiresIn ?? 300;
   /** @type {{ path: string, grant_type: string | null, client_id: string | null, username: string | null, hasSecret: boolean, hasPassword: boolean }[]} */
   const requests = [];

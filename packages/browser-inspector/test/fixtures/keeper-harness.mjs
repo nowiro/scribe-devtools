@@ -1,8 +1,8 @@
-// keeper-harness.mjs — spawn the real bin/bi.mjs against a real pipe with the fake engine.
+// keeper-harness.mjs — spawn the real bin/browser-inspector.mjs against a real pipe with the fake engine.
 //
-// Every test gets its own pipe name, its own tmpdir for pid/lock/log (BI_TMPDIR) and its own
+// Every test gets its own pipe name, its own tmpdir for pid/lock/log (BROWSER_INSPECTOR_TMPDIR) and its own
 // fake-engine log, so concurrent test files never share a keeper. `stopKeeper` is the safety net:
-// `bi stop`, then wait for the pid file to go, then `kill` whatever is left — a keeper leaked by
+// `browser-inspector stop`, then wait for the pid file to go, then `kill` whatever is left — a keeper leaked by
 // a failing test must not survive the run.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const PACKAGE_DIR = fileURLToPath(new URL('../..', import.meta.url));
-export const BIN = path.join(PACKAGE_DIR, 'bin', 'bi.mjs');
+export const BIN = path.join(PACKAGE_DIR, 'bin', 'browser-inspector.mjs');
 export const KEEPER = path.join(PACKAGE_DIR, 'src', 'keeper.mjs');
 export const FAKE_ENGINE = path.join(PACKAGE_DIR, 'test', 'fixtures', 'fake-engine.mjs');
 
@@ -22,40 +22,40 @@ const rand = () => Math.random().toString(36).slice(2, 10);
 
 /** A pipe name nobody else uses. */
 export function uniquePipe(tmpdir) {
-  const id = `bi-test-${String(process.pid)}-${rand()}`;
+  const id = `browser-inspector-test-${String(process.pid)}-${rand()}`;
   return process.platform === 'win32' ? `\\\\.\\pipe\\${id}` : path.join(tmpdir, `${id}.sock`);
 }
 
 /**
- * A fresh environment: the developer's BI_* and CI variables are dropped, the keeper is enabled
+ * A fresh environment: the developer's BROWSER_INSPECTOR_* and CI variables are dropped, the keeper is enabled
  * explicitly, the fake engine is wired in.
  */
 export function makeEnv(overrides = {}) {
-  const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), 'bi-test-'));
+  const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-test-'));
   const env = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (key.startsWith('BI_')) continue;
+    if (key.startsWith('BROWSER_INSPECTOR_')) continue;
     if (['CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'TF_BUILD', 'JENKINS_URL', 'TEAMCITY_VERSION', 'BUILDKITE', 'CIRCLECI'].includes(key)) continue;
     env[key] = value;
   }
   Object.assign(env, {
-    BI_DAEMON: '1',
-    BI_SOCKET: uniquePipe(tmpdir),
-    BI_TMPDIR: tmpdir,
-    BI_ENGINE_MODULE: FAKE_ENGINE,
-    BI_FAKE_LOG: path.join(tmpdir, 'fake.jsonl'),
+    BROWSER_INSPECTOR_DAEMON: '1',
+    BROWSER_INSPECTOR_SOCKET: uniquePipe(tmpdir),
+    BROWSER_INSPECTOR_TMPDIR: tmpdir,
+    BROWSER_INSPECTOR_ENGINE_MODULE: FAKE_ENGINE,
+    BROWSER_INSPECTOR_FAKE_LOG: path.join(tmpdir, 'fake.jsonl'),
     ...overrides,
   });
   const cwd = path.join(tmpdir, 'cwd');
   fs.mkdirSync(cwd, { recursive: true });
-  return { env, tmpdir, cwd, pipe: env.BI_SOCKET };
+  return { env, tmpdir, cwd, pipe: env.BROWSER_INSPECTOR_SOCKET };
 }
 
 /**
- * Run `node bin/bi.mjs …` and collect everything.
+ * Run `node bin/browser-inspector.mjs …` and collect everything.
  * @returns {Promise<{ code: number, stdout: string, stderr: string, lines: string[], ms: number }>}
  */
-export function bi(args, { env, cwd }, options = {}) {
+export function runBrowserInspector(args, { env, cwd }, options = {}) {
   return new Promise((resolve) => {
     const t0 = performance.now();
     const child = spawn(process.execPath, [...(options.nodeArgs ?? []), BIN, ...args], {
@@ -91,9 +91,9 @@ export function spawnKeeperDirect(args, { env }) {
 
 /** The pid file the client and keeper share for this env. */
 export function pidFilePath({ env }) {
-  const files = fs.existsSync(env.BI_TMPDIR) ? fs.readdirSync(env.BI_TMPDIR) : [];
-  const name = files.find((f) => f.startsWith('bi-') && f.endsWith('.json'));
-  return name ? path.join(env.BI_TMPDIR, name) : undefined;
+  const files = fs.existsSync(env.BROWSER_INSPECTOR_TMPDIR) ? fs.readdirSync(env.BROWSER_INSPECTOR_TMPDIR) : [];
+  const name = files.find((f) => f.startsWith('browser-inspector-') && f.endsWith('.json'));
+  return name ? path.join(env.BROWSER_INSPECTOR_TMPDIR, name) : undefined;
 }
 
 export function readPid({ env }) {
@@ -107,23 +107,23 @@ export function readPid({ env }) {
 }
 
 export function lockFilePath({ env }) {
-  const files = fs.existsSync(env.BI_TMPDIR) ? fs.readdirSync(env.BI_TMPDIR) : [];
-  const name = files.find((f) => f.startsWith('bi-') && f.endsWith('.lock'));
-  return name ? path.join(env.BI_TMPDIR, name) : undefined;
+  const files = fs.existsSync(env.BROWSER_INSPECTOR_TMPDIR) ? fs.readdirSync(env.BROWSER_INSPECTOR_TMPDIR) : [];
+  const name = files.find((f) => f.startsWith('browser-inspector-') && f.endsWith('.lock'));
+  return name ? path.join(env.BROWSER_INSPECTOR_TMPDIR, name) : undefined;
 }
 
 export function keeperLog({ env }) {
-  const files = fs.existsSync(env.BI_TMPDIR) ? fs.readdirSync(env.BI_TMPDIR) : [];
+  const files = fs.existsSync(env.BROWSER_INSPECTOR_TMPDIR) ? fs.readdirSync(env.BROWSER_INSPECTOR_TMPDIR) : [];
   return files
-    .filter((f) => f.startsWith('bi-') && f.endsWith('.log'))
-    .map((f) => fs.readFileSync(path.join(env.BI_TMPDIR, f), 'utf8'))
+    .filter((f) => f.startsWith('browser-inspector-') && f.endsWith('.log'))
+    .map((f) => fs.readFileSync(path.join(env.BROWSER_INSPECTOR_TMPDIR, f), 'utf8'))
     .join('\n');
 }
 
 export function fakeLog({ env }) {
   try {
     return fs
-      .readFileSync(env.BI_FAKE_LOG, 'utf8')
+      .readFileSync(env.BROWSER_INSPECTOR_FAKE_LOG, 'utf8')
       .split('\n')
       .filter((l) => l !== '')
       .map((l) => JSON.parse(l));
@@ -185,7 +185,7 @@ export function rawRequest(harness, request, { token } = {}) {
   });
 }
 
-/** `bi stop`, wait for the pid file to vanish, kill whatever is left. */
+/** `browser-inspector stop`, wait for the pid file to vanish, kill whatever is left. */
 export async function stopKeeper(harness) {
   const info = readPid(harness);
   if (!info) return;
@@ -196,7 +196,7 @@ export async function stopKeeper(harness) {
     if (own) fs.rmSync(own, { force: true });
     return;
   }
-  await bi(['stop'], harness).catch(() => undefined);
+  await runBrowserInspector(['stop'], harness).catch(() => undefined);
   await until(() => !isAlive(info.pid), 3000);
   if (isAlive(info.pid)) {
     try {

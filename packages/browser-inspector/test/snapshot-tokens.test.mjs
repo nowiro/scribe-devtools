@@ -1,5 +1,5 @@
 // Token budget of the compact view, measured with the bench's tokenizer (o200k) on the real
-// bookstore tree: `bi snap` prints 25 lines by default and must stay ≤ 450 tokens, `--max 40`
+// bookstore tree: `browser-inspector snap` prints 25 lines by default and must stay ≤ 450 tokens, `--max 40`
 // ≤ 700 (AC-10; DESIGN.md measured ~370 / ~590). A `find` answer and a `--names` line have their
 // own ceilings so a format change shows up here before it shows up in a session's cost.
 import { readFileSync } from 'node:fs';

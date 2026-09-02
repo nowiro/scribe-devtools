@@ -11,7 +11,7 @@
 //      trace is a `console.error`.
 //
 // Point 5 is not decoration: it is the most common shape of a failure visible only in the console,
-// and the place where the two roads diverge most — `bi` has the console and the screenshots in the
+// and the place where the two roads diverge most — `browser-inspector` has the console and the screenshots in the
 // report for free, MCP needs separate calls for them.
 export const APP_URL = 'http://localhost:4300/';
 
@@ -68,11 +68,11 @@ export const FLOW_STEPS = [
 export const SNAPSHOT_NAME = 'zgloszenie-serwisowe';
 
 /**
- * The `bi` config for the task. `outputDir` is relative to the config file (loadConfig resolves it
+ * The `browser-inspector` config for the task. `outputDir` is relative to the config file (loadConfig resolves it
  * that way), so the caller decides where the run lands by deciding where the config lives.
  * @param {{ outputDir?: string, url?: string }} [options]
  */
-export function biConfig(options = {}) {
+export function browserInspectorConfig(options = {}) {
   return {
     outputDir: options.outputDir ?? './out',
     browser: { channel: 'chrome', headless: true },

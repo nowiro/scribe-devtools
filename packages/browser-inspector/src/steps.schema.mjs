@@ -1,9 +1,9 @@
 // steps.schema.mjs — the ONE step table, client side (DESIGN.md §3.2, §4, §7).
 //
-// Every step `bi` knows is a row here: how it is spelled in a config (`config`), how it is typed in
+// Every step `browser-inspector` knows is a row here: how it is spelled in a config (`config`), how it is typed in
 // a session (`argv`, `flags`, `fromArgv`), how it is validated (`validate` on top of the field types),
 // how it is described in a report and a journal (`describe` — never a fill VALUE, only its origin)
-// and how `bi help <step>` and docs/STEPS.md explain it (`help`). `src/steps.run.mjs` holds the
+// and how `browser-inspector help <step>` and docs/STEPS.md explain it (`help`). `src/steps.run.mjs` holds the
 // twin table `RUNNERS` with the same keys — the engine imports that one, the client only this one,
 // and a test keeps the key sets equal.
 //
@@ -176,7 +176,7 @@ export function valueArg(raw, flags = {}) {
 
 /**
  * Where `<target>=<value>` splits: the first `=` at bracket depth 0 outside quotes. The tool's own
- * `elements.md` / `bi find` hand the agent `[data-testid=field-name]` selectors, and those carry
+ * `elements.md` / `browser-inspector find` hand the agent `[data-testid=field-name]` selectors, and those carry
  * an `=` of their own — the first `=` of the pair is inside the selector, not after it. `e5=a=b`
  * still splits at the first one (the value keeps the rest). `-1` when there is none.
  * @param {string} pair
@@ -222,7 +222,7 @@ function numeric(raw, what) {
 function urlArg(raw) {
   // A real scheme is followed by `//` (or is one of the schemeless browser ones); `localhost:4313` is a host.
   if (/^(?:[a-z][a-z0-9+.-]*:[/][/]|about:|data:|blob:|file:|chrome:|javascript:)/iu.test(raw)) return raw;
-  // `bi open localhost:4313/` — a scheme-less host is a typing shortcut, not a mistake.
+  // `browser-inspector open localhost:4313/` — a scheme-less host is a typing shortcut, not a mistake.
   return `http://${raw}`;
 }
 
@@ -1154,10 +1154,10 @@ export const STEPS = Object.freeze({
     flags: { file: 'string' },
     config: { file: 'string' },
     describe: (s) => `run --file ${String(s.file)}`,
-    help: 'run --file script.mjs     (BI_UNSAFE=1 only — runs code in the keeper, RCE-equivalent)',
+    help: 'run --file script.mjs     (BROWSER_INSPECTOR_UNSAFE=1 only — runs code in the keeper, RCE-equivalent)',
     fromArgv: ({ file }, flags) => {
       const chosen = flags.file ?? file;
-      if (!chosen) throw new Error('run needs --file <script.mjs> (and BI_UNSAFE=1)');
+      if (!chosen) throw new Error('run needs --file <script.mjs> (and BROWSER_INSPECTOR_UNSAFE=1)');
       return { file: chosen };
     },
   },
@@ -1342,7 +1342,7 @@ export function describeStep(step) {
 }
 
 /**
- * `bi help <step>` — the one-liner plus the config fields and session flags of the row.
+ * `browser-inspector help <step>` — the one-liner plus the config fields and session flags of the row.
  * @param {string} nameOrAlias
  * @returns {string | undefined} undefined for an unknown name
  */
@@ -1350,7 +1350,7 @@ export function helpFor(nameOrAlias) {
   const name = resolveStepName(nameOrAlias);
   if (name === undefined) return undefined;
   const def = STEPS[name];
-  const lines = [`bi ${def.help}`];
+  const lines = [`browser-inspector ${def.help}`];
   const spellings = [name, ...def.aliases];
   lines.push(
     `  kind: ${def.kind} · names: ${spellings.join(', ')} · config: ${def.batch ? 'yes' : 'no'} · session: ${def.session ? 'yes' : 'no'}`,

@@ -4,13 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { extractInstruction } from '../scripts/check-instruction-sync.mjs';
-import { INSTRUCTION, findingsFromReport, parseRefs, pipeNameFor, refOf } from './bi-run.mjs';
+import { TOKEN_LIMIT, extractInstruction } from '../scripts/check-instruction-sync.mjs';
+import { INSTRUCTION, findingsFromReport, parseRefs, pipeNameFor, refOf } from './browser-inspector-run.mjs';
 import { COLUMNS, DESIGN_BUDGET, compareWithDesign, rangeVerdict, renderBudget, verdict } from './budget.mjs';
 import { mcpVersion, readDefinition, refFor } from './mcp-run.mjs';
 import { paritySummary, renderRaport, renderReadmeBlock } from './raport.mjs';
 import { safePath } from './serve.mjs';
-import { EXPECTED, FLOW_STEPS, biConfig, checkFindings } from './task.mjs';
+import { EXPECTED, FLOW_STEPS, browserInspectorConfig, checkFindings } from './task.mjs';
 import { chromeDescendants, makeStamp, stats } from './time-run.mjs';
 import { countTokens, measure, total } from './tokens.mjs';
 
@@ -36,8 +36,8 @@ describe('INSTRUCTION', () => {
     const agents = fs.readFileSync(path.join(REPO, 'AGENTS.md'), 'utf8');
     expect(extractInstruction(agents)).toBe(INSTRUCTION);
   });
-  test('costs at most 150 o200k tokens (AC-6)', () => {
-    expect(countTokens(INSTRUCTION)).toBeLessThanOrEqual(150);
+  test('costs at most TOKEN_LIMIT (200) o200k tokens (AC-6)', () => {
+    expect(countTokens(INSTRUCTION)).toBeLessThanOrEqual(TOKEN_LIMIT);
   });
 });
 
@@ -64,8 +64,8 @@ describe('task', () => {
       'screenshot',
     ]);
   });
-  test('biConfig carries the flow and the output dir', () => {
-    const config = biConfig({ outputDir: './x' });
+  test('browserInspectorConfig carries the flow and the output dir', () => {
+    const config = browserInspectorConfig({ outputDir: './x' });
     expect(config.outputDir).toBe('./x');
     expect(config.snapshots[0].steps).toHaveLength(18);
   });
@@ -137,13 +137,13 @@ describe('time-run', () => {
     expect(chromeDescendants(3, procs)).toEqual([]);
   });
   test('pipeNameFor: a Windows named pipe or a socket under tmpdir', () => {
-    const name = pipeNameFor('bi-x', '/tmp');
-    if (process.platform === 'win32') expect(name).toBe('\\\\.\\pipe\\bi-x');
-    else expect(name).toBe(path.join('/tmp', 'bi-x.sock'));
+    const name = pipeNameFor('browser-inspector-x', '/tmp');
+    if (process.platform === 'win32') expect(name).toBe('\\\\.\\pipe\\browser-inspector-x');
+    else expect(name).toBe(path.join('/tmp', 'browser-inspector-x.sock'));
   });
 });
 
-describe('bi session output', () => {
+describe('browser-inspector session output', () => {
   const SNAP = [
     'h1 "Zgłoszenie serwisowe"',
     'e10 textbox "Imię i nazwisko" [data-testid=field-name]',
@@ -237,12 +237,12 @@ function syntheticResults(overrides = {}) {
   };
   return {
     meta: { date: '2026-09-02', os: {}, versions: {} },
-    bi: {
-      warm: variant('bi-warm', 'warm', [sample(540, warmTiming, { clientMs: 470 }, 'warm')]),
-      tight: variant('bi-warm-tight', 'warm', [
+    browserInspector: {
+      warm: variant('browser-inspector-warm', 'warm', [sample(540, warmTiming, { clientMs: 470 }, 'warm')]),
+      tight: variant('browser-inspector-warm-tight', 'warm', [
         sample(560, { ...warmTiming, queuedMs: 10 }, { clientMs: 480 }, 'warm'),
       ]),
-      first: variant('bi-first', 'first', [
+      first: variant('browser-inspector-first', 'first', [
         sample(
           1400,
           { ...warmTiming, gotoMs: 300, totalMs: 700 },
@@ -250,7 +250,7 @@ function syntheticResults(overrides = {}) {
           'first',
         ),
       ]),
-      cold: variant('bi-cold', 'no-daemon', [
+      cold: variant('browser-inspector-cold', 'no-daemon', [
         sample(1600, { ...warmTiming, gotoMs: 340, totalMs: 850 }, { clientMs: 1350 }, 'no-daemon'),
       ]),
       ...overrides,
@@ -277,8 +277,18 @@ function syntheticResults(overrides = {}) {
 
 describe('budget', () => {
   test('DESIGN_BUDGET totals are the §6 totals', () => {
-    expect(DESIGN_BUDGET.totals).toEqual({ 'bi-warm': 546, 'bi-warm-tight': 561, 'bi-first': 1469, 'bi-cold': 1618 });
-    expect(COLUMNS).toEqual(['bi-warm', 'bi-warm-tight', 'bi-first', 'bi-cold']);
+    expect(DESIGN_BUDGET.totals).toEqual({
+      'browser-inspector-warm': 546,
+      'browser-inspector-warm-tight': 561,
+      'browser-inspector-first': 1469,
+      'browser-inspector-cold': 1618,
+    });
+    expect(COLUMNS).toEqual([
+      'browser-inspector-warm',
+      'browser-inspector-warm-tight',
+      'browser-inspector-first',
+      'browser-inspector-cold',
+    ]);
   });
   test('verdict: > 25 % drift is red, a design of 0 tolerates 25 ms', () => {
     expect(verdict(100, 120).red).toBe(false);
@@ -297,36 +307,36 @@ describe('budget', () => {
   test('compareWithDesign: phases come from timing/manifest medians, ratios from MCP medians', () => {
     const c = compareWithDesign(syntheticResults());
     const goto = /** @type {any} */ (c.phases.find((p) => p.key === 'goto'));
-    expect(goto.cells['bi-warm']).toMatchObject({ design: 55, measured: 50, red: false });
-    expect(goto.cells['bi-first']).toMatchObject({ design: 250, measured: 300, red: false });
+    expect(goto.cells['browser-inspector-warm']).toMatchObject({ design: 55, measured: 50, red: false });
+    expect(goto.cells['browser-inspector-first']).toMatchObject({ design: 250, measured: 300, red: false });
     const client = /** @type {any} */ (c.phases.find((p) => p.key === 'client'));
     // wall 540 − clientMs 470 = 70 vs design 85 → −18 %, not red.
-    expect(client.cells['bi-warm']).toMatchObject({ measured: 70, red: false });
+    expect(client.cells['browser-inspector-warm']).toMatchObject({ measured: 70, red: false });
     // wall 1400 − clientMs 1300 − keeperStartMs 45 = 55 vs 85 → −35 %, red.
-    expect(client.cells['bi-first']).toMatchObject({ measured: 55, red: true });
-    expect(c.total.cells['bi-warm']).toMatchObject({ design: 546, measured: 540 });
-    const warm = c.ratioRows.find((r) => r.name === 'bi-warm');
+    expect(client.cells['browser-inspector-first']).toMatchObject({ measured: 55, red: true });
+    expect(c.total.cells['browser-inspector-warm']).toMatchObject({ design: 546, measured: 540 });
+    const warm = c.ratioRows.find((r) => r.name === 'browser-inspector-warm');
     expect(warm.ratio).toBeCloseTo(2900 / 540, 3);
     expect(warm.red).toBe(false);
-    const first = c.ratioRows.find((r) => r.name === 'bi-first');
+    const first = c.ratioRows.find((r) => r.name === 'browser-inspector-first');
     expect(first.baseLabel).toMatch(/1\. przebieg/u);
     expect(first.red).toBe(true);
   });
   test('renderBudget marks a slow warm run red on the total row and on the ratio row', () => {
     const slow = syntheticResults();
-    slow.bi.warm.samples[0].wallMs = 900;
-    slow.bi.warm.stats = stats([900]);
+    slow.browserInspector.warm.samples[0].wallMs = 900;
+    slow.browserInspector.warm.stats = stats([900]);
     const md = renderBudget(slow);
     expect(md).toMatch(/🔴 \*\*razem\*\*/u);
-    expect(md).toMatch(/🔴 bi-warm \|/u);
+    expect(md).toMatch(/🔴 browser-inspector-warm \|/u);
     const fine = renderBudget(syntheticResults());
-    expect(fine).not.toMatch(/🔴 bi-warm \|/u);
+    expect(fine).not.toMatch(/🔴 browser-inspector-warm \|/u);
     expect(fine).toMatch(/## queuedMs, scrubMs, cacheHits/u);
   });
   test('renderBudget reddens cacheHitsDocument > 0', () => {
     const r = syntheticResults();
-    r.bi.warm.cacheHitsDocument = stats([1]);
-    expect(renderBudget(r)).toMatch(/🔴 bi-warm \| /u);
+    r.browserInspector.warm.cacheHitsDocument = stats([1]);
+    expect(renderBudget(r)).toMatch(/🔴 browser-inspector-warm \| /u);
   });
 });
 
@@ -342,8 +352,8 @@ describe('raport', () => {
   });
   test('an invalid mode in a warm column is shown in bold, not averaged away', () => {
     const r = syntheticResults();
-    r.bi.warm.modes = ['first'];
-    r.bi.warm.validModes = false;
+    r.browserInspector.warm.modes = ['first'];
+    r.browserInspector.warm.validModes = false;
     expect(renderRaport(r)).toMatch(/\*\*first\*\*/u);
   });
   test('the README block is delimited and carries the warm median', () => {
@@ -354,7 +364,8 @@ describe('raport', () => {
   });
   test('paritySummary counts the §7 matrix of DESIGN.md — escaped pipes inside cells included', () => {
     const parity = paritySummary();
-    // 23 ✅ · 1 ⚠️ (run_code_unsafe) · 2 ❌ (install; resume/annotate/video_*) · 1 row of bi extras.
+    // 23 ✅ · 1 ⚠️ (run_code_unsafe) · 2 ❌ (install; resume/annotate/video_*) · 1 row of
+    // browser-inspector extras.
     const extra = parity.rows.filter((r) => r.mark === 'extra').length;
     expect(parity.ok + parity.partial + parity.missing + extra).toBe(parity.rows.length);
     expect(parity.rows).toHaveLength(27);

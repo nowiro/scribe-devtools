@@ -15,16 +15,16 @@
   // history.length. The isolation smoke sets all three on two origins in run A and expects run B
   // to see none of them. `__bi_gen` (the generation marker) is the one key the engine leaves.
   const render = () => {
-    const ls = localStorage.getItem('bi-local') ?? '';
-    const ss = sessionStorage.getItem('bi-session') ?? '';
-    const cookie = document.cookie.split(';').map((c) => c.trim()).find((c) => c.startsWith('bi-cookie=')) ?? '';
+    const ls = localStorage.getItem('browser-inspector-local') ?? '';
+    const ss = sessionStorage.getItem('browser-inspector-session') ?? '';
+    const cookie = document.cookie.split(';').map((c) => c.trim()).find((c) => c.startsWith('browser-inspector-cookie=')) ?? '';
     document.querySelector('[data-testid=state]').textContent = JSON.stringify({ ls, ss, cookie });
     document.querySelector('[data-testid=history]').textContent = `history ${history.length}`;
   };
   document.querySelector('[data-testid=set]').addEventListener('click', () => {
-    localStorage.setItem('bi-local', `L@${location.port}`);
-    sessionStorage.setItem('bi-session', `S@${location.port}`);
-    document.cookie = `bi-cookie=C@${location.port}; path=/`;
+    localStorage.setItem('browser-inspector-local', `L@${location.port}`);
+    sessionStorage.setItem('browser-inspector-session', `S@${location.port}`);
+    document.cookie = `browser-inspector-cookie=C@${location.port}; path=/`;
     render();
   });
   document.querySelector('[data-testid=nav]').addEventListener('click', () => {

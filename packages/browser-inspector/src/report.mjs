@@ -46,7 +46,7 @@ export const CAPS = Object.freeze({
 });
 
 export const SOURCE = 'browser-inspector';
-export const SCRIPT = 'bi';
+export const SCRIPT = 'browser-inspector';
 
 /** @param {unknown} text */
 const firstLine = (text) => String(text).split('\n')[0] ?? '';
@@ -450,7 +450,7 @@ export function renderJUnit(suite, snapshots) {
   const seconds = (/** @type {number} */ ms) => (ms / 1000).toFixed(3);
   const totalMs = snapshots.reduce((sum, s) => sum + (s.ms ?? 0), 0);
   const cases = snapshots.map((s) => {
-    const open = `    <testcase name="${xml(s.name)}" classname="bi.${xml(suite)}" time="${seconds(s.ms ?? 0)}">`;
+    const open = `    <testcase name="${xml(s.name)}" classname="browser-inspector.${xml(suite)}" time="${seconds(s.ms ?? 0)}">`;
     const out = s.dir ? `      <system-out>${xml(s.dir)}</system-out>\n` : '';
     if (s.completed) return out ? `${open}\n${out}    </testcase>` : `${open}</testcase>`;
     return [
@@ -464,7 +464,7 @@ export function renderJUnit(suite, snapshots) {
   });
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<testsuites name="bi" tests="${String(snapshots.length)}" failures="${String(failures)}" time="${seconds(totalMs)}">`,
+    `<testsuites name="browser-inspector" tests="${String(snapshots.length)}" failures="${String(failures)}" time="${seconds(totalMs)}">`,
     `  <testsuite name="${xml(suite)}" tests="${String(snapshots.length)}" failures="${String(failures)}" time="${seconds(totalMs)}">`,
     ...cases,
     '  </testsuite>',

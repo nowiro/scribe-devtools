@@ -4,7 +4,7 @@
 // lands a token the page reads without any form. The wiring is the one the keeper / `runBatch`
 // do per batch: `ensureSession` before the flows, `storageStateFor(snapshot, session)` per flow.
 //
-// Ports 4561 (login.html) and 4563 (token stub) — WP7 owns 4561–4569. `BI_SKIP_SMOKE=1` skips.
+// Ports 4561 (login.html) and 4563 (token stub) — WP7 owns 4561–4569. `BROWSER_INSPECTOR_SKIP_SMOKE=1` skips.
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -15,16 +15,16 @@ import { ensureSession, storageStateFor } from '../../src/auth.mjs';
 import { parseConfig } from '../../src/config.mjs';
 import { createEngine } from '../../src/engine.mjs';
 import { startTokenServer } from '../../fixtures/kc-token.mjs';
-import { bi, cleanup, keeperLog, makeEnv, stopKeeper } from '../fixtures/keeper-harness.mjs';
+import { runBrowserInspector, cleanup, keeperLog, makeEnv, stopKeeper } from '../fixtures/keeper-harness.mjs';
 import { startFixtureServer } from './fixture-server.mjs';
 
 const PORT_APP = 4561;
 const PORT_TOKEN = 4563;
 const PORT_CLI = 4565;
 const PASS = 'wonderland-42';
-const skip = process.env.BI_SKIP_SMOKE === '1' || process.env.BI_SKIP_SMOKE === 'true';
+const skip = process.env.BROWSER_INSPECTOR_SKIP_SMOKE === '1' || process.env.BROWSER_INSPECTOR_SKIP_SMOKE === 'true';
 
-describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-daemon log in once', () => {
+describe.skipIf(skip)('smoke: auth through bin/browser-inspector.mjs — the keeper and --no-daemon log in once', () => {
   /** @type {Awaited<ReturnType<typeof startFixtureServer>>} */
   let app;
   /** @type {ReturnType<typeof makeEnv>} */
@@ -36,8 +36,8 @@ describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-da
     app = await startFixtureServer(PORT_CLI);
     h = makeEnv({ APP_USER: 'alice', APP_PASS: PASS });
     // The real engine, not the fake the keeper tests wire in.
-    delete h.env.BI_ENGINE_MODULE;
-    delete h.env.BI_FAKE_LOG;
+    delete h.env.BROWSER_INSPECTOR_ENGINE_MODULE;
+    delete h.env.BROWSER_INSPECTOR_FAKE_LOG;
     config = path.join(h.cwd, 'read.config.json');
     await writeFile(
       config,
@@ -90,7 +90,7 @@ describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-da
     JSON.parse(await readFile(path.join(h.cwd, 'out', stamp, name, 'report.json'), 'utf8'));
 
   it('--no-daemon: logs in, writes the state file, the snapshot sees the dashboard, the anonymous one does not', async () => {
-    const run = await bi([config, '--no-daemon', '--stamp', '2026-09-02_13-00'], h);
+    const run = await runBrowserInspector([config, '--no-daemon', '--stamp', '2026-09-02_13-00'], h);
     expect(run.code, run.stdout + run.stderr).toBe(0);
     expect(run.lines.at(-1)).toMatch(/^ok 2\/2 completed/u);
     expect(existsSync(path.join(h.cwd, '.scribe-devtools', 'auth.json'))).toBe(true);
@@ -109,10 +109,10 @@ describe.skipIf(skip)('smoke: auth through bin/bi.mjs — the keeper and --no-da
 
   it('through the keeper, twice: the second run reuses the state file and still starts logged in', async () => {
     await rm(path.join(h.cwd, '.scribe-devtools'), { recursive: true, force: true });
-    const first = await bi([config, '--stamp', '2026-09-02_13-01'], h);
+    const first = await runBrowserInspector([config, '--stamp', '2026-09-02_13-01'], h);
     expect(first.code, first.stdout + first.stderr).toBe(0);
     expect(first.lines.at(-1)).toMatch(/^ok 2\/2 completed/u);
-    const second = await bi([config, '--stamp', '2026-09-02_13-02'], h);
+    const second = await runBrowserInspector([config, '--stamp', '2026-09-02_13-02'], h);
     expect(second.code, second.stdout + second.stderr).toBe(0);
     expect(second.lines.at(-1)).toMatch(/^ok 2\/2 completed · [\d ]+ ms · warm/u);
     for (const stamp of ['2026-09-02_13-01', '2026-09-02_13-02']) {
@@ -144,7 +144,7 @@ describe.skipIf(skip)('smoke: auth — login once, snapshots logged in, anonymou
 
   beforeAll(async () => {
     [app, idp] = await Promise.all([startFixtureServer(PORT_APP), startTokenServer(PORT_TOKEN)]);
-    out = await mkdtemp(path.join(os.tmpdir(), 'bi-auth-smoke-'));
+    out = await mkdtemp(path.join(os.tmpdir(), 'browser-inspector-auth-smoke-'));
     engine = createEngine({ browser: { headless: true }, env: process.env, prewarm: false, log: (l) => log.push(l) });
     await engine.ready;
   }, 60_000);
@@ -282,7 +282,7 @@ describe.skipIf(skip)('smoke: auth — login once, snapshots logged in, anonymou
         oauth: {
           keycloak: { url: idp.origin, realm: idp.realm },
           grantType: 'password',
-          clientId: 'bi-public',
+          clientId: 'browser-inspector-public',
           usernameFromEnv: 'APP_USER',
           passwordFromEnv: 'APP_PASS',
           store: { origin: app.origin, key: 'access_token' },

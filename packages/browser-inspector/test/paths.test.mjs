@@ -1,6 +1,6 @@
 // Keeper identity and placement (DESIGN.md §2.5): the hash moves with everything that shapes the
 // browser or the code (a stale keeper is never addressed), the pipe name follows the platform,
-// CI is a list of eight variables and `BI_DAEMON=1` overrides it.
+// CI is a list of eight variables and `BROWSER_INSPECTOR_DAEMON=1` overrides it.
 import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -41,7 +41,7 @@ const BASE = {
   httpProxy: '',
   httpsProxy: '',
   noProxy: '',
-  binRealpath: 'D:/github/scribe-devtools/packages/browser-inspector/bin/bi.mjs',
+  binRealpath: 'D:/github/scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs',
   srcStamp: 1756700000000,
 };
 
@@ -57,8 +57,8 @@ describe('identityHash', () => {
     ['playwright-core version', { pwVersion: '1.62.2' }],
     ['Node major', { nodeMajor: 24 }],
     [
-      'realpath of bin/bi.mjs (second checkout)',
-      { binRealpath: 'D:/other/checkout/packages/browser-inspector/bin/bi.mjs' },
+      'realpath of bin/browser-inspector.mjs (second checkout)',
+      { binRealpath: 'D:/other/checkout/packages/browser-inspector/bin/browser-inspector.mjs' },
     ],
     ['srcStamp (an edit in src/)', { srcStamp: 1756700000001 }],
     ['HTTP_PROXY', { httpProxy: 'http://proxy:3128' }],
@@ -69,9 +69,9 @@ describe('identityHash', () => {
     ['executablePath', { executablePath: 'C:/chrome.exe' }],
     ['headless', { headless: false }],
     ['args', { args: [] }],
-    ['BI_BROWSER_ARGS', { browserArgsEnv: '--no-sandbox' }],
-    // `bi run --file` is gated on the KEEPER's env: an unsafe keeper must be a separate process.
-    ['BI_UNSAFE=1', { unsafe: true }],
+    ['BROWSER_INSPECTOR_BROWSER_ARGS', { browserArgsEnv: '--no-sandbox' }],
+    // `browser-inspector run --file` is gated on the KEEPER's env: an unsafe keeper must be a separate process.
+    ['BROWSER_INSPECTOR_UNSAFE=1', { unsafe: true }],
   ])('changes with %s', (_, patch) => {
     expect(identityHash({ ...BASE, ...patch })).not.toBe(identityHash(BASE));
   });
@@ -82,20 +82,22 @@ describe('collectIdentity / srcStamp', () => {
     const parts = collectIdentity({ packageDir: PACKAGE_DIR, env: {}, nodeMajor: 26 });
     expect(parts.pwVersion).toBe('1.62.1');
     expect(parts.pkgVersion).toBe('0.1.0');
-    expect(parts.binRealpath.replaceAll('\\', '/')).toMatch(/packages\/browser-inspector\/bin\/bi\.mjs$/u);
+    expect(parts.binRealpath.replaceAll('\\', '/')).toMatch(
+      /packages\/browser-inspector\/bin\/browser-inspector\.mjs$/u,
+    );
     expect(typeof parts.srcStamp).toBe('number');
     expect(parts.srcStamp).toBeGreaterThan(0);
     expect(parts.headless).toBe(true);
     expect(playwrightCoreVersion(PACKAGE_DIR)).toBe('1.62.1');
   });
 
-  it('honours BI_CHANNEL, BI_BROWSER_PATH, BI_BROWSER_ARGS and the proxy variables', () => {
+  it('honours BROWSER_INSPECTOR_CHANNEL, BROWSER_INSPECTOR_BROWSER_PATH, BROWSER_INSPECTOR_BROWSER_ARGS and the proxy variables', () => {
     const parts = collectIdentity({
       packageDir: PACKAGE_DIR,
       env: {
-        BI_CHANNEL: 'msedge',
-        BI_BROWSER_PATH: 'C:/edge.exe',
-        BI_BROWSER_ARGS: '--x',
+        BROWSER_INSPECTOR_CHANNEL: 'msedge',
+        BROWSER_INSPECTOR_BROWSER_PATH: 'C:/edge.exe',
+        BROWSER_INSPECTOR_BROWSER_ARGS: '--x',
         HTTP_PROXY: 'p',
         https_proxy: 'q',
         NO_PROXY: 'n',
@@ -115,7 +117,7 @@ describe('collectIdentity / srcStamp', () => {
   });
 
   it('srcStamp is the newest mtime and the PORTABLE marker turns it off', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'bi-paths-'));
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-paths-'));
     const src = path.join(dir, 'src');
     mkdirSync(src);
     writeFileSync(path.join(dir, 'package.json'), '{"version":"9.9.9"}');
@@ -137,31 +139,33 @@ describe('collectIdentity / srcStamp', () => {
 describe('pipeName and files', () => {
   it('names a Windows pipe per user and hash, sanitised', () => {
     expect(pipeName('3f9a1c2e', { platform: 'win32', env: {}, user: 'wojtek' })).toBe(
-      '\\\\.\\pipe\\bi-wojtek-3f9a1c2e',
+      '\\\\.\\pipe\\browser-inspector-wojtek-3f9a1c2e',
     );
     expect(pipeName('3f9a1c2e', { platform: 'win32', env: {}, user: 'DOMAIN\\Jan Kowalski' })).toBe(
-      '\\\\.\\pipe\\bi-DOMAIN_Jan_Kowalski-3f9a1c2e',
+      '\\\\.\\pipe\\browser-inspector-DOMAIN_Jan_Kowalski-3f9a1c2e',
     );
   });
 
   it('uses XDG_RUNTIME_DIR or the tmpdir with the uid elsewhere', () => {
     expect(pipeName('abcd1234', { platform: 'linux', env: { XDG_RUNTIME_DIR: '/run/user/1000' }, uid: 1000 })).toBe(
-      path.join('/run/user/1000', 'bi-1000-abcd1234.sock'),
+      path.join('/run/user/1000', 'browser-inspector-1000-abcd1234.sock'),
     );
     expect(pipeName('abcd1234', { platform: 'darwin', env: {}, uid: 501, tmpdir: '/tmp' })).toBe(
-      path.join('/tmp', 'bi-501-abcd1234.sock'),
+      path.join('/tmp', 'browser-inspector-501-abcd1234.sock'),
     );
   });
 
-  it('BI_SOCKET overrides everything', () => {
-    expect(pipeName('x', { platform: 'win32', env: { BI_SOCKET: '\\\\.\\pipe\\mine' } })).toBe('\\\\.\\pipe\\mine');
+  it('BROWSER_INSPECTOR_SOCKET overrides everything', () => {
+    expect(pipeName('x', { platform: 'win32', env: { BROWSER_INSPECTOR_SOCKET: '\\\\.\\pipe\\mine' } })).toBe(
+      '\\\\.\\pipe\\mine',
+    );
   });
 
   it('pid, lock and log files sit in the tmpdir under the hash', () => {
-    expect(pidFile('h1', '/t')).toBe(path.join('/t', 'bi-h1.json'));
-    expect(lockFile('h1', '/t')).toBe(path.join('/t', 'bi-h1.lock'));
-    expect(logFile('h1', '/t')).toBe(path.join('/t', 'bi-h1.log'));
-    expect(pidFile('h1')).toBe(path.join(os.tmpdir(), 'bi-h1.json'));
+    expect(pidFile('h1', '/t')).toBe(path.join('/t', 'browser-inspector-h1.json'));
+    expect(lockFile('h1', '/t')).toBe(path.join('/t', 'browser-inspector-h1.lock'));
+    expect(logFile('h1', '/t')).toBe(path.join('/t', 'browser-inspector-h1.log'));
+    expect(pidFile('h1')).toBe(path.join(os.tmpdir(), 'browser-inspector-h1.json'));
   });
 
   it('session and output directories', () => {
@@ -202,13 +206,13 @@ describe('isCI / daemonEnabled', () => {
     expect(isCI({ PATH: 'x', HOME: 'y' })).toBe(false);
   });
 
-  it('daemonEnabled: default on, off on CI and BI_DAEMON=0 / --no-daemon, BI_DAEMON=1 wins over CI', () => {
+  it('daemonEnabled: default on, off on CI and BROWSER_INSPECTOR_DAEMON=0 / --no-daemon, BROWSER_INSPECTOR_DAEMON=1 wins over CI', () => {
     expect(daemonEnabled({})).toBe(true);
     expect(daemonEnabled({ CI: 'true' })).toBe(false);
     expect(daemonEnabled({ GITHUB_ACTIONS: 'true' })).toBe(false);
-    expect(daemonEnabled({ BI_DAEMON: '0' })).toBe(false);
-    expect(daemonEnabled({ BI_DAEMON: '1', CI: 'true' })).toBe(true);
-    expect(daemonEnabled({ BI_DAEMON: '1' }, { noDaemon: true })).toBe(false);
+    expect(daemonEnabled({ BROWSER_INSPECTOR_DAEMON: '0' })).toBe(false);
+    expect(daemonEnabled({ BROWSER_INSPECTOR_DAEMON: '1', CI: 'true' })).toBe(true);
+    expect(daemonEnabled({ BROWSER_INSPECTOR_DAEMON: '1' }, { noDaemon: true })).toBe(false);
     expect(daemonEnabled({}, { noDaemon: true })).toBe(false);
   });
 });

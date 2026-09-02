@@ -72,7 +72,7 @@ describe('DESIGN.md §4.4 samples', () => {
           { url: 'http://localhost:4313/szukaj?q=Harry', el: 58, navigated: true, frameSeq: 1 },
         ),
       ),
-      'ok fill e39 · navigated → refs f1eN (bi snap) · el 58',
+      'ok fill e39 · navigated → refs f1eN (browser-inspector snap) · el 58',
     ],
     ['overflow', formatOverflow(55, 'session/default/snap.md'), '…+55 lines · session/default/snap.md'],
     [
@@ -107,15 +107,15 @@ describe('DESIGN.md §4.4 samples', () => {
     [
       'ref not found',
       formatFail('click e99', REF_NOT_FOUND),
-      'FAIL click e99 · ref not found (gone, label changed or other frame) → bi snap',
+      'FAIL click e99 · ref not found (gone, label changed or other frame) → browser-inspector snap',
     ],
     [
       'dialog',
       formatDialogStatus(
         { action: 'dismiss' },
-        { type: 'confirm', message: 'Usunąć?', action: 'dismissed', trigger: 'bi click e12' },
+        { type: 'confirm', message: 'Usunąć?', action: 'dismissed', trigger: 'browser-inspector click e12' },
       ),
-      'policy dismiss · last: confirm "Usunąć?" → dismissed (bi click e12)',
+      'policy dismiss · last: confirm "Usunąć?" → dismissed (browser-inspector click e12)',
     ],
     [
       'export',
@@ -125,7 +125,17 @@ describe('DESIGN.md §4.4 samples', () => {
     [
       'keeper unavailable',
       KEEPER_UNAVAILABLE('ECONNREFUSED'),
-      'FAIL keeper unavailable: ECONNREFUSED — session needs keeper (bi up, bi doctor); batch works with --no-daemon',
+      'FAIL keeper unavailable: ECONNREFUSED — sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon',
+    ],
+    [
+      'keeper unavailable after the connect timeout (the reason users actually see)',
+      KEEPER_UNAVAILABLE('no keeper after 3 000 ms (no pid file)'),
+      'FAIL keeper unavailable: no keeper after 3 000 ms (no pid file) — sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon',
+    ],
+    [
+      'keeper unavailable with BROWSER_INSPECTOR_DAEMON=0 and a stale pid file',
+      KEEPER_UNAVAILABLE('ECONNREFUSED on the pipe (stale pid file?)'),
+      'FAIL keeper unavailable: ECONNREFUSED on the pipe (stale pid file?) — sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon',
     ],
   ];
 
@@ -142,10 +152,10 @@ describe('DESIGN.md §4.4 samples', () => {
       firstJobMs: 1390,
       warmMs: 470,
       hash: '3f9a1c2e',
-      biPath: 'D:\\github\\scribe-devtools\\packages\\browser-inspector\\bin\\bi.mjs',
+      binPath: 'D:\\github\\scribe-devtools\\packages\\browser-inspector\\bin\\browser-inspector.mjs',
     });
     expect(line).toBe(
-      'ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · D:/github/scribe-devtools/packages/browser-inspector/bin/bi.mjs',
+      'ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · D:/github/scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs',
     );
     expect(tokens(line)).toBeLessThanOrEqual(60);
   });
@@ -180,7 +190,9 @@ describe('rules', () => {
       }),
     ).toEqual(['el 10', 'dialog beforeunload "" → accepted']);
     expect(formatDeltas(before, { url: 'http://b/x', title: 'B', el: 5 })).toEqual(['url http://b/x "B"', 'el 10→5']);
-    expect(formatDeltas({}, { navigated: true, frameSeq: 2 })).toEqual(['navigated → refs f2eN (bi snap)']);
+    expect(formatDeltas({}, { navigated: true, frameSeq: 2 })).toEqual([
+      'navigated → refs f2eN (browser-inspector snap)',
+    ]);
     expect(formatDeltas(before, { url: 'http://a/', el: 10, consoleErrors: 0 })).toEqual(['el 10']);
   });
 

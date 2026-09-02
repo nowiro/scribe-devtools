@@ -1,7 +1,7 @@
 // raport.mjs — RAPORT.md: tokens and time in one place, tables and charts. Every number comes
 // from `bench/out/results.json`; if the run comes out differently, the report comes out
 // differently. The header table has the three MCP columns of DESIGN.md §9 (naive, lean,
-// lean --timeout-settle 100), measured the same day on the same machine as every `bi` variant.
+// lean --timeout-settle 100), measured the same day on the same machine as every `browser-inspector` variant.
 // Labels inside `mermaid` blocks have no Polish diacritics — GitHub's renderer trips on them.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -82,28 +82,32 @@ export function paritySummary(designMd = fs.existsSync(DESIGN_MD) ? fs.readFileS
  * @returns {string}
  */
 export function renderRaport(results) {
-  const { meta = {}, bi = {}, mcp = {} } = results;
+  const { meta = {}, browserInspector = {}, mcp = {} } = results;
   const timeOf = (/** @type {string} */ name) => (mcp.time ?? []).find((/** @type {any} */ t) => t.name === name);
   const naive = timeOf('mcp-naive');
   const lean = timeOf('mcp-lean');
   const settle = timeOf('mcp-lean-settle-100');
   const variants = [
-    ['bi-warm', bi.warm, 'ciepły keeper, przerwa 300 ms — **tu liczy się 5×**'],
-    ['bi-warm-tight', bi.tight, 'ciepły keeper, bez przerwy (scrub poprzedniego czeka w kolejce lane’u — `queuedMs`)'],
-    ['bi-first', bi.first, 'pierwsze wywołanie w sesji: keeper startuje w stoperze'],
-    ['bi-cold', bi.cold, '`--no-daemon` (CI): własny Chrome w każdym wywołaniu'],
-    ['bi-warm-fresh', bi.fresh, '`--fresh`: świeży kontekst z puli spare'],
+    ['browser-inspector-warm', browserInspector.warm, 'ciepły keeper, przerwa 300 ms — **tu liczy się 5×**'],
+    [
+      'browser-inspector-warm-tight',
+      browserInspector.tight,
+      'ciepły keeper, bez przerwy (scrub poprzedniego czeka w kolejce lane’u — `queuedMs`)',
+    ],
+    ['browser-inspector-first', browserInspector.first, 'pierwsze wywołanie w sesji: keeper startuje w stoperze'],
+    ['browser-inspector-cold', browserInspector.cold, '`--no-daemon` (CI): własny Chrome w każdym wywołaniu'],
+    ['browser-inspector-warm-fresh', browserInspector.fresh, '`--fresh`: świeży kontekst z puli spare'],
   ].filter(([, v]) => v?.stats);
   const hasMcp = Boolean(naive?.warm);
   const lines = [
-    '# RAPORT.md — bi (browser-inspector 2) vs @playwright/mcp: czas i tokeny',
+    '# RAPORT.md — browser-inspector 2 vs @playwright/mcp: czas i tokeny',
     '',
-    'To samo zadanie QA na tym samym formularzu (`bench/task.mjs`, 18 kroków), wykonane przez `bi` w każdym wariancie z',
+    'To samo zadanie QA na tym samym formularzu (`bench/task.mjs`, 18 kroków), wykonane przez `browser-inspector` w każdym wariancie z',
     'DESIGN.md §9 i przez serwer MCP Playwrighta w trzech wariantach, zmierzone dwiema miarami: **ile czasu** od `spawn` do',
     '`exit` prawdziwego procesu klienta i **ile tokenów** wchodzi do okna kontekstu agenta. Raport generuje `npm run bench` —',
     'każda liczba niżej pochodzi z przebiegu, żadna nie jest wpisana ręcznie.',
     '',
-    `Środowisko: ${String(meta.date ?? '')} · ${String(meta.os?.cpu ?? '')} (${String(meta.os?.cores ?? '?')} rdzeni, ${String(meta.os?.memGb ?? '?')} GB) · ${String(meta.os?.platform ?? '')} ${String(meta.os?.release ?? '')} · Node ${String(meta.node ?? '')} · bi ${String(meta.versions?.bi ?? '')} · playwright-core ${String(meta.versions?.playwrightCore ?? '')} · ${String(meta.versions?.browser ?? '')} · @playwright/mcp ${String(meta.versions?.mcp ?? '')} (${String(mcp.tokens?.[0]?.toolCount ?? '?')} narzędzi w \`tools/list\`).`,
+    `Środowisko: ${String(meta.date ?? '')} · ${String(meta.os?.cpu ?? '')} (${String(meta.os?.cores ?? '?')} rdzeni, ${String(meta.os?.memGb ?? '?')} GB) · ${String(meta.os?.platform ?? '')} ${String(meta.os?.release ?? '')} · Node ${String(meta.node ?? '')} · browser-inspector ${String(meta.versions?.browserInspector ?? '')} · playwright-core ${String(meta.versions?.playwrightCore ?? '')} · ${String(meta.versions?.browser ?? '')} · @playwright/mcp ${String(meta.versions?.mcp ?? '')} (${String(mcp.tokens?.[0]?.toolCount ?? '?')} narzędzi w \`tools/list\`).`,
     `Powtórzenia: cold/first ×${String(meta.reps ?? '?')}, warm n=${String(meta.warmN ?? '?')} po obu stronach, przerwa 300 ms po obu stronach.`,
     '',
     '## Tabela nagłówkowa',
@@ -112,7 +116,7 @@ export function renderRaport(results) {
     '| --- | ---: | ---: | --- | ---: | ---: | ---: |',
   ];
   for (const [name, v] of variants) {
-    const isCold = name === 'bi-first' || name === 'bi-cold';
+    const isCold = name === 'browser-inspector-first' || name === 'browser-inspector-cold';
     const baseNaive = isCold ? naive?.firstRunMs : naive?.warm?.median;
     const baseLean = isCold ? lean?.firstRunMs : lean?.warm?.median;
     const baseSettle = isCold ? settle?.firstRunMs : settle?.warm?.median;
@@ -123,9 +127,9 @@ export function renderRaport(results) {
       `| ${name} | **${fmt(v.stats.median)} ms** | ${fmt(v.stats.p90)} ms | ${String(v.n)} · ${modes} | ${r(baseNaive)} | ${r(baseLean)} | ${r(baseSettle)} |`,
     );
   }
-  if (bi.first?.firstEver) {
+  if (browserInspector.first?.firstEver) {
     lines.push(
-      `| bi-first, first-ever (pierwsze w tym przebiegu benchu, n=1, poza ilorazami) | ${fmt(bi.first.firstEver.wallMs)} ms | — | 1 · \`${bi.first.firstEver.mode}\` | — | — | — |`,
+      `| browser-inspector-first, first-ever (pierwsze w tym przebiegu benchu, n=1, poza ilorazami) | ${fmt(browserInspector.first.firstEver.wallMs)} ms | — | 1 · \`${browserInspector.first.firstEver.mode}\` | — | — | — |`,
     );
   }
   for (const [name, t] of [
@@ -139,62 +143,66 @@ export function renderRaport(results) {
     );
   }
   lines.push('');
-  if (hasMcp && bi.warm?.stats) {
-    const vsNaive = ratio(naive.warm.median, bi.warm.stats.median);
-    const vsSettle = settle ? ratio(settle.warm.median, bi.warm.stats.median) : '—';
-    const vsLean = lean ? ratio(lean.warm.median, bi.warm.stats.median) : '—';
+  if (hasMcp && browserInspector.warm?.stats) {
+    const vsNaive = ratio(naive.warm.median, browserInspector.warm.stats.median);
+    const vsSettle = settle ? ratio(settle.warm.median, browserInspector.warm.stats.median) : '—';
+    const vsLean = lean ? ratio(lean.warm.median, browserInspector.warm.stats.median) : '—';
     lines.push(
-      `**Wniosek z tabeli:** ścieżka ciepła \`bi-warm\` (mediana ${fmt(bi.warm.stats.median)} ms, p90 ${fmt(bi.warm.stats.p90)} ms) jest ` +
+      `**Wniosek z tabeli:** ścieżka ciepła \`browser-inspector-warm\` (mediana ${fmt(browserInspector.warm.stats.median)} ms, p90 ${fmt(browserInspector.warm.stats.p90)} ms) jest ` +
         `**${vsNaive}× vs domyślne** ustawienia MCP (naive warm ${fmt(naive.warm.median)} ms), ${vsLean}× vs MCP lean i ` +
         `**~${vsSettle}× vs zestrojony settle 100** (${settle ? fmt(settle.warm.median) : '—'} ms) — dwie trzecie różnicy to domyślna polityka ` +
         '`--timeout-settle 500` serwera po każdej akcji, nie architektura. 5× jest własnością **każdego wywołania po pierwszym**; ' +
-        `\`bi-first\` (${bi.first ? fmt(bi.first.stats.median) : '—'} ms) i \`bi-cold\` (${bi.cold ? fmt(bi.cold.stats.median) : '—'} ms) ` +
+        `\`browser-inspector-first\` (${browserInspector.first ? fmt(browserInspector.first.stats.median) : '—'} ms) i \`browser-inspector-cold\` (${browserInspector.cold ? fmt(browserInspector.cold.stats.median) : '—'} ms) ` +
         'to fizyka startu Chrome i są raportowane osobno, poza progiem 5×.',
       '',
     );
     lines.push(
       barChart('Czas zadania (ms, mediany, cieplo)', 'ms', [
-        ['bi-warm', bi.warm.stats.median],
-        ...(bi.tight ? [/** @type {[string, number]} */ (['bi-warm-tight', bi.tight.stats.median])] : []),
-        ...(bi.fresh ? [/** @type {[string, number]} */ (['bi-warm-fresh', bi.fresh.stats.median])] : []),
+        ['browser-inspector-warm', browserInspector.warm.stats.median],
+        ...(browserInspector.tight
+          ? [/** @type {[string, number]} */ (['browser-inspector-warm-tight', browserInspector.tight.stats.median])]
+          : []),
+        ...(browserInspector.fresh
+          ? [/** @type {[string, number]} */ (['browser-inspector-warm-fresh', browserInspector.fresh.stats.median])]
+          : []),
         ['MCP naive', naive.warm.median],
         ...(lean ? [/** @type {[string, number]} */ (['MCP lean', lean.warm.median])] : []),
         ...(settle ? [/** @type {[string, number]} */ (['MCP lean settle 100', settle.warm.median])] : []),
       ]),
     );
-    if (bi.first && bi.cold) {
+    if (browserInspector.first && browserInspector.cold) {
       lines.push(
         barChart('Czas zadania na zimno (ms, mediany)', 'ms', [
-          ['bi-first', bi.first.stats.median],
-          ['bi-cold', bi.cold.stats.median],
+          ['browser-inspector-first', browserInspector.first.stats.median],
+          ['browser-inspector-cold', browserInspector.cold.stats.median],
           ['MCP naive 1. przebieg', naive.firstRunMs],
           ...(lean ? [/** @type {[string, number]} */ (['MCP lean 1. przebieg', lean.firstRunMs])] : []),
         ]),
       );
     }
-  } else if (bi.warm?.stats) {
-    lines.push('Brak kolumn MCP w tym przebiegu (`--only bi`) — ilorazy nie są liczone.', '');
+  } else if (browserInspector.warm?.stats) {
+    lines.push('Brak kolumn MCP w tym przebiegu (`--only browser-inspector`) — ilorazy nie są liczone.', '');
   }
 
   // ── Tokens ────────────────────────────────────────────────────────────────
   const tokenRows = [];
-  if (bi.batchTokens) {
+  if (browserInspector.batchTokens) {
     tokenRows.push({
-      name: 'bi batch',
-      label: '**bi batch** — `bi read.config.json`, stdout, cały `report.md`',
-      items: bi.batchTokens,
+      name: 'browser-inspector batch',
+      label: '**browser-inspector batch** — `browser-inspector read.config.json`, stdout, cały `report.md`',
+      items: browserInspector.batchTokens,
     });
-    if (bi.batchTokensPnpm)
+    if (browserInspector.batchTokensPnpm)
       tokenRows.push({
-        name: 'bi batch (pnpm bi)',
-        label: 'bi batch przez `pnpm bi` (skrypt pakietu)',
-        items: bi.batchTokensPnpm,
+        name: 'browser-inspector batch (pnpm browser-inspector)',
+        label: 'browser-inspector batch przez `pnpm browser-inspector` (skrypt pakietu)',
+        items: browserInspector.batchTokensPnpm,
       });
   }
-  for (const it of bi.interactive ?? []) {
+  for (const it of browserInspector.interactive ?? []) {
     tokenRows.push({
       name: it.name,
-      label: `**${it.name}** — ${it.kind === 'naive' ? 'gołe `bi snap`, potem refy' : '`bi find` + selektory'} (${String(it.commands.length)} komend)`,
+      label: `**${it.name}** — ${it.kind === 'naive' ? 'gołe `browser-inspector snap`, potem refy' : '`browser-inspector find` + selektory'} (${String(it.commands.length)} komend)`,
       items: it.tokens,
     });
   }
@@ -205,8 +213,8 @@ export function renderRaport(results) {
       '## Tokeny (o200k)',
       '',
       'Dwie kolumny, bo mieszanie ich zaciera obraz. **Stały** płaci się w KAŻDEJ sesji, zanim padnie pierwsze pytanie: po stronie',
-      'MCP definicje narzędzi z `tools/list` (+ `initialize`), po stronie `bi` blok instrukcji w AGENTS.md. **Zmienny** płaci się za',
-      'wykonanie zadania: po stronie MCP argumenty i tekst odpowiedzi każdego wywołania, po stronie `bi` komendy, stdout i',
+      'MCP definicje narzędzi z `tools/list` (+ `initialize`), po stronie `browser-inspector` blok instrukcji w AGENTS.md. **Zmienny** płaci się za',
+      'wykonanie zadania: po stronie MCP argumenty i tekst odpowiedzi każdego wywołania, po stronie `browser-inspector` komendy, stdout i',
       'przeczytany w całości `report.md` (batch) albo same linie stdout (sesja — zrzuty to pliki, których agent nie czyta).',
       '',
       '| wariant | stały | zmienny | razem na sesję |',
@@ -228,15 +236,15 @@ export function renderRaport(results) {
         ]),
       ),
     );
-    const biBatch = tokenRows.find((r) => r.name === 'bi batch');
+    const inspectorBatch = tokenRows.find((r) => r.name === 'browser-inspector batch');
     const mcpNaive = tokenRows.find((r) => r.name === 'mcp-naive');
     const mcpLean = tokenRows.find((r) => r.name === 'mcp-lean');
-    if (biBatch && mcpNaive) {
+    if (inspectorBatch && mcpNaive) {
       const sum = (/** @type {any} */ r) => total(r.items.fixed).tokens + total(r.items.variable).tokens;
       lines.push(
-        `Batch \`bi\` kosztuje **${fmt(sum(biBatch))}** tokenów na sesję wobec ${fmt(sum(mcpNaive))} (MCP naive)` +
-          `${mcpLean ? ` i ${fmt(sum(mcpLean))} (MCP lean)` : ''} — **${ratio(sum(mcpNaive), sum(biBatch))}×**` +
-          `${mcpLean ? ` / ${ratio(sum(mcpLean), sum(biBatch))}×` : ''} mniej. Sam koszt stały: ${fmt(total(biBatch.items.fixed).tokens)} vs ${fmt(total(mcpNaive.items.fixed).tokens)}.`,
+        `Batch \`browser-inspector\` kosztuje **${fmt(sum(inspectorBatch))}** tokenów na sesję wobec ${fmt(sum(mcpNaive))} (MCP naive)` +
+          `${mcpLean ? ` i ${fmt(sum(mcpLean))} (MCP lean)` : ''} — **${ratio(sum(mcpNaive), sum(inspectorBatch))}×**` +
+          `${mcpLean ? ` / ${ratio(sum(mcpLean), sum(inspectorBatch))}×` : ''} mniej. Sam koszt stały: ${fmt(total(inspectorBatch.items.fixed).tokens)} vs ${fmt(total(mcpNaive.items.fixed).tokens)}.`,
         '',
       );
     }
@@ -250,24 +258,24 @@ export function renderRaport(results) {
   }
 
   // ── Interactive ───────────────────────────────────────────────────────────
-  if ((bi.interactive ?? []).length > 0) {
+  if ((browserInspector.interactive ?? []).length > 0) {
     lines.push(
-      '## Sesja interaktywna (`bi-interactive`)',
+      '## Sesja interaktywna (`browser-inspector-interactive`)',
       '',
-      'Każda komenda to osobny proces `node bin/bi.mjs` przez keepera (czas = spawn → exit). Dwa warianty: `naive` (agent patrzy',
-      'gołym `bi snap` i działa na refach) i `lean` (agent zna selektory, `bi find` tylko dla przycisku). Oba oglądają stan po',
-      'pierwszym kliku (`bi snap --diff`).',
+      'Każda komenda to osobny proces `node bin/browser-inspector.mjs` przez keepera (czas = spawn → exit). Dwa warianty: `naive` (agent patrzy',
+      'gołym `browser-inspector snap` i działa na refach) i `lean` (agent zna selektory, `browser-inspector find` tylko dla przycisku). Oba oglądają stan po',
+      'pierwszym kliku (`browser-inspector snap --diff`).',
       '',
       '| wariant | komend | czas całej sesji | komenda: mediana / p90 | tokeny | bramka |',
       '| --- | ---: | ---: | ---: | ---: | --- |',
     );
-    for (const it of bi.interactive) {
+    for (const it of browserInspector.interactive) {
       lines.push(
         `| ${it.name} | ${String(it.commands.length)} | ${fmt(it.wallMs)} ms | ${fmt(it.commandMs.median)} / ${fmt(it.commandMs.p90)} ms | ${fmt(total(it.tokens.fixed).tokens + total(it.tokens.variable).tokens)} | ${it.problems.length === 0 ? 'ok' : it.problems.join('; ')} |`,
       );
     }
     lines.push('');
-    for (const it of bi.interactive) {
+    for (const it of browserInspector.interactive) {
       lines.push(`<details><summary>${it.name} — komendy i stdout</summary>`, '', '```');
       for (const c of it.commands)
         lines.push(`$ ${c.command}   # ${String(c.ms)} ms, exit ${String(c.code)}`, ...c.stdout.split('\n'));
@@ -276,42 +284,45 @@ export function renderRaport(results) {
   }
 
   // ── keeper-survives-shell, app-factory ────────────────────────────────────
-  if ((bi.shells ?? []).length > 0) {
+  if ((browserInspector.shells ?? []).length > 0) {
     lines.push(
       '## keeper-survives-shell',
       '',
-      '`bi up` w podprocesie powłoki, wyjście powłoki, `bi status` z nowego procesu: czy keeper przeżył? Jeśli host zabija drzewo',
+      '`browser-inspector up` w podprocesie powłoki, wyjście powłoki, `browser-inspector status` z nowego procesu: czy keeper przeżył? Jeśli host zabija drzewo',
       '(Job Object), każde wywołanie agenta jest zimne i 5× dostaje tylko bench.',
       '',
-      '| powłoka | przeżył | `bi up` w powłoce | `bi status` po wyjściu | uwaga |',
+      '| powłoka | przeżył | `browser-inspector up` w powłoce | `browser-inspector status` po wyjściu | uwaga |',
       '| --- | --- | ---: | ---: | --- |',
     );
-    for (const s of bi.shells) {
+    for (const s of browserInspector.shells) {
       lines.push(
         `| ${s.name} | ${s.available ? (s.survives ? '**yes**' : '**no**') : 'n/a'} | ${fmt(s.shellMs)} ms | ${fmt(s.statusMs)} ms | ${s.note ?? ''} |`,
       );
     }
     lines.push('');
   }
-  if (bi.appFactory) {
+  if (browserInspector.appFactory) {
     lines.push('## app-factory (6 snapshotów, buildy na 4311–4314)', '');
-    if (!bi.appFactory.available) {
-      lines.push(`Pominięte: ${String(bi.appFactory.reason ?? 'brak configu albo buildów app-factory')}.`, '');
+    if (!browserInspector.appFactory.available) {
+      lines.push(
+        `Pominięte: ${String(browserInspector.appFactory.reason ?? 'brak configu albo buildów app-factory')}.`,
+        '',
+      );
     } else {
       lines.push(
-        `Config: \`${String(bi.appFactory.config)}\` (kopia z własnym \`outputDir\`; wariant „settled” = \`networkidle\` → \`settled\`, kroki \`wait ms\` bez zmian).`,
+        `Config: \`${String(browserInspector.appFactory.config)}\` (kopia z własnym \`outputDir\`; wariant „settled” = \`networkidle\` → \`settled\`, kroki \`wait ms\` bez zmian).`,
         '',
         '| config | parallel | przebiegi (ms) | completed | tryb |',
         '| --- | ---: | --- | ---: | --- |',
       );
-      for (const run of bi.appFactory.runs) {
+      for (const run of browserInspector.appFactory.runs) {
         const last = run.samples.at(-1);
         lines.push(
           `| ${run.variant === 'settled' ? 'po migracji `settled`' : 'bez zmian'} | ${String(run.parallel)} | ${run.samples.map((/** @type {any} */ s) => fmt(s.wallMs)).join(' · ')} | ${String(last.snapshots.filter((/** @type {any} */ s) => s.completed).length)}/${String(last.snapshots.length)} | ${run.samples.map((/** @type {any} */ s) => s.mode).join(', ')} |`,
         );
       }
       lines.push('');
-      const failed = (bi.appFactory.runs[0]?.samples.at(-1)?.snapshots ?? []).filter(
+      const failed = (browserInspector.appFactory.runs[0]?.samples.at(-1)?.snapshots ?? []).filter(
         (/** @type {any} */ s) => !s.completed,
       );
       if (failed.length > 0) {
@@ -344,9 +355,10 @@ export function renderRaport(results) {
 
   // ── Gate ──────────────────────────────────────────────────────────────────
   const gates = [];
-  if (bi.batchSample) gates.push({ name: 'bi batch', problems: bi.batchSample.problems });
+  if (browserInspector.batchSample)
+    gates.push({ name: 'browser-inspector batch', problems: browserInspector.batchSample.problems });
   for (const [name, v] of variants) if (v.problems.length > 0) gates.push({ name, problems: v.problems });
-  for (const it of bi.interactive ?? []) gates.push({ name: it.name, problems: it.problems });
+  for (const it of browserInspector.interactive ?? []) gates.push({ name: it.name, problems: it.problems });
   for (const t of mcp.tokens ?? []) gates.push({ name: t.variant, problems: t.problems });
   for (const t of mcp.time ?? [])
     if (t.problems?.length) gates.push({ name: `${t.name} (czas)`, problems: t.problems });
@@ -368,17 +380,17 @@ export function renderRaport(results) {
     '## Metodyka i zasady uczciwości (DESIGN.md §9)',
     '',
     '1. **Ten sam tokenizer po obu stronach** (`o200k_base` — proxy; wiarygodny jest stosunek, nie liczba absolutna).',
-    '2. **Liczone jest to, co wchodzi do kontekstu**: dla `bi` blok AGENTS.md jako koszt stały + komenda + stdout + `report.md` w',
+    '2. **Liczone jest to, co wchodzi do kontekstu**: dla `browser-inspector` blok AGENTS.md jako koszt stały + komenda + stdout + `report.md` w',
     '   całości (batch) / same linie stdout (sesja); dla MCP `tools/list` + `initialize` jako koszt stały + argumenty i tekst',
     '   odpowiedzi każdego wywołania (jawne `browser_snapshot`, bo 0.0.80 linkuje snapshot w pliku, a agent i tak musi go zobaczyć).',
-    '3. **Czas od `spawn` do `exit` prawdziwego procesu klienta** (`node bin/bi.mjs …`), nigdy import w procesie benchu; po stronie',
+    '3. **Czas od `spawn` do `exit` prawdziwego procesu klienta** (`node bin/browser-inspector.mjs …`), nigdy import w procesie benchu; po stronie',
     '   MCP czas zadania na serwerze podniesionym raz (1. przebieg n=1 osobno, kolejne z medianą).',
-    '4. **Przerwa 300 ms między powtórzeniami po obu stronach** — scrub `bi` i `about:blank` MCP są poza stoperem tylko wtedy;',
-    '   `bi-warm-tight` pokazuje, co się dzieje bez przerwy.',
+    '4. **Przerwa 300 ms między powtórzeniami po obu stronach** — scrub `browser-inspector` i `about:blank` MCP są poza stoperem tylko wtedy;',
+    '   `browser-inspector-warm-tight` pokazuje, co się dzieje bez przerwy.',
     '5. **`timing.mode` każdego przebiegu jest walidowany**: przebieg z trybem innym niż oczekiwany w kolumnie (np. `first` w warm)',
     '   jest wypisany pogrubieniem w tabeli nagłówkowej i unieważnia pomiar tej kolumny.',
-    '6. **`bi-cold` czeka na zniknięcie pid klienta i potomnych `chrome.exe`** przed następnym powtórzeniem; `bi-first` zatrzymuje',
-    '   keepera (`bi stop`) i czeka tak samo. „first-ever” (pierwsze wywołanie w przebiegu benchu) jest osobno, poza ilorazami.',
+    '6. **`browser-inspector-cold` czeka na zniknięcie pid klienta i potomnych `chrome.exe`** przed następnym powtórzeniem; `browser-inspector-first` zatrzymuje',
+    '   keepera (`browser-inspector stop`) i czeka tak samo. „first-ever” (pierwsze wywołanie w przebiegu benchu) jest osobno, poza ilorazami.',
     '7. **Ta sama strona dla obu stron**: statyczna kopia formularza (`bench/app/`, `bench/serve.mjs`, bez nagłówków cache, bez',
     '   dev-servera), `/api/zgloszenia` zawsze 404 — awaria widoczna wyłącznie w konsoli i sieci.',
     '8. Wersje i sprzęt w nagłówku; każdy iloraz liczy się wobec pomiaru MCP 0.0.80 z tego samego dnia i tej samej maszyny.',
@@ -394,16 +406,19 @@ export function renderRaport(results) {
  * @param {any} results
  */
 export function renderWyniki(results) {
-  const { bi = {}, mcp = {} } = results;
+  const { browserInspector = {}, mcp = {} } = results;
   const rows = [];
-  if (bi.batchTokens)
+  if (browserInspector.batchTokens)
     rows.push({
-      name: 'bi batch',
-      items: bi.batchTokens,
-      extra: bi.batchSample ? { dir: bi.batchSample.dir, problems: bi.batchSample.problems } : undefined,
+      name: 'browser-inspector batch',
+      items: browserInspector.batchTokens,
+      extra: browserInspector.batchSample
+        ? { dir: browserInspector.batchSample.dir, problems: browserInspector.batchSample.problems }
+        : undefined,
     });
-  if (bi.batchTokensPnpm) rows.push({ name: 'bi batch (pnpm bi)', items: bi.batchTokensPnpm });
-  for (const it of bi.interactive ?? [])
+  if (browserInspector.batchTokensPnpm)
+    rows.push({ name: 'browser-inspector batch (pnpm browser-inspector)', items: browserInspector.batchTokensPnpm });
+  for (const it of browserInspector.interactive ?? [])
     rows.push({ name: it.name, items: it.tokens, extra: { commands: it.commands.length, problems: it.problems } });
   for (const t of mcp.tokens ?? [])
     rows.push({
@@ -445,7 +460,7 @@ export function renderWyniki(results) {
  * @param {any} results
  */
 export function renderReadmeBlock(results) {
-  const { bi = {}, mcp = {}, meta = {} } = results;
+  const { browserInspector = {}, mcp = {}, meta = {} } = results;
   const naive = (mcp.time ?? []).find((/** @type {any} */ t) => t.name === 'mcp-naive');
   const lean = (mcp.time ?? []).find((/** @type {any} */ t) => t.name === 'mcp-lean');
   const settle = (mcp.time ?? []).find((/** @type {any} */ t) => t.name === 'mcp-lean-settle-100');
@@ -460,10 +475,10 @@ export function renderReadmeBlock(results) {
     '| --- | ---: | ---: | ---: | ---: |',
   );
   for (const [name, v, cold] of [
-    ['bi-warm (2.+ wywołanie, przerwa 300 ms)', bi.warm, false],
-    ['bi-warm-tight (bez przerwy)', bi.tight, false],
-    ['bi-first (keeper startuje w stoperze)', bi.first, true],
-    ['bi-cold (`--no-daemon`, CI)', bi.cold, true],
+    ['browser-inspector-warm (2.+ wywołanie, przerwa 300 ms)', browserInspector.warm, false],
+    ['browser-inspector-warm-tight (bez przerwy)', browserInspector.tight, false],
+    ['browser-inspector-first (keeper startuje w stoperze)', browserInspector.first, true],
+    ['browser-inspector-cold (`--no-daemon`, CI)', browserInspector.cold, true],
   ]) {
     if (!v?.stats) continue;
     const baseN = cold ? naive?.firstRunMs : naive?.warm?.median;
@@ -478,17 +493,19 @@ export function renderReadmeBlock(results) {
     );
   lines.push('');
   const sum = (/** @type {any} */ t) => (t ? total(t.fixed).tokens + total(t.variable).tokens : null);
-  const biBatch = bi.batchTokens ? total(bi.batchTokens.fixed).tokens + total(bi.batchTokens.variable).tokens : null;
+  const inspectorBatch = browserInspector.batchTokens
+    ? total(browserInspector.batchTokens.fixed).tokens + total(browserInspector.batchTokens.variable).tokens
+    : null;
   const naiveTok = sum((mcp.tokens ?? []).find((/** @type {any} */ t) => t.variant === 'mcp-naive'));
   const leanTok = sum((mcp.tokens ?? []).find((/** @type {any} */ t) => t.variant === 'mcp-lean'));
-  const inter = (bi.interactive ?? [])
+  const inter = (browserInspector.interactive ?? [])
     .map(
       (/** @type {any} */ it) => `${it.name} ${fmt(total(it.tokens.fixed).tokens + total(it.tokens.variable).tokens)}`,
     )
     .join(', ');
-  if (biBatch !== null) {
+  if (inspectorBatch !== null) {
     lines.push(
-      `Tokeny (o200k) na sesję z jednym zadaniem: **bi batch ${fmt(biBatch)}** (blok AGENTS.md ${fmt(total(bi.batchTokens.fixed).tokens)} + komenda, stdout i cały \`report.md\`)` +
+      `Tokeny (o200k) na sesję z jednym zadaniem: **browser-inspector batch ${fmt(inspectorBatch)}** (blok AGENTS.md ${fmt(total(browserInspector.batchTokens.fixed).tokens)} + komenda, stdout i cały \`report.md\`)` +
         `${inter ? `, ${inter}` : ''}${naiveTok !== null ? ` — wobec MCP naive ${fmt(naiveTok)}` : ''}${leanTok !== null ? ` / lean ${fmt(leanTok)}` : ''}.` +
         ' Szczegóły: [bench/RAPORT.md](bench/RAPORT.md), budżet vs pomiar: [bench/BUDGET.md](bench/BUDGET.md).',
       '',

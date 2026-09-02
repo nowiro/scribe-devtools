@@ -1,5 +1,6 @@
 // budget.mjs — BUDGET.md: the phases of DESIGN.md §6 next to what `report.json.timing` and
-// `_manifest.json.timing` measured, per column (`bi-warm`, `bi-warm-tight`, `bi-first`, `bi-cold`),
+// `_manifest.json.timing` measured, per column (`browser-inspector-warm`, `browser-inspector-warm-tight`,
+// `browser-inspector-first`, `browser-inspector-cold`),
 // with `queuedMs` / `scrubMs` / `cacheHits` on their own rows, and a red mark on every phase that
 // drifts more than 25 % from the design and every ratio below 5.0 (AC-19). The numbers of the
 // design column are the table of §6, grouped the way the engine reports them; the numbers of the
@@ -7,7 +8,12 @@
 import { fmt } from './tokens.mjs';
 import { stats } from './time-run.mjs';
 
-export const COLUMNS = /** @type {const} */ (['bi-warm', 'bi-warm-tight', 'bi-first', 'bi-cold']);
+export const COLUMNS = /** @type {const} */ ([
+  'browser-inspector-warm',
+  'browser-inspector-warm-tight',
+  'browser-inspector-first',
+  'browser-inspector-cold',
+]);
 
 /** @typedef {typeof COLUMNS[number]} Column */
 /** @typedef {{ wallMs: number, timing: any, manifestTiming: any }} Sample */
@@ -29,9 +35,20 @@ const n = (/** @type {unknown} */ v) => Number(v) || 0;
  * @type {{ totals: Record<Column, number>, mcp: { warm: number, first: number, leanSettle: number }, ratios: Record<string, number>, phases: Phase[], fresh: number, appFactory: { unchanged: [number, number], settledP1: number, settledP3: [number, number] }, scrubBetween: [number, number] }}
  */
 export const DESIGN_BUDGET = {
-  totals: { 'bi-warm': 546, 'bi-warm-tight': 561, 'bi-first': 1469, 'bi-cold': 1618 },
+  totals: {
+    'browser-inspector-warm': 546,
+    'browser-inspector-warm-tight': 561,
+    'browser-inspector-first': 1469,
+    'browser-inspector-cold': 1618,
+  },
   mcp: { warm: 2900, first: 3600, leanSettle: 1000 },
-  ratios: { 'bi-warm': 5.3, 'bi-warm-tight': 5.2, 'bi-first': 2.4, 'bi-cold': 2.2, 'bi-warm-fresh': 3.1 },
+  ratios: {
+    'browser-inspector-warm': 5.3,
+    'browser-inspector-warm-tight': 5.2,
+    'browser-inspector-first': 2.4,
+    'browser-inspector-cold': 2.2,
+    'browser-inspector-warm-fresh': 3.1,
+  },
   fresh: 932,
   appFactory: { unchanged: [8000, 10000], settledP1: 2500, settledP3: [1300, 1600] },
   scrubBetween: [12, 35],
@@ -39,58 +56,104 @@ export const DESIGN_BUDGET = {
     {
       key: 'client',
       label:
-        'klient: start (72) + pipe (5) + dispatch (2) + wydruk i wyjście (6); `bi-first`: + import playwright-core (270), bo klient czeka na keepera w tym czasie; `bi-cold`: + context/browser.close (200)',
-      design: { 'bi-warm': 85, 'bi-warm-tight': 85, 'bi-first': 355, 'bi-cold': 277 },
+        'klient: start (72) + pipe (5) + dispatch (2) + wydruk i wyjście (6); `browser-inspector-first`: + import playwright-core (270), bo klient czeka na keepera w tym czasie; `browser-inspector-cold`: + context/browser.close (200)',
+      design: {
+        'browser-inspector-warm': 85,
+        'browser-inspector-warm-tight': 85,
+        'browser-inspector-first': 355,
+        'browser-inspector-cold': 277,
+      },
       measure: (s) => s.wallMs - n(s.manifestTiming?.clientMs) - n(s.manifestTiming?.keeperStartMs),
     },
     {
       key: 'keeperStart',
       label: 'spawn keepera → nasłuch (`_manifest.timing.keeperStartMs`)',
-      design: { 'bi-warm': null, 'bi-warm-tight': null, 'bi-first': 45, 'bi-cold': null },
+      design: {
+        'browser-inspector-warm': null,
+        'browser-inspector-warm-tight': null,
+        'browser-inspector-first': 45,
+        'browser-inspector-cold': null,
+      },
       measure: (s) => n(s.manifestTiming?.keeperStartMs),
     },
     {
       key: 'queued',
       label: 'queuedMs — scrub poprzedniego przebiegu w kolejce lane’u, po odpowiedzi (§6)',
-      design: { 'bi-warm': 0, 'bi-warm-tight': 15, 'bi-first': null, 'bi-cold': null },
+      design: {
+        'browser-inspector-warm': 0,
+        'browser-inspector-warm-tight': 15,
+        'browser-inspector-first': null,
+        'browser-inspector-cold': null,
+      },
       measure: (s) => n(s.timing?.queuedMs),
     },
     {
       key: 'scrub',
       label:
         'scrubMs — scrub w stoperze przebiegu (tylko siatka bezpieczeństwa `runFlow`; między snapshotami jednego batchu)',
-      design: { 'bi-warm': 0, 'bi-warm-tight': 0, 'bi-first': null, 'bi-cold': null },
+      design: {
+        'browser-inspector-warm': 0,
+        'browser-inspector-warm-tight': 0,
+        'browser-inspector-first': null,
+        'browser-inspector-cold': null,
+      },
       measure: (s) => n(s.timing?.scrubMs),
     },
     {
       key: 'launch',
-      label: 'launch Chrome (300) + kontekst i strona (115); `bi-cold`: + import playwright-core (270) w procesie',
-      design: { 'bi-warm': 0, 'bi-warm-tight': 0, 'bi-first': 415, 'bi-cold': 685 },
+      label:
+        'launch Chrome (300) + kontekst i strona (115); `browser-inspector-cold`: + import playwright-core (270) w procesie',
+      design: {
+        'browser-inspector-warm': 0,
+        'browser-inspector-warm-tight': 0,
+        'browser-inspector-first': 415,
+        'browser-inspector-cold': 685,
+      },
       measure: (s) => n(s.manifestTiming?.clientMs) - n(s.timing?.totalMs) - n(s.timing?.queuedMs),
     },
     {
       key: 'goto',
       label: 'goto `load` (ta sama karta 55 / świeży kontekst 250)',
-      design: { 'bi-warm': 55, 'bi-warm-tight': 55, 'bi-first': 250, 'bi-cold': 250 },
+      design: {
+        'browser-inspector-warm': 55,
+        'browser-inspector-warm-tight': 55,
+        'browser-inspector-first': 250,
+        'browser-inspector-cold': 250,
+      },
       measure: (s) => n(s.timing?.gotoMs),
     },
     {
       key: 'steps',
       label:
         '18 kroków: waitFor 10 + 5×click 220 + 4×fill 40 + select 12 + waitFor 40 + 6×extract/evaluate 12 + 2×screenshot 50',
-      design: { 'bi-warm': 384, 'bi-warm-tight': 384, 'bi-first': 384, 'bi-cold': 384 },
+      design: {
+        'browser-inspector-warm': 384,
+        'browser-inspector-warm-tight': 384,
+        'browser-inspector-first': 384,
+        'browser-inspector-cold': 384,
+      },
       measure: (s) => n(s.timing?.stepsMs),
     },
     {
       key: 'capture',
       label: 'dowód końcowy (el-count + title/text/elements)',
-      design: { 'bi-warm': 12, 'bi-warm-tight': 12, 'bi-first': 12, 'bi-cold': 12 },
+      design: {
+        'browser-inspector-warm': 12,
+        'browser-inspector-warm-tight': 12,
+        'browser-inspector-first': 12,
+        'browser-inspector-cold': 12,
+      },
       measure: (s) => n(s.timing?.captureMs),
     },
     {
       key: 'write',
       label: 'oczekiwanie na zapisy + report.json/md, elements.md, text.txt, manifesty',
-      design: { 'bi-warm': 10, 'bi-warm-tight': 10, 'bi-first': 10, 'bi-cold': 10 },
+      design: {
+        'browser-inspector-warm': 10,
+        'browser-inspector-warm-tight': 10,
+        'browser-inspector-first': 10,
+        'browser-inspector-cold': 10,
+      },
       measure: (s) => n(s.timing?.writeMs),
     },
   ],
@@ -135,9 +198,14 @@ export function phaseRow(phase, variants) {
  * @param {any} results `bench/out/results.json`
  */
 export function compareWithDesign(results) {
-  const bi = results.bi ?? {};
+  const browserInspector = results.browserInspector ?? {};
   /** @type {Partial<Record<Column, any>>} */
-  const variants = { 'bi-warm': bi.warm, 'bi-warm-tight': bi.tight, 'bi-first': bi.first, 'bi-cold': bi.cold };
+  const variants = {
+    'browser-inspector-warm': browserInspector.warm,
+    'browser-inspector-warm-tight': browserInspector.tight,
+    'browser-inspector-first': browserInspector.first,
+    'browser-inspector-cold': browserInspector.cold,
+  };
   const phases = DESIGN_BUDGET.phases.map((phase) => phaseRow(phase, variants));
   const total = phaseRow(
     { key: 'total', label: '**razem** (klient spawn → exit)', design: DESIGN_BUDGET.totals, measure: (s) => s.wallMs },
@@ -151,15 +219,15 @@ export function compareWithDesign(results) {
   const settleWarm = mcpTime('mcp-lean-settle-100')?.warm?.median ?? null;
   const ratioRows = [];
   for (const [name, variant] of [
-    ['bi-warm', bi.warm],
-    ['bi-warm-tight', bi.tight],
-    ['bi-first', bi.first],
-    ['bi-cold', bi.cold],
-    ['bi-warm-fresh', bi.fresh],
+    ['browser-inspector-warm', browserInspector.warm],
+    ['browser-inspector-warm-tight', browserInspector.tight],
+    ['browser-inspector-first', browserInspector.first],
+    ['browser-inspector-cold', browserInspector.cold],
+    ['browser-inspector-warm-fresh', browserInspector.fresh],
   ]) {
     if (!variant?.stats) continue;
     const median = variant.stats.median;
-    const vsFirst = name === 'bi-first' || name === 'bi-cold';
+    const vsFirst = name === 'browser-inspector-first' || name === 'browser-inspector-cold';
     const base = vsFirst ? naiveFirst : naiveWarm;
     const ratio = base ? base / median : null;
     const ratioSettle = settleWarm ? settleWarm / median : null;
@@ -185,16 +253,16 @@ export function compareWithDesign(results) {
   }));
 
   const extras = [];
-  if (bi.fresh?.stats) {
-    const v = verdict(DESIGN_BUDGET.fresh, bi.fresh.stats.median);
+  if (browserInspector.fresh?.stats) {
+    const v = verdict(DESIGN_BUDGET.fresh, browserInspector.fresh.stats.median);
     extras.push({
-      label: '`bi-warm-fresh` (`--fresh`: świeży kontekst z puli spare, goto 190–441)',
+      label: '`browser-inspector-warm-fresh` (`--fresh`: świeży kontekst z puli spare, goto 190–441)',
       design: `${fmt(DESIGN_BUDGET.fresh)} ms`,
-      measured: `${fmt(bi.fresh.stats.median)} ms (goto ${fmt(bi.fresh.gotoMs?.median ?? 0)} ms)`,
+      measured: `${fmt(browserInspector.fresh.stats.median)} ms (goto ${fmt(browserInspector.fresh.gotoMs?.median ?? 0)} ms)`,
       ...v,
     });
   }
-  const af = bi.appFactory;
+  const af = browserInspector.appFactory;
   if (af?.available) {
     for (const run of af.runs ?? []) {
       const median = stats(run.samples.map((/** @type {any} */ s) => s.wallMs)).median;
@@ -261,7 +329,7 @@ const x = (/** @type {number | null} */ v) => (v === null ? '—' : `${v.toFixed
  */
 export function renderBudget(results) {
   const c = compareWithDesign(results);
-  const bi = results.bi ?? {};
+  const browserInspector = results.browserInspector ?? {};
   const modeNote = (/** @type {any} */ v, /** @type {string} */ expected) =>
     v?.samples?.length
       ? v.validModes
@@ -278,9 +346,9 @@ export function renderBudget(results) {
     '',
     '## Fazy przebiegu (18 kroków `bench/task.mjs`)',
     '',
-    `Tryby przebiegów: bi-warm ${modeNote(bi.warm, 'warm')} · bi-warm-tight ${modeNote(bi.tight, 'warm')} · bi-first ${modeNote(bi.first, 'first')} · bi-cold ${modeNote(bi.cold, 'no-daemon')}.`,
+    `Tryby przebiegów: browser-inspector-warm ${modeNote(browserInspector.warm, 'warm')} · browser-inspector-warm-tight ${modeNote(browserInspector.tight, 'warm')} · browser-inspector-first ${modeNote(browserInspector.first, 'first')} · browser-inspector-cold ${modeNote(browserInspector.cold, 'no-daemon')}.`,
     '',
-    '| faza | bi-warm (projekt / pomiar) | bi-warm-tight | bi-first | bi-cold |',
+    '| faza | browser-inspector-warm (projekt / pomiar) | browser-inspector-warm-tight | browser-inspector-first | browser-inspector-cold |',
     '| --- | ---: | ---: | ---: | ---: |',
   ];
   const cell = (/** @type {any} */ k) => {
@@ -297,9 +365,9 @@ export function renderBudget(results) {
   lines.push('');
   lines.push(
     'Uwagi do odczytu: scrub poprzedniego przebiegu keeper wykonuje **w kolejce lane’u po odpowiedzi** (`afterAnswer`), więc z',
-    'przerwą 300 ms jest poza stoperem (`queuedMs` 0, `scrubMs` 0), a bez przerwy (`bi-warm-tight`) czeka na niego następny klient',
+    'przerwą 300 ms jest poza stoperem (`queuedMs` 0, `scrubMs` 0), a bez przerwy (`browser-inspector-warm-tight`) czeka na niego następny klient',
     'i płaci go jako `queuedMs` (§6: 15). `scrubMs` > 0 tylko wtedy, gdy siatka bezpieczeństwa w `runFlow` zastała brudny lane — między',
-    'snapshotami jednego batchu (legalnie w stoperze, §2.3) albo przy `--no-daemon`. Wiersz „klient” dla `bi-cold` obejmuje zamknięcie',
+    'snapshotami jednego batchu (legalnie w stoperze, §2.3) albo przy `--no-daemon`. Wiersz „klient” dla `browser-inspector-cold` obejmuje zamknięcie',
     'przeglądarki, bo `--no-daemon` nie rozdziela tych dwóch rzeczy w żadnym pliku.',
     '',
     '## queuedMs, scrubMs, cacheHits — osobno',
@@ -308,11 +376,11 @@ export function renderBudget(results) {
     '| --- | ---: | ---: | ---: | ---: |',
   );
   for (const [name, v] of [
-    ['bi-warm', bi.warm],
-    ['bi-warm-tight', bi.tight],
-    ['bi-warm-fresh', bi.fresh],
-    ['bi-first', bi.first],
-    ['bi-cold', bi.cold],
+    ['browser-inspector-warm', browserInspector.warm],
+    ['browser-inspector-warm-tight', browserInspector.tight],
+    ['browser-inspector-warm-fresh', browserInspector.fresh],
+    ['browser-inspector-first', browserInspector.first],
+    ['browser-inspector-cold', browserInspector.cold],
   ]) {
     if (!v?.stats) continue;
     const red = (v.cacheHitsDocument?.max ?? 0) > 0;
@@ -330,12 +398,12 @@ export function renderBudget(results) {
     '',
   );
   if (c.naiveWarm === null) {
-    lines.push('Brak pomiaru MCP w tym przebiegu (`--only bi`) — ilorazy nie są liczone.', '');
+    lines.push('Brak pomiaru MCP w tym przebiegu (`--only browser-inspector`) — ilorazy nie są liczone.', '');
   } else {
     lines.push(
       `MCP naive warm: **${fmt(c.naiveWarm)} ms** · MCP naive 1. przebieg: ${ms(c.naiveFirst)} · MCP lean \`--timeout-settle 100\` warm: ${ms(c.settleWarm)}.`,
       '',
-      '| wariant bi | mediana | p90 | podstawa | iloraz (pomiar) | iloraz (projekt §6) | vs lean settle 100 |',
+      '| wariant browser-inspector | mediana | p90 | podstawa | iloraz (pomiar) | iloraz (projekt §6) | vs lean settle 100 |',
       '| --- | ---: | ---: | --- | ---: | ---: | ---: |',
     );
     for (const r of c.ratioRows) {
@@ -347,7 +415,7 @@ export function renderBudget(results) {
     }
     lines.push(
       '',
-      '🔴 przy ilorazie < 5,0 jest literalne (AC-19); dla `bi-first`, `bi-cold` i `bi-warm-fresh` projekt **nie obiecuje** 5× (kolumna',
+      '🔴 przy ilorazie < 5,0 jest literalne (AC-19); dla `browser-inspector-first`, `browser-inspector-cold` i `browser-inspector-warm-fresh` projekt **nie obiecuje** 5× (kolumna',
       '„projekt §6”: 2,4× / 2,2× / 3,1×) — czerwień mówi tam tylko „poniżej progu 5×”, nie „gorzej niż projekt”.',
       '',
     );

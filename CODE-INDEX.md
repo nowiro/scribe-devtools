@@ -9,9 +9,9 @@ Modules: 34.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
-- imports: `bench/bi-run.mjs`, `bench/budget.mjs`, `bench/mcp-run.mjs`, `bench/raport.mjs`, `bench/serve.mjs`, `bench/task.mjs`, `bench/time-run.mjs`, `bench/tokens.mjs`
+- imports: `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/mcp-run.mjs`, `bench/raport.mjs`, `bench/serve.mjs`, `bench/task.mjs`, `bench/time-run.mjs`, `bench/tokens.mjs`
 
-## bench/bi-run.mjs
+## bench/browser-inspector-run.mjs
 - exports: `APP_FACTORY_APPS`, `CI_VARS`, `COMMAND`, `COMMAND_PNPM`, `INSTRUCTION`, `appFactoryDir`, `appFactoryFixture`, `batchTokens`, `benchEnv`, `chromeDescendants`, `chromeProcesses`, `findingsFromReport`, `isAlive`, `keeperSurvivesShell`, `parseRefs`, `pipeNameFor`, `prepareAppFactoryConfig`, `prepareBatchConfig`, `readKeeperInfo`, `refOf`, `runAppFactory`, `runBatch`, `runInteractive`, `stopKeeper`, `timeCold`, `timeFirst`, `timeWarm`
 - imports: `bench/task.mjs`, `bench/time-run.mjs`, `bench/tokens.mjs`
 - imported by: `bench/bench.mjs`
@@ -40,18 +40,18 @@ Modules: 34.
 - imported by: `bench/bench.mjs`
 
 ## bench/task.mjs
-- exports: `APP_URL`, `EXPECTED`, `FLOW_STEPS`, `INPUT`, `SNAPSHOT_NAME`, `biConfig`, `checkFindings`
-- imported by: `bench/bench.mjs`, `bench/bi-run.mjs`, `bench/mcp-run.mjs`
+- exports: `APP_URL`, `EXPECTED`, `FLOW_STEPS`, `INPUT`, `SNAPSHOT_NAME`, `browserInspectorConfig`, `checkFindings`
+- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/mcp-run.mjs`
 
 ## bench/time-run.mjs
-- exports: `BIN`, `REPO`, `chromeDescendants`, `chromeProcesses`, `isAlive`, `makeStamp`, `readJson`, `sleep`, `spawnBi`, `stats`, `waitForChromeGone`
-- imported by: `bench/bench.mjs`, `bench/bi-run.mjs`, `bench/budget.mjs`, `bench/mcp-run.mjs`
+- exports: `BIN`, `REPO`, `chromeDescendants`, `chromeProcesses`, `isAlive`, `makeStamp`, `readJson`, `sleep`, `spawnBrowserInspector`, `stats`, `waitForChromeGone`
+- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/mcp-run.mjs`
 
 ## bench/tokens.mjs
 - exports: `bytesOf`, `countTokens`, `fmt`, `measure`, `total`
-- imported by: `bench/bench.mjs`, `bench/bi-run.mjs`, `bench/budget.mjs`, `bench/raport.mjs`
+- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/raport.mjs`
 
-## packages/browser-inspector/bin/bi.mjs
+## packages/browser-inspector/bin/browser-inspector.mjs
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/client.mjs`
 
 ## packages/browser-inspector/src/auth.mjs
@@ -67,12 +67,12 @@ Modules: 34.
 ## packages/browser-inspector/src/cli.mjs
 - exports: `CONTROL_COMMANDS`, `CliError`, `STAMP_PATTERN`, `bindPositionals`, `formatStamp`, `parseArgs`, `parseSessionCommand`, `splitFlags`, `suggest`, `usage`
 - imports: `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/types.js`
-- imported by: `packages/browser-inspector/bin/bi.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/report.mjs`
+- imported by: `packages/browser-inspector/bin/browser-inspector.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/report.mjs`
 
 ## packages/browser-inspector/src/client.mjs
 - exports: `CONNECT_RETRY_MS`, `CONNECT_TIMEOUT_MS`, `INLINE_FILE_MAX`, `KeeperUnavailableError`, `REQUEST_TIMEOUT_MS`, `computeIdentity`, `connectOnce`, `doctor`, `ensureKeeper`, `exchange`, `isScriptComment`, `main`, `packageVersion`, `readFileEntry`, `readPidFile`, `resolveValues`, `runInProcess`, `runViaKeeper`, `spawnKeeper`, `splitCommandLine`
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/types.js`
-- imported by: `packages/browser-inspector/bin/bi.mjs`, `packages/browser-inspector/src/engine.mjs`
+- imported by: `packages/browser-inspector/bin/browser-inspector.mjs`, `packages/browser-inspector/src/engine.mjs`
 
 ## packages/browser-inspector/src/config.mjs
 - exports: `ConfigError`, `DEFAULTS`, `lintConfig`, `loadConfig`, `parseConfig`
@@ -145,7 +145,7 @@ Modules: 34.
 - imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## scripts/check-instruction-sync.mjs
-- exports: `AGENTS_FILE`, `BENCH_FILE`, `TOKEN_LIMIT`, `checkInstructionSync`, `countTokens`, `extractInstruction`
+- exports: `AGENTS_FILE`, `BENCH_FILE`, `COPILOT_FILE`, `TOKEN_LIMIT`, `checkInstructionSync`, `countTokens`, `extractInstruction`
 
 ## scripts/gen-steps-doc.mjs
 - exports: `DOC_FILE`, `SCHEMA_FILE`, `renderFromRepo`, `renderStepsDoc`

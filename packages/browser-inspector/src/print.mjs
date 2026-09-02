@@ -3,7 +3,7 @@
 // One line per success, ≤ 160 characters and ≤ 40 o200k tokens (a test counts them), prefix
 // `ok | FAIL`, separator ` · `, paths relative to the caller's cwd. The line says whether it is
 // worth looking again — `navigated` (refs are dead), `dom Δ`, `el 61→63`, `+1 console.error` — so
-// the agent runs `bi snap` when something changed and not after every click. Content commands
+// the agent runs `browser-inspector snap` when something changed and not after every click. Content commands
 // (`find`, `snap`, `console`, `net`, `eval`, `get`) print the content itself, because the content
 // IS the result; their headers and overflow markers come from here too.
 
@@ -12,7 +12,7 @@ export const MAX_LINE = 160;
 /** `eval` prints the value inline up to this many characters; longer goes to `eval-NNN.txt`. */
 export const EVAL_INLINE_MAX = 300;
 
-export const REF_NOT_FOUND = 'ref not found (gone, label changed or other frame) → bi snap';
+export const REF_NOT_FOUND = 'ref not found (gone, label changed or other frame) → browser-inspector snap';
 
 /**
  * The line a session command prints when there is no keeper (exit 2) — sessions have no
@@ -20,7 +20,7 @@ export const REF_NOT_FOUND = 'ref not found (gone, label changed or other frame)
  * @param {string} reason
  */
 export const KEEPER_UNAVAILABLE = (reason) =>
-  `FAIL keeper unavailable: ${reason} — session needs keeper (bi up, bi doctor); batch works with --no-daemon`;
+  `FAIL keeper unavailable: ${reason} — sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon`;
 
 /**
  * One line, hard-capped. Newlines collapse to spaces (a console message with a stack trace must
@@ -116,7 +116,7 @@ export function formatLine(status, head, parts = []) {
 export const formatOk = (head, parts = []) => formatLine('ok', head, parts);
 
 /**
- * `FAIL click e99 · ref not found (…) → bi snap` — the reason is the first part.
+ * `FAIL click e99 · ref not found (…) → browser-inspector snap` — the reason is the first part.
  * @param {string} head
  * @param {string} reason
  * @param {readonly (string | undefined | null | false)[]} [parts]
@@ -156,7 +156,7 @@ export const formatFail = (head, reason, parts = []) => formatLine('FAIL', head,
 export function formatDeltas(before, after, options = {}) {
   const parts = [];
   if (after.navigated) {
-    parts.push(`navigated → refs f${String(after.frameSeq ?? 1)}eN (bi snap)`);
+    parts.push(`navigated → refs f${String(after.frameSeq ?? 1)}eN (browser-inspector snap)`);
   } else if (after.url !== undefined && before.url !== undefined && after.url !== before.url) {
     const title = after.title ? ` ${JSON.stringify(truncate(after.title, 40))}` : '';
     // Without a session origin the previous URL says what "same origin" means: a cross-origin hop
@@ -237,7 +237,7 @@ export function formatNetEntry(entry, baseOrigin) {
 }
 
 /**
- * `3 new · 1 failed: #7 POST /api/cart 404 12 ms` — the summary line of `bi net`; when nothing
+ * `3 new · 1 failed: #7 POST /api/cart 404 12 ms` — the summary line of `browser-inspector net`; when nothing
  * failed only the count prints, and `--failed` lists the failures underneath.
  * @param {{ newCount: number, failed: readonly string[] }} r formatted failed entries
  * @returns {string[]}
@@ -250,7 +250,7 @@ export function formatNetSummary(r) {
 }
 
 /**
- * `404 application/json 41 B · session/default/net/7.txt` — the header line of `bi net <n> --body`.
+ * `404 application/json 41 B · session/default/net/7.txt` — the header line of `browser-inspector net <n> --body`.
  * @param {{ status?: number, failure?: string, contentType?: string, size?: number, file: string }} r
  */
 export const formatNetBody = (r) =>
@@ -268,7 +268,7 @@ export const formatNetBody = (r) =>
   );
 
 /**
- * `policy dismiss · last: confirm "Usunąć?" → dismissed (bi click e12)` — `bi dialog` without arguments.
+ * `policy dismiss · last: confirm "Usunąć?" → dismissed (browser-inspector click e12)` — `browser-inspector dialog` without arguments.
  * @param {{ action: string, text?: string, once?: boolean }} policy
  * @param {{ type: string, message: string, action: string, trigger?: string } | undefined} last
  */
@@ -289,11 +289,11 @@ export const formatExport = (count, file) =>
   formatOk(`export ${String(count)} step${count === 1 ? '' : 's'} → ${file} (refs → data-testid/#id/role=)`);
 
 /**
- * `ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · <bi path>`
- * @param {{ survives: boolean, spawnToListenMs: number, firstJobMs: number, warmMs: number, hash: string, biPath: string }} r
+ * `ok keeper survives shell: yes · spawn→listen 45 ms · first job 1 390 ms · warm 470 ms · hash 3f9a1c2e · <browser-inspector path>`
+ * @param {{ survives: boolean, spawnToListenMs: number, firstJobMs: number, warmMs: number, hash: string, binPath: string }} r
  */
 export const formatDoctor = (r) =>
-  // The doctor line is the one exception to the 160-character cap: the absolute path of bin/bi.mjs
+  // The doctor line is the one exception to the 160-character cap: the absolute path of bin/browser-inspector.mjs
   // is its point, and cutting it would hide which checkout answered.
   [
     `ok keeper survives shell: ${r.survives ? 'yes' : 'no'}`,
@@ -301,7 +301,7 @@ export const formatDoctor = (r) =>
     `first job ${formatMs(r.firstJobMs)} ms`,
     `warm ${formatMs(r.warmMs)} ms`,
     `hash ${r.hash}`,
-    r.biPath.replaceAll('\\', '/'),
+    r.binPath.replaceAll('\\', '/'),
   ].join(SEP);
 
 /**

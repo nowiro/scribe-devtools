@@ -5,7 +5,7 @@
 // The journal is the memory of a session: one JSON line per command with the step as the parser
 // built it, the verdict, the time, the URL after the command and — for every action on a ref — the
 // selector the engine resolved AT THE MOMENT OF THE ACTION (`locatorFor`: data-testid → #id →
-// [name] → role=). That last field is what makes `bi export` possible: a ref (`e45`) is the address
+// [name] → role=). That last field is what makes `browser-inspector export` possible: a ref (`e45`) is the address
 // of an element in one snapshot of one session and means nothing tomorrow; the exported flow must
 // carry addresses that find the element again. Secrets never enter the journal: a value from
 // `--env` / `@{NAME}` is `valueFromEnv` already in the parser, and every line is redacted anyway.
@@ -95,7 +95,7 @@ export function normalizeEntry(entry, secretValues = []) {
 /**
  * Append one line to the journal, creating the directory on the first command of a session.
  * Synchronous on purpose: a journal line is a few hundred bytes and the next command must be able
- * to read it; an unflushed async write is how a `bi export` after `bi fill` misses the fill.
+ * to read it; an unflushed async write is how a `browser-inspector export` after `browser-inspector fill` misses the fill.
  * @param {string} file the journal path (`journalPath(sessionDir)`)
  * @param {Partial<JournalEntry> & { step: Step }} entry
  * @param {{ secretValues?: readonly string[] }} [options]
@@ -162,7 +162,7 @@ const LOOKING_ONLY = Object.freeze({
   locator: 'session-only',
   trace: 'session-only',
   video: 'session-only',
-  run: 'session-only (BI_UNSAFE) — never in a config',
+  run: 'session-only (BROWSER_INSPECTOR_UNSAFE) — never in a config',
   close: 'session-only',
 });
 
@@ -247,7 +247,8 @@ function replaceRef(object, fieldPath, selector) {
  */
 export function exportFlow(entries, options = {}) {
   const opened = entries.find((entry) => entry.ok && resolveStepName(entry.step?.do) === 'goto');
-  if (!opened) throw new ExportError('nothing to export: the journal has no successful "open" (bi open <url>)');
+  if (!opened)
+    throw new ExportError('nothing to export: the journal has no successful "open" (browser-inspector open <url>)');
   const startIndex = entries.indexOf(opened);
 
   /** @type {Record<string, any>[]} */

@@ -5,7 +5,6 @@ node_modules/
 coverage/
 package-lock.json
 .scribe-devtools/
-.bi/
 
 # Hand-maintained prose with narrowed tables.
 README.md

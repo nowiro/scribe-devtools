@@ -1,8 +1,8 @@
 // ONE real Chrome/Edge through the fixtures (DESIGN.md §8; AC-9, AC-11, AC-15, AC-16): the batch
 // engine in-process — the same `runFlow` the `--no-daemon` path and the keeper call. The session
-// half (keeper up/doctor/stop, `bi script`) is WP6's extension of this file.
+// half (keeper up/doctor/stop, `browser-inspector script`) is WP6's extension of this file.
 //
-// `BI_SKIP_SMOKE=1` skips the whole file — only for a machine without Chrome or Edge.
+// `BROWSER_INSPECTOR_SKIP_SMOKE=1` skips the whole file — only for a machine without Chrome or Edge.
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -13,12 +13,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseConfig } from '../../src/config.mjs';
 import { createEngine } from '../../src/engine.mjs';
 import { readJournal } from '../../src/session-log.mjs';
-import { bi, cleanup, makeEnv, stopKeeper } from '../fixtures/keeper-harness.mjs';
+import { runBrowserInspector, cleanup, makeEnv, stopKeeper } from '../fixtures/keeper-harness.mjs';
 import { startFixtureServer } from './fixture-server.mjs';
 
 const PORT_A = 4501;
 const PORT_B = 4502;
-const skip = process.env.BI_SKIP_SMOKE === '1' || process.env.BI_SKIP_SMOKE === 'true';
+const skip = process.env.BROWSER_INSPECTOR_SKIP_SMOKE === '1' || process.env.BROWSER_INSPECTOR_SKIP_SMOKE === 'true';
 
 describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
   /** @type {Awaited<ReturnType<typeof startFixtureServer>>} */
@@ -33,7 +33,7 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
 
   beforeAll(async () => {
     [a, b] = await Promise.all([startFixtureServer(PORT_A), startFixtureServer(PORT_B)]);
-    out = await mkdtemp(path.join(os.tmpdir(), 'bi-smoke-'));
+    out = await mkdtemp(path.join(os.tmpdir(), 'browser-inspector-smoke-'));
     engine = createEngine({ browser: { headless: true }, env: process.env, prewarm: true });
     await engine.ready;
   }, 60_000);
@@ -293,16 +293,16 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     });
     expect(dirty.failure).toBeUndefined();
     expect(dirty.report.extracts['a-state'].value).toBe(
-      `{"ls":"L@${String(PORT_A)}","ss":"S@${String(PORT_A)}","cookie":"bi-cookie=C@${String(PORT_A)}"}`,
+      `{"ls":"L@${String(PORT_A)}","ss":"S@${String(PORT_A)}","cookie":"browser-inspector-cookie=C@${String(PORT_A)}"}`,
     );
     expect(dirty.report.extracts['b-state'].value).toBe(
-      `{"ls":"L@${String(PORT_B)}","ss":"S@${String(PORT_B)}","cookie":"bi-cookie=C@${String(PORT_B)}"}`,
+      `{"ls":"L@${String(PORT_B)}","ss":"S@${String(PORT_B)}","cookie":"browser-inspector-cookie=C@${String(PORT_B)}"}`,
     );
     // history.length is per TAB, not per origin: load, push, push, goto, push.
     expect(dirty.report.extracts['b-history'].value).toBe('history 5');
-    // Cookies are not port-scoped: the second origin overwrote the first one's `bi-cookie`.
+    // Cookies are not port-scoped: the second origin overwrote the first one's `browser-inspector-cookie`.
     expect(JSON.parse(dirty.report.extracts.cookies.value)).toEqual([
-      expect.objectContaining({ name: 'bi-cookie', value: `C@${String(PORT_B)}` }),
+      expect.objectContaining({ name: 'browser-inspector-cookie', value: `C@${String(PORT_B)}` }),
     ]);
 
     const clean = await run({
@@ -375,7 +375,7 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
       expect(performance.now() - started).toBeLessThan(500);
       expect(dead.ok).toBe(false);
       // `runStep` keeps the bare message; `buildReport` adds the `Error: ` prefix in report.json.
-      expect(dead.error).toBe('ref not found (gone, label changed or other frame) → bi snap');
+      expect(dead.error).toBe('ref not found (gone, label changed or other frame) → browser-inspector snap');
     } finally {
       lane.dirty = true;
     }
@@ -484,9 +484,9 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
 
 // ── Sessions through the keeper (WP6; AC-8, AC-9, AC-15) ─────────────────────
 //
-// The real client (`bin/bi.mjs`, one process per command) → a real keeper on its own pipe → the
-// real engine on Chrome/Edge: `bi up`, the session commands of DESIGN.md §4.4 on form.html,
-// relabel.html, iframe.html, tabs.html and dialog.html, `bi doctor`, `bi stop`; then `bi script`
+// The real client (`bin/browser-inspector.mjs`, one process per command) → a real keeper on its own pipe → the
+// real engine on Chrome/Edge: `browser-inspector up`, the session commands of DESIGN.md §4.4 on form.html,
+// relabel.html, iframe.html, tabs.html and dialog.html, `browser-inspector doctor`, `browser-inspector stop`; then `browser-inspector script`
 // under `--no-daemon`. Every line is measured against the budget of AC-8 with the bench's tokenizer.
 
 const PORT_SESSION = 4541;
@@ -503,8 +503,8 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     server = await startFixtureServer(PORT_SESSION);
     h = makeEnv();
     // The real engine, not the fake the keeper tests wire in.
-    delete h.env.BI_ENGINE_MODULE;
-    delete h.env.BI_FAKE_LOG;
+    delete h.env.BROWSER_INSPECTOR_ENGINE_MODULE;
+    delete h.env.BROWSER_INSPECTOR_FAKE_LOG;
   }, 30_000);
 
   afterAll(async () => {
@@ -514,12 +514,12 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
   });
 
   /**
-   * Run one `bi` command against the keeper and check the line budget of AC-8.
+   * Run one `browser-inspector` command against the keeper and check the line budget of AC-8.
    * @param {string[]} argv
    * @param {{ exit?: number }} [expectation]
    */
   async function cmd(argv, expectation = {}) {
-    const result = await bi(argv, h);
+    const result = await runBrowserInspector(argv, h);
     const wanted = expectation.exit ?? 0;
     expect(result.code, `${argv.join(' ')}\n${result.stdout}${result.stderr}`).toBe(wanted);
     const content = CONTENT.has(argv[0]);
@@ -535,7 +535,7 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
   const refOf = (/** @type {string} */ line) => line.split(' ')[0];
   const sessionDir = () => path.join(h.cwd, '.scribe-devtools', 'browser-inspector', 'session', 'default');
 
-  it('bi up → session commands on form/relabel/iframe/tabs/dialog → export → doctor → close → stop', async () => {
+  it('browser-inspector up → session commands on form/relabel/iframe/tabs/dialog → export → doctor → close → stop', async () => {
     const up = await cmd(['up']);
     expect(up.lines[0]).toMatch(/^ok keeper up · pid \d+ · hash [0-9a-f]{8} · /u);
 
@@ -592,7 +592,9 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     const relabelled = await cmd(['snap']);
     expect(relabelled.stdout).toContain('button "W koszyku"');
     const dead = await cmd(['click', add], { exit: 1 });
-    expect(dead.lines).toEqual([`FAIL click ${add} · ref not found (gone, label changed or other frame) → bi snap`]);
+    expect(dead.lines).toEqual([
+      `FAIL click ${add} · ref not found (gone, label changed or other frame) → browser-inspector snap`,
+    ]);
     const deadEntry = readJournal(path.join(sessionDir(), 'journal.jsonl')).at(-1);
     expect(deadEntry).toMatchObject({ command: 'click', ok: false });
     // The failure took milliseconds in the engine; the process spawn around it is the client's cost.
@@ -627,7 +629,7 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     expect(confirm.lines[0]).toContain('dialog confirm "Usunąć?" → accepted');
     expect((await cmd(['dialog'])).lines[0]).toMatch(/^policy accept · last: confirm "Usunąć\?" → accepted \(click /u);
     const leave = await cmd(['click', '[data-testid=leave]']);
-    expect(leave.lines[0]).toMatch(/navigated → refs f\d+eN \(bi snap\)/u);
+    expect(leave.lines[0]).toMatch(/navigated → refs f\d+eN \(browser-inspector snap\)/u);
     expect(leave.lines[0]).toContain('dialog beforeunload "" → accepted');
 
     // export: refs → selectors; status counts the session; doctor; close; stop.
@@ -643,10 +645,10 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
       value: 'Jan Kowalski',
     });
     expect(JSON.stringify(flow)).not.toMatch(/"ref":/u);
-    const status = await bi(['status'], h);
+    const status = await runBrowserInspector(['status'], h);
     expect(status.code).toBe(0);
-    expect(status.lines[0]).toContain('sessions 1');
-    const doctor = await bi(['doctor'], h);
+    expect(status.lines[1]).toContain('sessions 1');
+    const doctor = await runBrowserInspector(['doctor'], h);
     expect(doctor.code, doctor.stdout + doctor.stderr).toBe(0);
     expect(doctor.lines[0]).toMatch(
       /^ok keeper survives shell: yes · spawn→listen [\d ]+ ms · first job [\d ]+ ms · warm [\d ]+ ms · hash [0-9a-f]{8} · /u,
@@ -654,13 +656,13 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     const close = await cmd(['close']);
     expect(close.lines[0]).toMatch(/^ok close · session default · \d+ commands · .*session\/default$/u);
     const orphan = await cmd(['click', 'e1'], { exit: 1 });
-    expect(orphan.lines).toEqual(['FAIL click e1 · no open session "default" → bi open <url>']);
-    const stop = await bi(['stop'], h);
+    expect(orphan.lines).toEqual(['FAIL click e1 · no open session "default" → browser-inspector open <url>']);
+    const stop = await runBrowserInspector(['stop'], h);
     expect(stop.code).toBe(0);
     expect(stop.lines[0]).toMatch(/^ok keeper stopping/u);
   }, 120_000);
 
-  it('bi script <file> --no-daemon runs the session lines in one process and prints the same lines', async () => {
+  it('browser-inspector script <file> --no-daemon runs the session lines in one process and prints the same lines', async () => {
     // Whatever the previous test left (a keeper survives a failed assertion), this one starts clean.
     await stopKeeper(h);
     const script = path.join(h.cwd, 'session.txt');
@@ -680,7 +682,7 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
       ].join('\n'),
     );
     const out = path.join(h.cwd, 'script-out');
-    const result = await bi(['script', script, '--out', out, '--no-daemon'], h);
+    const result = await runBrowserInspector(['script', script, '--out', out, '--no-daemon'], h);
     expect(result.code, result.stdout + result.stderr).toBe(0);
     expect(result.lines[0]).toMatch(
       /^ok open "Zgłoszenie serwisowe" · el \d+ · err \d+ · script-out\/session\/default\/snap\.md$/u,
@@ -698,7 +700,7 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     expect(result.lines.at(-1)).toMatch(/^ok close · session default · 8 commands/u);
     expect(existsSync(path.join(out, 'session', 'default', 'journal.jsonl'))).toBe(true);
     // No keeper was left behind by the in-process run.
-    const status = await bi(['status'], h);
+    const status = await runBrowserInspector(['status'], h);
     expect(status.lines[0]).toMatch(/^keeper not running/u);
 
     const failing = path.join(h.cwd, 'failing.txt');
@@ -706,9 +708,11 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
       failing,
       [`open ${server.url('form.html')}`, 'click e9999', 'get [data-testid=page-title]'].join('\n'),
     );
-    const failed = await bi(['script', failing, '--out', out, '--no-daemon'], h);
+    const failed = await runBrowserInspector(['script', failing, '--out', out, '--no-daemon'], h);
     expect(failed.code).toBe(1);
     expect(failed.lines).toHaveLength(2);
-    expect(failed.lines[1]).toBe('FAIL click e9999 · ref not found (gone, label changed or other frame) → bi snap');
+    expect(failed.lines[1]).toBe(
+      'FAIL click e9999 · ref not found (gone, label changed or other frame) → browser-inspector snap',
+    );
   }, 60_000);
 });

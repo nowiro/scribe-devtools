@@ -43,7 +43,7 @@ const TIMING = {
 
 /** @type {import('../src/types.js').EngineInfo} */
 const ENGINE = {
-  bi: '0.1.0',
+  'browser-inspector': '0.1.0',
   'playwright-core': '1.62.1',
   browser: 'Chrome/140',
   flags: ['--disable-frame-rate-limit', '--disable-gpu-vsync'],
@@ -328,7 +328,9 @@ describe('report.json — superset of the old shapes (AC-1)', () => {
       'Error: uczen widzi przycisk nauczyciela',
     );
     expect(formatStepError('Error: uczen widzi przycisk nauczyciela')).toBe('Error: uczen widzi przycisk nauczyciela');
-    expect(formatStepError('ref not found (gone) → bi snap')).toBe('Error: ref not found (gone) → bi snap');
+    expect(formatStepError('ref not found (gone) → browser-inspector snap')).toBe(
+      'Error: ref not found (gone) → browser-inspector snap',
+    );
     const timeout = new Error('Timeout 8000ms exceeded.\nCall log:\n  - waiting');
     timeout.name = 'TimeoutError';
     expect(formatStepError(timeout)).toBe('TimeoutError: Timeout 8000ms exceeded.');
@@ -505,7 +507,7 @@ describe('manifests', () => {
       stamp: '2026-09-01_10-30',
       runStartedAt: '2026-09-01T08:30:00.000Z',
       render: ['json', 'markdown'],
-      tooling: { script: 'bi', version: '0.1.0' },
+      tooling: { script: 'browser-inspector', version: '0.1.0' },
       type: 'flow',
       url: 'http://localhost:4300/',
       completed: true,
@@ -520,7 +522,7 @@ describe('manifests', () => {
 
 describe('writeArtifacts', () => {
   it('writes the text artifacts and the queued screenshots BEFORE report.json, then md and manifest', async () => {
-    const dir = path.join(mkdtempSync(path.join(os.tmpdir(), 'bi-wp4-')), 'zgloszenie-serwisowe');
+    const dir = path.join(mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-wp4-')), 'zgloszenie-serwisowe');
     const { report, files } = buildReport(
       sampleInput({ extracts: { long: 'z'.repeat(CAPS.extract + 10) }, files: { snapshot: 'snap.md' } }),
     );
@@ -580,7 +582,7 @@ describe('writeArtifacts', () => {
 
   it('derives elements.md, text.txt and values/*.txt from a Report the engine assembled itself', async () => {
     // `runFlow` (WP2) returns a finished Report with `files: {}` — the text artifacts are this module's job.
-    const dir = path.join(mkdtempSync(path.join(os.tmpdir(), 'bi-wp4-')), 'engine-report');
+    const dir = path.join(mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-wp4-')), 'engine-report');
     /** @type {import('../src/report.mjs').BiReport} */
     const report = {
       name: 'engine',
@@ -624,7 +626,7 @@ describe('writeArtifacts', () => {
   });
 
   it('honours render: ["json"] and writes no markdown', async () => {
-    const dir = path.join(mkdtempSync(path.join(os.tmpdir(), 'bi-wp4-')), 'only-json');
+    const dir = path.join(mkdtempSync(path.join(os.tmpdir(), 'browser-inspector-wp4-')), 'only-json');
     const { report, files } = buildReport(sampleInput());
     const { written } = await writeArtifacts(dir, report, files, { render: ['json'] });
     expect(written).toContain('report.json');

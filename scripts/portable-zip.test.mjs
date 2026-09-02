@@ -1,9 +1,9 @@
 // The portable build must run without `npm install` (AC-20): stage the tree exactly as
-// `npm run portable` does, then execute the staged `bin/bi.mjs` from the staging directory —
+// `npm run portable` does, then execute the staged `bin/browser-inspector.mjs` from the staging directory —
 // `help` (the client, no browser), `lint-config` on the staged fixture (config loading, no
-// browser) and, unless BI_SKIP_SMOKE=1, one real `--no-daemon` batch on a staged fixture page
+// browser) and, unless BROWSER_INSPECTOR_SKIP_SMOKE=1, one real `--no-daemon` batch on a staged fixture page
 // (playwright-core resolved from the staged `node_modules`, the system Chrome/Edge). The zip
-// round-trip (bsdtar / zip → unpack → `bi help`) runs too — a few seconds, and it is the
+// round-trip (bsdtar / zip → unpack → `browser-inspector help`) runs too — a few seconds, and it is the
 // artifact a release ships.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -26,19 +26,21 @@ import {
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = 'packages/browser-inspector';
-const skipSmoke = process.env.BI_SKIP_SMOKE === '1' || process.env.BI_SKIP_SMOKE === 'true';
+const skipSmoke =
+  process.env.BROWSER_INSPECTOR_SKIP_SMOKE === '1' || process.env.BROWSER_INSPECTOR_SKIP_SMOKE === 'true';
 
 /**
- * `node <staging>/packages/browser-inspector/bin/bi.mjs …` with a clean BI_* environment and the
+ * `node <staging>/packages/browser-inspector/bin/browser-inspector.mjs …` with a clean BROWSER_INSPECTOR_*
+ * environment and the
  * keeper disabled — the unpacked zip is tested as a stranger would run it, cwd = staging root.
  * @param {string} staging
  * @param {string[]} args
  */
 function runStaged(staging, args) {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('BI_')));
-  const result = spawnSync(process.execPath, [path.join(staging, PACKAGE, 'bin', 'bi.mjs'), ...args], {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('BROWSER_INSPECTOR_')));
+  const result = spawnSync(process.execPath, [path.join(staging, PACKAGE, 'bin', 'browser-inspector.mjs'), ...args], {
     cwd: staging,
-    env: { ...env, BI_DAEMON: '0' },
+    env: { ...env, BROWSER_INSPECTOR_DAEMON: '0' },
     encoding: 'utf8',
     windowsHide: true,
     timeout: 120_000,
@@ -53,7 +55,7 @@ describe('portable staging', () => {
   let staged;
 
   beforeAll(() => {
-    staging = mkdtempSync(path.join(tmpdir(), 'bi-portable-test-'));
+    staging = mkdtempSync(path.join(tmpdir(), 'browser-inspector-portable-test-'));
     staged = stagePortable(REPO, staging);
   }, 60_000);
 
@@ -63,27 +65,27 @@ describe('portable staging', () => {
 
   it('copies the runtime, the marker and the shims — never the tests', () => {
     expect(staged.playwrightVersion).toBe('1.62.1');
-    expect(existsSync(path.join(staging, PACKAGE, 'bin', 'bi.mjs'))).toBe(true);
+    expect(existsSync(path.join(staging, PACKAGE, 'bin', 'browser-inspector.mjs'))).toBe(true);
     expect(existsSync(path.join(staging, PACKAGE, 'src', 'engine.mjs'))).toBe(true);
     expect(existsSync(path.join(staging, PACKAGE, 'templates', 'flow.md'))).toBe(true);
     expect(existsSync(path.join(staging, PACKAGE, 'fixtures', 'form.html'))).toBe(true);
     expect(existsSync(path.join(staging, PACKAGE, 'test'))).toBe(false);
     expect(existsSync(path.join(staging, 'node_modules', 'playwright-core', 'package.json'))).toBe(true);
     expect(readFileSync(path.join(staging, PACKAGE, PORTABLE_MARKER), 'utf8')).toContain(staged.version);
-    expect(existsSync(path.join(staging, 'bi.cmd'))).toBe(true);
-    expect(existsSync(path.join(staging, 'bi'))).toBe(true);
+    expect(existsSync(path.join(staging, 'browser-inspector.cmd'))).toBe(true);
+    expect(existsSync(path.join(staging, 'browser-inspector'))).toBe(true);
     expect(existsSync(path.join(staging, 'README-PORTABLE.md'))).toBe(true);
   });
 
-  it('`node packages/browser-inspector/bin/bi.mjs help` runs from the staged tree', () => {
+  it('`node packages/browser-inspector/bin/browser-inspector.mjs help` runs from the staged tree', () => {
     const { code, stdout, stderr } = runStaged(staging, ['help']);
     expect(stderr).toBe('');
     expect(code).toBe(0);
-    expect(stdout).toContain('bi <config.json>');
-    expect(stdout).toContain('bi help <command>');
+    expect(stdout).toContain('browser-inspector <config.json>');
+    expect(stdout).toContain('browser-inspector help <command>');
   });
 
-  it('`bi lint-config` reads the staged fixture (config + steps schema, no browser)', () => {
+  it('`browser-inspector lint-config` reads the staged fixture (config + steps schema, no browser)', () => {
     const { code, stdout } = runStaged(staging, [
       'lint-config',
       path.join(PACKAGE, 'fixtures', 'app-factory.config.json'),
@@ -137,7 +139,7 @@ describe('portable staging', () => {
     expect(readVersion(REPO)).toBe(staged.version);
     expect(zipName(staged.version)).toBe(`scribe-devtools-portable-${staged.version}.zip`);
     // A root that disagrees is a release mistake, not a warning.
-    const root = mkdtempSync(path.join(tmpdir(), 'bi-version-'));
+    const root = mkdtempSync(path.join(tmpdir(), 'browser-inspector-version-'));
     try {
       mkdirSync(path.join(root, PACKAGE), { recursive: true });
       writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '9.9.9' }));
@@ -158,8 +160,8 @@ describe('portable staging', () => {
   });
 
   it('two builds of the same tree are byte-identical — the tracked zip must not churn', () => {
-    const a = path.join(tmpdir(), `bi-portable-det-a-${String(process.pid)}.zip`);
-    const b = path.join(tmpdir(), `bi-portable-det-b-${String(process.pid)}.zip`);
+    const a = path.join(tmpdir(), `browser-inspector-portable-det-a-${String(process.pid)}.zip`);
+    const b = path.join(tmpdir(), `browser-inspector-portable-det-b-${String(process.pid)}.zip`);
     try {
       zipDirectory(staging, a);
       zipDirectory(staging, b);
@@ -175,7 +177,7 @@ describe('portable staging', () => {
   });
 
   it('buildPortable writes download/<name>.zip + .sha256 and reports `changed` only when bytes moved', () => {
-    const out = mkdtempSync(path.join(tmpdir(), 'bi-portable-out-'));
+    const out = mkdtempSync(path.join(tmpdir(), 'browser-inspector-portable-out-'));
     try {
       const first = buildPortable(REPO, out);
       expect(first.zipPath).toBe(path.join(out, zipName(first.version)));
@@ -190,16 +192,17 @@ describe('portable staging', () => {
     }
   }, 120_000);
 
-  it('zip → unpack → `bi help` — the release asset runs without npm install', () => {
-    const zipPath = path.join(tmpdir(), `bi-portable-test-${String(process.pid)}.zip`);
-    const unpacked = mkdtempSync(path.join(tmpdir(), 'bi-portable-unpacked-'));
+  it('zip → unpack → `browser-inspector help` — the release asset runs without npm install', () => {
+    const zipPath = path.join(tmpdir(), `browser-inspector-portable-test-${String(process.pid)}.zip`);
+    const unpacked = mkdtempSync(path.join(tmpdir(), 'browser-inspector-portable-unpacked-'));
     try {
       zipDirectory(staging, zipPath);
       expect(existsSync(zipPath)).toBe(true);
       // Entry names with backslashes (what Compress-Archive writes) unpack on Linux/macOS as flat
-      // files named "packages\browser-inspector\bin\bi.mjs" — the first 0.1.0 build shipped 157 of them.
+      // files named "packages\browser-inspector\bin\browser-inspector.mjs" — the first 0.1.0 build shipped 157
+      // of them.
       const entries = zipEntries(zipPath);
-      expect(entries.some((name) => name.endsWith('bin/bi.mjs'))).toBe(true);
+      expect(entries.some((name) => name.endsWith('bin/browser-inspector.mjs'))).toBe(true);
       expect(entries.filter((name) => name.includes('\\'))).toEqual([]);
       if (process.platform === 'win32') {
         spawnSync(
@@ -213,7 +216,7 @@ describe('portable staging', () => {
       expect(existsSync(path.join(unpacked, PACKAGE, PORTABLE_MARKER))).toBe(true);
       const { code, stdout } = runStaged(unpacked, ['help']);
       expect(code).toBe(0);
-      expect(stdout).toContain('bi <config.json>');
+      expect(stdout).toContain('browser-inspector <config.json>');
     } finally {
       rmSync(zipPath, { force: true });
       rmSync(unpacked, { recursive: true, force: true, maxRetries: 3 });

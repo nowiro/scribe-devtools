@@ -120,7 +120,7 @@ describe('session commands', () => {
       { ref: 'e5', valueFromEnv: 'APP_PASS' },
       { selector: '#email', value: 'a@b.c' },
     ]);
-    // The `=` inside an attribute selector — the selectors `bi find` / elements.md hand out — is
+    // The `=` inside an attribute selector — the selectors `browser-inspector find` / elements.md hand out — is
     // not the pair's separator; the value keeps any `=` of its own.
     const selectors = session([
       'form',
@@ -143,7 +143,7 @@ describe('session commands', () => {
     expect(() => parseArgs(['clikc', 'e1'])).toThrow(/did you mean "click"/u);
     expect(() => parseArgs(['clikc', 'e1'])).toThrow(CliError);
     expect(() => parseArgs(['click', 'e1', '--duble'])).toThrow(/did you mean --double/u);
-    expect(() => parseArgs(['click'])).toThrow(/missing <target> — usage: bi click/u);
+    expect(() => parseArgs(['click'])).toThrow(/missing <target> — usage: browser-inspector click/u);
     expect(() => parseArgs(['click', 'e1', 'e2'])).toThrow(/unexpected argument "e2"/u);
     expect(() => parseArgs(['click', 'e1', '--no-daemon'])).toThrow(/unknown flag --no-daemon/u);
     expect(() => parseArgs(['verify', 'sizzle', 'e1'])).toThrow(/unknown kind/u);
@@ -297,7 +297,7 @@ describe('other entrances', () => {
   it('prints a usage that names every session command and a per-command help', () => {
     const text = usage();
     for (const name of stepNames({ session: true })) expect(text).toContain(name);
-    expect(usage('shot')).toContain('bi shot [name]');
+    expect(usage('shot')).toContain('browser-inspector shot [name]');
     expect(usage('click')).toContain(STEPS.click.help);
   });
 });

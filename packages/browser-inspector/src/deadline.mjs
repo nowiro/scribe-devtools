@@ -3,7 +3,7 @@
 // `page.evaluate` (and everything built on it) has NO timeout of its own, so a page whose main
 // thread a step left spinning would otherwise hang the run forever — no report, no manifest,
 // `browser.close()` never reached. Playwright cannot cancel the underlying call; the runaway
-// script dies with the tab at scrub time, which the deadline lets the run actually reach. In `bi`
+// script dies with the tab at scrub time, which the deadline lets the run actually reach. In `browser-inspector`
 // every step, the final evidence and the CDP `Runtime.evaluate` (whose own `timeout` interrupts
 // only the synchronous part — a pending promise is not covered) ride through here.
 

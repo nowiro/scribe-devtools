@@ -67,7 +67,7 @@ const modifiersOf = (mods) =>
   Array.isArray(mods) ? mods.map((m) => /** @type {Record<string, string>} */ (MODIFIERS)[m] ?? String(m)) : undefined;
 
 /**
- * Where an action runs: the frame scope (`bi frame 2`) for CSS/text selectors, the page for refs —
+ * Where an action runs: the frame scope (`browser-inspector frame 2`) for CSS/text selectors, the page for refs —
  * an `aria-ref=` resolves from the page's last snapshot in whatever frame it lives (DESIGN.md §4.5).
  * @param {Ctx} ctx @param {string} selector
  */
@@ -163,7 +163,7 @@ async function until(ctx, check) {
 
 // ── Session helpers ──────────────────────────────────────────────────────────
 
-/** `bi snap` prints this many compact lines unless `--max` says otherwise (≈ 370 tokens, §4.3). */
+/** `browser-inspector snap` prints this many compact lines unless `--max` says otherwise (≈ 370 tokens, §4.3). */
 export const SNAP_MAX_DEFAULT = 25;
 /** `net <n> --body` / `fetch` print at most this many body lines; the whole body goes to a file. */
 export const BODY_LINES_MAX = 20;
@@ -177,7 +177,8 @@ export const NET_LIST_MAX = 25;
  * @returns {string[]}
  */
 function sessionLines(ctx, name) {
-  if (!ctx.lines || !ctx.session) throw new Error(`${name}: a session command, not a config step (bi ${name} …)`);
+  if (!ctx.lines || !ctx.session)
+    throw new Error(`${name}: a session command, not a config step (browser-inspector ${name} …)`);
   return ctx.lines;
 }
 
@@ -243,7 +244,7 @@ async function writeSessionText(ctx, relFile, text) {
 }
 
 /**
- * `snap.md` / `bi snap` lines of the snapshot just written, with the session filters of §4.3:
+ * `snap.md` / `browser-inspector snap` lines of the snapshot just written, with the session filters of §4.3:
  * `--all` names the file, `--diff` the lines added/removed since the previous snapshot, `--around`
  * the neighbourhood of a ref, `--grep`/`--names` re-render the compact view, and `--max` (25)
  * caps stdout with the overflow marker. Never a second `ariaSnapshot`.
@@ -587,7 +588,9 @@ export const RUNNERS = {
     }
     lines.push(...maskLines(ctx, found.lines));
     if (found.total > found.lines.length) {
-      lines.push(`…+${String(found.total - found.lines.length)} more${SEP}narrow the text or bi snap --grep`);
+      lines.push(
+        `…+${String(found.total - found.lines.length)} more${SEP}narrow the text or browser-inspector snap --grep`,
+      );
     }
     if (ctx.session) ctx.session.prevCompact = maskLines(ctx, compactLines(text, { sidecar: entries }));
     return found.total;
@@ -787,7 +790,7 @@ export const RUNNERS = {
   },
   dialog: async (ctx, s) => {
     if (s.action === undefined) {
-      // `bi dialog` without a policy shows the policy and the last dialog (a batch step never lacks one).
+      // `browser-inspector dialog` without a policy shows the policy and the last dialog (a batch step never lacks one).
       if (ctx.lines) {
         const policy = ctx.recorder.dialogPolicy ?? { action: 'dismiss' };
         ctx.lines.push(formatDialogStatus(policy, /** @type {any} */ (ctx.recorder.dialogs.at(-1))));
@@ -925,7 +928,7 @@ export const RUNNERS = {
     if (s.n !== undefined) {
       const id = Number(s.n);
       const entry = rec.network.find((/** @type {any} */ e) => e.id === id);
-      if (!entry) throw new Error(`net #${String(id)}: no such request (bi net --all lists them)`);
+      if (!entry) throw new Error(`net #${String(id)}: no such request (browser-inspector net --all lists them)`);
       // The body read is fire-and-forget in the recorder; a request that just finished may still
       // be reading when the agent asks for it.
       await rec.settle?.();
@@ -978,7 +981,7 @@ export const RUNNERS = {
         `${String(entries.length)} total${listed.length !== entries.length ? ` · ${String(listed.length)} failed` : ''}:`,
       );
       if (shown.length < listed.length)
-        lines.push(`…${String(listed.length - shown.length)} older (bi net --all --tail N)`);
+        lines.push(`…${String(listed.length - shown.length)} older (browser-inspector net --all --tail N)`);
       lines.push(...shown.map(format));
       return entries.length;
     }
@@ -1008,9 +1011,11 @@ export const RUNNERS = {
     if (s.action === 'start') {
       // A recording context is created at open time (playwright-core records per context, from
       // its first page on) — there is no way to start one on a live session.
-      throw new Error('video start: open the session with `bi open <url> --video` (recording starts with the context)');
+      throw new Error(
+        'video start: open the session with `browser-inspector open <url> --video` (recording starts with the context)',
+      );
     }
-    if (!session.videoDir) throw new Error('video stop: nothing is recording (bi open <url> --video)');
+    if (!session.videoDir) throw new Error('video stop: nothing is recording (browser-inspector open <url> --video)');
     // The file is complete only once the page is closed: `video stop` ends the session.
     const saved = await session.end();
     lines.push(formatOk('video stop', [saved?.video ? rel(ctx, saved.video) : undefined, 'session closed']));
@@ -1028,7 +1033,9 @@ export const RUNNERS = {
   run: async (ctx, s) => {
     const lines = sessionLines(ctx, 'run');
     if (ctx.unsafe !== true) {
-      throw new Error('run --file refused: set BI_UNSAFE=1 (the file runs inside the keeper — RCE-equivalent)');
+      throw new Error(
+        'run --file refused: set BROWSER_INSPECTOR_UNSAFE=1 (the file runs inside the keeper — RCE-equivalent)',
+      );
     }
     const session = sessionOf(ctx);
     session.runSeq = (session.runSeq ?? 0) + 1;

@@ -1,16 +1,16 @@
-// bi-run.mjs — the `bi` side of the benchmark: every variant of DESIGN.md §9 as REAL child
-// processes of `bin/bi.mjs`, timed from `spawn` to exit, with the tokens the agent would pay
+// browser-inspector-run.mjs — the `browser-inspector` side of the benchmark: every variant of DESIGN.md §9 as REAL child
+// processes of `bin/browser-inspector.mjs`, timed from `spawn` to exit, with the tokens the agent would pay
 // (the instruction block, the command, stdout, the files it reads) and the `timing.mode` of every
 // run validated — a `first` or `fallback` run in a warm column invalidates the measurement, and
 // the report says so instead of averaging it in.
 //
-// `INSTRUCTION` is the fixed cost of the `bi` side and must equal the blockquote in AGENTS.md
+// `INSTRUCTION` is the fixed cost of the `browser-inspector` side and must equal the blockquote in AGENTS.md
 // character for character (`scripts/check-instruction-sync.mjs` in `npm run verify`).
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { APP_URL, INPUT, SNAPSHOT_NAME, biConfig, checkFindings } from './task.mjs';
+import { APP_URL, INPUT, SNAPSHOT_NAME, browserInspectorConfig, checkFindings } from './task.mjs';
 import {
   BIN,
   REPO,
@@ -20,19 +20,19 @@ import {
   makeStamp,
   readJson,
   sleep,
-  spawnBi,
+  spawnBrowserInspector,
   stats,
   waitForChromeGone,
 } from './time-run.mjs';
 import { measure } from './tokens.mjs';
 
 export const INSTRUCTION =
-  'Przeglądarka: `bi <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `bi open <url>`, `bi find <tekst>` / `bi snap` dają refy `eN`; `bi click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `bi export flow.json` zapisuje sesję jako config.';
+  'Przeglądarka: `browser-inspector <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `browser-inspector open <url>`, `browser-inspector find <tekst>` / `browser-inspector snap` dają refy `eN`; `browser-inspector click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `browser-inspector export flow.json` zapisuje sesję jako config.';
 
 /** What the agent types for the batch — the bench itself passes the absolute config path and a stamp. */
-export const COMMAND = 'bi read.config.json';
-/** The same command in a project that reaches `bi` through a package script (README, app-factory). */
-export const COMMAND_PNPM = 'pnpm bi read.config.json';
+export const COMMAND = 'browser-inspector read.config.json';
+/** The same command in a project that reaches `browser-inspector` through a package script (README, app-factory). */
+export const COMMAND_PNPM = 'pnpm browser-inspector read.config.json';
 
 export const CI_VARS = [
   'CI',
@@ -65,10 +65,10 @@ export function pipeNameFor(id, tmpdir) {
 }
 
 /**
- * The environment every `bi` of the bench runs in: the developer's `BI_*` and CI variables are
+ * The environment every `browser-inspector` of the bench runs in: the developer's `BROWSER_INSPECTOR_*` and CI variables are
  * dropped (a `CI=true` in the shell would silently turn every keeper run into `no-daemon`), the
  * keeper is enabled explicitly, its files live under the bench output, and the channel is pinned
- * through the environment so that `bi up`, `bi stop`, the session commands and the batch share
+ * through the environment so that `browser-inspector up`, `browser-inspector stop`, the session commands and the batch share
  * ONE identity hash (a config with an explicit `browser.channel` hashes differently from no config).
  * @param {string} outDir
  * @param {{ id?: string }} [options]
@@ -76,20 +76,20 @@ export function pipeNameFor(id, tmpdir) {
 export function benchEnv(outDir, options = {}) {
   const tmpdir = path.join(outDir, 'tmp');
   fs.mkdirSync(tmpdir, { recursive: true });
-  const id = options.id ?? `bi-bench-${String(process.pid)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = options.id ?? `browser-inspector-bench-${String(process.pid)}-${Math.random().toString(36).slice(2, 8)}`;
   /** @type {NodeJS.ProcessEnv} */
   const env = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (key.startsWith('BI_') || CI_VARS.includes(key)) continue;
+    if (key.startsWith('BROWSER_INSPECTOR_') || CI_VARS.includes(key)) continue;
     env[key] = value;
   }
   Object.assign(env, {
-    BI_DAEMON: '1',
-    BI_SOCKET: pipeNameFor(id, tmpdir),
-    BI_TMPDIR: tmpdir,
-    BI_CHANNEL: 'chrome',
+    BROWSER_INSPECTOR_DAEMON: '1',
+    BROWSER_INSPECTOR_SOCKET: pipeNameFor(id, tmpdir),
+    BROWSER_INSPECTOR_TMPDIR: tmpdir,
+    BROWSER_INSPECTOR_CHANNEL: 'chrome',
     // Long enough that no idle timer fires between two variants of one bench run.
-    BI_IDLE_MS: '900000',
+    BROWSER_INSPECTOR_IDLE_MS: '900000',
   });
   return env;
 }
@@ -100,13 +100,13 @@ export function benchEnv(outDir, options = {}) {
  * @returns {{ pid: number, pipe: string, listeningAt?: number, processStartAt?: number } | undefined}
  */
 export function readKeeperInfo(env) {
-  const tmpdir = env.BI_TMPDIR ?? os.tmpdir();
+  const tmpdir = env.BROWSER_INSPECTOR_TMPDIR ?? os.tmpdir();
   if (!fs.existsSync(tmpdir)) return undefined;
   for (const name of fs.readdirSync(tmpdir)) {
-    if (!name.startsWith('bi-') || !name.endsWith('.json')) continue;
+    if (!name.startsWith('browser-inspector-') || !name.endsWith('.json')) continue;
     try {
       const info = JSON.parse(fs.readFileSync(path.join(tmpdir, name), 'utf8'));
-      if (info.pipe === env.BI_SOCKET) return info;
+      if (info.pipe === env.BROWSER_INSPECTOR_SOCKET) return info;
     } catch {
       // Half-written or stale — not ours.
     }
@@ -115,14 +115,14 @@ export function readKeeperInfo(env) {
 }
 
 /**
- * `bi stop`, then wait until the keeper's pid AND its Chrome are gone (DESIGN.md §9: `bi-cold`
- * and `bi-first` start from nothing). Kills a keeper that ignores `stop` — a leaked keeper would
+ * `browser-inspector stop`, then wait until the keeper's pid AND its Chrome are gone (DESIGN.md §9: `browser-inspector-cold`
+ * and `browser-inspector-first` start from nothing). Kills a keeper that ignores `stop` — a leaked keeper would
  * make the next "cold" run warm.
  * @param {BenchContext} ctx
  */
 export async function stopKeeper(ctx) {
   const info = readKeeperInfo(ctx.env);
-  await spawnBi(['stop'], ctx).catch(() => undefined);
+  await spawnBrowserInspector(['stop'], ctx).catch(() => undefined);
   if (!info) return { ms: 0, clean: true };
   const gone = await waitForChromeGone([info.pid], 5000);
   if (!gone.clean) {
@@ -140,13 +140,15 @@ export async function stopKeeper(ctx) {
 
 /**
  * Write the task config next to the output it will produce. No `browser` block on purpose —
- * see `benchEnv` (identity hash) — the channel comes from `BI_CHANNEL`.
+ * see `benchEnv` (identity hash) — the channel comes from `BROWSER_INSPECTOR_CHANNEL`.
  * @param {string} dir
  * @param {{ url?: string }} [options]
  */
 export function prepareBatchConfig(dir, options = {}) {
   fs.mkdirSync(dir, { recursive: true });
-  const config = /** @type {Record<string, unknown>} */ (biConfig({ outputDir: './runs', url: options.url }));
+  const config = /** @type {Record<string, unknown>} */ (
+    browserInspectorConfig({ outputDir: './runs', url: options.url })
+  );
   delete config.browser;
   const configPath = path.join(dir, 'read.config.json');
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
@@ -189,26 +191,28 @@ export function findingsFromReport(report) {
  * @property {string[]} problems gate findings
  * @property {number} pid
  * @property {string[]} extraArgs
- * @property {number} [chromeGoneMs] `bi-cold`: how long the wait for the client's Chrome took
- * @property {boolean} [chromeGoneClean] `bi-cold`: false when the wait gave up
+ * @property {number} [chromeGoneMs] `browser-inspector-cold`: how long the wait for the client's Chrome took
+ * @property {boolean} [chromeGoneClean] `browser-inspector-cold`: false when the wait gave up
  * @property {any} [report]
  * @property {string} [reportMd]
  * @property {any} [manifest]
  */
 
 /**
- * One batch run of the task through `bi`, timed and read back.
+ * One batch run of the task through `browser-inspector`, timed and read back.
  * @param {BenchContext} ctx
  * @param {{ stamp: string, extraArgs?: string[] }} options
  * @returns {Promise<BatchSample & { report: any, reportMd: string, manifest: any }>}
  */
 export async function runBatch(ctx, options) {
   const extraArgs = options.extraArgs ?? [];
-  const run = await spawnBi([ctx.configPath, '--stamp', options.stamp, ...extraArgs], ctx);
+  const run = await spawnBrowserInspector([ctx.configPath, '--stamp', options.stamp, ...extraArgs], ctx);
   const runDir = path.join(path.dirname(ctx.configPath), 'runs', options.stamp);
   const dir = path.join(runDir, SNAPSHOT_NAME);
   if (run.code !== 0 || !fs.existsSync(path.join(dir, 'report.json'))) {
-    throw new Error(`bi exited with ${String(run.code)} and no report.json in ${dir}:\n${run.stdout}${run.stderr}`);
+    throw new Error(
+      `browser-inspector exited with ${String(run.code)} and no report.json in ${dir}:\n${run.stdout}${run.stderr}`,
+    );
   }
   const report = await readJson(path.join(dir, 'report.json'));
   const manifest = await readJson(path.join(runDir, '_manifest.json'));
@@ -288,7 +292,7 @@ function summarize(samples, expectedMode) {
 const strip = ({ report, reportMd, manifest, ...rest }) => rest;
 
 /**
- * `bi-cold` (`--no-daemon`, the CI path): no keeper, every run launches and closes its own Chrome;
+ * `browser-inspector-cold` (`--no-daemon`, the CI path): no keeper, every run launches and closes its own Chrome;
  * between runs the bench waits for the client's pid and its `chrome.exe` children to be gone.
  * @param {BenchContext} ctx
  * @param {number} reps
@@ -304,15 +308,15 @@ export async function timeCold(ctx, reps) {
     });
     const gone = await waitForChromeGone([sample.pid], 2000);
     ctx.log(
-      `bi-cold #${String(rep + 1)}: ${String(sample.wallMs)} ms · mode ${sample.mode} · chrome gone in ${String(gone.ms)} ms`,
+      `browser-inspector-cold #${String(rep + 1)}: ${String(sample.wallMs)} ms · mode ${sample.mode} · chrome gone in ${String(gone.ms)} ms`,
     );
     samples.push({ ...strip(sample), chromeGoneMs: gone.ms, chromeGoneClean: gone.clean });
   }
-  return { name: 'bi-cold', ...summarize(samples, 'no-daemon') };
+  return { name: 'browser-inspector-cold', ...summarize(samples, 'no-daemon') };
 }
 
 /**
- * `bi-first`: the keeper is stopped, then ONE call — the keeper starts INSIDE the stopwatch.
+ * `browser-inspector-first`: the keeper is stopped, then ONE call — the keeper starts INSIDE the stopwatch.
  * The very first call of the whole bench session is "first-ever" (Defender on a fresh chrome.exe,
  * cold disk cache) and is recorded separately, outside every ratio; the steady-state median comes
  * from the `reps` calls after it.
@@ -327,18 +331,18 @@ export async function timeFirst(ctx, reps) {
     await stopKeeper(ctx);
     const sample = await runBatch(ctx, { stamp: makeStamp(rep, new Date(2000, 0, 2, 0, 0)) });
     ctx.log(
-      `bi-first #${String(rep)}${rep === 0 ? ' (first-ever)' : ''}: ${String(sample.wallMs)} ms · mode ${sample.mode}`,
+      `browser-inspector-first #${String(rep)}${rep === 0 ? ' (first-ever)' : ''}: ${String(sample.wallMs)} ms · mode ${sample.mode}`,
     );
     if (rep === 0) firstEver = strip(sample);
     else samples.push(strip(sample));
   }
-  return { name: 'bi-first', firstEver, ...summarize(samples, 'first') };
+  return { name: 'browser-inspector-first', firstEver, ...summarize(samples, 'first') };
 }
 
 /**
- * The warm family: the keeper and the tab are warm from `bi-first`; `n` calls with `gapMs` between
- * them (`bi-warm`: 300 ms, `bi-warm-tight`: 0 — the scrub of the previous run then lands in the
- * next one's stopwatch), optionally with `--fresh` (`bi-warm-fresh`).
+ * The warm family: the keeper and the tab are warm from `browser-inspector-first`; `n` calls with `gapMs` between
+ * them (`browser-inspector-warm`: 300 ms, `browser-inspector-warm-tight`: 0 — the scrub of the previous run then lands in the
+ * next one's stopwatch), optionally with `--fresh` (`browser-inspector-warm-fresh`).
  * @param {BenchContext} ctx
  * @param {{ name: string, n: number, gapMs: number, extraArgs?: string[], day: number }} options
  */
@@ -367,7 +371,7 @@ export async function timeWarm(ctx, options) {
 // ── Interactive session ──────────────────────────────────────────────────────
 
 /**
- * Refs from `bi snap` / `bi find` output: `e28 button "Wyślij zgłoszenie" [data-testid=submit]`.
+ * Refs from `browser-inspector snap` / `browser-inspector find` output: `e28 button "Wyślij zgłoszenie" [data-testid=submit]`.
  * @param {string} text
  * @returns {{ ref: string, role: string, name: string }[]}
  */
@@ -394,17 +398,17 @@ export function refOf(refs, role, name) {
 /**
  * @typedef {object} SessionCommand
  * @property {string[]} argv
- * @property {string} command what the agent typed (`bi …`)
+ * @property {string} command what the agent typed (`browser-inspector …`)
  * @property {string} stdout
  * @property {number} code
  * @property {number} ms spawn → exit
  */
 
 /**
- * `bi-interactive`: the task as an agent would do it at the keyboard — every command is its own
- * `node bin/bi.mjs` process through the keeper. Two variants (DESIGN.md §9):
- *   - `naive` — the agent looks first: a bare `bi snap` for the refs, then acts on refs;
- *   - `lean`  — the agent finds the button with `bi find` and knows the ids of the fields.
+ * `browser-inspector-interactive`: the task as an agent would do it at the keyboard — every command is its own
+ * `node bin/browser-inspector.mjs` process through the keeper. Two variants (DESIGN.md §9):
+ *   - `naive` — the agent looks first: a bare `browser-inspector snap` for the refs, then acts on refs;
+ *   - `lean`  — the agent finds the button with `browser-inspector find` and knows the ids of the fields.
  * Both look again after the first click (`snap --diff`). The tokens are the commands plus their
  * stdout: nothing else enters the context (screenshots are files the agent does not read).
  * @param {'naive' | 'lean'} kind
@@ -413,23 +417,23 @@ export function refOf(refs, role, name) {
 export async function runInteractive(kind, ctx) {
   const cwd = path.join(ctx.outDir, `interactive-${kind}`);
   fs.mkdirSync(cwd, { recursive: true });
-  const env = { ...ctx.env, BI_SESSION: `bench-${kind}` };
+  const env = { ...ctx.env, BROWSER_INSPECTOR_SESSION: `bench-${kind}` };
   /** @type {SessionCommand[]} */
   const commands = [];
-  const bi = async (/** @type {string[]} */ argv) => {
-    const run = await spawnBi(argv, { env, cwd });
-    const command = `bi ${argv.map((a) => (/\s/u.test(a) ? `"${a}"` : a)).join(' ')}`;
+  const call = async (/** @type {string[]} */ argv) => {
+    const run = await spawnBrowserInspector(argv, { env, cwd });
+    const command = `browser-inspector ${argv.map((a) => (/\s/u.test(a) ? `"${a}"` : a)).join(' ')}`;
     commands.push({ argv, command, stdout: run.stdout.trimEnd(), code: run.code, ms: run.wallMs });
-    ctx.log(`bi-interactive-${kind}: ${command} → exit ${String(run.code)} · ${String(run.wallMs)} ms`);
+    ctx.log(`browser-inspector-interactive-${kind}: ${command} → exit ${String(run.code)} · ${String(run.wallMs)} ms`);
     if (run.code !== 0) throw new Error(`${command} failed (exit ${String(run.code)}):\n${run.stdout}${run.stderr}`);
     return run.stdout;
   };
   const t0 = performance.now();
   let submit;
   let fields;
-  await bi(['open', APP_URL]);
+  await call(['open', APP_URL]);
   if (kind === 'naive') {
-    const refs = parseRefs(await bi(['snap']));
+    const refs = parseRefs(await call(['snap']));
     submit = refOf(refs, 'button', /^Wyślij/u);
     fields = {
       name: refOf(refs, 'textbox', /^Imię/u),
@@ -440,7 +444,7 @@ export async function runInteractive(kind, ctx) {
       consent: refOf(refs, 'checkbox', /^Zgadzam/u),
     };
   } else {
-    const refs = parseRefs(await bi(['find', 'Wyślij']));
+    const refs = parseRefs(await call(['find', 'Wyślij']));
     submit = refOf(refs, 'button', /^Wyślij/u);
     // Attribute selectors carry `=`, which `form` splits on — the ids of the fields are the
     // selectors an agent who knows the page would use.
@@ -453,29 +457,29 @@ export async function runInteractive(kind, ctx) {
       consent: '#consent',
     };
   }
-  await bi(['click', submit]);
-  await bi(['snap', '--diff']);
-  const emailError = await bi(['get', '[data-testid=error-email]']);
-  await bi(['shot', 'walidacja']);
-  await bi([
+  await call(['click', submit]);
+  await call(['snap', '--diff']);
+  const emailError = await call(['get', '[data-testid=error-email]']);
+  await call(['shot', 'walidacja']);
+  await call([
     'form',
     `${fields.name}=${INPUT.name}`,
     `${fields.email}=${INPUT.email}`,
     `${fields.description}=${INPUT.description}`,
   ]);
-  await bi(['select', fields.category, INPUT.category]);
-  await bi(['click', fields.priority]);
-  await bi(['click', fields.consent]);
-  await bi(['click', submit]);
-  await bi(['wait', '--sel', '[data-testid=confirmation]']);
-  const ticketId = await bi(['get', '[data-testid=ticket-id]']);
-  const category = await bi(['get', '[data-testid=ticket-category]']);
-  const priority = await bi(['get', '[data-testid=ticket-priority]']);
-  const consoleError = await bi(['console', '--errors']);
-  await bi(['shot', 'potwierdzenie']);
+  await call(['select', fields.category, INPUT.category]);
+  await call(['click', fields.priority]);
+  await call(['click', fields.consent]);
+  await call(['click', submit]);
+  await call(['wait', '--sel', '[data-testid=confirmation]']);
+  const ticketId = await call(['get', '[data-testid=ticket-id]']);
+  const category = await call(['get', '[data-testid=ticket-category]']);
+  const priority = await call(['get', '[data-testid=ticket-priority]']);
+  const consoleError = await call(['console', '--errors']);
+  await call(['shot', 'potwierdzenie']);
   const wallMs = Math.round(performance.now() - t0);
   // Cleanup, not part of the task the agent pays for.
-  await spawnBi(['close'], { env, cwd }).catch(() => undefined);
+  await spawnBrowserInspector(['close'], { env, cwd }).catch(() => undefined);
 
   const findings = {
     ticketId: ticketId.trim(),
@@ -486,7 +490,7 @@ export async function runInteractive(kind, ctx) {
     screenshots: commands.filter((c) => c.argv[0] === 'shot' && c.code === 0).length,
   };
   return {
-    name: `bi-interactive-${kind}`,
+    name: `browser-inspector-interactive-${kind}`,
     kind,
     commands,
     wallMs,
@@ -506,7 +510,7 @@ export async function runInteractive(kind, ctx) {
 // ── keeper-survives-shell ────────────────────────────────────────────────────
 
 /**
- * The shells a host might run `bi` from. Each gets its own pipe so the probes never touch the
+ * The shells a host might run `browser-inspector` from. Each gets its own pipe so the probes never touch the
  * bench keeper or each other.
  */
 function shells() {
@@ -533,9 +537,9 @@ function shells() {
 }
 
 /**
- * `keeper-survives-shell`: `bi up` inside a shell subprocess, the shell exits, `bi status` from
+ * `keeper-survives-shell`: `browser-inspector up` inside a shell subprocess, the shell exits, `browser-inspector status` from
  * THIS process — does the keeper spawned in there still answer? (Job Objects and some hosts kill
- * the tree; then every call is cold and the agent should know — that is what `bi doctor` prints.)
+ * the tree; then every call is cold and the agent should know — that is what `browser-inspector doctor` prints.)
  * @param {BenchContext} ctx
  */
 export async function keeperSurvivesShell(ctx) {
@@ -543,8 +547,11 @@ export async function keeperSurvivesShell(ctx) {
   for (const shell of shells()) {
     const env = {
       ...ctx.env,
-      BI_SOCKET: pipeNameFor(`bi-bench-shell-${shell.name}-${String(process.pid)}`, ctx.env.BI_TMPDIR ?? os.tmpdir()),
-      BI_IDLE_MS: '120000',
+      BROWSER_INSPECTOR_SOCKET: pipeNameFor(
+        `browser-inspector-bench-shell-${shell.name}-${String(process.pid)}`,
+        ctx.env.BROWSER_INSPECTOR_TMPDIR ?? os.tmpdir(),
+      ),
+      BROWSER_INSPECTOR_IDLE_MS: '120000',
     };
     const probe = { ...ctx, env };
     const cmdline = `"${process.execPath}" "${BIN}" up`;
@@ -560,7 +567,7 @@ export async function keeperSurvivesShell(ctx) {
       });
       result.shellMs = Math.round(performance.now() - t0);
       const t1 = performance.now();
-      const status = await spawnBi(['status'], probe);
+      const status = await spawnBrowserInspector(['status'], probe);
       result.statusMs = Math.round(performance.now() - t1);
       result.survives = status.code === 0 && /keeper running/u.test(status.stdout);
       if (!result.survives) result.note = status.lines[0] ?? status.stderr.split('\n')[0];
@@ -604,7 +611,7 @@ export function appFactoryFixture() {
 
 /**
  * The app-factory config as the bench runs it: a copy with its own output directory, optionally
- * migrated the way `bi lint-config` suggests for `waitUntil` (`networkidle` → `settled`; the
+ * migrated the way `browser-inspector lint-config` suggests for `waitUntil` (`networkidle` → `settled`; the
  * `wait ms` steps stay — the lint says those need `waitFor`, which needs a human).
  * @param {string} sourceConfig
  * @param {string} dir
@@ -630,14 +637,16 @@ export function prepareAppFactoryConfig(sourceConfig, dir, options = {}) {
  * @param {{ configPath: string, parallel: number, stamp: string }} options
  */
 export async function runAppFactory(ctx, options) {
-  const run = await spawnBi(
+  const run = await spawnBrowserInspector(
     [options.configPath, '--stamp', options.stamp, '--parallel', String(options.parallel)],
     ctx,
   );
   const runDir = path.join(path.dirname(options.configPath), 'runs', options.stamp);
   const manifestPath = path.join(runDir, '_manifest.json');
   if (run.code !== 0 || !fs.existsSync(manifestPath)) {
-    throw new Error(`bi exited with ${String(run.code)} and no manifest in ${runDir}:\n${run.stdout}${run.stderr}`);
+    throw new Error(
+      `browser-inspector exited with ${String(run.code)} and no manifest in ${runDir}:\n${run.stdout}${run.stderr}`,
+    );
   }
   const manifest = await readJson(manifestPath);
   return {
@@ -658,5 +667,5 @@ export async function runAppFactory(ctx, options) {
   };
 }
 
-// Re-exported for bench.mjs so the orchestration imports one module for the bi side.
+// Re-exported for bench.mjs so the orchestration imports one module for the browser-inspector side.
 export { chromeDescendants, chromeProcesses, isAlive };

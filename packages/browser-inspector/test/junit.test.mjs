@@ -18,29 +18,29 @@ describe('renderJUnit', () => {
 
   it('counts tests and failures on both suite levels and sums the time', () => {
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n')).toBe(true);
-    expect(xml).toContain('<testsuites name="bi" tests="3" failures="2" time="2.258">');
+    expect(xml).toContain('<testsuites name="browser-inspector" tests="3" failures="2" time="2.258">');
     expect(xml).toContain('<testsuite name="read.config.browser-inspector.json" tests="3" failures="2" time="2.258">');
     expect(xml.endsWith('</testsuites>\n')).toBe(true);
   });
 
   it('a completed snapshot is a bare testcase, with the directory as system-out when known', () => {
     expect(xml).toContain(
-      '    <testcase name="nowiro-glowna" classname="bi.read.config.browser-inspector.json" time="0.446">\n      <system-out>X/nowiro-glowna</system-out>\n    </testcase>',
+      '    <testcase name="nowiro-glowna" classname="browser-inspector.read.config.browser-inspector.json" time="0.446">\n      <system-out>X/nowiro-glowna</system-out>\n    </testcase>',
     );
   });
 
   it('an incomplete snapshot carries an escaped failure message', () => {
     expect(xml).toContain(
-      '    <testcase name="dziennik-uczen" classname="bi.read.config.browser-inspector.json" time="1.812">\n      <failure message="step 4 &quot;waitFor [data-testid=dashboard-anonymous] (visible)&quot; — Error: Timeout &lt;8000ms&gt; &amp; &quot;more&quot;"></failure>\n    </testcase>',
+      '    <testcase name="dziennik-uczen" classname="browser-inspector.read.config.browser-inspector.json" time="1.812">\n      <failure message="step 4 &quot;waitFor [data-testid=dashboard-anonymous] (visible)&quot; — Error: Timeout &lt;8000ms&gt; &amp; &quot;more&quot;"></failure>\n    </testcase>',
     );
     expect(xml).toContain(
-      '<testcase name="bookstore" classname="bi.read.config.browser-inspector.json" time="0.000">\n      <failure message="incomplete"></failure>',
+      '<testcase name="bookstore" classname="browser-inspector.read.config.browser-inspector.json" time="0.000">\n      <failure message="incomplete"></failure>',
     );
   });
 
   it('an empty run is still a valid document', () => {
     const empty = renderJUnit('cfg.json', []);
-    expect(empty).toContain('<testsuites name="bi" tests="0" failures="0" time="0.000">');
+    expect(empty).toContain('<testsuites name="browser-inspector" tests="0" failures="0" time="0.000">');
     expect(empty).toContain('<testsuite name="cfg.json" tests="0" failures="0" time="0.000">\n  </testsuite>');
   });
 });

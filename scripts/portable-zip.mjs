@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Builds the PORTABLE zip: unpack, run `node packages/browser-inspector/bin/bi.mjs …` with Node ≥ 22
+// Builds the PORTABLE zip: unpack, run `node packages/browser-inspector/bin/browser-inspector.mjs …` with Node ≥ 22
 // and the system Chrome/Edge — no npm, no build (there is no build step in this repository, so the
 // zip is a curated copy of the tree, not a bundle).
 //
 // Inside: `packages/browser-inspector` (bin, src, templates, fixtures, package.json — not `test/`),
 // `node_modules/playwright-core` (its only runtime dependency, itself dependency-free, hoisted by
 // the workspace install), the marker file `packages/browser-inspector/PORTABLE`, and the shims
-// `bi.cmd` / `bi` at the zip root. The marker matters at runtime: the keeper's identity hash
+// `browser-inspector.cmd` / `browser-inspector` at the zip root. The marker matters at runtime: the keeper's
+// identity hash
 // (DESIGN.md §2.5) skips the `src/**` mtime stamp when it sees it, because an unpacked zip has
 // arbitrary mtimes and would otherwise get a fresh keeper per unpack.
 //
@@ -109,13 +110,18 @@ export function stagePortable(root, staging) {
     `portable build of @scribe-devtools/browser-inspector ${version}\nplaywright-core ${playwrightVersion}\n`,
     'utf8',
   );
-  // Shims: `bi …` from the zip root on both shells; `%~dp0` / `$(dirname "$0")` make them cwd-independent.
-  const winPath = `${PACKAGE.replaceAll('/', '\\')}\\bin\\bi.mjs`;
-  writeFileSync(join(staging, 'bi.cmd'), `@echo off\r\nnode "%~dp0${winPath}" %*\r\n`, 'utf8');
-  writeFileSync(join(staging, 'bi'), `#!/bin/sh\nexec node "$(dirname "$0")/${PACKAGE}/bin/bi.mjs" "$@"\n`, {
-    encoding: 'utf8',
-    mode: 0o755,
-  });
+  // Shims: `browser-inspector …` from the zip root on both shells; `%~dp0` / `$(dirname "$0")` make them
+  // cwd-independent.
+  const winPath = `${PACKAGE.replaceAll('/', '\\')}\\bin\\browser-inspector.mjs`;
+  writeFileSync(join(staging, 'browser-inspector.cmd'), `@echo off\r\nnode "%~dp0${winPath}" %*\r\n`, 'utf8');
+  writeFileSync(
+    join(staging, 'browser-inspector'),
+    `#!/bin/sh\nexec node "$(dirname "$0")/${PACKAGE}/bin/browser-inspector.mjs" "$@"\n`,
+    {
+      encoding: 'utf8',
+      mode: 0o755,
+    },
+  );
   writeFileSync(
     join(staging, 'README-PORTABLE.md'),
     [
@@ -124,8 +130,8 @@ export function stagePortable(root, staging) {
       'Wymagania: Node >= 22 i systemowy Chrome albo Edge. Bez `npm install`, bez builda.',
       '',
       '```',
-      'bi help                      # Windows: bi.cmd, POSIX: ./bi',
-      `node ${PACKAGE}/bin/bi.mjs help`,
+      'browser-inspector help                      # Windows: browser-inspector.cmd, POSIX: ./browser-inspector',
+      `node ${PACKAGE}/bin/browser-inspector.mjs help`,
       '```',
       '',
       `Zawartość: \`${PACKAGE}\` (bin, src, templates, fixtures), \`node_modules/playwright-core\` ${playwrightVersion},`,
@@ -182,8 +188,8 @@ const DOS_DATE =
 const DOS_TIME =
   (FIXED_MTIME.getUTCHours() << 11) | (FIXED_MTIME.getUTCMinutes() << 5) | (FIXED_MTIME.getUTCSeconds() >> 1);
 
-/** Unix mode in the external attributes — the `bi` shim must stay executable after unzip on POSIX. */
-const unixMode = (/** @type {string} */ name) => (name === 'bi' ? 0o100755 : 0o100644);
+/** Unix mode in the external attributes — the `browser-inspector` shim must stay executable after unzip on POSIX. */
+const unixMode = (/** @type {string} */ name) => (name === 'browser-inspector' ? 0o100755 : 0o100644);
 
 /**
  * Deterministic zip of `staging`: entries in sorted order, forward slashes, one fixed timestamp,
@@ -311,7 +317,7 @@ export function gitTags(root) {
  * @returns {{ version: string, playwrightVersion: string, zipPath: string, shaPath: string, changed: boolean }}
  */
 export function buildPortable(root, outDir) {
-  const staging = mkdtempSync(join(tmpdir(), 'bi-portable-'));
+  const staging = mkdtempSync(join(tmpdir(), 'browser-inspector-portable-'));
   try {
     const { version, playwrightVersion } = stagePortable(root, staging);
     mkdirSync(outDir, { recursive: true });
@@ -360,7 +366,7 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import
       console.log(
         `[zip] ${changed ? 'zbudowany' : 'bez zmian'}: ${relative(REPO, zipPath)} (+ ${relative(REPO, shaPath)}) — wersja ${version}`,
       );
-      console.log(`[zip] po rozpakowaniu: node ${PACKAGE}/bin/bi.mjs help  (bez npm, bez builda)`);
+      console.log(`[zip] po rozpakowaniu: node ${PACKAGE}/bin/browser-inspector.mjs help  (bez npm, bez builda)`);
     }
   }
 }

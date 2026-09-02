@@ -32,7 +32,7 @@ export interface StepDef {
   aliases: readonly string[];
   /** Allowed as `steps[].do` in a batch config. */
   batch: boolean;
-  /** Allowed as `bi <name>` in a session / `bi script`. */
+  /** Allowed as `browser-inspector <name>` in a session / `browser-inspector script`. */
   session: boolean;
   /** Positional argv names: `name`, `name?` (optional), `name...` (rest). */
   argv: readonly string[];
@@ -44,7 +44,7 @@ export interface StepDef {
   validate?: (step: Step, where: string, ctx: ValidateContext) => string | string[] | undefined | void;
   /** One line for the report and the journal — never a fill value, only its origin. */
   describe: (step: Step) => string;
-  /** `bi help <name>` one-liner: `click <eN|selector> [--double] …`. */
+  /** `browser-inspector help <name>` one-liner: `click <eN|selector> [--double] …`. */
   help: string;
   /** Builds the config-shaped step from parsed positionals and flags (session only). */
   fromArgv?: (positionals: Record<string, any>, flags: Record<string, any>) => Record<string, unknown>;
@@ -194,7 +194,7 @@ export interface DialogEntry {
   type: string;
   message: string;
   action: 'accepted' | 'dismissed';
-  /** The command that triggered it (`bi click e12`), when known. */
+  /** The command that triggered it (`browser-inspector click e12`), when known. */
   trigger?: string;
 }
 
@@ -219,9 +219,9 @@ export interface RecorderLike {
   inFlight: number;
   cacheHits: number;
   cacheHitsDocument: number;
-  /** Bodies kept for `bi net <n> --body` (≤ 64 KB, json/text only). */
+  /** Bodies kept for `browser-inspector net <n> --body` (≤ 64 KB, json/text only). */
   bodies?: Map<number, string>;
-  /** Entries after the given cursor — `bi console`/`bi net` print only those. */
+  /** Entries after the given cursor — `browser-inspector console`/`browser-inspector net` print only those. */
   sinceLast?(kind: 'console' | 'net' | 'dialogs', cursor: number): { entries: any[]; cursor: number };
   [extra: string]: any;
 }
@@ -251,7 +251,7 @@ export interface StepCapture {
 
 export interface SessionState {
   name: string;
-  /** Session directory `<out>/session/<name>` chosen at `bi open`. */
+  /** Session directory `<out>/session/<name>` chosen at `browser-inspector open`. */
   dir: string;
   cwd: string;
   out: string;
@@ -336,7 +336,7 @@ export interface Timing {
 }
 
 export interface EngineInfo {
-  bi: string;
+  'browser-inspector': string;
   'playwright-core': string;
   browser: string;
   flags: string[];
