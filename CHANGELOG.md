@@ -5,6 +5,12 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+_Brak zmian od ostatniego wydania._
+
+## 0.1.0 — 2026-09-02
+
+Pierwsze wydanie: `bi` (browser-inspector 2) — zamiennik serwera MCP Playwrighta. Bench: bi-warm 358 ms vs MCP naive warm 3871 ms (10,8×), tokeny 400 vs 6814 na sesję; szczegóły w `bench/RAPORT.md`. Otwarte: AC-5 (bi-cold 2,08 s > 1,75 s), AC-6 na limicie (400 tokenów).
+
 ### Added
 
 - WP0 — szkielet repozytorium: workspaces `packages/*` + `bench`, `packages/browser-inspector`
