@@ -5,6 +5,45 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Changed
+
+- **Silnik to pięć modułów zamiast jednego pliku na 2320 linii** — refaktor bez zmiany zachowania
+  (te same 423 testy + 18 smoke, ten sam `report.json`). `src/engine.mjs` (242 linie) jest teraz
+  wyłącznie miejscem składania: normalizuje dwa zapisy `createEngine`, spina części i trzyma to, czego
+  żadna z nich nie może wiedzieć — flagę `closed`, listenery `on('disconnected')` i regułę „sesja nie
+  przeżywa swojej przeglądarki” (`pool.setBeforeClose`). Wydzielone: `src/lanes.mjs` (`createLanePool` —
+  launch, lane'y `scratch[0..N-1]`, `spare`, scrub, RSS, recykling, plus `launchPlan`/`launchBrowser` i
+  stałe budżetów), `src/steps.ctx.mjs` (`makeStepContext`, `runStep`, `navigate`, `resolveSelector`,
+  `writeSnapshotFiles` — jeden kontekst, który widzi każdy RUNNER, bez żadnego stanu puli),
+  `src/flow.mjs` (`createFlowRunner`: `runFlow`, `runBatch`, `finishRun`) i `src/session.mjs`
+  (`createSessions`: `openSession`, `runCommand`, `runScript`, `exportFlow`). Obie połowy dzielą pulę i
+  kontekst kroku i nic więcej — to jest dowód, że batchowy `click` i `browser-inspector click` to ten sam
+  kod (DESIGN §2.2). Pomiar po refaktorze (`npm run bench`): warm **333 ms** (było 348), warm-tight 326
+  (333), first 1373 (1478), cold 1465 (1548) — **8,7×** wobec MCP naive (było 8,3×); w BUDGET.md ubył
+  jeden czerwony wiersz, żaden nie doszedł. Publiczny obiekt `createEngine(...)` ma te same klucze co przedtem;
+  `launchPlan`/`launchBrowser`/`FAST_HEADLESS_ARGS`/`E_BROWSER_MISSING` importuje się teraz z
+  `src/lanes.mjs` (bez re-eksportu, żeby CODE-INDEX pokazywał prawdziwego właściciela).
+- **Keeper rozdzielony na proces i żądanie**: `src/keeper.requests.mjs` (673 linie) to protokół
+  (`PROTOCOL_VERSION`, linia `done`, `EngineUnavailableError`, `statusOf`) i `handleRequest` z czterema
+  uchwytami zadań (batch, session, script, export); `src/keeper.mjs` (923 linie, było 1574) to sam proces:
+  lock, listen, plik pid, log, kolejki, kontekst, ładowanie silnika, spawn. Zależność biegnie w jedną
+  stronę — proces importuje żądania, nigdy odwrotnie. `runInProcess` w kliencie bierze `handleRequest`
+  z nowego modułu (dalej dynamicznie, więc graf startu klienta bez zmian).
+- **Jeden czytnik `package.json`**: `packageVersion(dir, fallback)` w `src/paths.mjs` zastąpił trzy kopie
+  tej samej pętli try/catch (klient, silnik, keeper). Identyczność hasha tożsamości bez zmian (dalej `''`
+  dla nieczytelnego pakietu, `'0.0.0'` tam, gdzie raport potrzebuje numeru).
+- **Trzy testy `idle and sessions` przestały być wyścigiem z własnym klientem**: brały pid keepera
+  spod `up`, a potem uruchamiały komendę klienta — start procesu klienta to 80–190 ms, więc na
+  obciążonej maszynie budżet `BROWSER_INSPECTOR_IDLE_MS: 200` mijał przed połączeniem, keeper z `up`
+  wychodził (`shutdown: idle` w logu) i klient stawiał drugiego. Dwa testy czytają pid PO komendzie
+  otwierającej sesję (to ten keeper trzyma sesję), trzeci dostał budżet 600 ms. Zachowanie narzędzia
+  bez zmian — mierzone: start klienta `browser-inspector help` 80 ms mediana z 5 (budżet 120),
+  keeper nasłuchuje 54 ms po starcie (było 58).
+
+- **Strażnik grafu klienta zna nowe moduły**: `test/client-imports.test.mjs` odrzuca teraz każdy moduł
+  silnika (`engine`, `lanes`, `flow`, `session`, `steps.ctx`, `steps.run`), nie tylko wejście — bez tego
+  rozbicie pliku otwierałoby cichą furtkę do 300 ms startu klienta (AC-13).
+
 ### Changed — BREAKING
 
 - **Skrót `bi` znika z narzędzia — wszędzie pełna nazwa `browser-inspector`** (reguła właściciela; narzędzie

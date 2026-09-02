@@ -204,9 +204,12 @@ describe('idle and sessions', () => {
   it('an open session blocks idle until `browser-inspector close`', async () => {
     const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '200' });
     await runBrowserInspector(['up'], h);
-    const info = readPid(h);
     const open = await runBrowserInspector(['open', 'http://localhost:4521/', '--session', 's'], h);
     expect(open.code).toBe(0);
+    // The pid AFTER `open`, not after `up`: starting a client node process takes 80-190 ms, and on a
+    // loaded machine that outruns a 200 ms idle budget — the keeper from `up` then exits and the
+    // client spawns another one, which is the keeper holding the session and the one under test.
+    const info = readPid(h);
     await sleep(600);
     expect(isAlive(info.pid)).toBe(true);
     const status = await runBrowserInspector(['status'], h);
@@ -220,8 +223,9 @@ describe('idle and sessions', () => {
   it('a session expires after BROWSER_INSPECTOR_SESSION_TTL_MS and the keeper goes idle', async () => {
     const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '200', BROWSER_INSPECTOR_SESSION_TTL_MS: '400' });
     await runBrowserInspector(['up'], h);
-    const info = readPid(h);
     await runBrowserInspector(['open', 'http://localhost:4521/', '--session', 't'], h);
+    // The keeper serving the session, for the same reason as above.
+    const info = readPid(h);
     await sleep(250);
     expect(isAlive(info.pid)).toBe(true);
     await until(() => !isAlive(info.pid), 3000);
@@ -231,14 +235,16 @@ describe('idle and sessions', () => {
   }, 20000);
 
   it('a command that leaves no session open (per the engine) does not keep the keeper', async () => {
-    const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '200' });
+    // 600 ms, not 200: this test needs the keeper from `up` to still be there when the NEXT client
+    // process connects, and starting that process costs 80-190 ms (more on a loaded machine).
+    const h = fresh({ BROWSER_INSPECTOR_IDLE_MS: '600' });
     const up = await runBrowserInspector(['up'], h);
-    // The pid from the answer, not the pid file: with a 200 ms idle budget the keeper can be gone
+    // The pid from the answer, not the pid file: with a short idle budget the keeper can be gone
     // (file unlinked) before this process gets to read it when the machine is busy.
     const info = { pid: Number(/pid (\d+)/u.exec(up.lines[0])?.[1] ?? -1) };
     const click = await runBrowserInspector(['click', 'e404', '--session', 'x'], h);
     expect(click.code).toBe(1);
-    await until(() => !isAlive(info.pid), 2000);
+    await until(() => !isAlive(info.pid), 4000);
     expect(isAlive(info.pid)).toBe(false);
   }, 20000);
 });

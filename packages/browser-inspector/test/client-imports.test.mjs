@@ -9,7 +9,9 @@ import { runBrowserInspector, cleanup, makeEnv } from './fixtures/keeper-harness
 
 // A file URL, not a path: on Windows `--import=C:...` reads `C:` as a URL scheme and Node exits 1.
 const HOOK = new URL('./hooks/trace-loads.mjs', import.meta.url).href;
-const FORBIDDEN = [/playwright-core/u, /\/src\/engine\.mjs$/u, /\/src\/steps\.run\.mjs$/u];
+// The engine is five modules now (engine, lanes, flow, session, steps.ctx); each one of them
+// carries the browser weight, so the guard names them all next to steps.run, not just the entry.
+const FORBIDDEN = [/playwright-core/u, /\/src\/(?:engine|lanes|flow|session|steps\.ctx|steps\.run)\.mjs$/u];
 
 /** @type {ReturnType<typeof makeEnv>[]} */
 const harnesses = [];

@@ -53,7 +53,11 @@ agent ──sh──▶ node bin/browser-inspector.mjs <cmd>       klient: node:
 
 `--no-daemon` (albo `BROWSER_INSPECTOR_DAEMON=0`, albo automatycznie na CI — §2.5): klient importuje `src/engine.mjs` sam i wykonuje **batch** w procesie — ten sam kod, bez gniazda. To ścieżka bramki CI (`smoke-browser.mjs` pod `CI=true`) i ścieżka awaryjna, gdy keeper nie wstaje. **Komendy sesyjne nie mają fallbacku** (recenzja #2: `browser-inspector open` w procesie kończyłby się zamknięciem przeglądarki, a `browser-inspector click e5` kłamałby „ref not found”): bez keepera kończą się `exit 2` i linią `FAIL keeper unavailable: <powód> — sessions need the keeper (browser-inspector up | doctor); batch: --no-daemon`. Dla CI bez keepera jest `browser-inspector script <plik>` — lista komend sesji wykonana w jednym procesie (§3.1). Test pilnuje identyczności `report.json` z obu ścieżek batchu modulo `timing`/`engine`.
 
-### 2.2 Silnik (`src/engine.mjs`, `src/recorder.mjs`, `src/isolation.mjs`)
+### 2.2 Silnik (`src/engine.mjs` + `lanes` / `steps.ctx` / `flow` / `session`, `src/recorder.mjs`, `src/isolation.mjs`)
+
+`engine.mjs` jest miejscem składania: `lanes.mjs` (przeglądarka i jej lane’y), `steps.ctx.mjs` (kontekst kroku
+i `runStep`), `flow.mjs` (połowa batch) i `session.mjs` (połowa sesyjna). Obie połowy dzielą pulę i kontekst
+kroku i nic więcej — dlatego `click` w batchu i `browser-inspector click` to ten sam RUNNER.
 
 `createEngine(browserOpts)` → `{ runFlow(snapshot, dir, laneOpts), runCommand(session, step, args), runScript(lines), session(name), scrub(lane), close() }`.
 
@@ -86,7 +90,7 @@ Co zostaje celowo: cache HTTP, code-cache V8, ciepły renderer. Statyczny `serve
 
 ### 2.4 Klient (`bin/browser-inspector.mjs` + `src/client.mjs`)
 
-Importuje wyłącznie `node:net`, `node:fs`, `node:path`, `node:child_process`, `node:os` oraz `src/steps.schema.mjs`, `src/cli.mjs`, `src/config.mjs`, `src/paths.mjs`, `src/print.mjs` — **nigdy** `playwright-core`, `engine.mjs` ani `steps.run.mjs`. Hash tożsamości to FNV-1a w JS (bez `node:crypto`). Strażnicy (recenzje #1/#2: bez nich start klienta cicho rośnie z 48 do 300 ms i teza pada): `test/client-imports.test.mjs` uruchamia `node --import=./test/hooks/trace-loads.mjs bin/browser-inspector.mjs help` i sprawdza listę załadowanych modułów; `test/perf/client-start.perf.test.mjs`: mediana z 5 × `spawn(node bin/browser-inspector.mjs help)` ≤ 120 ms.
+Importuje wyłącznie `node:net`, `node:fs`, `node:path`, `node:child_process`, `node:os` oraz `src/steps.schema.mjs`, `src/cli.mjs`, `src/config.mjs`, `src/paths.mjs`, `src/print.mjs` — **nigdy** `playwright-core` ani modułu silnika (`engine.mjs`, `lanes.mjs`, `flow.mjs`, `session.mjs`, `steps.ctx.mjs`, `steps.run.mjs`). Hash tożsamości to FNV-1a w JS (bez `node:crypto`). Strażnicy (recenzje #1/#2: bez nich start klienta cicho rośnie z 48 do 300 ms i teza pada): `test/client-imports.test.mjs` uruchamia `node --import=./test/hooks/trace-loads.mjs bin/browser-inspector.mjs help` i sprawdza listę załadowanych modułów; `test/perf/client-start.perf.test.mjs`: mediana z 5 × `spawn(node bin/browser-inspector.mjs help)` ≤ 120 ms.
 
 Protokół: jedna linia JSON żądania `{ v: 1, token, cwd, argv, values, secretValues, files, session, out }`, linie `{ progress }` (batch: jedna na zakończony snapshot) i `{ done: true, exit, lines, files }`. **Bez `env`** (recenzja #2): klient rozwiązuje `valueFromEnv` / `--env NAZWA` / `@{NAZWA}` u siebie i wysyła **tylko** wartości pod adresami kroków (`values: { "snapshots[3].steps[4].value": "…", "argv.fill.value": "…" }`) plus `secretValues` (wartości pochodzące z env), które keeper trzyma per zadanie/sesja i **redaguje** (`***`) wszędzie (§2.6). Pliki (`route --file`, `upload`, `eval --file`, `state load`, `script`) czyta **klient** względem swojego cwd i wysyła treść (≤ 1 MB, base64) albo ścieżkę absolutną (większe uploady) — keeper może mieć inne cwd i uprawnienia. Klient parsuje argv z tabeli `STEPS` (schemat), więc literówka pada w kliencie; drukuje `lines`, kończy kodem `exit`; przy `keeper: fallback` (tylko batch) dopisuje to do stdout i `timing.mode`.
 
@@ -465,7 +469,11 @@ scribe-devtools/
     src/steps.schema.mjs            # STEPS: kind/argv/flags/config/validate/describe/help — importowane przez klienta
     src/steps.run.mjs               # RUNNERS: run(ctx, s) per krok — importowane tylko przez silnik
     src/config.mjs                  # loadConfig(path, cwd): stary schemat + nowe pola; walidacja refów; lintConfig()
-    src/engine.mjs                  # createEngine: launch, lanes/spare/sessions, runFlow, runCommand, runScript, zdrowie, recykling
+    src/engine.mjs                  # createEngine: skład czterech części niżej, status, close, listenery (`disconnected`)
+    src/lanes.mjs                   # createLanePool: launch, lane'y scratch/spare, scrub, RSS, recykling, launchPlan/launchBrowser
+    src/steps.ctx.mjs               # makeStepContext + runStep: jeden kontekst, który widzi każdy RUNNER (batch i sesja)
+    src/flow.mjs                    # createFlowRunner: runFlow (jeden snapshot), runBatch (cały config), finishRun (manifest, JUnit)
+    src/session.mjs                 # createSessions: openSession, runCommand, runScript, exportFlow, dziennik sesji
     src/recorder.mjs                # attachRecorder(page): console/net/dialog/popup/crash, since-last, bodies ≤ 64 KB, cacheHits
     src/isolation.mjs               # scrubPlan(state) → ops (czysta), applyScrub(lane, plan), needsFreshContext, GEN_SCRIPT
     src/settle.mjs                  # waitSettled(page, recorder, { quietMs, capMs })
@@ -477,12 +485,13 @@ scribe-devtools/
     src/redact.mjs                  # redact(text, secretValues), maskSnapshotValues — jedna funkcja dla wszystkich miejsc
     src/auth.mjs                    # ensureSession (login/oauth/storageState) — port ze skryby
     src/keeper.mjs                  # net server, lock O_EXCL, NDJSON, token, kolejki, idle/TTL, prewarm, lane’y, recykling
+    src/keeper.requests.mjs         # protokół (wersja, `done`, EngineUnavailableError) + handleRequest i cztery uchwyty zadań
     src/client.mjs                  # connect/spawn/retry/fallback(batch only), resolveValues, files, doctor, print, exit
     src/paths.mjs                   # identityHash (fnv1a), pipeName, pidFile, lockFile, sessionDir, outputDir, isCI, daemonEnabled
     src/deadline.mjs                # withDeadline, degradeTo (z wersji TS)
     src/types.d.ts                  # PageLike, StepContext, StepDef, Report, Manifest, KeeperRequest/Response, Timing
     test/*.test.mjs                 # vitest z FakePage (PageLike)
-    test/client-imports.test.mjs    # graf modułów klienta: nigdy playwright-core / engine.mjs / steps.run.mjs
+    test/client-imports.test.mjs    # graf modułów klienta: nigdy playwright-core / engine|lanes|flow|session|steps.ctx|steps.run.mjs
     test/keeper.test.mjs            # prawdziwy pipe na losowej nazwie, silnik = fake; lock, token, idle, CI, sesje
     test/compat/smoke-gate.test.mjs # spawn bin/browser-inspector.mjs <config app-factory> --stamp X: --no-daemon, keeper ×2, --parallel 3; kopia evaluateReports()
     test/smoke/smoke.test.mjs       # prawdziwy Chrome: fixtures/*.html przez node:http, flow + sesja przez keepera + izolacja

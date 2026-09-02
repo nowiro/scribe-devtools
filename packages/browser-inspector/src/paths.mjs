@@ -110,13 +110,20 @@ export function srcStamp(dir) {
   return newest;
 }
 
-/** @param {string} dir @returns {string} the `version` field of `dir/package.json`, '' when unreadable */
-function packageVersion(dir) {
+/**
+ * The `version` field of `dir/package.json`, `fallback` when unreadable. The one reader in the
+ * package: the identity hash wants `''` for "no such package", the engine and the keeper report
+ * `'0.0.0'` — the difference is the argument, not a second copy of the try/catch.
+ * @param {string} dir
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+export function packageVersion(dir, fallback = '') {
   try {
     const parsed = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
-    return typeof parsed.version === 'string' ? parsed.version : '';
+    return typeof parsed.version === 'string' ? parsed.version : fallback;
   } catch {
-    return '';
+    return fallback;
   }
 }
 

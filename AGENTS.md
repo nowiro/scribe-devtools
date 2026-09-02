@@ -82,10 +82,10 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
   (`test/engine.test.mjs`); klient importuje tylko schemat, silnik tylko runnery;
   `docs/STEPS.md` i `browser-inspector help` renderują tę samą tabelę.
 - `PageLike` w `src/types.d.ts` ↔ `FakePage` w testach ↔ wywołania w `steps.run.mjs`.
-- protokół keepera (`KeeperRequest/Response`, bez `env`) ↔ `src/client.mjs` ↔ `src/keeper.mjs`;
+- protokół keepera (`KeeperRequest/Response`, bez `env`) ↔ `src/client.mjs` ↔ `src/keeper.requests.mjs`;
   adresy wartości (`snapshots[i].steps[j].value`, `argv.<cmd>.value`, `script[n].value`) ↔
   `ctx.value()` w silniku; linie `browser-inspector script` dzieli `splitCommandLine` z `client.mjs` po obu stronach.
-- `scrubPlan` (ops) w `src/isolation.mjs` ↔ `applyScrub` w silniku.
+- `scrubPlan` (ops) w `src/isolation.mjs` ↔ `applyScrub` w `src/lanes.mjs`.
 - kształt `report.json` (`completed`, `steps[].description/ok/error`, `navigationError` tylko gdy
   jest, `timing.mode/ctx/tab/queuedMs/scrubMs/cacheHits`) ↔ `bench/budget.mjs` ↔ kopia
   `evaluateReports()` w `test/compat/smoke-gate.test.mjs` ↔ `tools/scripts/smoke-browser.mjs`
@@ -133,7 +133,8 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 - Sekrety wyłącznie przez zmienne środowiskowe (`valueFromEnv`, `--env`, `@{NAZWA}`) —
   literał w `auth.login` ma być błędem walidacji; keeper nigdy nie dostaje `env`; żaden test
   ani fixture nie zawiera prawdziwego hasła.
-- Nie importuj `playwright-core`, `engine.mjs` ani `steps.run.mjs` w kliencie (`bin/browser-inspector.mjs`,
+- Nie importuj `playwright-core` ani żadnego modułu silnika (`engine.mjs`, `lanes.mjs`, `flow.mjs`,
+  `session.mjs`, `steps.ctx.mjs`, `steps.run.mjs`) w kliencie (`bin/browser-inspector.mjs`,
   `src/client.mjs`) — budżet startu klienta to 72 ms, test `client-imports` pilnuje grafu.
 - Nie używaj `networkidle` domyślnie, `isTTY` do czegokolwiek, ping-pongu kart ani
   `about:blank` między przebiegami — zmierzone i odrzucone (DESIGN.md §11).

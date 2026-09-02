@@ -8,14 +8,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createEngine } from '../src/engine.mjs';
 import {
   BrowserMissingError,
   E_BROWSER_MISSING,
   FAST_HEADLESS_ARGS,
-  createEngine,
   launchBrowser,
   launchPlan,
-} from '../src/engine.mjs';
+} from '../src/lanes.mjs';
 import { RUNNERS } from '../src/steps.run.mjs';
 import { STEPS } from '../src/steps.schema.mjs';
 import { callsOf, createFakeBrowser } from './fake-browser.mjs';

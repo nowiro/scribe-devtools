@@ -9,7 +9,8 @@ applyTo: 'packages/**/src/**/*.mjs,packages/**/bin/**/*.mjs'
 - Komentarze po angielsku i mówią **dlaczego**, nie co; identyfikatory po angielsku; komunikaty dla
   użytkownika po polsku, jedna linia ≤ 160 znaków, prefiks `ok` / `FAIL`.
 - Klient (`bin/browser-inspector.mjs`, `src/client.mjs`, `src/cli.mjs`, `src/steps.schema.mjs`,
-  `src/paths.mjs`, `src/print.mjs`) NIGDY nie importuje `playwright-core`, `engine.mjs` ani
+  `src/paths.mjs`, `src/print.mjs`) NIGDY nie importuje `playwright-core`, modułów silnika
+  (`engine.mjs`, `lanes.mjs`, `flow.mjs`, `session.mjs`, `steps.ctx.mjs`) ani
   `steps.run.mjs` — budżet startu klienta pilnuje test `client-imports`.
 - Pełna nazwa **browser-inspector** wszędzie: binarka, skrypty, zmienne `BROWSER_INSPECTOR_*`, nazwy
   pipe'a i plików keepera, teksty pomocy. Skrót `bi` jest zakazany.

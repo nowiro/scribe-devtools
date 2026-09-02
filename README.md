@@ -312,15 +312,15 @@ docs/                         # DESIGN.md (kontrakt), PLAN.md, ACCEPTANCE.md, ST
 
 <!-- BENCH:START -->
 
-Pomiar z 2026-09-02T05:45:38.102Z (`npm run bench`, Chrome/152, @playwright/mcp 0.0.80):
+Pomiar z 2026-09-02T09:26:31.484Z (`npm run bench`, Chrome/152, @playwright/mcp 0.0.80):
 
 | wariant | mediana | p90 | × vs MCP naive | × vs MCP lean settle 100 |
 | --- | ---: | ---: | ---: | ---: |
-| browser-inspector-warm (2.+ wywołanie, przerwa 300 ms) | **348 ms** | 365 ms | 8,3× | 2,9× |
-| browser-inspector-warm-tight (bez przerwy) | **333 ms** | 337 ms | 8,7× | 3,1× |
-| browser-inspector-first (keeper startuje w stoperze) | **1478 ms** | 1533 ms | 2,5× (vs 1. przebieg) | 1,2× (vs 1. przebieg) |
-| browser-inspector-cold (`--no-daemon`, CI) | **1548 ms** | 1557 ms | 2,4× (vs 1. przebieg) | 1,1× (vs 1. przebieg) |
-| MCP naive / lean / lean settle 100 (warm) | 2886 / 3390 / 1025 ms | — | — | — |
+| browser-inspector-warm (2.+ wywołanie, przerwa 300 ms) | **333 ms** | 347 ms | 8,7× | 2,9× |
+| browser-inspector-warm-tight (bez przerwy) | **326 ms** | 341 ms | 8,9× | 3,0× |
+| browser-inspector-first (keeper startuje w stoperze) | **1373 ms** | 1389 ms | 2,7× (vs 1. przebieg) | 1,3× (vs 1. przebieg) |
+| browser-inspector-cold (`--no-daemon`, CI) | **1465 ms** | 1472 ms | 2,5× (vs 1. przebieg) | 1,2× (vs 1. przebieg) |
+| MCP naive / lean / lean settle 100 (warm) | 2893 / 3395 / 980 ms | — | — | — |
 
 Tokeny (o200k) na sesję z jednym zadaniem: **browser-inspector batch 414** (blok AGENTS.md 158 + komenda, stdout i cały `report.md`), browser-inspector-interactive-naive 799, browser-inspector-interactive-lean 612 — wobec MCP naive 6814 / lean 5499. Szczegóły: [bench/RAPORT.md](bench/RAPORT.md), budżet vs pomiar: [bench/BUDGET.md](bench/BUDGET.md).
 

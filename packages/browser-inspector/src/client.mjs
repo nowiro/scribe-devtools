@@ -24,7 +24,15 @@ import { fileURLToPath } from 'node:url';
 
 import { CliError, parseArgs, parseSessionCommand, usage } from './cli.mjs';
 import { ConfigError, lintConfig, loadConfig } from './config.mjs';
-import { collectIdentity, daemonEnabled, fnv1a, identityHash, pidFile, pipeName } from './paths.mjs';
+import {
+  collectIdentity,
+  daemonEnabled,
+  fnv1a,
+  identityHash,
+  packageVersion as versionOf,
+  pidFile,
+  pipeName,
+} from './paths.mjs';
 import { KEEPER_UNAVAILABLE, formatDoctor, formatMs } from './print.mjs';
 
 /** @typedef {import('./types.js').KeeperRequest} KeeperRequest */
@@ -64,11 +72,7 @@ export class KeeperUnavailableError extends Error {
 
 /** @returns {string} */
 export function packageVersion() {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(PACKAGE_DIR, 'package.json'), 'utf8')).version ?? '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
+  return versionOf(PACKAGE_DIR, '0.0.0');
 }
 
 // ── Identity ─────────────────────────────────────────────────────────────────
@@ -462,13 +466,14 @@ export async function runViaKeeper(request, options) {
 
 /**
  * The same handler as the keeper's, without the socket: `--no-daemon`, CI and the fallback.
- * `keeper.mjs` and the engine are imported HERE, dynamically — the client's static graph stays small.
+ * The keeper's two modules and the engine are imported HERE, dynamically — the client's static
+ * graph stays small.
  * @param {KeeperRequest} request
  * @param {{ mode: TimingMode, identity: Identity, env: NodeJS.ProcessEnv, onProgress?: (p: any) => void }} options
  * @returns {Promise<KeeperDone>}
  */
 export async function runInProcess(request, options) {
-  const keeper = await import('./keeper.mjs');
+  const [keeper, requests] = await Promise.all([import('./keeper.mjs'), import('./keeper.requests.mjs')]);
   const ctx = keeper.createContext({
     env: options.env,
     browserOpts: options.identity.browserOpts,
@@ -482,7 +487,7 @@ export async function runInProcess(request, options) {
     },
   });
   try {
-    return await keeper.handleRequest({ ...request, token: '' }, { ...ctx, onProgress: options.onProgress });
+    return await requests.handleRequest({ ...request, token: '' }, { ...ctx, onProgress: options.onProgress });
   } finally {
     await ctx.close();
   }
