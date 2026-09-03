@@ -2,7 +2,6 @@ node_modules/
 coverage/
 *.log
 *.tsbuildinfo
-.vitest/
 .DS_Store
 Thumbs.db
 
@@ -16,21 +15,10 @@ Thumbs.db
 # `prettier --check .` red.
 .ws/
 
-# The benchmark's raw results; RAPORT.md/WYNIKI.md/BUDGET.md are committed, the JSON behind them is not.
-bench/out/
-
-# What the @playwright/mcp server drops in the working directory (console logs, page snapshots) when
-# it runs from `.mcp.json` / `.vscode/mcp.json` — including during `npm run bench`. Untracked AND
-# unformatted: without the `.prettierignore` twin, one bench run turns `npm run verify` red.
-.playwright-mcp/
-
-# The portable zip IS tracked — every version lives in download/ (built by the pre-commit hook,
-# deterministic bytes, .sha256 sidecar). A zip anywhere else is a stray build.
-*-portable-*.zip
-!download/*-portable-*.zip
+# `npm run portable` output. On this branch it is an on-demand build, not a tracked release
+# artifact — nothing here is committed.
+download/
 
 # A read config carries the URLs, selectors and flows of the app it inspects — yours, not the
-# template's. The negations must name their directories: a slash-less pattern matches at every depth.
+# tool's.
 read.config.*.json
-!packages/*/fixtures/read.config.*.json
-!examples/read.config.*.json

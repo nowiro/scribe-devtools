@@ -1,19 +1,11 @@
 #!/bin/sh
-# Regenerates every generated artifact so each commit carries them fresh — `npm run verify` fails
-# on a stale one, this hook makes staleness impossible. Armed by `npm run prepare` (`.npmrc` has
+# Regenerates CODE-INDEX.md so each commit carries it fresh — `npm run verify` fails on a stale
+# one, this hook makes staleness impossible. Armed by `npm run prepare` (`.npmrc` has
 # ignore-scripts=true, so `npm install` does NOT run `prepare` — call it once).
 #
-# Order: code index → steps doc → portable zip. The zip build is deterministic (fixed timestamps,
-# sorted entries, sha256 sidecar), so when nothing inside changed the file is byte-identical and
-# `git add` is a no-op — a commit that touches only docs does not grow history by 3 MB.
+# The portable zip (`npm run portable`) is NOT built here: on this minimal branch it is an
+# on-demand script, not a per-commit artifact — nothing here needs a 3 MB blob added to every
+# commit that only touches a source file.
 node scripts/index-code.mjs || exit 1
 git add CODE-INDEX.md
-# docs/STEPS.md exists only once packages/browser-inspector/src/steps.schema.mjs does; the
-# generator says so and exits 0 in the meantime.
-node scripts/gen-steps-doc.mjs || exit 1
-[ -f docs/STEPS.md ] && git add docs/STEPS.md
-# download/scribe-devtools-portable-<version>.zip (+ .sha256): the version comes from package.json,
-# every released version stays in the repository. Needs node_modules (npm ci) — the build says so.
-node scripts/portable-zip.mjs || exit 1
-git add download
 exit 0

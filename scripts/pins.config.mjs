@@ -1,13 +1,9 @@
 // The single declaration site for every dependency version in this repository.
 //
 // Why a config and not just the manifests: a version number here is not only an install
-// instruction, it is a claim the repository makes about itself. `playwright-core` 1.62.1 is
-// quoted in 43 lines across 20 files — six of them assertions the test suite enforces, the
-// rest prose that no gate reads. Bumping the pin therefore fails loudly on string comparisons
-// (cheap to "fix": edit six literals) and stays silent about the thing that actually breaks
-// (the aria grammar the golden fixtures were rendered from). This file inverts that: the
-// version lives in one row, and `check-pins.mjs` mechanically finds everything downstream of
-// it that a human still has to look at.
+// instruction, it is a claim the repository makes about itself. This file inverts the usual
+// "grep for the version and hope" approach: the version lives in one row, and `check-pins.mjs`
+// mechanically finds everything downstream of it that a human still has to look at.
 //
 // Fields:
 //   id           npm package name.
@@ -31,45 +27,32 @@
 
 /** @typedef {{ id: string, owner: string, mirrors?: string[], argv?: string[], policy: 'exact' | 'caret', minSupported?: string, prose?: string[], frozen?: string[], regenerate?: string[], staleDays: number, why: string, links?: string[] }} Pin */
 
-/** Text that is history, not declaration — true for every pin. */
-export const FROZEN_ALWAYS = ['CHANGELOG.md', 'docs/handoff/', 'docs/research/'];
+/**
+ * Text that is history, not declaration. Empty on this branch: the changelog and the archived
+ * design/handoff/research docs that used to live here are gone — there is no long-form prose left
+ * to freeze, only the short files `prose` below already points at.
+ */
+export const FROZEN_ALWAYS = [];
 
 /** @type {Pin[]} */
 export const PINS = [
   {
     id: 'playwright-core',
     owner: 'packages/browser-inspector/package.json#dependencies',
-    mirrors: ['bench/package.json#dependencies'],
     policy: 'exact',
     minSupported: '1.62.1',
-    prose: ['AGENTS.md', 'README.md', 'docs/', 'packages/', 'scripts/', 'bench/'],
-    // The gate's own tests build synthetic trees pinned to 1.62.0/1.62.2/1.63.0 on purpose — those
-    // numbers are the test's subject, not a claim about this repository. Excluded here rather than
-    // with six `pins:ignore` comments, which would say the same thing six times and read as noise.
-    frozen: ['scripts/check-pins.test.mjs'],
-    regenerate: ['node packages/browser-inspector/fixtures/generate.mjs', 'npm run bench'],
+    prose: ['AGENTS.md', 'README.md', 'packages/', 'scripts/'],
     staleDays: 45,
-    why: 'The engine reads playwright-core internals: `aria-ref` resolution through `_lastAriaSnapshotForQuery`, `ariaSnapshotWithRefs`, `ariaSnapshotForFrame`, `computeAriaRef` ref stability, the `f<seq>` frame prefix. Six of those facts are written down in docs/DESIGN.md:27 and none of them is asserted against the installed bundle. The four golden fixtures were rendered by 1.62.1 and have no `--check` mode, so a grammar change repaints them and stays green. `pwVersion` is also part of the keeper `identityHash`, and scripts/portable-zip.mjs:84 compares this manifest string to the installed version literally — a range here throws on every portable build.',
+    why: 'The engine reads playwright-core internals: `aria-ref` resolution through `_lastAriaSnapshotForQuery`, `ariaSnapshotWithRefs`, `ariaSnapshotForFrame`, `computeAriaRef` ref stability, the `f<seq>` frame prefix — none of it public API. `pwVersion` is also part of the keeper `identityHash`, and `scripts/portable-zip.mjs` compares this manifest string to the installed version literally — a range here throws on every portable build.',
     links: ['https://www.npmjs.com/package/playwright-core/v/1.62.1'],
-  },
-  {
-    id: '@playwright/mcp',
-    owner: 'bench/package.json#devDependencies',
-    argv: ['.mcp.json', '.vscode/mcp.json'],
-    policy: 'exact',
-    prose: ['AGENTS.md', 'README.md', 'docs/', 'bench/'],
-    regenerate: ['npm run bench'],
-    staleDays: 30,
-    why: 'The whole benchmark is measured against this exact server: 4069 fixed tokens for 24 tools, the 2913 ms baseline, and every ratio in RAPORT/WYNIKI/BUDGET/README. The tool count moves between releases (21 tools / 3211 tokens at 0.0.69), and the default `--timeout-settle 500` is, per docs/DESIGN.md:35, two thirds of the measured difference. A different version does not make the numbers worse, it makes them not comparable.',
   },
   {
     id: 'gpt-tokenizer',
     owner: 'package.json#devDependencies',
-    mirrors: ['bench/package.json#devDependencies'],
     policy: 'caret',
     prose: [],
     staleDays: 120,
-    why: "The measuring instrument, not a dependency of the product: the 200-token limit on the AGENTS.md instruction block, AC-6/AC-7, the snapshot budgets and every token figure in the reports come out of it. A change moves BOTH sides of every ratio at once, so the result still looks plausible — which is exactly why it must never move unnoticed. Kept on caret deliberately: pinning it exact would freeze a tokenizer that is only ever a proxy for the agent's own, and the honest guard is the review calendar, not the range.",
+    why: "The measuring instrument behind the 200-token limit on the AGENTS.md instruction block (`check-instruction-sync.mjs`), not a dependency of the product. Kept on caret deliberately: pinning it exact would freeze a tokenizer that is only ever a proxy for the agent's own, and the honest guard is the review calendar, not the range.",
   },
   {
     id: 'prettier',
@@ -77,7 +60,7 @@ export const PINS = [
     policy: 'caret',
     prose: [],
     staleDays: 180,
-    why: '`prettier --check .` is the first step of `npm run verify`, so a formatting change turns the whole gate red before a single test runs. Loud and immediate — the cheapest failure mode in the repository, which is why caret is fine.',
+    why: '`prettier --check .` is the first step of `npm run verify`, so a formatting change turns the whole gate red before anything else runs. Loud and immediate — the cheapest failure mode in the repository, which is why caret is fine.',
   },
   {
     id: 'typescript',
@@ -86,14 +69,6 @@ export const PINS = [
     prose: [],
     staleDays: 180,
     why: '`tsc --noEmit` type-checks the JSDoc on plain .mjs sources. A stricter release fails the gate visibly; there is no silent mode of failure.',
-  },
-  {
-    id: 'vitest',
-    owner: 'package.json#devDependencies',
-    policy: 'caret',
-    prose: [],
-    staleDays: 180,
-    why: 'The runner for all six projects in vitest.config.mts. `passWithNoTests: true` is the one quiet spot: a major that renames a project silently runs zero tests instead of failing, so a bump must be checked against the printed test count, not against a green tick.',
   },
   {
     id: '@types/node',

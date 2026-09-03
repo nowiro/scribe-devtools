@@ -9,29 +9,10 @@ package-lock.json
 # Hand-maintained prose with narrowed tables.
 README.md
 AGENTS.md
-docs/DESIGN.md
-docs/PLAN.md
-docs/ACCEPTANCE.md
-docs/handoff/
 
 # Written by `nx-angular-inspector` (twin of the .gitignore entry).
 .ws/
 
-# Dropped by the @playwright/mcp server configured in `.mcp.json` (also during `npm run bench`).
-.playwright-mcp/
-
 # Generated.
 CODE-INDEX.md
-docs/STEPS.md
-bench/RAPORT.md
-bench/WYNIKI.md
-bench/BUDGET.md
-bench/out/
 download/
-
-# Pages under test and a committed app build — not this repository's code style.
-**/fixtures/**
-bench/app/
-
-# Reconnaissance reports: a published artifact copied in verbatim, and its index.
-docs/research/

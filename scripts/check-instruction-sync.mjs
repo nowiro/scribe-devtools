@@ -1,22 +1,26 @@
-// The instruction block quoted in AGENTS.md IS the measured fixed cost of a tool's side of the
-// benchmark (AC-6: ≤ 200 o200k tokens per block — the owner trades tokens for the full tool name
-// `browser-inspector` in every command; the two-letter abbreviation never appears in the
-// application, so the block cannot go back to the old 150). The benchmark counts `INSTRUCTION` from
-// `bench/browser-inspector-run.mjs`; the agent reads AGENTS.md. If the two drift, the report lies
-// about what the agent pays — so `npm run verify` compares them character for character. A third
-// copy lives in `.github/copilot-instructions.md`: VS Code Copilot reads that file instead of
-// AGENTS.md in some modes, and an application repository migrating from MCP Playwright copies the
-// block from there — so it is compared too, and it is required, not optional.
+// The instruction block quoted in AGENTS.md IS the measured fixed cost of a tool's side of an
+// agent session (AC-6: ≤ 200 o200k tokens per block — the owner trades tokens for the full tool
+// name `browser-inspector` in every command; the two-letter abbreviation never appears in the
+// application, so the block cannot go back to the old 150). A second copy lives in
+// `.github/copilot-instructions.md`: VS Code Copilot reads that file instead of AGENTS.md in some
+// modes, and an application repository migrating from MCP Playwright copies the block from there —
+// so it is compared too, and it is required, not optional. `npm run verify` compares the two
+// character for character; a drift there is the agent reading one instruction and being measured
+// against another.
 //
-// There is now more than one tool, so there is more than one block, and each block gets its own
-// NAMED markers: `<!-- INSTRUCTION:nx-angular-inspector:START -->`. The original block keeps the
-// unnamed markers it has always had, because renaming it would break every application repository
-// that already pasted it.
+// There is more than one tool, so there is more than one block, and each block gets its own NAMED
+// markers: `<!-- INSTRUCTION:nx-angular-inspector:START -->`. The original block keeps the unnamed
+// markers it has always had, because renaming it would break every application repository that
+// already pasted it.
 //
 // A block absent from BOTH files is skipped rather than failed: that is a checkout of this tooling
 // in a repository that does not use that tool. Present in one and missing from the other is a FAIL —
-// that is drift, and it is the whole point. The repository's own test asserts both of ITS blocks
-// exist, so the "skip" branch cannot quietly disarm the gate here.
+// that is drift, and it is the whole point.
+//
+// A third source — a bench harness exporting `INSTRUCTION` as a live measurement — is optional per
+// block (`bench: null` when there is none) and not present on this branch at all: the benchmark
+// this repository used to carry lived in `bench/`, which this branch does not have. The two-file
+// comparison above still holds without it.
 //
 // The block in AGENTS.md sits between the markers as a markdown blockquote (`> …` lines); the
 // comparison strips the `> ` prefixes and joins the lines with `\n`, so a wrapped quote equals its
@@ -47,8 +51,8 @@ export const TOTAL_TOKEN_LIMIT = 400;
 
 /** @type {readonly Block[]} */
 export const BLOCKS = Object.freeze([
-  { name: '', bench: 'bench/browser-inspector-run.mjs', limit: TOKEN_LIMIT },
-  { name: 'nx-angular-inspector', bench: 'bench/nx-angular-inspector-run.mjs', limit: TOKEN_LIMIT },
+  { name: '', bench: null, limit: TOKEN_LIMIT },
+  { name: 'nx-angular-inspector', bench: null, limit: TOKEN_LIMIT },
 ]);
 
 /** How a block is referred to in messages. @param {string} name */
