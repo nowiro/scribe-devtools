@@ -67,8 +67,13 @@ export function parseArgs(argv) {
       flags[name.slice(2)] = true;
       continue;
     }
-    const value = eq === -1 ? argv[++i] : token.slice(eq + 1);
-    if (value === undefined || value === '') throw new CliError(`${verb.name}: flaga ${name} wymaga wartości`);
+    const value = eq === -1 ? argv[i + 1] : token.slice(eq + 1);
+    // A flag is never a value. `--root --deep` used to set root to the string `--deep` and then
+    // silently drop `--deep` — two wrong things from one typo, neither of them reported.
+    if (value === undefined || value === '' || (eq === -1 && value.startsWith('--'))) {
+      throw new CliError(`${verb.name}: flaga ${name} wymaga wartości`);
+    }
+    if (eq === -1) i += 1;
     flags[name.slice(2)] = value;
   }
 

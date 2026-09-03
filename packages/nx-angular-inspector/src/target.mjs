@@ -14,21 +14,49 @@ import { nxBin } from './paths.mjs';
 /** How long a target may take before we call it a failure rather than a slow build. */
 export const RUN_TIMEOUT_MS = 30 * 60_000;
 
-/** Lines that look like a compiler or runner saying something went wrong. */
-const ERROR_LINE =
-  /(^|\s)(error|ERR!|FAIL|failed|Error:)\b|\bTS\d{4}\b|^\s*✖|^\s*×|^[^\s(]+\(\d+,\d+\):|^\s*NX\s+.*(failed|error)/iu;
+/**
+ * A line that is genuinely a compiler or runner reporting a failure.
+ *
+ * Written as a list of SHAPES rather than a list of words. The word-based version matched every
+ * sentence containing "error" or "failed", which on a realistic `nx run <p>:test` log meant the
+ * names of PASSING tests (`✔ handles error responses gracefully`) and the summary line
+ * (`Tests: 1 failed, 127 passed`) filled the five slots and pushed the one real failure out of the
+ * answer entirely.
+ */
+const ERROR_SHAPES = [
+  /\berror\s+TS\d{2,5}\b/u, //            tsc:      error TS2322: …
+  /^[^\s(]+\(\d+,\d+\)\s*:/u, //          tsc/ng:   src/main.ts(12,5): …
+  /^[^\s:]+:\d+:\d+\s*-\s*error\b/u, //   esbuild:  src/main.ts:1:1 - error TS2304
+  /\bERR!/u, //                             npm
+  /^Error\b\s*:/u, //                       a thrown error, at the start of a line
+  /^\s*(?:✖|×|✗|✘)\s/u, //                  vitest / jest markers
+  /^FAIL\s+\S/u, //                         jest/vitest: FAIL path/to/file.spec.ts
+  /^NX\s+.*\b(?:failed|error)\b/iu, //      the Nx runner's own banner
+];
+
+/**
+ * Lines that LOOK like failures and carry no information: summaries, counters and the names of
+ * tests that passed. Checked first, so a summary can never occupy a slot.
+ */
+const ERROR_NOISE = [
+  /^\s*(?:✓|✔|√|·|PASS)\s/u, //                    a passing test
+  /^\s*(?:Test Suites|Tests|Snapshots|Time|Ran all)\s*:/u, //   jest's tail
+  /\b\d+\s+(?:failed|passed|skipped|todo)\b/u, //             "1 failed, 127 passed"
+  /^\s*(?:NX\s+)?(?:Ran target|Successfully ran|View (?:structured|logs)|Failed tasks|Failed to)/iu,
+];
 
 /**
  * ANSI, spelled with \u escapes rather than the literal control characters: an ESC byte in a
  * source file is invisible in a diff and does not survive every editor and every copy-paste.
  * OSC is a title or a hyperlink (ESC ] ... BEL, or ESC ] ... ESC backslash); CSI is colour and
  * cursor movement. Together they are 45-51 % of the tokens in a coloured build log.
+ *
+ * The OSC body forbids ESC, BEL and newline. With `[^]*?` a single UNTERMINATED `ESC ]` — one
+ * truncated hyperlink is enough — swallowed everything up to the next BEL anywhere in the log,
+ * compiler errors included, and `run` then reported a failure with zero errors found.
  */
-const OSC = /\u001B\][^]*?(?:\u0007|\u001B\u005C)/gu;
+const OSC = /\u001B\][^\u0007\u001B\n]*(?:\u0007|\u001B\u005C)/gu;
 const CSI = /\u001B[@-Z\u005C-_]|\u001B\[[0-?]*[ -/]*[@-~]/gu;
-
-/** Noise that matches ERROR_LINE but says nothing: summary banners printed after the real errors. */
-const ERROR_NOISE = /^\s*(NX\s+)?(Ran target|Successfully ran|View (structured|logs)|Failed tasks:)/iu;
 
 /**
  * Remove ANSI escape sequences (colour, cursor moves, OSC hyperlinks) and normalise line endings.
@@ -43,25 +71,43 @@ export function stripAnsi(text) {
 }
 
 /**
- * Up to `max` distinct error lines from a log, in the order they appeared.
+ * The error lines in a log: the first `max` of them, and how many there are in TOTAL.
+ *
+ * The two numbers are different and the difference matters. The line used to print
+ * `errors.length` from a list that was already capped at five, so a build with 147 errors reported
+ * "5 błędów" — a number small enough that an agent decides not to open the file.
  * @param {string} log already ANSI-stripped
+ * @param {number} [max]
+ * @returns {{ shown: string[], total: number }}
+ */
+export function errorSummary(log, max = 5) {
+  /** @type {string[]} */
+  const shown = [];
+  /** @type {Set<string>} */
+  const seen = new Set();
+  let total = 0;
+  for (const raw of log.split('\n')) {
+    const line = raw.trim();
+    if (line === '') continue;
+    if (ERROR_NOISE.some((pattern) => pattern.test(line))) continue;
+    if (!ERROR_SHAPES.some((pattern) => pattern.test(line))) continue;
+    if (seen.has(line)) continue;
+    seen.add(line);
+    total += 1;
+    if (shown.length < max) shown.push(line);
+  }
+  return { shown, total };
+}
+
+/**
+ * The first `max` distinct error lines. Kept as its own name because it reads better at the call
+ * sites that only want the text.
+ * @param {string} log
  * @param {number} [max]
  * @returns {string[]}
  */
 export function errorLines(log, max = 5) {
-  /** @type {string[]} */
-  const found = [];
-  /** @type {Set<string>} */
-  const seen = new Set();
-  for (const raw of log.split('\n')) {
-    const line = raw.trim();
-    if (line === '' || ERROR_NOISE.test(line) || !ERROR_LINE.test(line)) continue;
-    if (seen.has(line)) continue;
-    seen.add(line);
-    found.push(line);
-    if (found.length >= max) break;
-  }
-  return found;
+  return errorSummary(log, max).shown;
 }
 
 /**
@@ -100,14 +146,23 @@ export function runTarget(root, project, target, env = process.env) {
     timeout: RUN_TIMEOUT_MS,
     env: { ...env, NX_TUI: 'false', FORCE_COLOR: '0', NO_COLOR: '1' },
   });
-  const log = stripAnsi(`${result.stdout ?? ''}${result.stderr ?? ''}`);
+  // A newline between them: without it the last unterminated line of stdout fused with the first
+  // line of stderr, which is exactly where a compiler puts its error.
+  const parts = [result.stdout ?? '', result.stderr ?? ''].filter((part) => part !== '');
+  const log = stripAnsi(parts.join('\n'));
   if (result.error) {
-    const timedOut = /** @type {NodeJS.ErrnoException} */ (result.error).code === 'ETIMEDOUT';
-    return {
-      status: 1,
-      log,
-      error: timedOut ? `target przekroczył ${String(RUN_TIMEOUT_MS / 60_000)} min` : 'nx nie wystartowało',
-    };
+    // Three different events used to share one message. `ENOBUFS` in particular means the target
+    // RAN, produced more than `maxBuffer`, and was cut off — reporting that as "nx nie wystartowało"
+    // sends the reader to look for an installation problem that does not exist, while 64 MB of its
+    // output sits on disk unread.
+    const code = /** @type {NodeJS.ErrnoException} */ (result.error).code;
+    const error =
+      code === 'ETIMEDOUT'
+        ? `target przekroczył ${String(RUN_TIMEOUT_MS / 60_000)} min — log jest ucięty`
+        : code === 'ENOBUFS'
+          ? 'wyjście przekroczyło 64 MB — log jest ucięty'
+          : 'nx nie wystartowało';
+    return { status: 1, log, error };
   }
   return { status: result.status ?? 1, log, error: '' };
 }

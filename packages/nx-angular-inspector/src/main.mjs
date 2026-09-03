@@ -15,7 +15,7 @@ import { CliError, parseArgs } from './cli.mjs';
 import { detect, versionParts } from './detect.mjs';
 import { findRoot, outDir as defaultOutDir } from './paths.mjs';
 import { formatFail, truncate } from './print.mjs';
-import { usage } from './verbs.schema.mjs';
+import { findVerb, usage } from './verbs.schema.mjs';
 import { RUNNERS } from './verbs.run.mjs';
 
 /**
@@ -37,7 +37,12 @@ export function main(argv, { cwd = process.cwd(), env = process.env, now = Date.
     throw error;
   }
 
-  if (parsed.mode === 'help') return { line: usage(parsed.verb === '' ? undefined : parsed.verb), exit: 0 };
+  if (parsed.mode === 'help') {
+    // `help projcts` is the same typo as `projcts` and gets the same code. Answering 0 to one and 2
+    // to the other makes the exit code useless for telling "you typed it wrong" from "it worked".
+    const unknown = parsed.verb !== '' && findVerb(parsed.verb) === undefined;
+    return { line: usage(parsed.verb === '' ? undefined : parsed.verb), exit: unknown ? 2 : 0 };
+  }
   if (parsed.mode === 'version') return { line: version, exit: 0 };
 
   const root = parsed.flags.root === undefined ? findRoot(cwd) : findRoot(parsed.flags.root);

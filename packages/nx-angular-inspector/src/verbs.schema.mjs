@@ -21,7 +21,7 @@
  */
 
 /** Flags every verb accepts. */
-export const GLOBAL_FLAGS = Object.freeze(['--root', '--out', '--fresh']);
+export const GLOBAL_FLAGS = Object.freeze(['--root', '--out', '--fresh', '--deep']);
 
 /** @type {readonly Verb[]} */
 export const VERBS = Object.freeze([
@@ -121,6 +121,7 @@ export function usage(name) {
     '',
     `  flagi globalne: ${GLOBAL_FLAGS.join(' ')}`,
     '  --fresh liczy graf przez `nx graph` zamiast czytać cache',
+    '  --deep dokłada mtime plików źródłowych do stempla: widzi zmianę importu, której tani stempel nie widzi',
     '',
   ].join('\n');
 }

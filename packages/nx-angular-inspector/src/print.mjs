@@ -11,6 +11,17 @@
 // read together; the code around it is English, like the rest of the repository.
 
 export const SEP = ' · ';
+
+/**
+ * How many trailing parts are NEVER shortened.
+ *
+ * Two, because the line ends `… <świeżość> · <ścieżka>` and both of those are the reason the line
+ * exists. Truncating from the right used to eat exactly them: `graph <długa-nazwa>` ended in
+ * `.ws/gr…`, a path the agent then could not open, and `projects <projekt-z-44-targetami>` lost the
+ * word `nieświeże` — leaving a confident answer about a stale graph with no warning on it at all.
+ * Facts in the middle are the ones that can be cut, and the cut is marked with `…`.
+ */
+export const PROTECTED_TAIL = 2;
 export const MAX_LINE = 120;
 
 /** Freshness verdicts as they appear on stdout, and the `cache` field they map to in a JSON payload. */
@@ -91,7 +102,10 @@ export function relPath(file, cwd) {
   const norm = (/** @type {string} */ p) => p.replaceAll('\\', '/').replace(/\/+$/u, '');
   const f = norm(file);
   const c = norm(cwd);
-  const lower = (/** @type {string} */ p) => (/^[a-z]:\//iu.test(p) ? p[0].toLowerCase() + p.slice(1) : p);
+  // The WHOLE path is folded on Windows, not just the drive letter: D:/Github/... under a cwd of
+  // D:/github/... is the same directory there, and comparing the rest case-sensitively printed an
+  // absolute path where a short relative one was correct.
+  const lower = (/** @type {string} */ value) => (process.platform === 'win32' ? value.toLowerCase() : value);
   if (lower(f).startsWith(`${lower(c)}/`)) return f.slice(c.length + 1);
   if (lower(f) === lower(c)) return '.';
   return f;
@@ -105,9 +119,36 @@ export function relPath(file, cwd) {
  * @param {readonly (string | undefined | null | false)[]} [parts]
  * @returns {string}
  */
-export function formatLine(status, head, parts = []) {
-  const kept = parts.filter((p) => typeof p === 'string' && p !== '');
-  return truncate([`${status} ${head}`, ...kept].join(SEP));
+export function formatLine(status, head, parts = [], protect = PROTECTED_TAIL) {
+  const kept = /** @type {string[]} */ (parts.filter((p) => typeof p === 'string' && p !== ''));
+  const cut = Math.max(0, kept.length - protect);
+  const tail = kept.slice(cut);
+  const middle = kept.slice(0, cut);
+
+  const tailText = tail.length === 0 ? '' : SEP + tail.join(SEP);
+  // The head gets whatever the tail leaves. A project name long enough to fill the line on its own
+  // is a real shape (`acme-platform-frontend-portal-shell-feature-checkout-payment-e2e`), and it
+  // must not be the thing that costs the reader the path.
+  const headRoom = Math.max(12, MAX_LINE - tailText.length - status.length - 1);
+  let line = `${status} ${truncate(head, headRoom)}`;
+
+  for (let i = 0; i < middle.length; i++) {
+    const candidate = `${line}${SEP}${middle[i]}`;
+    if (candidate.length + tailText.length <= MAX_LINE) {
+      line = candidate;
+      continue;
+    }
+    // One marker, then stop: a line that silently drops facts reads as complete.
+    const withMarker = `${line}${SEP}…`;
+    if (withMarker.length + tailText.length <= MAX_LINE) line = withMarker;
+    break;
+  }
+
+  const whole = line + tailText;
+  // Last resort. Only reachable when the protected tail alone is longer than the whole budget,
+  // which means the caller passed something that cannot be a line — better a marked cut than a
+  // silent one.
+  return whole.length <= MAX_LINE ? whole : truncate(whole);
 }
 
 /** @param {string} head @param {readonly (string | undefined | null | false)[]} [parts] */

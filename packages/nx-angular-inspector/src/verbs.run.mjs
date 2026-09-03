@@ -14,7 +14,7 @@ import { versionParts } from './detect.mjs';
 import { inferredTargets, matchProjects } from './graph.mjs';
 import { findGuides } from './guide.mjs';
 import { parseSpec, scanGenerators, schemaOptions } from './generators.mjs';
-import { document, generatorPath, writeOut } from './out.mjs';
+import { document, generatorPath, safeSegment, writeOut } from './out.mjs';
 import { workspaceDataDir } from './paths.mjs';
 import { formatAge, formatFail, formatInt, formatOk, plural, relPath, truncate, VERDICT } from './print.mjs';
 import {
@@ -29,7 +29,7 @@ import {
   tail,
   waitForServe,
 } from './serve.mjs';
-import { errorLines, parseTargetSpec, runTarget } from './target.mjs';
+import { errorSummary, parseTargetSpec, runTarget } from './target.mjs';
 import { INFERRING_FILES } from './stamp.mjs';
 import { loadModel, readJsonOrNull } from './workspace.mjs';
 
@@ -39,7 +39,7 @@ import { loadModel, readJsonOrNull } from './workspace.mjs';
  * @property {string} cwd where the agent ran the command, for relative paths on the line
  * @property {string} outDir
  * @property {string[]} args
- * @property {{ root?: string, out?: string, base?: string, ready?: string, timeout?: string, fresh?: boolean, reverse?: boolean }} flags
+ * @property {{ root?: string, out?: string, base?: string, ready?: string, timeout?: string, fresh?: boolean, reverse?: boolean, deep?: boolean }} flags
  * @property {import('./detect.mjs').Detected} detected
  * @property {NodeJS.ProcessEnv} env
  * @property {number} now epoch ms, injected so a test does not race the clock
@@ -77,7 +77,13 @@ const shown = (ctx, absolute) => relPath(absolute, ctx.cwd);
  * @returns {Outcome}
  */
 export function env(ctx) {
-  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const model = loadModel({
+    root: ctx.root,
+    detected: ctx.detected,
+    fresh: ctx.flags.fresh,
+    deep: ctx.flags.deep,
+    env: ctx.env,
+  });
   const daemon = daemonState(ctx.root, ctx.env);
   const age = model.graphMtime === 0 ? '' : `graf ${formatAge(ctx.now - model.graphMtime)}`;
 
@@ -119,7 +125,13 @@ export function env(ctx) {
  * @returns {Outcome}
  */
 export function projects(ctx) {
-  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const model = loadModel({
+    root: ctx.root,
+    detected: ctx.detected,
+    fresh: ctx.flags.fresh,
+    deep: ctx.flags.deep,
+    env: ctx.env,
+  });
   const pattern = ctx.args[0];
 
   if (pattern !== undefined) {
@@ -200,7 +212,13 @@ export function projects(ctx) {
  * @returns {Outcome}
  */
 export function graph(ctx) {
-  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const model = loadModel({
+    root: ctx.root,
+    detected: ctx.detected,
+    fresh: ctx.flags.fresh,
+    deep: ctx.flags.deep,
+    env: ctx.env,
+  });
   const name = ctx.args[0];
   const project = model.graph.projects.find((p) => p.name === name);
   if (project === undefined) {
@@ -214,7 +232,7 @@ export function graph(ctx) {
 
   const file = writeOut(
     ctx.outDir,
-    `graph-${name.replaceAll('/', '-')}.md`,
+    `graph-${safeSegment(name)}.md`,
     document({ title: `Graf: ${name}`, source: model.source, freshness: verdict(model) }, [
       `\`${project.root}\` · ${project.type}`,
       '',
@@ -310,7 +328,10 @@ export function gen(ctx) {
         : `${formatInt(filtered.length)} z ${formatInt(visible.length)}`,
       shown(ctx, file),
     ]),
-    exit: filtered.length === 0 ? 1 : 0,
+    // An empty result is not a failure: the file was written and is correct, and the caller asked a
+    // question that happens to have no answer. Exit 1 here made the bin send an `ok …` line to
+    // stderr, so an agent reading stdout got silence.
+    exit: 0,
   };
 }
 
@@ -348,7 +369,7 @@ export function guide(ctx) {
       `${formatInt(bytes)} B`,
       shown(ctx, file),
     ]),
-    exit: docs.length === 0 ? 1 : 0,
+    exit: 0,
   };
 }
 
@@ -363,10 +384,20 @@ export function guide(ctx) {
  * @returns {Outcome}
  */
 export function affected(ctx) {
-  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const model = loadModel({
+    root: ctx.root,
+    detected: ctx.detected,
+    fresh: ctx.flags.fresh,
+    deep: ctx.flags.deep,
+    env: ctx.env,
+  });
   const nxJson = readJsonOrNull(path.join(ctx.root, 'nx.json'));
   const base = ctx.flags.base ?? String(nxJson?.defaultBase ?? 'main');
+  // A 40-character SHA on the line costs 20 o200k tokens by itself — measured. Twelve characters
+  // identify a commit for a human and for `git`, and the full ref stays in the file.
+  const shortBase = /^[0-9a-f]{20,40}$/iu.test(base) ? base.slice(0, 12) : base;
   const range = `${base}...HEAD`;
+  const shownRange = `${shortBase}...HEAD`;
 
   const changed = changedFiles(ctx.root, base);
   if (!changed.ok) return { line: fail('affected', '', changed.error, [range]), exit: 1 };
@@ -403,7 +434,7 @@ export function affected(ctx) {
     line: formatOk('affected', [
       `${formatInt(hit.length)}/${formatInt(model.graph.projects.length)}`,
       sharedHit === null ? plural(changed.files.length, ['plik', 'pliki', 'plików']) : `wspólny ${sharedHit}`,
-      range,
+      shownRange,
       verdict(model),
       shown(ctx, file),
     ]),
@@ -430,20 +461,31 @@ export function run(ctx) {
   const seconds = `${((Date.now() - started) / 1000).toFixed(1).replace('.', ',')} s`;
   const logPath = writeOut(
     ctx.outDir,
-    `run/${parsed.project.replaceAll('/', '-')}-${parsed.target.replaceAll(':', '-')}.log`,
+    // `safeSegment`, not a hand-rolled `replaceAll('/')`: on Windows a BACKSLASH is a separator
+    // too, and a project name carrying one walked the log file out of `.ws/`.
+    `run/${safeSegment(parsed.project)}-${safeSegment(parsed.target)}.log`,
     result.log === '' ? '(bez wyjścia)' : result.log,
   );
 
-  if (result.error !== '') return { line: fail('run', spec, result.error, [shown(ctx, logPath)]), exit: 1 };
+  // The captured log is searched even when `spawnSync` itself reported a problem: a run cut off at
+  // `maxBuffer` still produced 64 MB of output, and the compiler errors in it are exactly what the
+  // caller needs. Previously that branch returned before `errorSummary` ran at all.
+  const { shown: errors, total } = errorSummary(result.log);
+  const first = errors[0] === undefined ? '' : truncate(errors[0], ERROR_SNIPPET_MAX);
+
+  if (result.error !== '') {
+    return { line: fail('run', spec, result.error, [shown(ctx, logPath), first]), exit: 1 };
+  }
   if (result.status === 0) return { line: formatOk(`run ${spec}`, [seconds, shown(ctx, logPath)]), exit: 0 };
 
-  const errors = errorLines(result.log);
   return {
     line: fail(
       'run',
       spec,
-      errors.length === 0 ? `kod ${formatInt(result.status)}` : plural(errors.length, ['błąd', 'błędy', 'błędów']),
-      [shown(ctx, logPath), errors[0] === undefined ? '' : truncate(errors[0], ERROR_SNIPPET_MAX)],
+      // `total`, not `errors.length`: the list is capped at five, and reporting "5 błędów" for a build
+      // with 147 of them is a number small enough that nobody opens the file.
+      total === 0 ? `kod ${formatInt(result.status)}` : plural(total, ['błąd', 'błędy', 'błędów']),
+      [shown(ctx, logPath), first],
     ),
     exit: 1,
   };
@@ -496,7 +538,13 @@ export function serve(ctx) {
   }
 
   // start
-  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const model = loadModel({
+    root: ctx.root,
+    detected: ctx.detected,
+    fresh: ctx.flags.fresh,
+    deep: ctx.flags.deep,
+    env: ctx.env,
+  });
   const found = model.graph.projects.find((p) => p.name === project);
   if (found === undefined)
     return { line: fail('serve', project, `brak projektu ${project}`, [nonHit(model)]), exit: 1 };

@@ -14,7 +14,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { indexGraph, readGraph, UnsupportedGraph } from './graph.mjs';
-import { nxJson } from './nxcli.mjs';
+import { nxRun } from './nxcli.mjs';
 import { graphFile } from './paths.mjs';
 import { stampGraph } from './stamp.mjs';
 
@@ -48,17 +48,18 @@ export function readJsonOrNull(file) {
  * @param {string} options.root
  * @param {import('./detect.mjs').Detected} options.detected
  * @param {boolean} [options.fresh]
+ * @param {boolean} [options.deep]
  * @param {NodeJS.ProcessEnv} [options.env]
  * @returns {Model}
  */
-export function loadModel({ root, detected, fresh = false, env = process.env }) {
+export function loadModel({ root, detected, fresh = false, deep = false, env = process.env }) {
   const file = graphFile(root, env);
 
   if (detected.nx.present) {
     if (!fresh && existsSync(file)) {
       try {
         const graph = readGraph(file);
-        const stamp = stampGraph({ root, graphPath: file, projectRoots: graph.projects.map((p) => p.root) });
+        const stamp = stampGraph({ root, graphPath: file, projectRoots: graph.projects.map((p) => p.root), deep });
         return { source: 'graf', cache: stamp.cache, graph, graphPath: file, graphMtime: stamp.graphMtime, stamp };
       } catch (error) {
         // An unknown `version` is a normal event with its own verdict; unreadable JSON is a broken
@@ -88,20 +89,24 @@ function fromCli(root, graphPath, cache, env) {
   const dir = mkdtempSync(path.join(tmpdir(), 'nxai-'));
   const out = path.join(dir, 'graph.json');
   try {
-    const result = nxJson(root, ['graph', `--file=${out}`], env);
-    // `nx graph --file` writes the file and prints a notice, not JSON — so a parse failure here is
-    // expected and the file is what we actually want.
+    // `nx graph --file` prints a NOTICE on stdout, not JSON, so the JSON-parsing helper is the wrong
+    // tool here: it reported "wyjście nie jest JSON-em" on every successful run, which made the
+    // honest message about an unwritten file unreachable and — worse — made a genuine non-zero exit
+    // indistinguishable from success. This path cares about the exit code and the file, nothing else.
+    const result = nxRun(root, ['graph', `--file=${out}`], env);
     const written = readJsonOrNull(out);
-    if (written === null) {
-      throw new Error(result.error === '' ? 'nx graph nie zapisało pliku' : result.error);
+    if (!result.ok) {
+      const detail = result.error === '' ? `kod ${String(result.status)}` : result.error;
+      throw new Error(`nx graph zakończyło się błędem: ${detail}`);
     }
+    if (written === null) throw new Error('nx graph nie zapisało czytelnego pliku grafu');
     return {
       source: 'nx graph',
       cache,
       graph: indexGraph(written.graph ?? written),
       graphPath,
       graphMtime: 0,
-      stamp: { cache, graphMtime: 0, newestInput: 0, newestPath: null, statted: 0 },
+      stamp: { cache, graphMtime: 0, newestInput: 0, newestPath: null, statted: 0, deep: false, note: '' },
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -117,7 +122,18 @@ function fromCli(root, graphPath, cache, env) {
  * @returns {Model}
  */
 function fromAngularJson(root, graphPath) {
-  const parsed = readJsonOrNull(path.join(root, 'angular.json')) ?? { projects: {} };
+  const file = path.join(root, 'angular.json');
+  // Two failures used to look like an empty workspace with a confident `świeże` on it: no
+  // `angular.json` at all (an Nx repo whose `nx.json` sits above the detected root), and an
+  // `angular.json` with a trailing comma in it. Both now say what is wrong. Answering "0 projektów,
+  // świeże" without having read a single source is the failure class this tool exists to replace.
+  if (!existsSync(file)) {
+    throw new Error('brak angular.json — nie ma z czego czytać projektów (nx.json też nie ma)');
+  }
+  const parsed = readJsonOrNull(file);
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('angular.json nie daje się odczytać — sprawdź składnię JSON');
+  }
   /** @type {import('./graph.mjs').Project[]} */
   const projects = [];
   for (const [name, entry] of Object.entries(parsed.projects ?? {})) {
@@ -145,6 +161,6 @@ function fromAngularJson(root, graphPath) {
     },
     graphPath,
     graphMtime: 0,
-    stamp: { cache: 'hit', graphMtime: 0, newestInput: 0, newestPath: null, statted: 0 },
+    stamp: { cache: 'hit', graphMtime: 0, newestInput: 0, newestPath: null, statted: 0, deep: false, note: '' },
   };
 }

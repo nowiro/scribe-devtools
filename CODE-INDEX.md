@@ -217,7 +217,7 @@ Modules: 62.
 - imported by: `packages/nx-angular-inspector/bin/nx-angular-inspector.mjs`
 
 ## packages/nx-angular-inspector/src/nxcli.mjs
-- exports: `CLI_TIMEOUT_MS`, `nxJson`, `stripToJson`
+- exports: `CLI_TIMEOUT_MS`, `nxJson`, `nxRun`, `stripToJson`
 - imports: `packages/nx-angular-inspector/src/paths.mjs`
 - imported by: `packages/nx-angular-inspector/src/workspace.mjs`
 
@@ -230,7 +230,7 @@ Modules: 62.
 - imported by: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/serve.mjs`, `packages/nx-angular-inspector/src/target.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
 
 ## packages/nx-angular-inspector/src/print.mjs
-- exports: `MAX_LINE`, `SEP`, `VERDICT`, `formatAge`, `formatFail`, `formatInt`, `formatLine`, `formatOk`, `plural`, `relPath`, `sliceUnits`, `truncate`
+- exports: `MAX_LINE`, `PROTECTED_TAIL`, `SEP`, `VERDICT`, `formatAge`, `formatFail`, `formatInt`, `formatLine`, `formatOk`, `plural`, `relPath`, `sliceUnits`, `truncate`
 - imported by: `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/serve.mjs
@@ -239,11 +239,11 @@ Modules: 62.
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/stamp.mjs
-- exports: `INFERRING_FILES`, `ROOT_INPUTS`, `inputSet`, `mtime`, `stampGraph`
+- exports: `FUTURE_TOLERANCE_MS`, `INFERRING_FILES`, `ROOT_INPUTS`, `SKIP_DIRS`, `directoriesUnder`, `filesUnder`, `inputSet`, `mtime`, `stampGraph`
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
 
 ## packages/nx-angular-inspector/src/target.mjs
-- exports: `RUN_TIMEOUT_MS`, `errorLines`, `parseTargetSpec`, `runTarget`, `stripAnsi`
+- exports: `RUN_TIMEOUT_MS`, `errorLines`, `errorSummary`, `parseTargetSpec`, `runTarget`, `stripAnsi`
 - imports: `packages/nx-angular-inspector/src/paths.mjs`
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 

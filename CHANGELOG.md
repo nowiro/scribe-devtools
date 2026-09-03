@@ -106,6 +106,68 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Fixed
 
+**Audyt adwersarialny `nx-angular-inspector` (2026-09-03)**: 6 wymiarów × 252 agenty, 82 znaleziska,
+52 przetrwały weryfikację przez trzech niezależnych sceptyków. Naprawione 26 usterek; 20 z 23 nowych
+testów regresji **czerwieni się na kodzie sprzed poprawki** (sprawdzone przez schowanie `src/`), trzy
+pozostałe to strażnicy przeciw mutacji, gdzie błąd był w teście, nie w kodzie.
+
+- **Stempel świeżości widział za mało i mówił `świeże`.** Trzy dziury naraz: (a) żaden plik ani katalog
+  wewnątrz projektu nie był w zbiorze wejściowym, więc nowy plik w `src/lib/` nie ruszył niczego;
+  (b) pilnowany był wyłącznie BEZPOŚREDNI rodzic znanego korzenia, więc projekt dodany w nowym katalogu
+  najwyższego poziomu był niewidzialny; (c) graf ze znacznikiem czasu w PRZYSZŁOŚCI (przestawiony zegar
+  VM, przywrócenie z archiwum) spełniał porównanie z wszystkim na zawsze, a `formatAge` maskował to jako
+  „graf 0 s". Teraz: rekurencyjne przejście po katalogach każdego projektu, WSZYSCY przodkowie aż do
+  korzenia workspace, sam korzeń, i odmowa werdyktu `hit` dla grafu z przyszłości.
+- **Nowy tryb `--deep` i nazwana granica taniego stempla.** Zmierzone na tej maszynie: przejście po
+  **katalogach 18 ms** (łapie dodanie i usunięcie pliku), przejście po **plikach 275 ms** przy 20 000
+  plików. Edycja `import` w ISTNIEJĄCYM pliku nie rusza mtime katalogu — sprawdzone — więc tani stempel
+  jej nie widzi. To jest granica, nie błąd: `--deep` ją zamyka, `env` ją drukuje, a komentarz w
+  `stamp.mjs` przestał twierdzić, że zbiór obejmuje „every path whose mtime can invalidate the graph".
+- **`affected` gubił pliki.** Ścieżka spoza ASCII wracała z gita **zacytowana i zescapowana ósemkowo**
+  (`"libs/ui/'"'"'Å¼Ã³ÅÄ.ts"`), a kod zamieniał te backslashe na separatory — plik
+  tracił właściciela i projekt cicho wypadał z odpowiedzi. Zmiana nazwy pliku pokazywała **tylko nową
+  ścieżkę**, więc projekt źródłowy nie trafiał do zarodków. Projekt zakorzeniony w korzeniu workspace
+  (`ng new` pisze dokładnie taki: `root: ''`) **nigdy nie był właścicielem żadnego pliku**. Teraz
+  `-c core.quotePath=false --no-renames -z` i właściciel w korzeniu jako ostatnia instancja.
+- **Przycinanie linii zjadało dokładnie to, dla czego linia istnieje.** Ścieżka jest ostatnią częścią,
+  więc to ona padała: `graph <długa-nazwa>` kończył się `.ws/gr…`, czyli poleceniem „przeczytaj plik",
+  którego nie da się otworzyć. Gorzej: w `projects <projekt-z-44-targetami>` znikał werdykt
+  `nieświeże`, a doktryna tej linii brzmi „cisza znaczy świeże" — agent dostawał pewną odpowiedź
+  o nieświeżym grafie bez jednego znaku ostrzeżenia. Dwie ostatnie części są teraz nietykalne,
+  a przycinane jest Środkowisko, ze znacznikiem `…`.
+- **`run` kłamał o błędach.** Wzorzec łapiący słowo „error" trafiał w nazwy PRZECHODZĄCYCH testów
+  (`✔ handles error responses gracefully`) i w podsumowania (`Tests: 1 failed, 127 passed`), które
+  wypełniały limit pięciu i wypychały prawdziwy błąd poza linię. Licznik pokazywał `min(liczba, 5)`,
+  więc build ze 147 błędami raportował „5 błędów". Jeden niedomknięty `ESC ]` kasował wszystko aż do
+  następnego BEL — razem z błędami kompilatora w zapisanym logu. `stdout` i `stderr` sklejano bez
+  nowej linii, więc ostatnia linia jednego zrastała się z pierwszą drugiego. Przekroczony `maxBuffer`
+  raportowano jako „nx nie wystartowało" — przy 64 MB przechwyconego logu na dysku.
+- **`ok` z kodem wyjścia 1.** `guide` bez dokumentów i `gen` bez trafień zwracały linię `ok …` i exit 1,
+  a binarka kieruje wszystko z kodem ≠ 0 na stderr — agent czytający stdout dostawał CISZĘ przy pliku,
+  który powstał i jest poprawny. Pusty wynik to nie błąd.
+- **Zapis poza `.ws/`.** `run "..\..\..\evil:build"` naprawdę tworzył plik dwa poziomy nad korzeniem
+  workspace: nazwa składana była z argv, sanityzowany był tylko ukośnik w przód, a asercja
+  `readdirSync` przechodziła bez szemrania. Doszedł test zawierania się w katalogu i `safeSegment`
+  na obu separatorach. Osobno: asercja zapisu porównywała nazwę **bajt w bajt na NTFS**, który jest
+  case-insensitive — po `run Portal:build` każdy późniejszy `run portal:build` meldujeł FAIL dla builda,
+  który przeszedł.
+- **Sfabrykowane `0 projektów · świeże`.** Brak `nx.json` przy zainstalowanym Angularze bez `angular.json`,
+  oraz `angular.json` z przecinkiem końcowym, dawały pusty model z werdyktem `hit` — pełne przekonanie
+  bez zajrzenia do jakiegokolwiek źródła. Oba to teraz FAIL nazywający przyczynę. Podobnie `nx graph`
+  kończące się kodem ≠ 0, które zdążyło zapisać plik, było przyjmowane jako sukces.
+- **Drobiazgi z tą samą mechaniką cichej pomyłki**: flaga z wartością połykała następną flagę
+  (`--root --deep` → root = `--deep`); `help <literówka>` kończył się kodem 0, a sama literówka kodem 2;
+  `tags` jako napis rozsypywało się na jednoliterowe tagi, a jako liczba rzucało; `firstLine(stderr)`
+  brało linijkę zerową, którą Nx zawsze zostawia pustą, więc prawdziwy powód ginieł; proces zabity
+  sygnałem dawał komunikat „kodem null"; `relPath` normalizował tylko literę dysku.
+
+**Czego ŚWIADOMIE nie naprawiono, i dlaczego:** limit 40 tokenów na linię **nie jest egzekwowany
+w kodzie** — wymagałby tokenizera, a pakiet ma zero zależności runtime i to jest ważniejsze. Egzekwuje
+go test na gęstej treści (pełny SHA, 44 targety, długa ścieżka), a `affected` skraca SHA do 12 znaków,
+bo pełny kosztował 20 tokenów sam z siebie. Zostały też luki w POKRYCIU wskazane przez audyt
+(gałęzie `daemonState`, powierzchnia `generators.mjs`, `NX_WORKSPACE_DATA_DIRECTORY`) — nazwane, nie
+zamknięte.
+
 - **Linia `FAIL` z `nx-angular-inspector` nie była przycinana.** Lokalny helper `fail()` składał napis ręcznie
   i omijał `formatFail`, więc `run portal:build` wypuścił linię 127-znakową przy limicie 120. Złapał to test
   budżetu linii, bo obejmuje **każdą** komendę, a nie próbkę.

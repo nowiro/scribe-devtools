@@ -47,6 +47,23 @@ zamierzone: limit ma zmuszać do wyboru, a nie ustępować.
 > Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>` · `serve [wait|stop] <projekt>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
 <!-- INSTRUCTION:nx-angular-inspector:END -->
 
+## Znane granice `nx-angular-inspector` — nazwane, nie ukryte
+
+- **Tani stempel świeżości nie widzi edycji istniejącego pliku.** Krawiedzie grafu biorą się
+  z importów, a zmiana `import` w pliku, który już istnieje, nie rusza mtime żadnego katalogu
+  (sprawdzone na NTFS). Domyślny stempel chodzi po katalogach — **18 ms**, łapie dodanie, usunięcie
+  i zmianę nazwy pliku oraz nowy projekt gdziekolwiek. `--deep` dokłada mtime plików — **275 ms**
+  przy 20 000 plików. Obie liczby zmierzone; wybór należy do wołającego, a `env` drukuje tę lukę.
+- **Limit 40 tokenów na linię nie jest egzekwowany w kodzie**, tylko testem. Egzekwowanie wymagałoby
+  tokenizera w runtime, a pakiet ma zero zależności — to ważniejsze. Limit 120 ZNAKÓw jest twardy
+  i pilnuje go `formatLine`, który **nigdy nie tnie dwóch ostatnich części** (werdyktu i ścieżki).
+- **`project-graph.json` to prywatny kontrakt Nx.** Asertujemy `version` (`"6.0"`); nieznana wartość
+  to werdykt `nieznany format` i fallback do CLI — wolniej, nigdy źle.
+- **`docs` nie istnieje.** Wymagałoby klucza Algolii osadzonego w angular.dev, który może się
+  zrotować, i endpointu nx.dev — czyli dokładnie tego cichego dryfu, przed którym ostrzega Część II
+  raportu. Blok instrukcji jest przy tym na 195 z 200 tokenów: `docs` nie zmieści się bez skrócenia
+  czegoś innego, i to jest zamierzone.
+
 ## Bramki — uruchamiaj PRZED uznaniem zmiany za skończoną
 
 | komenda | co pilnuje |

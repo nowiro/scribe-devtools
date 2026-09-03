@@ -74,7 +74,9 @@ export function indexGraph(raw) {
       type: String(/** @type {any} */ (node)?.type ?? data.projectType ?? '?'),
       root: String(data.root ?? '').replaceAll('\\', '/'),
       targets: Object.keys(data.targets ?? {}).sort(),
-      tags: [...(data.tags ?? [])].map(String).sort(),
+      // Only an ARRAY is a tag list. A string used to be spread into characters — `scope:shared`
+      // became twelve one-letter tags, printed with full confidence — and a number threw.
+      tags: (Array.isArray(data.tags) ? data.tags : []).map(String).sort(),
     });
   }
   projects.sort((a, b) => a.name.localeCompare(b.name, 'en'));

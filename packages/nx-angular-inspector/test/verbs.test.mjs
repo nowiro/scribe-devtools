@@ -20,6 +20,8 @@ let base;
 const ws = {};
 /** @type {NodeJS.ProcessEnv} */
 let env;
+/** Counter so each stale-graph case gets a workspace of its own. */
+let staleCount = 0;
 
 beforeAll(() => {
   base = mkdtempSync(path.join(tmpdir(), 'nxai-verbs-'));
@@ -204,15 +206,33 @@ describe('env', () => {
 });
 
 describe('świeżość na linii', () => {
-  it('nowy projekt pod apps/ zmienia werdykt na nieświeże', () => {
-    const kind = 'nx-only';
-    const graph = path.join(ws[kind], '.nx', 'workspace-data', 'project-graph.json');
+  // WŁASNY workspace, nie współdzielony `ws['nx-only']`. Poprzednia wersja cofała mtime grafu
+  // fixture'u używanego przez cały plik, przez co test `projects <nazwa>` wyżej przechodził
+  // WYŁĄCZNIE dlatego, że stoi wcześniej — każde przetasowanie kolejności go czerwieniło.
+  /** @returns {string} */
+  function stale() {
+    const dir = makeWorkspace(path.join(base, `stale-${String(staleCount++)}`), 'nx-only');
+    const graph = path.join(dir, '.nx', 'workspace-data', 'project-graph.json');
     const past = (Date.now() - 600_000) / 1000;
     utimesSync(graph, past, past);
-    const { line } = run(kind, ['projects']);
+    return dir;
+  }
+
+  it('nieświeży graf jest nazwany na linii, a komenda I TAK odpowiada', () => {
+    const dir = stale();
+    const { line, exit } = main(['projects', '--root', dir], { cwd: dir, env });
+    expect(exit).toBe(0);
     expect(line).toContain('nieświeże');
-    // Ta sama komenda ODPOWIADA mimo nieświeżości — mówi o ryzyku, nie odmawia.
+    // Mówi o ryzyku, nie odmawia.
     expect(line.startsWith('ok ')).toBe(true);
+  });
+
+  it('`projects <nazwa>` też ostrzega — cisza na tej linii znaczy „świeże"', () => {
+    const dir = stale();
+    const { line } = main(['projects', 'portal', '--root', dir], { cwd: dir, env });
+    expect(line).toContain('nieświeże');
+    // A na świeżym grafie tego słowa nie ma — inaczej ostrzeżenie nic by nie znaczyło.
+    expect(run('nx-angular', ['projects', 'portal']).line).not.toContain('nieśwież');
   });
 });
 

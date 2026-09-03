@@ -46,22 +46,35 @@ export const DEFAULT_SHARED_GLOBALS = Object.freeze([
  * @returns {{ ok: boolean, files: string[], error: string }}
  */
 export function changedFiles(root, base) {
-  const result = spawnSync('git', ['diff', '--name-only', `${base}...HEAD`], {
-    cwd: root,
-    shell: false,
-    windowsHide: true,
-    encoding: 'utf8',
-    maxBuffer: 32 * 1024 * 1024,
-  });
+  const result = spawnSync(
+    'git',
+    // `-c core.quotePath=false` and `-z` together, and neither is optional. With git's defaults a
+    // path holding one non-ASCII byte comes back QUOTED and octal-escaped — `libs/ui/żółć.ts`
+    // arrives as `"libs/ui/\305\274\303\263\305\202\304\207.ts"` — and the old code then turned
+    // those backslashes into path separators, so the file lost its owner and its project silently
+    // dropped out of the answer. `-z` additionally makes a filename with a space or a newline in
+    // it a non-event.
+    // `--no-renames` too: with rename detection on (git's default) a moved file is reported ONLY
+    // under its NEW path, so the project it moved out of never entered the seed set and quietly
+    // dropped out of the answer.
+    ['-c', 'core.quotePath=false', 'diff', '--name-only', '--no-renames', '-z', `${base}...HEAD`],
+    {
+      cwd: root,
+      shell: false,
+      windowsHide: true,
+      encoding: 'utf8',
+      maxBuffer: 32 * 1024 * 1024,
+    },
+  );
   if (result.error) return { ok: false, files: [], error: 'git nie jest dostępny' };
   if (result.status !== 0) {
     const stderr = (result.stderr ?? '').split('\n')[0].trim();
     return { ok: false, files: [], error: stderr === '' ? `git zwrócił ${String(result.status)}` : stderr };
   }
   const files = (result.stdout ?? '')
-    .split('\n')
-    .map((line) => line.trim().replaceAll('\\', '/'))
-    .filter((line) => line !== '');
+    .split('\0')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '');
   return { ok: true, files, error: '' };
 }
 
@@ -85,7 +98,15 @@ export function sharedGlobals(nxJson) {
     const cleaned = raw.replace('{workspaceRoot}/', '').replace('{workspaceRoot}', '');
     if (cleaned !== '') globs.push(cleaned);
   }
-  return globs.length === 0 ? [...DEFAULT_SHARED_GLOBALS] : globs;
+  // An author who wrote `sharedGlobals: []` said "nothing here is shared" and meant it; falling
+  // back to the defaults there overrode a deliberate decision with a guess. An author who wrote
+  // nothing at all gets the defaults.
+  if (globs.length > 0) return globs;
+  // An empty declared list means "nothing here is shared" and is honoured: falling back to the
+  // defaults there overrode a deliberate decision with a guess. A NON-empty list none of whose
+  // entries we could read is a shape we do not understand, and there the fallback is right — it
+  // marks MORE projects as affected, never fewer, which is the safe direction to be wrong in.
+  return entries.length === 0 ? [] : [...DEFAULT_SHARED_GLOBALS];
 }
 
 /**

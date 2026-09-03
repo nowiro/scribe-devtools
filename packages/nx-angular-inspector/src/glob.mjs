@@ -72,11 +72,20 @@ export function matchesAny(file, patterns) {
 export function ownerOf(file, projects) {
   /** @type {{name: string, root: string} | null} */
   let best = null;
+  /** @type {string | null} */
+  let atWorkspaceRoot = null;
   for (const project of projects) {
     const root = project.root.replace(/\/+$/u, '');
-    if (root === '' || root === '.') continue;
+    // A project rooted at the workspace root owns everything nothing more specific claims. The
+    // shape is not exotic: `ng new` writes exactly `projects: { 'my-app': { root: '' } }`, and
+    // skipping it made `affected` answer "nothing" after a change to the application's own `src/`.
+    if (root === '' || root === '.') {
+      atWorkspaceRoot ??= project.name;
+      continue;
+    }
     if (file !== root && !file.startsWith(`${root}/`)) continue;
     if (best === null || root.length > best.root.length) best = { name: project.name, root };
   }
-  return best === null ? null : best.name;
+  if (best !== null) return best.name;
+  return atWorkspaceRoot;
 }

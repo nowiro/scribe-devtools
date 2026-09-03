@@ -22,6 +22,37 @@ export const CLI_TIMEOUT_MS = 120_000;
  */
 
 /**
+ * Run `nx <args>` and report HOW IT ENDED, without touching its stdout.
+ *
+ * Separate from `nxJson` because most Nx commands do not print JSON: `nx graph --file=…` prints a
+ * notice and writes a file. Judging that run by whether its stdout parsed made every successful run
+ * look like a parse failure, and — the part that mattered — made a genuine non-zero exit
+ * indistinguishable from success.
+ * @param {string} root
+ * @param {readonly string[]} args
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ ok: boolean, status: number, stdout: string, error: string }}
+ */
+export function nxRun(root, args, env = process.env) {
+  const bin = nxBin(root);
+  if (!existsSync(bin))
+    return { ok: false, status: -1, stdout: '', error: 'nx nie jest zainstalowany w tym workspace' };
+  const result = spawnSync(process.execPath, [bin, ...args], {
+    cwd: root,
+    shell: false,
+    windowsHide: true,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    timeout: CLI_TIMEOUT_MS,
+    env: { ...env, NX_TUI: 'false', FORCE_COLOR: '0', NO_COLOR: '1' },
+  });
+  if (result.error)
+    return { ok: false, status: -1, stdout: result.stdout ?? '', error: firstLine(String(result.error.message)) };
+  const status = result.status ?? -1;
+  return { ok: status === 0, status, stdout: result.stdout ?? '', error: firstLine(result.stderr ?? '') };
+}
+
+/**
  * Run `nx <args>` in the workspace and parse its stdout as JSON.
  * @param {string} root
  * @param {readonly string[]} args
@@ -46,10 +77,13 @@ export function nxJson(root, args, env = process.env) {
   if (result.error) return { ok: false, json: null, error: firstLine(String(result.error.message)) };
   if (result.status !== 0) {
     const stderr = firstLine(result.stderr ?? '');
+    // A process killed by a signal has `status === null`, which used to interpolate as the literal
+    // "kodem null" — a message that says nothing about what happened.
+    const how = result.status === null ? `sygnałem ${String(result.signal)}` : `kodem ${String(result.status)}`;
     return {
       ok: false,
       json: null,
-      error: stderr === '' ? `nx zakończyło się kodem ${String(result.status)}` : stderr,
+      error: stderr === '' ? `nx zakończyło się ${how}` : stderr,
     };
   }
   try {
@@ -72,7 +106,19 @@ export function stripToJson(stdout) {
   return start <= 0 ? stdout : stdout.slice(start);
 }
 
-/** @param {string} text */
+/**
+ * The first line that SAYS something.
+ *
+ * Nx, ng and jest all begin their stderr with a blank line, so taking line zero produced an empty
+ * string every time — and an empty message then read as "no error at all", swallowing the reason.
+ * @param {string} text
+ * @returns {string}
+ */
 function firstLine(text) {
-  return text.split('\n')[0].trim();
+  return (
+    text
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line !== '') ?? ''
+  );
 }
