@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 42.
+Modules: 57.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
@@ -173,8 +173,73 @@ Modules: 42.
 - imports: `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
+## packages/nx-angular-inspector/bin/nx-angular-inspector.mjs
+- imports: `packages/nx-angular-inspector/src/main.mjs`
+
+## packages/nx-angular-inspector/src/cli.mjs
+- exports: `CliError`, `parseArgs`
+- imports: `packages/nx-angular-inspector/src/verbs.schema.mjs`
+- imported by: `packages/nx-angular-inspector/src/main.mjs`
+
+## packages/nx-angular-inspector/src/detect.mjs
+- exports: `MIN_ANGULAR`, `MIN_NX`, `detect`, `installedVersion`, `major`, `versionParts`
+- imports: `packages/nx-angular-inspector/src/paths.mjs`
+- imported by: `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+
+## packages/nx-angular-inspector/src/generators.mjs
+- exports: `MANIFEST_NAMES`, `describeType`, `packageDirs`, `parseSpec`, `scanGenerators`, `schemaOptions`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
+
+## packages/nx-angular-inspector/src/graph.mjs
+- exports: `KNOWN_VERSIONS`, `UnsupportedGraph`, `indexGraph`, `inferredTargets`, `matchProjects`, `readGraph`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+
+## packages/nx-angular-inspector/src/guide.mjs
+- exports: `findGuides`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
+
+## packages/nx-angular-inspector/src/main.mjs
+- exports: `main`
+- imports: `packages/nx-angular-inspector/src/cli.mjs`, `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/paths.mjs`, `packages/nx-angular-inspector/src/print.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/verbs.schema.mjs`
+- imported by: `packages/nx-angular-inspector/bin/nx-angular-inspector.mjs`
+
+## packages/nx-angular-inspector/src/nxcli.mjs
+- exports: `CLI_TIMEOUT_MS`, `nxJson`, `stripToJson`
+- imports: `packages/nx-angular-inspector/src/paths.mjs`
+- imported by: `packages/nx-angular-inspector/src/workspace.mjs`
+
+## packages/nx-angular-inspector/src/out.mjs
+- exports: `document`, `generatorPath`, `safeSegment`, `writeOut`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
+
+## packages/nx-angular-inspector/src/paths.mjs
+- exports: `ROOT_MARKERS`, `findRoot`, `graphFile`, `nxBin`, `outDir`, `packageManifest`, `walkUp`, `workspaceDataDir`
+- imported by: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+
+## packages/nx-angular-inspector/src/print.mjs
+- exports: `MAX_LINE`, `SEP`, `VERDICT`, `formatAge`, `formatFail`, `formatInt`, `formatLine`, `formatOk`, `plural`, `relPath`, `sliceUnits`, `truncate`
+- imported by: `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`
+
+## packages/nx-angular-inspector/src/stamp.mjs
+- exports: `INFERRING_FILES`, `ROOT_INPUTS`, `inputSet`, `mtime`, `stampGraph`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+
+## packages/nx-angular-inspector/src/verbs.run.mjs
+- exports: `RUNNERS`, `env`, `gen`, `graph`, `guide`, `projects`
+- imports: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/generators.mjs`, `packages/nx-angular-inspector/src/graph.mjs`, `packages/nx-angular-inspector/src/guide.mjs`, `packages/nx-angular-inspector/src/out.mjs`, `packages/nx-angular-inspector/src/paths.mjs`, `packages/nx-angular-inspector/src/print.mjs`, `packages/nx-angular-inspector/src/stamp.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+- imported by: `packages/nx-angular-inspector/src/main.mjs`
+
+## packages/nx-angular-inspector/src/verbs.schema.mjs
+- exports: `GLOBAL_FLAGS`, `VERBS`, `VERB_NAMES`, `findVerb`, `usage`
+- imported by: `packages/nx-angular-inspector/src/cli.mjs`, `packages/nx-angular-inspector/src/main.mjs`
+
+## packages/nx-angular-inspector/src/workspace.mjs
+- exports: `loadModel`, `readJsonOrNull`
+- imports: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/graph.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/paths.mjs`, `packages/nx-angular-inspector/src/stamp.mjs`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
+
 ## scripts/check-instruction-sync.mjs
-- exports: `AGENTS_FILE`, `BENCH_FILE`, `COPILOT_FILE`, `TOKEN_LIMIT`, `checkInstructionSync`, `countTokens`, `extractInstruction`
+- exports: `AGENTS_FILE`, `BLOCKS`, `COPILOT_FILE`, `TOKEN_LIMIT`, `TOTAL_TOKEN_LIMIT`, `checkInstructionSync`, `countTokens`, `extractInstruction`
 
 ## scripts/check-pins.mjs
 - exports: `bareVersion`, `checkPins`, `compareVersions`, `discoverManifests`, `proseLag`, `readDeclarations`, `walkText`

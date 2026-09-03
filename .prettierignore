@@ -14,6 +14,9 @@ docs/PLAN.md
 docs/ACCEPTANCE.md
 docs/handoff/
 
+# Written by `nx-angular-inspector` (twin of the .gitignore entry).
+.ws/
+
 # Dropped by the @playwright/mcp server configured in `.mcp.json` (also during `npm run bench`).
 .playwright-mcp/
 

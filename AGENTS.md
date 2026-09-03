@@ -9,6 +9,10 @@ zamiast serwerów MCP, wyniki na dysku, „banalnie proste". Dwie części:
   przeglądarka w lokalnym keeperze. Projekt: [docs/DESIGN.md](docs/DESIGN.md) — to jest
   kontrakt; plan pakietów: [docs/PLAN.md](docs/PLAN.md); kryteria: [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md);
   jak używać: [README.md](README.md), szablon flow: [packages/browser-inspector/templates/flow.md](packages/browser-inspector/templates/flow.md).
+- `packages/nx-angular-inspector/` — binarka `nx-angular-inspector`: to, co odpowiadają `ng mcp` i
+  `nx-mcp`, bez serwera MCP. Graf Nx jako źródło prawdy, stempel świeżości, fallback do CLI, zero
+  zależności runtime. Wspierane **tylko** nx >= 23 i angular >= 22. Rozpoznanie i projekt:
+  [docs/research/NX-ANGULAR-MCP.html](docs/research/NX-ANGULAR-MCP.html).
 - `bench/` — pomiar czasu i tokenów `browser-inspector` kontra `@playwright/mcp` (przypięte 0.0.80).
 
 Proza po polsku (README, AGENTS, CHANGELOG, docs), identyfikatory i komentarze w kodzie po
@@ -28,6 +32,19 @@ tam; `scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości.
 > Przeglądarka: `browser-inspector <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `browser-inspector open <url>`, `browser-inspector find <tekst>` / `browser-inspector snap` dają refy `eN`; `browser-inspector click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `browser-inspector export flow.json` zapisuje sesję jako config.
 <!-- INSTRUCTION:END -->
 
+## Instrukcja dla agenta używającego `nx-angular-inspector` (koszt stały, mierzony)
+
+Ten sam mechanizm, własne **nazwane** znaczniki — regex bramki łapie pierwszy NIENAZWANY blok, więc
+drugi musi się nazwać. Kopia w `.github/copilot-instructions.md`, porównywana znak po znaku.
+Limit 200 tokenów na blok (zmierzone 164) i **400 na wszystkie razem** (dziś 322): agent czyta każdy
+blok, więc sam limit per blok pozwalałby rość kosztowi stałemu o jedno narzędzie naraz, nie czerwieniąc
+nigdy żadnej bramki. Blok nie wymienia `run`, `serve`, `docs` ani `affected` — tych komend jeszcze
+nie ma, a instrukcja opisuje to, co działa, nie plan.
+
+<!-- INSTRUCTION:nx-angular-inspector:START -->
+> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `gen [wzorzec|kolekcja:generator]` · `guide`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
+<!-- INSTRUCTION:nx-angular-inspector:END -->
+
 ## Bramki — uruchamiaj PRZED uznaniem zmiany za skończoną
 
 | komenda | co pilnuje |
@@ -39,7 +56,7 @@ tam; `scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości.
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**`, `bench/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
 | `node scripts/gen-steps-doc.mjs --check` | świeżość `docs/STEPS.md` |
-| `node scripts/check-instruction-sync.mjs` | blok wyżej ≡ `INSTRUCTION` w `bench/browser-inspector-run.mjs` ≡ blok w `.github/copilot-instructions.md` (plus limit tokenów) |
+| `node scripts/check-instruction-sync.mjs` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md` ≡ `INSTRUCTION` w benchu (gdy narzędzie ma harness); limit 200 tokenów na blok i 400 na wszystkie razem. Blok nieobecny w OBU plikach jest pomijany — to checkout tego oprzyrządowania w repo bez tego narzędzia; obecny w jednym i brakujący w drugim to FAIL |
 | `npm run smoke` | jeden smoke na prawdziwym Chrome/Edge: batch, izolacja dwóch originów, sesja przez keepera, `browser-inspector script`, auth (`BROWSER_INSPECTOR_SKIP_SMOKE=1` tylko bez przeglądarki) |
 
 Projekt `compat` (`test/compat/smoke-gate.test.mjs`) to bramka zgodności z app-factory: spawnuje
@@ -76,6 +93,8 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Punkty synchronizacji (zmiana w jednym wymaga zmiany w drugim)
 
+- blok instrukcji `nx-angular-inspector` ↔ jego kopia w `.github/copilot-instructions.md`
+  (nazwane znaczniki; bez odpowiednika w benchu, bo narzędzie nie ma jeszcze harnessu).
 - blok instrukcji wyżej ↔ `INSTRUCTION` w `bench/browser-inspector-run.mjs` ↔ blok w
   `.github/copilot-instructions.md` — MIERZONY koszt stały;
   rozjazd = pomiar kłamie (bramka `check-instruction-sync`).

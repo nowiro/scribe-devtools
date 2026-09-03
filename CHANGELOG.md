@@ -7,6 +7,35 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Added
 
+- **`packages/nx-angular-inspector/` — binarka `nx-angular-inspector`**: to, co odpowiadają `ng mcp` i `nx-mcp`,
+  bez serwera MCP. Pięć komend (`env`, `projects [nazwa|glob]`, `graph <projekt> [--reverse]`,
+  `gen [wzorzec|kolekcja:generator]`, `guide`), każda drukuje jedną linię i pisze całość do `.ws/`.
+  Zero zależności runtime, brak keepera: zmierzony floor to **115 ms**, z czego **86 ms** to sam start
+  Node'a — keeper mógłby uratować najwyżej te 86 ms i kosztowałby identity hash, lock, nazwany pipe,
+  sondę martwego pidu i doctora. W browser-inspectorze arytmetyka szła w drugą stronę i keeper był
+  jedynym wyjściem.
+- **Graf Nx jako źródło prawdy, `project.json` nie**: `readGraph` asertuje `version` (`"6.0"` — jedyna znana
+  przy nx >= 23), nieznany kształt to werdykt `nieznany format` i fallback do `nx graph --file`, nigdy
+  nadziejny parse. To dokładnie ta awaria, która położyła `nx-mcp` 0.25.0 na nx 23 — z tą różnicą, że tam
+  nie było ani asercji, ani fallbacku. Na fixturze 5 z 8 targetów istnieje wyłącznie w grafie.
+- **Stempel świeżości zamiast wiary w demona**: `świeże ⟺ mtime(graf) >= max(mtime po zbiorze wejść)`,
+  gdzie zbiór to konfiguracja korzenia, per projekt katalog roota + `project.json` + `package.json`
+  - kuratorowana lista plików inferujących, oraz **katalogi nadrzedne rootow** — bez tego wiersza nowy
+    projekt byłby niewidzialny za pewnym siebie `świeże`. Żywotność demona nie jest dowodem w żadną stronę
+    i nie jest używana do niczego; `env` ją tylko raportuje, obok listy plików inferujących — bo to znana
+    luka, a luka, którą widać, jest luką, którą da się obejść (`--fresh`).
+- **Próg wsparcia sprawdzany raz, w `detect.mjs`, zanim cokolwiek ruszy**: nx >= 23, angular >= 22,
+  a workspace, który nie jest ani jednym, ani drugim — jedna linia FAIL, bez trzeciej gałęzi
+  ekosystemowej. Sześć generowanych fixture'ów (`fixtures/generate.mjs`): trzy gałęzie detekcji i trzy
+  progu; te trzy negatywne są jedynym, co czyni próg czymś więcej niż komentarzem. 77 testów pakietu.
+- **Drugi blok instrukcji w AGENTS.md**, między **nazwanymi** znacznikami
+  `<!-- INSTRUCTION:nx-angular-inspector:START -->` — regex bramki łapie pierwszy nienazwany blok, a stary
+  blok nazwy dostać nie może, bo skopiowały go już repozytoria aplikacji. `check-instruction-sync`
+  chodzi teraz po tablicy `BLOCKS`, dostał **`TOTAL_TOKEN_LIMIT = 400`** obok limitu 200 na blok
+  (dziś 158 + 164 = 322) — sam limit per blok pozwalałby kosztowi stałemu rość o jedno narzędzie naraz,
+  nie czerwieniąc nigdy żadnej bramki — i pomija blok nieobecny w OBU plikach, przy asercji w teście,
+  że w TYM repo obecne są oba.
+
 - **`scripts/pins.config.mjs` + bramka `scripts/check-pins.mjs`** (WP0 doktryny aktualności, `docs/research/`):
   jedno miejsce, w którym wersja zależności jest deklarowana, i offline'owa bramka jako **drugi krok `verify`**,
   zaraz po `prettier`. Pilnuje czterech rzeczy, których zielony zestaw testów nie pilnował: META (każda z 7

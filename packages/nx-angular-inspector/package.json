@@ -1,0 +1,17 @@
+{
+  "name": "@scribe-devtools/nx-angular-inspector",
+  "version": "0.1.0",
+  "description": "nx-angular-inspector: what `ng mcp` and `nx-mcp` answer, without an MCP server — one binary over the Nx project graph and the installed Angular/Nx packages, one line of stdout per command, the whole answer written to .ws/. Supports nx >= 23 and angular >= 22 only.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "nx-angular-inspector": "bin/nx-angular-inspector.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin",
+    "src"
+  ]
+}

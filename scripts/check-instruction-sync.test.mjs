@@ -4,13 +4,19 @@
 // silently drops is a line that ships to that repository and to the agent while costing nothing in the
 // measurement (AC-6). The blank lines around the quote are the one thing that MUST stay droppable: the copy
 // in `.github/copilot-instructions.md` separates the markers from the quote with them.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { checkInstructionSync, extractInstruction } from './check-instruction-sync.mjs';
+import {
+  BLOCKS,
+  checkInstructionSync,
+  extractInstruction,
+  TOKEN_LIMIT,
+  TOTAL_TOKEN_LIMIT,
+} from './check-instruction-sync.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const QUOTE = '> Przeglądarka: `browser-inspector <config.json>` wykonuje flow, wynik na dysku.';
@@ -89,5 +95,57 @@ describe('checkInstructionSync', () => {
   it('the repository itself passes the check', async () => {
     const { ok, message } = await checkInstructionSync(REPO);
     expect(ok, message).toBe(true);
+  });
+
+  it('this repository really carries EVERY block in the table', async () => {
+    // The "absent from both files, skipped" branch exists for a checkout of this tooling in a
+    // repository that does not use the tool. Here it would be a disarmed gate, so it is asserted
+    // away: deleting a block from AGENTS.md must not turn the check green.
+    const agents = readFileSync(path.join(REPO, 'AGENTS.md'), 'utf8');
+    const copilot = readFileSync(path.join(REPO, '.github', 'copilot-instructions.md'), 'utf8');
+    for (const block of BLOCKS) {
+      expect(extractInstruction(agents, block.name), `AGENTS.md: ${block.name || 'unnamed'}`).not.toBeNull();
+      expect(extractInstruction(copilot, block.name), `copilot: ${block.name || 'unnamed'}`).not.toBeNull();
+    }
+    const { message } = await checkInstructionSync(REPO);
+    expect(message).not.toMatch(/skipped/u);
+  });
+});
+
+describe('named blocks', () => {
+  const NX_QUOTE = '> Nx/Angular: `nx-angular-inspector env`, `projects [nazwa]`.';
+
+  /** @param {string} name @param {...string} lines */
+  const named = (name, ...lines) =>
+    [`<!-- INSTRUCTION:${name}:START -->`, ...lines, `<!-- INSTRUCTION:${name}:END -->`].join('\n');
+
+  it('the unnamed markers do not match a named block, and the reverse', () => {
+    const nx = named('nx-angular-inspector', NX_QUOTE);
+    expect(extractInstruction(nx)).toBeNull();
+    expect(extractInstruction(nx, 'nx-angular-inspector')).toBe(
+      'Nx/Angular: `nx-angular-inspector env`, `projects [nazwa]`.',
+    );
+  });
+
+  it('two blocks under one marker are null — `exec` would measure the first and ship the second', () => {
+    expect(extractInstruction([block(QUOTE), block(QUOTE)].join('\n\n'))).toBeNull();
+  });
+
+  it('a block in AGENTS.md and missing from the Copilot copy is a FAIL, not a skip', async () => {
+    const root = fakeRepo([block(QUOTE), named('nx-angular-inspector', NX_QUOTE)].join('\n\n'), block(QUOTE));
+    const { ok, message } = await checkInstructionSync(root);
+    expect(ok).toBe(false);
+    expect(message).toMatch(/copilot-instructions\.md/u);
+  });
+
+  it('a block absent from both files is skipped — this tooling in a repo without that tool', async () => {
+    const { ok, message } = await checkInstructionSync(fakeRepo(block(QUOTE), block(QUOTE)));
+    expect(ok).toBe(true);
+    expect(message).toMatch(/nx-angular-inspector: block absent from both files, skipped/u);
+  });
+
+  it('the per-block cap and the sum of the caps are both real numbers, and the sum is the tighter one', () => {
+    expect(BLOCKS.every((b) => b.limit === TOKEN_LIMIT)).toBe(true);
+    expect(TOTAL_TOKEN_LIMIT).toBeLessThan(BLOCKS.length * TOKEN_LIMIT + 1);
   });
 });

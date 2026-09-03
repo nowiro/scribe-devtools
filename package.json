@@ -24,7 +24,8 @@
     "portable": "node scripts/portable-zip.mjs",
     "bench": "npm run bench --workspace bench",
     "prepare": "git config core.hooksPath .githooks || exit 0",
-    "browser-inspector": "node packages/browser-inspector/bin/browser-inspector.mjs"
+    "browser-inspector": "node packages/browser-inspector/bin/browser-inspector.mjs",
+    "nx-angular-inspector": "node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

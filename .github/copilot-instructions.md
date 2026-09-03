@@ -26,6 +26,17 @@ bez zmian — każde dopisane zdanie to koszt w każdej sesji.
 
 <!-- INSTRUCTION:END -->
 
+## Blok instrukcji `nx-angular-inspector` (koszt stały, własne nazwane znaczniki)
+
+Równy co do znaku blokowi w `AGENTS.md`. Znaczniki są nazwane, bo regex bramki łapie pierwszy nienazwany blok.
+Limit 200 tokenów na blok (zmierzone 164), 400 na wszystkie razem.
+
+<!-- INSTRUCTION:nx-angular-inspector:START -->
+
+> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `gen [wzorzec|kolekcja:generator]` · `guide`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
+
+<!-- INSTRUCTION:nx-angular-inspector:END -->
+
 ## Zasady, których Copilot nie może złamać
 
 - Pełna nazwa **browser-inspector** wszędzie (binarka, skrypty, `BROWSER_INSPECTOR_*`, pipe, teksty); skrót `bi`

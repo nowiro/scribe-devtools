@@ -34,6 +34,7 @@ const SKIP_DIRS = new Set([
   '.scribe-devtools',
   '.playwright-mcp',
   '.vitest',
+  '.ws',
 ]);
 const SKIP_FILES = new Set(['package-lock.json']);
 const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.mts', '.ts', '.json', '.yml', '.yaml', '.txt']);
