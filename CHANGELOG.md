@@ -14,6 +14,20 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   Node'a — keeper mógłby uratować najwyżej te 86 ms i kosztowałby identity hash, lock, nazwany pipe,
   sondę martwego pidu i doctora. W browser-inspectorze arytmetyka szła w drugą stronę i keeper był
   jedynym wyjściem.
+- **`bench/nx-angular-inspector-run.mjs` — harness pomiarowy nowego narzędzia.** Domyka dziurę, o której
+  bramka instrukcji mówiła wprost: blok był porównywany w dwóch kopiach zamiast trzech (`(bez benchu)`).
+  Zmierzone na wygenerowanym fixture, sesja pięciu komend: **koszt stały 195 tok**, zmienny 411 tok,
+  razem **606 tok** — z czego same linie stdout to **125 tok**, a 259 to pliki z `.ws/`, czytane tylko tam,
+  gdzie linia nie jest odpowiedzią. Dla porównania koszt stały samych serwerów, zanim padnie pierwsze
+  pytanie: 4 979 (`ng mcp`) + 358 (`nx-mcp --minimal`) = **5 337 tok** — wg pomiaru z raportu rozpoznania
+  z 2026-09-03, nie przeliczanego tutaj.
+  Czas: `projects` mediana **90 ms**, podłoga samego Node-a **64 ms**, nasza praca **26 ms** — i to jest
+  liczba, która przesądza o braku keepera w v1: demon mógłby uratować najwyżej te 64 ms.
+  `cacheModes` jest **bramką ważności**, nie ozdobą: przebieg, który spadł do CLI, UNIEWAŻNIA pomiar,
+  zamiast zaniżyć medianę kolumny cache'owanej — jest na to test.
+  Czego tu **nie ma, celowo**: porównania z `ng mcp` i `nx-mcp` na żywo. Oba idą przez `npx` i rejestr, więc
+  ich pomiar jest pomiarem czyjejś sieci tego dnia; ich liczby zostają w raporcie, gdzie niosą datę i maszynę.
+
 - **`serve [wait|stop] <projekt>`** — serwer dev startowany w tle, oczekiwany i zatrzymywany, bez trzymania
   terminala i bez wieszania się. Trzy własności, które uzasadniają złożoność tego modułu:
   dziecko jest **odczepione**, a jego wyjście idzie prosto na deskryptor, który potem zamykamy (na Windows

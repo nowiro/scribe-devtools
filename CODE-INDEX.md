@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 61.
+Modules: 62.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
@@ -30,6 +30,10 @@ Modules: 61.
 - imports: `bench/mcp-client.mjs`, `bench/task.mjs`, `bench/time-run.mjs`
 - imported by: `bench/bench.mjs`
 
+## bench/nx-angular-inspector-run.mjs
+- exports: `BIN`, `CI_VARS`, `COMMANDS`, `FIXTURES`, `INSTRUCTION`, `benchEnv`, `cacheModes`, `makeFixture`, `median`, `runOnce`, `runScenario`, `scenarioTokens`, `timeVerb`
+- imports: `bench/tokens.mjs`
+
 ## bench/raport.mjs
 - exports: `barChart`, `paritySummary`, `renderRaport`, `renderReadmeBlock`, `renderWyniki`
 - imports: `bench/tokens.mjs`
@@ -49,7 +53,7 @@ Modules: 61.
 
 ## bench/tokens.mjs
 - exports: `bytesOf`, `countTokens`, `fmt`, `measure`, `total`
-- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/raport.mjs`
+- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/nx-angular-inspector-run.mjs`, `bench/raport.mjs`
 
 ## packages/browser-inspector/bin/browser-inspector.mjs
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/client.mjs`

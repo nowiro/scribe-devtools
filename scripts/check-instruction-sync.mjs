@@ -48,7 +48,7 @@ export const TOTAL_TOKEN_LIMIT = 400;
 /** @type {readonly Block[]} */
 export const BLOCKS = Object.freeze([
   { name: '', bench: 'bench/browser-inspector-run.mjs', limit: TOKEN_LIMIT },
-  { name: 'nx-angular-inspector', bench: null, limit: TOKEN_LIMIT },
+  { name: 'nx-angular-inspector', bench: 'bench/nx-angular-inspector-run.mjs', limit: TOKEN_LIMIT },
 ]);
 
 /** How a block is referred to in messages. @param {string} name */

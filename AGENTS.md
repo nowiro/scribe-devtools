@@ -97,8 +97,8 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Punkty synchronizacji (zmiana w jednym wymaga zmiany w drugim)
 
-- blok instrukcji `nx-angular-inspector` ↔ jego kopia w `.github/copilot-instructions.md`
-  (nazwane znaczniki; bez odpowiednika w benchu, bo narzędzie nie ma jeszcze harnessu).
+- blok instrukcji `nx-angular-inspector` ↔ `INSTRUCTION` w `bench/nx-angular-inspector-run.mjs`
+  ↔ jego kopia w `.github/copilot-instructions.md` (nazwane znaczniki, trzy kopie znak w znak).
 - blok instrukcji wyżej ↔ `INSTRUCTION` w `bench/browser-inspector-run.mjs` ↔ blok w
   `.github/copilot-instructions.md` — MIERZONY koszt stały;
   rozjazd = pomiar kłamie (bramka `check-instruction-sync`).
