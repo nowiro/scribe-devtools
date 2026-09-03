@@ -1,0 +1,14 @@
+{
+  "@types/node": {
+    "firstSeenBehind": "2026-09-03",
+    "lastChecked": "2026-09-03",
+    "atCheck": "22.20.1",
+    "latestAtCheck": "26.4.1"
+  },
+  "vitest": {
+    "firstSeenBehind": "2026-09-03",
+    "lastChecked": "2026-09-03",
+    "atCheck": "4.1.11",
+    "latestAtCheck": "5.0.0"
+  }
+}

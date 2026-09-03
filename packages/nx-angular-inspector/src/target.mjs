@@ -132,9 +132,11 @@ export function parseTargetSpec(spec) {
  * @param {string} project
  * @param {string} target
  * @param {NodeJS.ProcessEnv} [env]
+ * @param {number} [timeoutMs] overridable so tests can trigger a REAL `ETIMEDOUT` in milliseconds
+ *   instead of waiting out the real 30-minute budget.
  * @returns {{ status: number, log: string, error: string }}
  */
-export function runTarget(root, project, target, env = process.env) {
+export function runTarget(root, project, target, env = process.env, timeoutMs = RUN_TIMEOUT_MS) {
   const bin = nxBin(root);
   if (!existsSync(bin)) return { status: 1, log: '', error: 'nx nie jest zainstalowany w tym workspace' };
   const result = spawnSync(process.execPath, [bin, 'run', `${project}:${target}`], {
@@ -143,7 +145,7 @@ export function runTarget(root, project, target, env = process.env) {
     windowsHide: true,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
-    timeout: RUN_TIMEOUT_MS,
+    timeout: timeoutMs,
     env: { ...env, NX_TUI: 'false', FORCE_COLOR: '0', NO_COLOR: '1' },
   });
   // A newline between them: without it the last unterminated line of stdout fused with the first
@@ -158,7 +160,7 @@ export function runTarget(root, project, target, env = process.env) {
     const code = /** @type {NodeJS.ErrnoException} */ (result.error).code;
     const error =
       code === 'ETIMEDOUT'
-        ? `target przekroczył ${String(RUN_TIMEOUT_MS / 60_000)} min — log jest ucięty`
+        ? `target przekroczył budżet czasu (${String(timeoutMs)} ms) — log jest ucięty`
         : code === 'ENOBUFS'
           ? 'wyjście przekroczyło 64 MB — log jest ucięty'
           : 'nx nie wystartowało';

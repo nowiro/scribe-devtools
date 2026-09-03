@@ -217,6 +217,23 @@ describe('zapis do .ws/', () => {
     // który się udał — i tak przy każdym kolejnym wywołaniu.
     expect(() => writeOut(base, 'run/portal-build.log', 'drugi')).not.toThrow();
   });
+
+  it('weryfikacja przez readdirSync naprawdę łapie pułapkę NTFS ADS, nie tylko obiecuje', () => {
+    // To DOKŁADNIE ten przypadek, dla którego writeOut w ogóle sprawdza katalog zamiast ufać
+    // zapisowi: dwukropek w nazwie robi z `library.md` alternate data stream na `angular`, plik
+    // "zapisuje się" bez wyjątku, ale `readdirSync` go nie widzi. `safeSegment`/`generatorPath`
+    // w produkcyjnym kodzie zawsze czyszczą dwukropek PRZED wywołaniem `writeOut` — ten test woła
+    // `writeOut` wprost, z pominięciem tamtej sanityzacji, żeby sam mechanizm obrony był
+    // sprawdzony niezależnie od tego, czy ktoś zapomni go użyć.
+    const base = mkdtempSync(path.join(tmpdir(), 'nxai-ads-'));
+    made.push(base);
+    if (process.platform === 'win32') {
+      expect(() => writeOut(base, 'gen/angular:library.md', 'tresc')).toThrow(/nie przeżyła systemu plików/u);
+    } else {
+      // Dwukropek w nazwie pliku jest w pełni legalny poza NTFS — ta sama ścieżka po prostu się zapisuje.
+      expect(() => writeOut(base, 'gen/angular:library.md', 'tresc')).not.toThrow();
+    }
+  });
 });
 
 describe('linia', () => {

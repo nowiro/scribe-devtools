@@ -15,19 +15,14 @@ import { nxBin } from './paths.mjs';
 export const CLI_TIMEOUT_MS = 120_000;
 
 /**
- * @typedef {object} CliResult
- * @property {boolean} ok
- * @property {any} json parsed stdout when `ok`, else null
- * @property {string} error one line, empty when `ok`
- */
-
-/**
  * Run `nx <args>` and report HOW IT ENDED, without touching its stdout.
  *
- * Separate from `nxJson` because most Nx commands do not print JSON: `nx graph --file=…` prints a
- * notice and writes a file. Judging that run by whether its stdout parsed made every successful run
- * look like a parse failure, and — the part that mattered — made a genuine non-zero exit
- * indistinguishable from success.
+ * Most Nx commands do not print JSON at all — `nx graph --file=…` prints a notice and writes a
+ * file — so the one caller here (`fromCli` in `workspace.mjs`) only ever needs the exit status and
+ * the file it wrote. An earlier version of this function also tried to `JSON.parse` stdout and
+ * report a parsed payload; that made every successful run of a non-JSON command look like a parse
+ * failure, and — the part that mattered — made a genuine non-zero exit indistinguishable from
+ * success, because the parse-failure branch fired first regardless of the exit code.
  * @param {string} root
  * @param {readonly string[]} args
  * @param {NodeJS.ProcessEnv} [env]
@@ -48,62 +43,11 @@ export function nxRun(root, args, env = process.env) {
   });
   if (result.error)
     return { ok: false, status: -1, stdout: result.stdout ?? '', error: firstLine(String(result.error.message)) };
-  const status = result.status ?? -1;
-  return { ok: status === 0, status, stdout: result.stdout ?? '', error: firstLine(result.stderr ?? '') };
-}
-
-/**
- * Run `nx <args>` in the workspace and parse its stdout as JSON.
- * @param {string} root
- * @param {readonly string[]} args
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {CliResult}
- */
-export function nxJson(root, args, env = process.env) {
-  const bin = nxBin(root);
-  if (!existsSync(bin)) return { ok: false, json: null, error: 'nx nie jest zainstalowany w tym workspace' };
-  const result = spawnSync(process.execPath, [bin, ...args], {
-    cwd: root,
-    shell: false,
-    windowsHide: true,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-    timeout: CLI_TIMEOUT_MS,
-    // NX_DAEMON is left exactly as the user has it. Turning the daemon off would make us faster to
-    // reason about and slower for the user, and turning it on would start a background process the
-    // user did not ask for — a read-only tool has no business doing either.
-    env: { ...env, NX_TUI: 'false', FORCE_COLOR: '0', NO_COLOR: '1' },
-  });
-  if (result.error) return { ok: false, json: null, error: firstLine(String(result.error.message)) };
-  if (result.status !== 0) {
-    const stderr = firstLine(result.stderr ?? '');
-    // A process killed by a signal has `status === null`, which used to interpolate as the literal
-    // "kodem null" — a message that says nothing about what happened.
-    const how = result.status === null ? `sygnałem ${String(result.signal)}` : `kodem ${String(result.status)}`;
-    return {
-      ok: false,
-      json: null,
-      error: stderr === '' ? `nx zakończyło się ${how}` : stderr,
-    };
-  }
-  try {
-    return { ok: true, json: JSON.parse(stripToJson(result.stdout ?? '')), error: '' };
-  } catch {
-    return { ok: false, json: null, error: 'nx zwróciło wyjście, które nie jest JSON-em' };
-  }
-}
-
-/**
- * Nx prints notices before the payload often enough that parsing the whole stdout is a coin toss.
- * Cut to the first `{` or `[` and parse from there.
- * @param {string} stdout
- * @returns {string}
- */
-export function stripToJson(stdout) {
-  const brace = stdout.indexOf('{');
-  const bracket = stdout.indexOf('[');
-  const start = brace === -1 ? bracket : bracket === -1 ? brace : Math.min(brace, bracket);
-  return start <= 0 ? stdout : stdout.slice(start);
+  // `result.status` is `null`, not a number, when the process was killed by a signal — reporting
+  // that as `-1` would read as a real (if unusual) exit code rather than what actually happened.
+  const stderr = firstLine(result.stderr ?? '');
+  const error = stderr !== '' ? stderr : result.status === null ? `nx zabite sygnałem ${String(result.signal)}` : '';
+  return { ok: result.status === 0, status: result.status ?? -1, stdout: result.stdout ?? '', error };
 }
 
 /**

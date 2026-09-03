@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 62.
+Modules: 63.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
@@ -217,7 +217,7 @@ Modules: 62.
 - imported by: `packages/nx-angular-inspector/bin/nx-angular-inspector.mjs`
 
 ## packages/nx-angular-inspector/src/nxcli.mjs
-- exports: `CLI_TIMEOUT_MS`, `nxJson`, `nxRun`, `stripToJson`
+- exports: `CLI_TIMEOUT_MS`, `nxRun`
 - imports: `packages/nx-angular-inspector/src/paths.mjs`
 - imported by: `packages/nx-angular-inspector/src/workspace.mjs`
 
@@ -267,6 +267,11 @@ Modules: 62.
 ## scripts/check-pins.mjs
 - exports: `bareVersion`, `checkPins`, `compareVersions`, `discoverManifests`, `proseLag`, `readDeclarations`, `walkText`
 - imports: `scripts/pins.config.mjs`
+- imported by: `scripts/check-upstream.mjs`
+
+## scripts/check-upstream.mjs
+- exports: `STATE_FILE`, `acknowledge`, `checkUpstream`, `daysBetween`, `evaluatePin`, `fetchLatest`, `nextState`
+- imports: `scripts/check-pins.mjs`, `scripts/pins.config.mjs`
 
 ## scripts/gen-steps-doc.mjs
 - exports: `DOC_FILE`, `SCHEMA_FILE`, `renderFromRepo`, `renderStepsDoc`
@@ -276,7 +281,7 @@ Modules: 62.
 
 ## scripts/pins.config.mjs
 - exports: `FROZEN_ALWAYS`, `PINS`
-- imported by: `scripts/check-pins.mjs`
+- imported by: `scripts/check-pins.mjs`, `scripts/check-upstream.mjs`
 
 ## scripts/portable-zip.mjs
 - exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`

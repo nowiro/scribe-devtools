@@ -7,6 +7,45 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Added
 
+- **Tryb `--check` dla `fixtures/snapshots/generate.mjs`** (browser-inspector) + nowa bramka
+  `test/compat/golden-fixtures.test.mjs`. Do tej pory generator by lift jedynym sposobem zapisania
+  czterech plików golden i zawsze je NADPISYWAŁ — zmiana gramatyki `aria` w playwright-core
+  przemalowałaby je po cichu, a `test/snapshot.test.mjs`, który czyta je z dysku jako prawdę,
+  zostałby zielony przez dryf, który ma wykrywać. `--check` renderuje tym samym silnikiem i
+  porównuje bajt w bajt zamiast pisać, zgłaszając numer pierwszej różniącej się linii;
+  sprawdzone ręcznie na tej maszynie w obie strony (brak dryfu → `ok`, dopisana linia →
+  `FAIL … linii 5`, exit 1). Ten sam warunek pominięcia co `smoke-gate.test.mjs` (brak buildów
+  app-factory obok repo → pominięte z komunikatem). Zamyka P1 z doktryny aktualności
+  (`docs/research/NX-ANGULAR-MCP.html`).
+- **`scripts/check-upstream.mjs`** — kalendarzowa połowa doktryny aktualności, dopełnienie
+  `check-pins`. Pyta rejestr npm o `dist-tags.latest` i mierzy, od kiedy pin jest za latest — **od
+  `firstSeenBehind`, nie od daty wydania `latest`** (ta resetuje się przy każdym release'ie
+  niezależnie od tego, czy jesteśmy jedną wersją w tyle czy dziesięcioma). Zegar żyje w
+  commitowanym `scripts/upstream-state.json` i **nie przesuwa się przy samym uruchomieniu** — inaczej
+  alarm zerowałby sam siebie za każdym sprawdzeniem; jest na to test. WARN dopiero po przekroczeniu
+  `staleDays` z wiersza pinu, exit 1 tylko z `--strict` (przy wydaniu — dopisane do procedury w
+  AGENTS.md). `--ack <id|all>` to zapis decyzji człowieka „widziałem, zostaję”, nie bump — działa
+  tylko na pinie, który faktycznie jest za latest. Zmierzone na żywo: `vitest` (4.1.11 → 5.0.0) i
+  `@types/node` (22.20.1 → 26.4.1, celowo za latest — `pins.config.mjs` mówi dlaczego) są dziś jedynymi
+  dwoma z siedmiu pinów za latest, żaden jeszcze nie przekroczył progu. 18 testów, żaden nie dotyka
+  sieci — `checkUpstream` przyjmuje wstrzykiwany `fetch`.
+- **15 nazwanych luk w pokryciu testów `nx-angular-inspector`** z audytu adwersarialnego (2026-09-03),
+  domknięte: sortowanie w `indexGraph` na nieposortowanym wejściu, `gen <wzorzec>` bez dwukropka,
+  gałąź dokumentów workspace i deduplikacja w `guide`, trzy gałęzie `run` (kod bez rozpoznanych
+  błędów, brak zainstalowanego nx, PRAWDZIWY `ETIMEDOUT` na milisekundowym budżecie —
+  `runTarget` dostał parametr `timeoutMs`), gałąź pliku wspólnego i `defaultBase` z `nx.json` w
+  `affected`, druga połowa progu Angulara (`angular.json` bez `@angular/core`), przełącznik
+  `NX_WORKSPACE_DATA_DIRECTORY`, weryfikacja `readdirSync` w `writeOut` (odtworzona pułapka NTFS
+  ADS przez prawdziwy dwukropek w ścieżce, nie mock), trzy gałęzie `daemonState`
+  (wyłączony/pid żyje/martwy), powierzchnia `generators.mjs` poza jedną kolekcją z fixture'a
+  (sortowanie, `private: true`, `MANIFEST_NAMES`, scalanie pisowni `generators`/`schematics`),
+  escapowanie metaznaków i goła `**` na końcu wzorca w dopasowywaniu, `--root` wskazujący
+  podkatalog workspace, i jedna linia `FAIL` zamiast stosu wywołań, gdy runner rzuci nieoczekiwanym
+  wyjątkiem (odtworzone przez plik blokujący `mkdirSync(.ws/)`, prawdziwy `EEXIST`). Fixture'owy
+  stub `nx` dostał dwa nowe, jawnie NIEobecne w grafie tryby (`utils:fail-plain`, `utils:hang`) —
+  `run` nie sprawdza grafu, więc nie muszą tam być. `nxJson`/`stripToJson` w `nxcli.mjs` okazały się
+  mieć dokładnie jednego wywołującego — same siebie, martwe też w produkcji — więc zostały USUNIĘTE
+  zamiast otestowane; ten kod nikogo już nie woła. 51 nowych testów pakietu (191 razem).
 - **`packages/nx-angular-inspector/` — binarka `nx-angular-inspector`**: to, co odpowiadają `ng mcp` i `nx-mcp`,
   bez serwera MCP. Pięć komend (`env`, `projects [nazwa|glob]`, `graph <projekt> [--reverse]`,
   `gen [wzorzec|kolekcja:generator]`, `guide`), każda drukuje jedną linię i pisze całość do `.ws/`.
@@ -105,6 +144,12 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   czyste” zzielenieje w dniu, w którym bramka przestanie działać.
 
 ### Fixed
+
+- **Próg czasowy w `bench/nx-angular-run.test.mjs` migotał pod dużym obciążeniem współbieżnym**
+  (kilkadziesiąt równoległych testów tej sesji, w tym realny Chrome z innych pakietów): mediana
+  `projects` skoczyła z ~90 ms do 415 ms, podłoga Node'a tylko do 171 ms, iloraz spadł do 0,41
+  poniżej progu 0,5. Teza („spory kawałek zegara to start Node'a”) nadal się trzyma przy 41 % —
+  próg obniżony do 0,3, z uzasadnieniem liczbowym w komentarzu zamiast gołej stałej.
 
 **Audyt adwersarialny `nx-angular-inspector` (2026-09-03)**: 6 wymiarów × 252 agenty, 82 znaleziska,
 52 przetrwały weryfikację przez trzech niezależnych sceptyków. Naprawione 26 usterek; 20 z 23 nowych

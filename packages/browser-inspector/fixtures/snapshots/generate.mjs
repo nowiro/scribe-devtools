@@ -3,6 +3,7 @@
 // not against a hand-written imitation.
 //
 //   node packages/browser-inspector/fixtures/snapshots/generate.mjs [--apps D:/github/app-factory/dist/apps]
+//   node packages/browser-inspector/fixtures/snapshots/generate.mjs --check   (renders, does not write)
 //
 // Ports 4531 (bookstore), 4532 (business-wizard) and 4533 (this package's fixtures) — the range of
 // WP3. The static server sends `.js` as `text/javascript`, otherwise Angular's module scripts do
@@ -17,7 +18,17 @@
 //
 // The script also prints a few facts it verified on the way (typed value rendering, checked state,
 // iframe refs, `aria-ref=f1eN` resolution) — they are quoted in docs/handoff/WP3.md.
-import { createReadStream, existsSync, statSync, writeFileSync } from 'node:fs';
+//
+// `--check` is the reason this file has a mode at all. Before it existed, this script was the ONLY
+// way these four fixtures were ever written, and it always OVERWROTE them — so a playwright-core
+// bump that changed the aria grammar silently repainted the golden files instead of failing
+// anything, and `test/snapshot.test.mjs` (which reads them straight off disk) stayed green through
+// the exact drift it exists to catch. In `--check` mode the four `save()` calls below compare the
+// freshly rendered content against what is committed, byte for byte, and report the first differing
+// line instead of touching the file. `test/compat/golden-fixtures.test.mjs` runs this mode as part
+// of `npm run verify` (skipped, with a message, on a machine without the app-factory builds — the
+// same rule `smoke-gate.test.mjs` already uses for the identical dependency).
+import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +40,49 @@ import { boxJoin, locatorForElement, walkInteractive } from '../../src/snapshot.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argApps = process.argv.indexOf('--apps');
 const apps = path.resolve(argApps !== -1 ? process.argv[argApps + 1] : 'D:/github/app-factory/dist/apps');
+const CHECK = process.argv.includes('--check');
+
+/** @type {{ name: string, ok: boolean, detail: string }[]} */
+const checked = [];
+
+/**
+ * Write `content` to `name` — or, in `--check` mode, compare it against what is on disk instead of
+ * touching the file, and record the verdict in `checked`.
+ * @param {string} name
+ * @param {string} content
+ */
+function save(name, content) {
+  const file = path.join(here, name);
+  if (!CHECK) {
+    writeFileSync(file, content);
+    return;
+  }
+  if (!existsSync(file)) {
+    checked.push({ name, ok: false, detail: 'plik nie istnieje — uruchom bez --check najpierw' });
+    return;
+  }
+  const onDisk = readFileSync(file, 'utf8');
+  if (onDisk === content) {
+    checked.push({ name, ok: true, detail: '' });
+    return;
+  }
+  checked.push({ name, ok: false, detail: `pierwsza różnica w linii ${firstDifferentLine(onDisk, content)}` });
+}
+
+/**
+ * The 1-indexed line at which `a` and `b` first disagree, or the line one past the shorter of the
+ * two when one is a strict prefix of the other.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function firstDifferentLine(a, b) {
+  const al = a.split('\n');
+  const bl = b.split('\n');
+  const n = Math.min(al.length, bl.length);
+  for (let i = 0; i < n; i++) if (al[i] !== bl[i]) return i + 1;
+  return n + 1;
+}
 
 const MIME = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -87,9 +141,9 @@ try {
   const walk = await page.evaluate(walkInteractive);
   const refs = (s) => [...s.matchAll(/\[ref=([^\]]+)\]/g)].map((m) => m[1]).join(' ');
   if (refs(ai) !== refs(boxes)) throw new Error('refs differ between ai and ai+boxes snapshots');
-  writeFileSync(path.join(here, 'bookstore.ai.yml'), ai);
-  writeFileSync(path.join(here, 'bookstore.boxes.yml'), boxes);
-  writeFileSync(path.join(here, 'walk.json'), `${JSON.stringify(walk, null, 2)}\n`);
+  save('bookstore.ai.yml', ai);
+  save('bookstore.boxes.yml', boxes);
+  save('walk.json', `${JSON.stringify(walk, null, 2)}\n`);
   const join = boxJoin(boxes, walk);
   console.log(
     `bookstore: ${ai.split('\n').length} lines, ${Buffer.byteLength(ai)} bytes, walk ${walk.length}, ` +
@@ -113,7 +167,7 @@ try {
   await page.goto('http://localhost:4532/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(300);
   const wizard = await page.ariaSnapshot({ mode: 'ai' });
-  writeFileSync(path.join(here, 'wizard.ai.yml'), wizard);
+  save('wizard.ai.yml', wizard);
   console.log(`wizard: ${wizard.split('\n').length} lines, first ref ${/\[ref=([^\]]+)\]/.exec(wizard)?.[1]}`);
   const f1 = /\[ref=(f1e\d+)\]/.exec(wizard.split('\n').find((l) => l.includes('- button')) ?? '')?.[1];
   if (f1) console.log(`aria-ref=${f1} count on same tab:`, await page.locator(`aria-ref=${f1}`).count());
@@ -156,4 +210,19 @@ try {
 } finally {
   await browser.close();
   for (const s of servers) s.close();
+}
+
+if (CHECK) {
+  const failed = checked.filter((c) => !c.ok);
+  if (failed.length > 0) {
+    console.error(
+      `FAIL golden fixtures: ${String(failed.length)}/${String(checked.length)} nie zgadza się z tym, co właśnie ` +
+        `wyrenderował zainstalowany playwright-core — uruchom generate.mjs bez --check, jeśli różnica jest ` +
+        `zamierzona (przejrzyj diff przed commitem, to jest zapis gramatyki aria)`,
+    );
+    for (const f of failed) console.error(`  ${f.name}: ${f.detail}`);
+    process.exitCode = 1;
+  } else {
+    console.log(`ok golden fixtures: ${String(checked.length)}/${String(checked.length)} zgadza się`);
+  }
 }

@@ -1,13 +1,15 @@
-// The harness measures itself. These are not micro-benchmarks with thresholds that flake on a busy
-// machine — they assert the SHAPE of the measurement:
+// The harness measures itself. Most of these assert the SHAPE of the measurement, not a number
+// that can drift with machine load:
 //
 //   * the fixed cost is the instruction block and nothing else;
 //   * the variable cost is dominated by the files, not by the lines — which is the whole claim;
 //   * a session that fell through to the CLI is REJECTED by the validity gate rather than averaged.
 //
-// The one timing assertion is deliberately loose and one-sided: it says most of the wall clock is
-// Node starting, which is the fact that decided against building a keeper. That stays true whether
-// the machine is idle or loaded.
+// The one exception is the timing assertion in `describe('czas')`: it says a good chunk of the
+// wall clock is Node starting, which is the fact that decided against building a keeper, and that
+// still needs a real number. It is deliberately loose and one-sided, with a threshold measured
+// against this repository's own worst case (see the comment there) rather than the quiet-machine
+// number — a test that only passes when nothing else is running is not a gate, it is a hope.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -108,10 +110,16 @@ describe('czas', () => {
     const timed = await timeVerb({ root, argv: ['projects'], reps: 5 });
     expect(timed.samples).toHaveLength(5);
     expect(timed.median).toBeGreaterThan(0);
-    // Jednostronnie i luźno: podłoga Node-a to co najmniej połowa przebiegu. Keeper mógłby uratować
+    // Jednostronnie i luźno: podłoga Node-a to spory kawałek przebiegu. Keeper mógłby uratować
     // najwyżej resztę, a kosztowałby cały podsystem tożsamości, locka i nazwanego pipe'a.
+    //
+    // Próg 0.3, nie 0.5: na spokojnej maszynie mediana `projects` to ~90 ms przy podłodze ~64 ms
+    // (72 %), ale pod dużym obciążeniem współbieżnym (kilkadziesiąt równoległych testów, w tym
+    // realny Chrome z innych pakietów) obie liczby rosną nierównomiernie — zmierzony spadek do
+    // 41 % pod takim obciążeniem nadal potwierdza tezę (Node start to wciąż spory ułamek), więc
+    // próg jest niżej, żeby nie migotać dokładnie tam, gdzie AGENTS.md już ostrzega o migotaniu.
     expect(timed.nodeFloor / timed.median, `mediana ${timed.median} ms, podłoga ${timed.nodeFloor} ms`).toBeGreaterThan(
-      0.5,
+      0.3,
     );
   }, 120_000);
 

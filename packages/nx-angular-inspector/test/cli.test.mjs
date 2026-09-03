@@ -81,9 +81,12 @@ describe('linia', () => {
   });
 
   it('nie tnie w połowie pary surogatów', () => {
+    // Cięcie w połowie pary zostawia w stringu SAMOTNY SUROGAT, nie znak zastępczy U+FFFD —
+    // tego drugiego JS tu nigdy nie wstawia. Sprawdzone mutacją: `sliceUnits` sprowadzone do
+    // gołego `text.slice(0, max)` przechodziło poprzednią wersję tej asercji bez problemu.
     const cut = truncate(`${'a'.repeat(118)}😀tail`, 120);
     expect(cut.length).toBeLessThanOrEqual(120);
-    expect(cut).not.toContain('\ufffd');
+    expect(/[\uD800-\uDBFF]$/u.test(cut)).toBe(false);
   });
 });
 

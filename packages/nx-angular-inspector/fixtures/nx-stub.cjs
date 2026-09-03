@@ -35,6 +35,21 @@ if (argv[0] === 'run' && argv[1] === 'portal:build') {
   process.exit(1);
 }
 
+// A failure with no line `errorSummary` recognises as an error — the `kod N` branch of `run`,
+// exercised nowhere else. Not every failing tool speaks in compiler-error shapes.
+if (argv[0] === 'run' && argv[1] === 'utils:fail-plain') {
+  process.stdout.write('coś poszło nie tak, zobacz log serwera\n');
+  process.exit(7);
+}
+
+// Never exits on its own — for a test that passes a millisecond-scale `timeoutMs` to `runTarget`
+// and expects a REAL `ETIMEDOUT` from `spawnSync`, not a simulated one. `spawnSync`'s own timeout
+// sends the kill signal; this only has to still be running when it arrives.
+if (argv[0] === 'run' && argv[1] === 'utils:hang') {
+  setInterval(() => {}, 1000);
+  return;
+}
+
 // The three serve targets. The dev server is a CHILD, not this process, because that is the shape
 // `stop` has to survive: killing the parent alone leaves the real server holding the port.
 const SERVE_MODES = { 'portal:serve': 'ready', 'portal:serve-hang': 'hang', 'portal:serve-die': 'die' };

@@ -78,11 +78,35 @@ zamierzone: limit ma zmuszać do wyboru, a nie ustępować.
 | `node scripts/check-instruction-sync.mjs` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md` ≡ `INSTRUCTION` w benchu (gdy narzędzie ma harness); limit 200 tokenów na blok i 400 na wszystkie razem. Blok nieobecny w OBU plikach jest pomijany — to checkout tego oprzyrządowania w repo bez tego narzędzia; obecny w jednym i brakujący w drugim to FAIL |
 | `npm run smoke` | jeden smoke na prawdziwym Chrome/Edge: batch, izolacja dwóch originów, sesja przez keepera, `browser-inspector script`, auth (`BROWSER_INSPECTOR_SKIP_SMOKE=1` tylko bez przeglądarki) |
 
+**Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — kalendarzowa połowa
+doktryny aktualności, dopełnienie `check-pins`. Pyta rejestr npm o `dist-tags.latest` dla każdego
+pinu i mierzy, od kiedy pin jest za `latest` — **od `firstSeenBehind`, nie od daty wydania
+`latest`**, bo ta resetuje się przy każdym release'ie niezależnie od tego, czy jesteśmy jedną
+wersją w tyle czy dziesięcioma. Zegar żyje w commitowanym `scripts/upstream-state.json` i przeżywa
+między uruchomieniami: samo odpalenie skryptu **nie** przesuwa `firstSeenBehind` — inaczej alarm
+zerowałby sam siebie za każdym sprawdzeniem. WARN dopiero po przekroczeniu `staleDays` z wiersza
+pinu; exit 1 tylko z `--strict` (przy wydaniu). WARN nie znaczy „błąd" — `@types/node` jest
+przypięty na majorze 22 **celowo** (`pins.config.mjs` mówi dlaczego) i będzie WARN-ował co
+`staleDays` bez końca; `--ack <id|all>` to zapis decyzji człowieka „widziałem, zostaję" —
+resetuje zegar tylko dla pinu, który faktycznie jest za `latest`, i tylko wtedy, gdy ktoś o to
+świadomie poprosi.
+
 Projekt `compat` (`test/compat/smoke-gate.test.mjs`) to bramka zgodności z app-factory: spawnuje
 `bin/browser-inspector.mjs` na kopii `read.config.browser-inspector.json` z buildami serwowanymi z
 `../app-factory/dist/apps/*/browser` (porty 4571–4574; `APP_FACTORY_DIR` nadpisuje położenie)
 w trzech trybach i ocenia `report.json` kopią `evaluateReports()`. Bez buildów app-factory
 obok repo test **pomija się z komunikatem** — na maszynie z buildami musi być zielony.
+
+Ten sam projekt niesie `test/compat/golden-fixtures.test.mjs`: spawnuje
+`fixtures/snapshots/generate.mjs --check`, który renderuje bookstore i business-wizard prawdziwym
+zainstalowanym `playwright-core` i porównuje wynik z czterema plikami golden (`bookstore.ai.yml`,
+`bookstore.boxes.yml`, `walk.json`, `wizard.ai.yml`) bajt w bajt, zamiast je nadpisywać. Bez tego
+`generate.mjs` był jedynym sposobem zapisania tych plików i zawsze nadpisywał — zmiana gramatyki
+`aria` w playwright-core przemalowałaby golden pliki po cichu, a `test/snapshot.test.mjs`, który
+czyta je z dysku jako prawdę, zostałby zielony przez dryf, który ma wykrywać. Rozjazd → FAIL
+z numerem pierwszej różniącej się linii; poprawka to `node fixtures/snapshots/generate.mjs`
+(bez `--check`) **po przejrzeniu diffu** — nowa treść jest twierdzeniem o tym, co renderuje
+przeglądarka TERAZ, nie automatyczną prawdą. Ten sam warunek pominięcia co wyżej.
 
 W trakcie pracy nad jednym pakietem uruchamiaj swoje testy (`npx vitest run <ścieżka>`) i
 `npx prettier --check <pliki>`; pełne `npm run verify` przed oddaniem. Testy z prawdziwą
@@ -106,8 +130,9 @@ same bajty, więc commit, który nie rusza pakietu, nie dokłada bloba do histor
 | `CODE-INDEX.md` | `npm run code-index` (albo hook) | każda zmiana `.mjs` w `packages/*/src`, `packages/*/bin`, `scripts`, `bench` |
 | `docs/STEPS.md` | `npm run docs` (albo hook) | każda zmiana `packages/browser-inspector/src/steps.schema.mjs` (także `help`/`config`/`flags` kroku) |
 | `bench/RAPORT.md`, `bench/WYNIKI.md`, `bench/BUDGET.md`, blok `BENCH:START/END` w `README.md` | `npm run bench` | zmiana czegokolwiek w pomiarze, silniku albo kliencie |
-| `fixtures/snapshots/*.yml`, `walk.json` | `node packages/browser-inspector/fixtures/snapshots/generate.mjs` | zmiana buildów app-factory albo wersji playwright-core |
+| `fixtures/snapshots/*.yml`, `walk.json` | `node packages/browser-inspector/fixtures/snapshots/generate.mjs` (`--check` porównuje zamiast nadpisywać — `test/compat/golden-fixtures.test.mjs`) | zmiana buildów app-factory albo wersji playwright-core |
 | `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` | `npm run portable` (albo hook) | każdy commit; wersja z `packages/browser-inspector/package.json` (korzeń musi się zgadzać), bajty deterministyczne — każda wydana wersja zostaje w repo |
+| `scripts/upstream-state.json` | `node scripts/check-upstream.mjs` (dopisuje/kasuje wiersze, nie zastępuje pliku w całości) | za każdym uruchomieniem; commituje się jak lockfile — diff jest **zapisem decyzji**, nie tylko danymi |
 
 Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo obleje bramkę.
 Żadna liczba w README/RAPORT nie jest wpisywana ręcznie: „5×" to iloraz z pomiaru.
@@ -156,7 +181,9 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 2. Wydanie: podbij `version` w `packages/browser-inspector/package.json` **i w korzeniu** (build
    zipa odmawia, gdy się różnią; wersję czyta się wyłącznie z `package.json`) → przenieś
    `Unreleased` do nowej sekcji z datą → `npm run verify` (z buildami app-factory obok, żeby
-   `compat` nie był pominięty) → `npm run bench -- --assert-speedup 5` (RAPORT.md z kolumną
+   `compat` nie był pominięty) → `node scripts/check-upstream.mjs --strict` (kalendarzowa połowa
+   doktryny aktualności — tu, i tylko tu, WARN staje się FAIL; commit zmieniony
+   `scripts/upstream-state.json`, jeśli coś się zmieniło) → `npm run bench -- --assert-speedup 5` (RAPORT.md z kolumną
    `mcp-lean --timeout-settle 100` i `browser-inspector-warm-tight`; blok BENCH w README) → commit (hook buduje
    `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` i dodaje je do commita) →
    tag `vX.Y.Z` → push z tagiem →
