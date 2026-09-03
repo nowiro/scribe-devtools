@@ -71,7 +71,7 @@ zamierzone: limit ma zmuszać do wyboru, a nie ustępować.
 | `npm run verify` | wszystko poniżej, w tej kolejności |
 | `prettier --check .` | format: 120 kolumn, LF, pojedyncze cudzysłowy (`.prettierignore`: proza z wąskimi tabelami, generowane, fixture'y) |
 | `node scripts/check-pins.mjs` | `scripts/pins.config.mjs` to jedyne miejsce, gdzie wersja zależności jest **deklarowana**. Bramka jest offline i deterministyczna (dlatego stoi tak wysoko): META — każda zależność w każdym manifeście ma wiersz, i odwrotnie; SHAPE — `exact` znaczy goły numer, `caret` znaczy `^`; FLOOR — `minSupported` jako podłoga (`playwright-core >= 1.62.1`), która **nie** rozluźnia `exact`; SYNC — lustra i linie komend (`@playwright/mcp@<wersja>` w `.mcp.json` i `.vscode/mcp.json`); LAG — proza cytująca inną wersję niż pin. Bramka **wskazuje, nie przepisuje**: część tych linii to twierdzenia o zachowaniu, więc podmiana numeru zrobiłaby z prawdy fałsz z nowym numerem. Świadomy cytat starej wersji zwalnia `pins:ignore` w linii. Pytanie „czy pin to nadal `latest`” jest kalendarzowe, wymaga sieci i **nie należy tutaj** |
-| `vitest run --project !smoke` | projekty `unit` (FakePage, keeper na prawdziwym pipe z fake'iem silnika w czterech plikach, `client-imports`), `scripts` (CODE-INDEX, portable staging + `browser-inspector help` z rozpakowanego drzewa), `bench`, `compat` (perf tylko z `BROWSER_INSPECTOR_PERF=1`). `smoke` jest wykluczony i idzie OSOBNO, na końcu (`npm run smoke`) — inaczej `vitest run` uruchamiał go drugi raz, a prawdziwy Chrome obok testów jednostkowych obciążał maszynę na tyle, że testy z budżetem 200 ms migotały |
+| `vitest run --project !smoke` | projekty `unit` (FakePage, keeper na prawdziwym pipe z fake'iem silnika w czterech plikach, `client-imports`), `scripts` (CODE-INDEX, portable staging + `help` obu narzędzi z rozpakowanego drzewa), `bench`, `compat` (perf tylko z `BROWSER_INSPECTOR_PERF=1`). `smoke` jest wykluczony i idzie OSOBNO, na końcu (`npm run smoke`) — inaczej `vitest run` uruchamiał go drugi raz, a prawdziwy Chrome obok testów jednostkowych obciążał maszynę na tyle, że testy z budżetem 200 ms migotały |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**`, `bench/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
 | `node scripts/gen-steps-doc.mjs --check` | świeżość `docs/STEPS.md` |
@@ -131,7 +131,7 @@ same bajty, więc commit, który nie rusza pakietu, nie dokłada bloba do histor
 | `docs/STEPS.md` | `npm run docs` (albo hook) | każda zmiana `packages/browser-inspector/src/steps.schema.mjs` (także `help`/`config`/`flags` kroku) |
 | `bench/RAPORT.md`, `bench/WYNIKI.md`, `bench/BUDGET.md`, blok `BENCH:START/END` w `README.md` | `npm run bench` | zmiana czegokolwiek w pomiarze, silniku albo kliencie |
 | `fixtures/snapshots/*.yml`, `walk.json` | `node packages/browser-inspector/fixtures/snapshots/generate.mjs` (`--check` porównuje zamiast nadpisywać — `test/compat/golden-fixtures.test.mjs`) | zmiana buildów app-factory albo wersji playwright-core |
-| `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` | `npm run portable` (albo hook) | każdy commit; wersja z `packages/browser-inspector/package.json` (korzeń musi się zgadzać), bajty deterministyczne — każda wydana wersja zostaje w repo |
+| `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` | `npm run portable` (albo hook) | każdy commit; JEDEN zip niesie OBA narzędzia (`browser-inspector`, `nx-angular-inspector`) pod JEDNĄ wersją — korzeń i oba `packages/*/package.json` muszą się zgadzać, inaczej build odmawia; bajty deterministyczne — każda wydana wersja zostaje w repo |
 | `scripts/upstream-state.json` | `node scripts/check-upstream.mjs` (dopisuje/kasuje wiersze, nie zastępuje pliku w całości) | za każdym uruchomieniem; commituje się jak lockfile — diff jest **zapisem decyzji**, nie tylko danymi |
 
 Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo obleje bramkę.
@@ -169,7 +169,7 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 - `playwright-core` przypięty **exact** `1.62.1`, podłoga `minSupported: '1.62.1'`,
   w `packages/browser-inspector` i `bench` (fakty o `aria-ref` w DESIGN.md dotyczą tej wersji);
   tożsamość keepera liczy tę wersję; `stagePortable` odmawia, gdy `node_modules` ma inną —
-  i dlatego zakres zamiast gołego numeru wywala **każdy** build portable (`portable-zip.mjs:84`
+  i dlatego zakres zamiast gołego numeru wywala **każdy** build portable (`portable-zip.mjs`
   porównuje string manifestu `!==`).
 - tabela budżetu §6 DESIGN.md ↔ `bench/budget.mjs` (`DESIGN_BUDGET`).
 - README „Sesja" (próbki stdout) ↔ `src/print.mjs` (test reprodukuje próbki DESIGN §4.4 co do znaku).
@@ -178,8 +178,13 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 1. Dopisuj do `CHANGELOG.md` sekcji `Unreleased` RAZEM ze zmianą, nie przy tagowaniu;
    odwołuj się do numerów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `WPn` z `docs/PLAN.md`.
-2. Wydanie: podbij `version` w `packages/browser-inspector/package.json` **i w korzeniu** (build
-   zipa odmawia, gdy się różnią; wersję czyta się wyłącznie z `package.json`) → przenieś
+2. Wydanie: podbij `version` w korzeniu **i w OBU pakietach**
+   (`packages/browser-inspector/package.json`, `packages/nx-angular-inspector/package.json`) — jeden
+   zip, jedna wersja repo-wide; build zipa odmawia, gdy którykolwiek się różni od korzenia
+   (`portable-zip.mjs#readVersion`, sprawdza wszystkie wpisy `PACKAGES`, nie tylko pierwszy).
+   Bugfix dotykający tylko jednego narzędzia i tak wymaga podbicia obu — to jest koszt
+   trzymania ich w jednym zipie, świadomie zaakceptowany, nie przeoczony. Wersję czyta się
+   wyłącznie z `package.json` → przenieś
    `Unreleased` do nowej sekcji z datą → `npm run verify` (z buildami app-factory obok, żeby
    `compat` nie był pominięty) → `node scripts/check-upstream.mjs --strict` (kalendarzowa połowa
    doktryny aktualności — tu, i tylko tu, WARN staje się FAIL; commit zmieniony

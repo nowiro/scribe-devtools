@@ -7,6 +7,22 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Added
 
+- **`nx-angular-inspector` w zipie portable — JEDEN zip, JEDNA wersja, oba narzędzia.**
+  `scripts/portable-zip.mjs` przepisany z pojedynczego `PACKAGE` na tablicę `PACKAGES`:
+  `readVersion` sprawdza teraz WSZYSTKIE pakiety wobec wersji korzenia, nie tylko pierwszy —
+  bump dotykający tylko jednego manifestu i tak wywala build (test na to: nx-angular-inspector
+  zostawiony w tyle łapie się dokładnie tak samo jak wcześniej browser-inspector). Sprzężenie
+  jest świadome, nie przeoczone: to koszt trzymania dwóch narzędzi w jednym wydaniu — bugfix
+  dotykający tylko jednego z nich i tak podbija wersję drugiego. `nx-angular-inspector` ma zero
+  zależności runtime, więc jego wpis w zipie to tylko `bin` + `src` + `package.json` — bez
+  kopiowania `node_modules` (playwright-core zostaje wyłącznie dla browser-inspectora). Marker
+  `PORTABLE` i para shimów (`.cmd` / POSIX) dostał **każdy** pakiet; `unixMode` w zapisie zipa
+  rozpoznaje teraz oba shimy jako wykonywalne, nie tylko `browser-inspector`. Sprawdzone ręcznie
+  end-to-end na tej maszynie: staging → `help` obu narzędzi z rozpakowanego drzewa → prawdziwy
+  zbudowany zip → rozpakowany → `help` obu narzędzi ponownie. Wydany `v0.1.0` **nie jest
+  dotknięty** — zamrożony zip zostaje bez zmian (sprawdzone: `git status` czyste po próbie
+  przebudowy bez `--force`); `nx-angular-inspector` pojawi się dopiero w następnym wydaniu, przy
+  świadomym podbiciu obu manifestów. 5 nowych/rozszerzonych testów w `portable-zip.test.mjs`.
 - **Tryb `--check` dla `fixtures/snapshots/generate.mjs`** (browser-inspector) + nowa bramka
   `test/compat/golden-fixtures.test.mjs`. Do tej pory generator by lift jedynym sposobem zapisania
   czterech plików golden i zawsze je NADPISYWAŁ — zmiana gramatyki `aria` w playwright-core

@@ -1,24 +1,37 @@
 #!/usr/bin/env node
-// Builds the PORTABLE zip: unpack, run `node packages/browser-inspector/bin/browser-inspector.mjs …` with Node ≥ 22
-// and the system Chrome/Edge — no npm, no build (there is no build step in this repository, so the
-// zip is a curated copy of the tree, not a bundle).
+// Builds the PORTABLE zip: unpack, run either tool with Node ≥ 22 (browser-inspector also wants the
+// system Chrome/Edge) — no npm, no build (there is no build step in this repository, so the zip is
+// a curated copy of the tree, not a bundle).
 //
-// Inside: `packages/browser-inspector` (bin, src, templates, fixtures, package.json — not `test/`),
-// `node_modules/playwright-core` (its only runtime dependency, itself dependency-free, hoisted by
-// the workspace install), the marker file `packages/browser-inspector/PORTABLE`, and the shims
-// `browser-inspector.cmd` / `browser-inspector` at the zip root. The marker matters at runtime: the keeper's
-// identity hash
-// (DESIGN.md §2.5) skips the `src/**` mtime stamp when it sees it, because an unpacked zip has
-// arbitrary mtimes and would otherwise get a fresh keeper per unpack.
+// Two packages ride in ONE zip, under ONE version — the repo's version, not a per-package one:
+//
+//   packages/browser-inspector      bin, src, templates, fixtures, package.json — not `test/`
+//   packages/nx-angular-inspector   bin, src, package.json — no templates/fixtures, nothing to ship
+//
+// The two are coupled deliberately, not by oversight: a single zip is what "one portable release of
+// this repository" means, and it is the shape the existing release procedure (AGENTS.md § Wydanie)
+// already assumes — one tag, one asset, one CHANGELOG section. The cost of the coupling is real and
+// worth naming: a browser-inspector-only bugfix release still bumps nx-angular-inspector's version
+// even when nothing in it changed. `readVersion` enforces the coupling by checking EVERY package
+// in `PACKAGES` against the root version, not just the first one — a bump that only touches one
+// manifest fails loudly here, the same way a browser-inspector-only bump already failed before
+// nx-angular-inspector existed.
+//
+// Inside: each package's files (below), `node_modules/playwright-core` (browser-inspector's only
+// runtime dependency — nx-angular-inspector has none, so nothing else is copied for it), a
+// `PORTABLE` marker in EACH package's own directory, and a pair of shims per package
+// (`<bin>.cmd` / `<bin>`) at the zip root. The marker matters for browser-inspector specifically:
+// its keeper's identity hash (DESIGN.md §2.5) skips the `src/**` mtime stamp when it sees the
+// marker, because an unpacked zip has arbitrary mtimes and would otherwise get a fresh keeper per
+// unpack. nx-angular-inspector has no keeper and nothing reads its marker today; it is written for
+// the same reason a build number is stamped on a part with no serial number reader yet — it says
+// what this directory is, and it costs one file.
 //
 // The zip is TRACKED: every version lives in `download/scribe-devtools-portable-<version>.zip`
 // (plus a `.sha256` sidecar), and the pre-commit hook rebuilds it before every commit. That only
 // works because the build is DETERMINISTIC — fixed mtimes, sorted entries, no timestamp in the
 // marker — so an unchanged tree yields byte-identical bytes and git sees nothing to add. Without
 // that, every commit would append a 3 MB blob to history.
-//
-// The version comes from `packages/browser-inspector/package.json` and nowhere else; the root
-// `package.json` must agree (the release procedure bumps both), otherwise the build fails loudly.
 //
 // Usage: npm run portable                                (zip + .sha256 land in download/)
 //        node scripts/portable-zip.mjs [--out <dir>] [--stage <dir>]   (--stage: copy only, no zip — for tests)
@@ -31,48 +44,75 @@ import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
 const REPO = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PACKAGE = 'packages/browser-inspector';
 
 export const PORTABLE_MARKER = 'PORTABLE';
 export const DOWNLOAD_DIR = 'download';
 /** One fixed timestamp for every entry — the zip must not change when nothing in it did. */
 export const FIXED_MTIME = new Date('2026-01-01T00:00:00Z');
 
-/** What of the package goes into the zip — tests stay out, fixtures go in (the smoke needs them). */
-const PACKAGE_ENTRIES = ['package.json', 'README.md', 'bin', 'src', 'templates', 'fixtures'];
-const REQUIRED_ENTRIES = new Set(['package.json', 'bin', 'src']);
+/**
+ * @typedef {object} PackageSpec
+ * @property {string} dir repo-relative
+ * @property {string} bin shim name — `<bin>.cmd` and `<bin>` at the zip root
+ * @property {string} entry `bin`-relative entry script, e.g. `bin/browser-inspector.mjs`
+ * @property {string[]} entries what of the package goes into the zip — tests stay out
+ * @property {Set<string>} required entries whose absence is a broken tree, not an early checkout
+ */
+
+/** @type {readonly PackageSpec[]} */
+export const PACKAGES = Object.freeze([
+  {
+    dir: 'packages/browser-inspector',
+    bin: 'browser-inspector',
+    entry: 'bin/browser-inspector.mjs',
+    entries: ['package.json', 'README.md', 'bin', 'src', 'templates', 'fixtures'],
+    required: new Set(['package.json', 'bin', 'src']),
+  },
+  {
+    dir: 'packages/nx-angular-inspector',
+    bin: 'nx-angular-inspector',
+    entry: 'bin/nx-angular-inspector.mjs',
+    // No `templates`/`fixtures`: nothing it ships at runtime lives there. `fixtures/` here is the
+    // synthetic-workspace GENERATOR the test suite uses — a dev-time tool, not a runtime asset.
+    entries: ['package.json', 'README.md', 'bin', 'src'],
+    required: new Set(['package.json', 'bin', 'src']),
+  },
+]);
 
 /**
- * The single source of the version: the package's package.json. The root package.json must say
- * the same — a release that bumps one and not the other would ship a zip named after the wrong one.
+ * The single source of the version: the repository's own `package.json`. EVERY package in
+ * `PACKAGES` must say the same — a release that bumps the root and one package but not the other
+ * would ship a zip whose two tools disagree about what version they are.
  * @param {string} root
  * @returns {string}
  */
 export function readVersion(root) {
-  const pkg = JSON.parse(readFileSync(join(root, PACKAGE, 'package.json'), 'utf8'));
   const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  if (typeof pkg.version !== 'string' || pkg.version === '') throw new Error(`${PACKAGE}/package.json: brak "version"`);
-  if (rootPkg.version !== pkg.version) {
-    throw new Error(
-      `wersja w package.json (${String(rootPkg.version)}) i ${PACKAGE}/package.json (${pkg.version}) się różnią — podbij obie`,
-    );
+  if (typeof rootPkg.version !== 'string' || rootPkg.version === '') throw new Error('package.json: brak "version"');
+  for (const pkg of PACKAGES) {
+    const manifest = JSON.parse(readFileSync(join(root, pkg.dir, 'package.json'), 'utf8'));
+    if (manifest.version !== rootPkg.version) {
+      throw new Error(
+        `wersja w package.json (${String(rootPkg.version)}) i ${pkg.dir}/package.json (${String(manifest.version)}) się różnią — podbij obie`,
+      );
+    }
   }
-  return pkg.version;
+  return rootPkg.version;
 }
 
 /** @param {string} version */
 export const zipName = (version) => `scribe-devtools-portable-${version}.zip`;
 
 /**
- * Copy everything the unpacked zip needs into `staging` and write the marker + shims.
- * Pure file operations, no zip — the unpack test in WP8 asserts on this directory directly.
+ * Copy everything the unpacked zip needs into `staging` and write the markers + shims.
+ * Pure file operations, no zip — the unpack test asserts on this directory directly.
  * @param {string} root repository root (must have been `npm install`-ed)
  * @param {string} staging empty directory
  * @returns {{ version: string, playwrightVersion: string }}
  */
 export function stagePortable(root, staging) {
   const version = readVersion(root);
-  const pkg = JSON.parse(readFileSync(join(root, PACKAGE, 'package.json'), 'utf8'));
+  const biPkg = JSON.parse(readFileSync(join(root, 'packages/browser-inspector/package.json'), 'utf8'));
   const pwPath = join(root, 'node_modules', 'playwright-core');
   let playwrightVersion;
   try {
@@ -80,7 +120,7 @@ export function stagePortable(root, staging) {
   } catch {
     throw new Error('brak node_modules/playwright-core — uruchom npm ci przed budowaniem zipa (także przed commitem)');
   }
-  const pinned = pkg.dependencies?.['playwright-core'];
+  const pinned = biPkg.dependencies?.['playwright-core'];
   if (pinned !== playwrightVersion) {
     throw new Error(
       `playwright-core in node_modules is ${playwrightVersion}, package.json pins ${pinned} — run npm ci first`,
@@ -92,50 +132,72 @@ export function stagePortable(root, staging) {
     const name = src.split(/[\\/]/u).pop() ?? '';
     return name !== 'node_modules' && name !== '.gitkeep' && !name.endsWith('.log');
   };
-  mkdirSync(join(staging, PACKAGE), { recursive: true });
-  for (const entry of PACKAGE_ENTRIES) {
-    try {
-      cpSync(join(root, PACKAGE, entry), join(staging, PACKAGE, entry), { recursive: true, filter });
-    } catch (error) {
-      // README.md, templates or fixtures may not exist yet in an early tree; the runtime must.
-      if (/** @type {any} */ (error)?.code !== 'ENOENT' || REQUIRED_ENTRIES.has(entry)) throw error;
+
+  for (const pkg of PACKAGES) {
+    mkdirSync(join(staging, pkg.dir), { recursive: true });
+    for (const entry of pkg.entries) {
+      try {
+        cpSync(join(root, pkg.dir, entry), join(staging, pkg.dir, entry), { recursive: true, filter });
+      } catch (error) {
+        // README.md, templates or fixtures may not exist yet in an early tree; the runtime must.
+        if (/** @type {any} */ (error)?.code !== 'ENOENT' || pkg.required.has(entry)) throw error;
+      }
     }
+    // No build timestamp in the marker: it would make every build a new blob (see the header).
+    writeFileSync(
+      join(staging, pkg.dir, PORTABLE_MARKER),
+      `portable build of @scribe-devtools/${pkg.bin} ${version}\n`,
+      'utf8',
+    );
   }
-  // Only playwright-core: it has no dependencies of its own, so the whole runtime is one directory.
+
+  // Only browser-inspector has a runtime dependency: playwright-core, itself dependency-free, so the
+  // whole extra tree is one directory. nx-angular-inspector needs nothing copied here — zero
+  // runtime dependencies is the point of it.
   cpSync(pwPath, join(staging, 'node_modules', 'playwright-core'), { recursive: true, filter });
 
-  // No build timestamp in the marker: it would make every build a new blob (see the header).
-  writeFileSync(
-    join(staging, PACKAGE, PORTABLE_MARKER),
-    `portable build of @scribe-devtools/browser-inspector ${version}\nplaywright-core ${playwrightVersion}\n`,
-    'utf8',
-  );
-  // Shims: `browser-inspector …` from the zip root on both shells; `%~dp0` / `$(dirname "$0")` make them
-  // cwd-independent.
-  const winPath = `${PACKAGE.replaceAll('/', '\\')}\\bin\\browser-inspector.mjs`;
-  writeFileSync(join(staging, 'browser-inspector.cmd'), `@echo off\r\nnode "%~dp0${winPath}" %*\r\n`, 'utf8');
-  writeFileSync(
-    join(staging, 'browser-inspector'),
-    `#!/bin/sh\nexec node "$(dirname "$0")/${PACKAGE}/bin/browser-inspector.mjs" "$@"\n`,
-    {
+  // Shims: `<bin> …` from the zip root on both shells; `%~dp0` / `$(dirname "$0")` make them
+  // cwd-independent. One pair per package.
+  for (const pkg of PACKAGES) {
+    const winPath = `${pkg.dir.replaceAll('/', '\\')}\\${pkg.entry.replaceAll('/', '\\')}`;
+    writeFileSync(join(staging, `${pkg.bin}.cmd`), `@echo off\r\nnode "%~dp0${winPath}" %*\r\n`, 'utf8');
+    writeFileSync(join(staging, pkg.bin), `#!/bin/sh\nexec node "$(dirname "$0")/${pkg.dir}/${pkg.entry}" "$@"\n`, {
       encoding: 'utf8',
       mode: 0o755,
-    },
-  );
+    });
+  }
+
   writeFileSync(
     join(staging, 'README-PORTABLE.md'),
     [
-      `# browser-inspector ${version} — portable`,
+      `# scribe-devtools ${version} — portable`,
       '',
-      'Wymagania: Node >= 22 i systemowy Chrome albo Edge. Bez `npm install`, bez builda.',
+      'Wymagania: Node >= 22. Bez `npm install`, bez builda. Dwa narzędzia w jednym zipie, jedna wersja.',
+      '',
+      '## browser-inspector',
+      '',
+      'Wymaga też systemowego Chrome albo Edge.',
       '',
       '```',
       'browser-inspector help                      # Windows: browser-inspector.cmd, POSIX: ./browser-inspector',
-      `node ${PACKAGE}/bin/browser-inspector.mjs help`,
+      'node packages/browser-inspector/bin/browser-inspector.mjs help',
       '```',
       '',
-      `Zawartość: \`${PACKAGE}\` (bin, src, templates, fixtures), \`node_modules/playwright-core\` ${playwrightVersion},`,
-      `marker \`${PACKAGE}/${PORTABLE_MARKER}\` (keeper pomija stempel mtime źródeł). Dokumentacja: README.md w repozytorium.`,
+      'Zawartość: `packages/browser-inspector` (bin, src, templates, fixtures), `node_modules/playwright-core`' +
+        ` ${playwrightVersion}, marker \`packages/browser-inspector/${PORTABLE_MARKER}\` (keeper pomija stempel mtime źródeł).`,
+      '',
+      '## nx-angular-inspector',
+      '',
+      'Zero zależności runtime — tylko Node. Wspiera tylko nx >= 23 i angular >= 22.',
+      '',
+      '```',
+      'nx-angular-inspector help                   # Windows: nx-angular-inspector.cmd, POSIX: ./nx-angular-inspector',
+      'node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs help',
+      '```',
+      '',
+      'Zawartość: `packages/nx-angular-inspector` (bin, src).',
+      '',
+      'Dokumentacja: README.md i AGENTS.md w repozytorium.',
       '',
     ].join('\n'),
     'utf8',
@@ -188,8 +250,9 @@ const DOS_DATE =
 const DOS_TIME =
   (FIXED_MTIME.getUTCHours() << 11) | (FIXED_MTIME.getUTCMinutes() << 5) | (FIXED_MTIME.getUTCSeconds() >> 1);
 
-/** Unix mode in the external attributes — the `browser-inspector` shim must stay executable after unzip on POSIX. */
-const unixMode = (/** @type {string} */ name) => (name === 'browser-inspector' ? 0o100755 : 0o100644);
+/** Unix mode in the external attributes — every POSIX shim must stay executable after unzip. */
+const POSIX_SHIMS = new Set(PACKAGES.map((pkg) => pkg.bin));
+const unixMode = (/** @type {string} */ name) => (POSIX_SHIMS.has(name) ? 0o100755 : 0o100644);
 
 /**
  * Deterministic zip of `staging`: entries in sorted order, forward slashes, one fixed timestamp,
@@ -366,7 +429,8 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import
       console.log(
         `[zip] ${changed ? 'zbudowany' : 'bez zmian'}: ${relative(REPO, zipPath)} (+ ${relative(REPO, shaPath)}) — wersja ${version}`,
       );
-      console.log(`[zip] po rozpakowaniu: node ${PACKAGE}/bin/browser-inspector.mjs help  (bez npm, bez builda)`);
+      for (const pkg of PACKAGES)
+        console.log(`[zip] po rozpakowaniu: node ${pkg.dir}/${pkg.entry} help  (bez npm, bez builda)`);
     }
   }
 }

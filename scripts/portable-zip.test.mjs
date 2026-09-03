@@ -26,6 +26,7 @@ import {
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = 'packages/browser-inspector';
+const NXAI = 'packages/nx-angular-inspector';
 const skipSmoke =
   process.env.BROWSER_INSPECTOR_SKIP_SMOKE === '1' || process.env.BROWSER_INSPECTOR_SKIP_SMOKE === 'true';
 
@@ -44,6 +45,21 @@ function runStaged(staging, args) {
     encoding: 'utf8',
     windowsHide: true,
     timeout: 120_000,
+  });
+  return { code: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+}
+
+/**
+ * The same thing for `nx-angular-inspector`, which has no daemon and no `BROWSER_INSPECTOR_*` env to strip.
+ * @param {string} staging
+ * @param {string[]} args
+ */
+function runStagedNxai(staging, args) {
+  const result = spawnSync(process.execPath, [path.join(staging, NXAI, 'bin', 'nx-angular-inspector.mjs'), ...args], {
+    cwd: staging,
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 30_000,
   });
   return { code: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
@@ -83,6 +99,25 @@ describe('portable staging', () => {
     expect(code).toBe(0);
     expect(stdout).toContain('browser-inspector <config.json>');
     expect(stdout).toContain('browser-inspector help <command>');
+  });
+
+  it('nx-angular-inspector rides in the SAME zip, under its own shims and marker — never fixtures/test', () => {
+    expect(existsSync(path.join(staging, NXAI, 'bin', 'nx-angular-inspector.mjs'))).toBe(true);
+    expect(existsSync(path.join(staging, NXAI, 'src', 'main.mjs'))).toBe(true);
+    // No runtime dependency at all — nothing else should have been copied in for it.
+    expect(existsSync(path.join(staging, NXAI, 'fixtures'))).toBe(false);
+    expect(existsSync(path.join(staging, NXAI, 'test'))).toBe(false);
+    expect(readFileSync(path.join(staging, NXAI, PORTABLE_MARKER), 'utf8')).toContain(staged.version);
+    expect(existsSync(path.join(staging, 'nx-angular-inspector.cmd'))).toBe(true);
+    expect(existsSync(path.join(staging, 'nx-angular-inspector'))).toBe(true);
+  });
+
+  it('`node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs help` runs from the staged tree', () => {
+    const { code, stdout, stderr } = runStagedNxai(staging, ['help']);
+    expect(stderr).toBe('');
+    expect(code).toBe(0);
+    expect(stdout).toContain('nx-angular-inspector env');
+    expect(stdout).toContain('tylko nx >= 23 i angular >= 22');
   });
 
   it('`browser-inspector lint-config` reads the staged fixture (config + steps schema, no browser)', () => {
@@ -135,16 +170,27 @@ describe('portable staging', () => {
     120_000,
   );
 
-  it('the version is read from package.json — and the root must agree', () => {
+  it('the version is read from package.json — and BOTH packages must agree, not just the first', () => {
     expect(readVersion(REPO)).toBe(staged.version);
     expect(zipName(staged.version)).toBe(`scribe-devtools-portable-${staged.version}.zip`);
     // A root that disagrees is a release mistake, not a warning.
     const root = mkdtempSync(path.join(tmpdir(), 'browser-inspector-version-'));
     try {
       mkdirSync(path.join(root, PACKAGE), { recursive: true });
+      mkdirSync(path.join(root, NXAI), { recursive: true });
       writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '9.9.9' }));
       writeFileSync(path.join(root, PACKAGE, 'package.json'), JSON.stringify({ version: staged.version }));
+      writeFileSync(path.join(root, NXAI, 'package.json'), JSON.stringify({ version: staged.version }));
+      // Both packages mismatch root the same way — the FIRST one checked (browser-inspector) is
+      // what throws here.
       expect(() => readVersion(root)).toThrow(/podbij obie/u);
+
+      // browser-inspector alone matching root is not enough: nx-angular-inspector left behind at an
+      // old version must ALSO fail the build, not be silently skipped because the loop already
+      // found one match.
+      writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: staged.version }));
+      writeFileSync(path.join(root, NXAI, 'package.json'), JSON.stringify({ version: '0.0.1' }));
+      expect(() => readVersion(root)).toThrow(/nx-angular-inspector.*podbij obie/u);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -203,6 +249,7 @@ describe('portable staging', () => {
       // of them.
       const entries = zipEntries(zipPath);
       expect(entries.some((name) => name.endsWith('bin/browser-inspector.mjs'))).toBe(true);
+      expect(entries.some((name) => name.endsWith('bin/nx-angular-inspector.mjs'))).toBe(true);
       expect(entries.filter((name) => name.includes('\\'))).toEqual([]);
       if (process.platform === 'win32') {
         spawnSync(
@@ -214,9 +261,13 @@ describe('portable staging', () => {
         spawnSync('unzip', ['-q', zipPath, '-d', unpacked], { stdio: 'ignore' });
       }
       expect(existsSync(path.join(unpacked, PACKAGE, PORTABLE_MARKER))).toBe(true);
-      const { code, stdout } = runStaged(unpacked, ['help']);
-      expect(code).toBe(0);
-      expect(stdout).toContain('browser-inspector <config.json>');
+      expect(existsSync(path.join(unpacked, NXAI, PORTABLE_MARKER))).toBe(true);
+      const bi = runStaged(unpacked, ['help']);
+      expect(bi.code).toBe(0);
+      expect(bi.stdout).toContain('browser-inspector <config.json>');
+      const nxai = runStagedNxai(unpacked, ['help']);
+      expect(nxai.code).toBe(0);
+      expect(nxai.stdout).toContain('nx-angular-inspector env');
     } finally {
       rmSync(zipPath, { force: true });
       rmSync(unpacked, { recursive: true, force: true, maxRetries: 3 });

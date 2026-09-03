@@ -284,4 +284,4 @@ Modules: 63.
 - imported by: `scripts/check-pins.mjs`, `scripts/check-upstream.mjs`
 
 ## scripts/portable-zip.mjs
-- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`
+- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`
