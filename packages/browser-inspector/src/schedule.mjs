@@ -39,6 +39,14 @@ export function estimateSnapshot(snapshot) {
   return total;
 }
 
+// What a snapshot costs a lane before its first step runs: the `goto`, the settle and the final
+// evidence, which every snapshot pays. `estimateSnapshot` may leave it out — it only has to ORDER,
+// and a constant is invisible to an ordering — but a bin-packer may not: charged 0, a `type: "page"`
+// snapshot (which the config schema forbids from having `steps`) never makes a lane the loaded one,
+// so `load[i] < load[lane]` is false for every i and all of them land on lane 0. A config of nothing
+// but pages — the one `lintConfig` suggests `parallel` for — then ran serially on one lane.
+const LANE_BASE_COST = 100;
+
 /**
  * Lane index per snapshot, in the snapshots' own order: `plan[k]` is the lane for `snapshots[k]`.
  * Ties go to the lowest lane index, so a config whose snapshots all look alike gets exactly the
@@ -53,7 +61,7 @@ export function planLanes(snapshots, parallel) {
   if (lanes === 1) return plan;
   const load = new Array(lanes).fill(0);
   const order = snapshots
-    .map((snapshot, index) => ({ index, cost: estimateSnapshot(snapshot) }))
+    .map((snapshot, index) => ({ index, cost: LANE_BASE_COST + estimateSnapshot(snapshot) }))
     // Stable on ties (by index), so the plan is a function of the config and nothing else.
     .sort((a, b) => b.cost - a.cost || a.index - b.index);
   for (const { index, cost } of order) {

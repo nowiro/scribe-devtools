@@ -21,6 +21,76 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ### Fixed
 
+- **Pole `type=password` BEZ `[ref=]` zostawiało wpisaną wartość** w `snap.md`, `snap.full.yml`
+  i na stdout. Maska działa po refie (sidecar jest kluczowany refem), więc pole, któremu Playwright
+  refu nie nadał — bo np. ma `pointer-events: none` — nie miało jak trafić na listę wrażliwych.
+  Wartość, której sidecar nie potrafi potwierdzić, jest teraz cięta tak jak wrażliwa.
+
+- **`afterName()` gubił się na nazwie, której Playwright NIE cytuje** (`/…/`) — zwracał 0, więc ref
+  brał się ZNOWU z wnętrza nazwy. Dokładnie ten wektor, przed którym miała chronić łatka wyżej;
+  trzecie podejście do tej samej rodziny błędu. `afterName` pomija teraz także formę niecytowaną.
+
+- **Fail-closed po nieudanym obchodzie DOM był wszystko-albo-nic.** Obchód, który padł w JEDNEJ
+  ramce potomnej, zostawiał hasło z tej ramki jawne — bo maskowanie awaryjne włączało się dopiero,
+  gdy sidecar nie powiódł się w CAŁOŚCI. Teraz liczy się PER POLE: `boxJoin` znaczy `valueUnknown`
+  każdy węzeł o roli niosącej wartość, dla którego obchód nie znalazł żadnego elementu. Trzy
+  niezależne zgłoszenia. Nowy fixture `fixtures/iframe-hostile.html`.
+
+- **Hasło w polu z `placeholder` zostawało jawne** — renderer przenosi wartość do liścia `- text:`
+  pod węzłem, a maska tego slotu nie znała. `maskSnapshotValues` traktuje teraz wcięcie jak drzewo:
+  wrażliwy klucz tnie także swoje dzieci.
+
+- **Redakcja JUnit-a biegła PO escapowaniu XML** — sekret zawierający `&`, `<`, `>` albo `"` był już
+  wtedy innym ciągiem znaków i przechodził przez `redact` nietknięty, prosto do `junit.xml`.
+  `renderJUnit` redaguje teraz przed `xml()`, we wszystkich czterech polach.
+
+- **`snapshots[i].storageState` rozwiązywał się względem cwd PROCESU**, nie katalogu configu —
+  snapshot cicho startował na cudzym koncie albo bez sesji. Kotwiczony teraz do katalogu configu,
+  tak jak `outputDir` i `auth.storageState`.
+
+- **Odmowa eksportu refu z iframe (naprawa poprzedniej rundy) nigdy nie strzelała**: `normalizeEntry`
+  nie przepisywało `inFrame` do dziennika, więc marker nie dojeżdżał do `journal.jsonl`. Do tego
+  `durableSelector` na ścieżce zapasowej zawsze meldował `inFrame: false` — `false` znaczyło
+  jednocześnie „nie w ramce", „degradacja" i „`catch`". Teraz trzy stany zamiast dwóch.
+
+- **`browser.motion: "reduce"` nie działało wcale**, a nagłówek raportu i tak drukował
+  `motion=reduce`. Scrub zerował `reducedMotion` na `null`, co Chrome rozumie jako `no-override`
+  i kasuje też opcję kontekstu; `freshContext`/`prewarmSpare` nigdy jej nie ustawiały.
+
+- **`planLanes` sadzało wszystkie snapshoty o zerowym szacunku na lane 0** — config złożony
+  z samych `type: "page"` tracił równoległość mimo `parallel: N`. `estimateSnapshot` jest z definicji
+  szacunkiem porządkującym, a było użyte jako rozmiar kosza w bin-packingu.
+
+- **`BROWSER_INSPECTOR_CHANNEL=''` wyrzucało `browser.channel` z configu** i z tożsamości, i z
+  uruchomienia: `collectIdentity` używało `??`, `launchPlan` `||`. Jedna semantyka po obu stronach:
+  puste = nieustawione.
+
+- **Żądanie, które odpowiada 4xx/5xx i dopiero potem pada na transporcie, było liczone dwa razy**,
+  a status HTTP znikał z `failure`. `recordFailure` jest teraz idempotentne, a oba powody składane.
+
+- **`extract` czytał tekst elementów, których strona nie renderuje** — raport twierdził, że widać
+  błąd walidacji i potwierdzenie, których nie ma. Wybrany wariant to ADNOTACJA, nie twardy FAIL:
+  wartość dostaje `hidden: true`, bo twardy FAIL łamałby bramkę zgodności z app-factory.
+
+- **`upload` wysyłał `application/octet-stream` dla każdego pliku ≤ 1 MB** — typ MIME zależał od
+  rozmiaru pliku, bo tylko ścieżka dyskowa wyprowadzała go z rozszerzenia.
+
+- **`waitFor <ref> --state hidden|detached` kończyło się FAIL-em, gdy element został USUNIĘTY** —
+  czyli dokładnie wtedy, gdy warunek jest spełniony.
+
+- **Klikalny nagłówek (akordeon) był widoczny, ale nieadresowalny** — linia `heading` w kompakcie
+  i w `find` nie niosła refa. **Zwijanie rodzeństwa gubiło nazwy**: menu 13 różnych linków zwijało
+  się do jednego linku i trzech nazw, bo sygnatura zwijania ignoruje nazwy.
+
+- **`snap`, `--grep` i `find` gubiły wpisaną wartość każdego pola z `placeholder`** (ta sama
+  przyczyna co wyciek wyżej, drugi jej koniec).
+
+- **Filtry sesyjne kroku `snapshot`** (`max`, `diff`, `grep`, `names`, `all`) **przechodziły
+  walidację configu i nie robiły nic.**
+
+- **`check-instruction-sync` po cichu wyrzucał linie bez `>`** spomiędzy znaczników, więc tekst
+  dopisany do bloku instrukcji instruowałby agenta, nie kosztując nic w pomiarze AC-6.
+
 - **`maskSnapshotValues` brało ref z NAZWY pola, nie z jego atrybutu.** Łatka niżej w tej samej
   sekcji zastąpiła regexp parserem, ale ref wyszukiwała jako pierwsze `[ref=…]` w kluczu — a nazwa
   dostępna może ten tekst zawierać dosłownie. Pole hasła o nazwie `Kod [ref=e9]` podstawiało cudzy

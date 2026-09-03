@@ -18,7 +18,9 @@ import {
   launchPlan,
 } from '../src/lanes.mjs';
 import { makeStepContext, writeSnapshotFiles } from '../src/steps.ctx.mjs';
-import { RUNNERS, globToRegExp } from '../src/steps.run.mjs';
+import { REF_NOT_FOUND } from '../src/print.mjs';
+import { RefNotFoundError } from '../src/snapshot.mjs';
+import { RUNNERS, durableSelector, globToRegExp } from '../src/steps.run.mjs';
 import { STEPS } from '../src/steps.schema.mjs';
 import { callsOf, createFakeBrowser, createFakeContext } from './fake-browser.mjs';
 
@@ -100,6 +102,14 @@ describe('launchPlan / launchBrowser', () => {
       '--no-sandbox',
     ]);
     expect(launchPlan({ fastHeadless: false, args: ['--foo'] }, {}).args).toEqual(['--foo']);
+    // An EMPTY variable is not an override: it used to erase FAST_HEADLESS_ARGS and `browser.args`
+    // while hashing exactly like "unset", so two different browsers shared one keeper.
+    expect(launchPlan({ fastHeadless: false, args: ['--foo'] }, { BROWSER_INSPECTOR_BROWSER_ARGS: '' }).args).toEqual([
+      '--foo',
+    ]);
+    expect(launchPlan({ fastHeadless: false, args: ['--foo'] }, { BROWSER_INSPECTOR_BROWSER_ARGS: '  ' }).args).toEqual(
+      ['--foo'],
+    );
     expect(launchPlan({ headless: false }, {}).args).toEqual([]);
   });
 
@@ -581,6 +591,29 @@ describe('lanes, scrub, isolation', () => {
     expect(engine.status().lanes[0].dirty).toBe(false);
   });
 
+  it('browser.motion reaches EVERY context and survives the scrub — the header must not lie', async () => {
+    // `emulateMedia({ reducedMotion: null })` is sent as `no-override`, which erases the CONTEXT
+    // option instead of falling back to it: after the first scrub the lane ran with full animations
+    // while `report.json.engine.motion` still said `reduce`. Fresh contexts never had it at all.
+    const { engine, calls } = harness({}, { browser: { motion: 'reduce' } });
+    await engine.runFlow(flow([]), await tmp());
+    await engine.scrub(0);
+    const media = callsOf(calls, 'emulateMedia').map(([opts]) => opts?.reducedMotion);
+    expect(media).toEqual(['reduce']);
+    expect(callsOf(calls, 'newContext')[0][0]).toMatchObject({ reducedMotion: 'reduce' });
+    const fresh = await engine.freshContext({ viewport: { width: 800, height: 600 } });
+    await fresh.context.close();
+    expect(callsOf(calls, 'newContext').at(-1)?.[0]).toMatchObject({ reducedMotion: 'reduce' });
+  });
+
+  it('leaves the media emulation cleared when no motion preference is configured', async () => {
+    const { engine, calls } = harness();
+    await engine.runFlow(flow([]), await tmp());
+    await engine.scrub(0);
+    expect(callsOf(calls, 'emulateMedia').map(([opts]) => opts?.reducedMotion)).toEqual([null]);
+    expect(callsOf(calls, 'newContext')[0][0].reducedMotion).toBeUndefined();
+  });
+
   it('a crashed renderer rebuilds the tab at the next scrub: timing.tab = new', async () => {
     const { engine, calls } = harness();
     await engine.runFlow(flow([]), await tmp());
@@ -938,12 +971,180 @@ describe('writeSnapshotFiles', () => {
     expect(ctx.lastSnapshot?.valuesUnknown).toBe(true);
   });
 
-  it('keeps values when the walk DID run — the fail-closed cut is not unconditional', async () => {
+  it('keeps values when the walk DID identify the field — the fail-closed cut is not unconditional', async () => {
     const dir = await tmp();
-    const ctx = walkCtx(async () => [], dir);
+    const ctx = walkCtx(async () => [{ tag: 'input', type: 'text', id: 'x', box: [8, 8, 177, 21] }], dir);
     await writeSnapshotFiles(ctx, yaml, 'snap');
     expect(await readFile(path.join(dir, 'snap.full.yml'), 'utf8')).toContain('TAJNE-HASLO');
     expect(ctx.lastSnapshot?.valuesUnknown).toBeUndefined();
+  });
+
+  it('cuts only the field the walk could not identify, not the whole snapshot', async () => {
+    // A walk that RUNS and answers for another document (a frame that navigated mid-snapshot) used
+    // to look like a healthy sidecar: `valuesUnknown` stayed false and the password went out in
+    // clear. Sensitivity comes from the walk alone, so a field it never saw is unknown, not safe.
+    const dir = await tmp();
+    const two = [
+      '- generic [ref=e1] [box=0,0,300,100]:',
+      '  - textbox "Szukaj" [ref=e2] [box=8,8,80,21]: jawna-frazа',
+      '  - textbox "Hasło:" [ref=e3] [box=8,40,177,21]: TAJNE-HASLO',
+    ].join('\n');
+    const ctx = walkCtx(async () => [{ tag: 'input', type: 'text', id: 'q', box: [8, 8, 80, 21] }], dir);
+    await writeSnapshotFiles(ctx, two, 'snap');
+    const full = await readFile(path.join(dir, 'snap.full.yml'), 'utf8');
+    expect(full).not.toContain('TAJNE-HASLO');
+    expect(full).toContain('jawna-frazа');
+    expect(ctx.lastSnapshot?.valuesUnknown).toBeUndefined();
+  });
+});
+
+describe('waiting for something to GO', () => {
+  /** @param {{ known?: boolean, resolve?: boolean }} spec */
+  const ctxFor = (spec) => {
+    /** @type {any[]} */
+    const waited = [];
+    const ctx = /** @type {any} */ ({
+      timeoutMs: 50,
+      waited,
+      page: {
+        waitForSelector: async (/** @type {string} */ sel, /** @type {any} */ opts) => waited.push([sel, opts.state]),
+      },
+      lastSnapshot: spec.known ? { text: '- button "X" [ref=e3] [box=0,0,1,1]' } : { text: '- generic [ref=e9]' },
+      sel: async () => {
+        if (spec.resolve) return 'aria-ref=e3';
+        throw new RefNotFoundError('e3');
+      },
+    });
+    return ctx;
+  };
+
+  it('a ref that WAS in the snapshot and is gone satisfies `hidden` and `detached`', async () => {
+    // `ctx.sel` resolves the ref BEFORE the wait, and `resolveRef` throws once the element is
+    // detached — so `waitFor e3 --state hidden` failed at the exact moment its condition came true,
+    // and whether the flow passed depended on how the app hides things (`display:none` vs removal).
+    for (const state of ['hidden', 'detached']) {
+      const ctx = ctxFor({ known: true });
+      await expect(RUNNERS.waitFor(ctx, { do: 'waitFor', ref: 'e3', state })).resolves.toBeUndefined();
+      expect(ctx.waited).toEqual([]);
+    }
+  });
+
+  it('still fails for `visible`, and for a ref no snapshot ever showed', async () => {
+    // "Gone" is not a green answer to an address that never existed (DESIGN.md §3.2).
+    await expect(
+      RUNNERS.waitFor(ctxFor({ known: true }), { do: 'waitFor', ref: 'e3', state: 'visible' }),
+    ).rejects.toThrow(REF_NOT_FOUND);
+    await expect(RUNNERS.waitFor(ctxFor({}), { do: 'waitFor', ref: 'e3', state: 'hidden' })).rejects.toThrow(
+      REF_NOT_FOUND,
+    );
+  });
+
+  it('a ref that still resolves waits on the selector, as before', async () => {
+    const ctx = ctxFor({ known: true, resolve: true });
+    await RUNNERS.waitFor(ctx, { do: 'waitFor', ref: 'e3', state: 'hidden' });
+    expect(ctx.waited).toEqual([['aria-ref=e3', 'hidden']]);
+  });
+});
+
+describe('extract says when the text it read is not on screen', () => {
+  it('marks a value read from a node the page does not render', async () => {
+    // `innerText` falls back to `textContent` on a hidden node, so `## values` reported a validation
+    // error and a confirmation card the page never showed — next to a green `verify hidden` for the
+    // very same element.
+    const ctx = /** @type {any} */ ({
+      timeoutMs: 50,
+      capture: { extracts: {} },
+      sel: async () => '#e',
+      loc: () => ({ first: () => ({ isVisible: async () => false, innerText: async () => 'Podaj adres e-mail.' }) }),
+    });
+    await RUNNERS.extract(ctx, { do: 'extract', name: 'blad', selector: '#e' });
+    expect(ctx.capture.extracts.blad).toEqual({ value: 'Podaj adres e-mail.', truncated: false, hidden: true });
+
+    const shown = /** @type {any} */ ({
+      timeoutMs: 50,
+      capture: { extracts: {} },
+      sel: async () => '#e',
+      loc: () => ({ first: () => ({ isVisible: async () => true, innerText: async () => 'Zapisano' }) }),
+    });
+    await RUNNERS.extract(shown, { do: 'extract', name: 'ok', selector: '#e' });
+    expect(shown.capture.extracts.ok).toEqual({ value: 'Zapisano', truncated: false });
+  });
+});
+
+describe('upload names the type of what it sends', () => {
+  it('an inline payload gets the MIME type of its extension, like the path branch does', async () => {
+    // Only the CLI path carries bytes (`ctx.files`), and only files up to 1 MB go that way, so the
+    // same step sent `application/octet-stream` for a small PNG and `image/png` for a big one — a
+    // page validating `file.type` rejected the upload and the report blamed the NEXT step.
+    /** @type {any[]} */
+    const sent = [];
+    const ctx = /** @type {any} */ ({
+      timeoutMs: 100,
+      page: { setInputFiles: async (/** @type {any} */ _sel, /** @type {any} */ files) => sent.push(files) },
+      sel: async () => '#u',
+      files: { 'avatar.png': { base64: Buffer.from('png').toString('base64'), size: 3 } },
+      loc: () => ({ first: () => ({}) }),
+    });
+    await RUNNERS.upload(ctx, { do: 'upload', selector: '#u', files: ['avatar.png'] });
+    expect(sent[0]).toEqual([{ name: 'avatar.png', mimeType: 'image/png', buffer: Buffer.from('png') }]);
+    ctx.files = { 'raport.bin': { base64: Buffer.from('x').toString('base64'), size: 1 } };
+    await RUNNERS.upload(ctx, { do: 'upload', selector: '#u', files: ['raport.bin'] });
+    expect(sent[1][0].mimeType).toBe('application/octet-stream');
+  });
+});
+
+describe('durableSelector answers "in a frame?" from the tree when the probe cannot', () => {
+  /** @param {{ live?: any, frame?: any, entries?: any[] }} spec */
+  const ctxFor = (spec) =>
+    /** @type {any} */ ({
+      timeoutMs: 60,
+      page: {
+        locator: () => ({
+          first: () => ({
+            evaluate: async (/** @type {any} */ fn) => {
+              // `locatorForElement` mentions `ownerDocument` too — the frame probe is the one asking
+              // for `defaultView`.
+              const answer = String(fn).includes('defaultView') ? spec.frame : spec.live;
+              if (answer instanceof Error) throw answer;
+              if (answer === 'hang') return new Promise(() => {});
+              return answer;
+            },
+          }),
+        }),
+      },
+      lastSnapshot: spec.entries ? { entries: spec.entries } : undefined,
+    });
+
+  const inFrameEntry = { ref: 'f1e7', role: 'button', name: 'Zapłać', selector: '#pay', inIframe: true };
+
+  it('a probe that never answers falls back to the snapshot tree, not to "main document"', async () => {
+    // Both probes share a 1 s cap while the action itself gets the full step timeout, so a frame
+    // busy for two seconds let the click succeed and still reported `inFrame: false` — the export
+    // then wrote `#pay` as if it addressed the main document.
+    const busy = await durableSelector(ctxFor({ live: 'hang', frame: 'hang', entries: [inFrameEntry] }), 'f1e7');
+    expect(busy).toEqual({ selector: '#pay', inFrame: true });
+    const alive = await durableSelector(ctxFor({ live: '#pay', frame: 'hang', entries: [inFrameEntry] }), 'f1e7');
+    expect(alive).toEqual({ selector: '#pay', inFrame: true });
+  });
+
+  it('keeps answering false for a ref the tree places in the main document', async () => {
+    // `f<seq>` alone means nothing — after any navigation the MAIN document's refs carry one too.
+    const main = { ref: 'f4e3', role: 'button', name: 'Wyślij', selector: '#send' };
+    expect(await durableSelector(ctxFor({ live: 'hang', frame: 'hang', entries: [main] }), 'f4e3')).toEqual({
+      selector: '#send',
+      inFrame: false,
+    });
+    expect(await durableSelector(ctxFor({ live: '#send', frame: false, entries: [main] }), 'f4e3')).toEqual({
+      selector: '#send',
+      inFrame: false,
+    });
+  });
+
+  it('with neither a probe nor a tree entry it refuses to claim the main document', async () => {
+    expect(await durableSelector(ctxFor({ live: '#pay', frame: new Error('gone') }), 'f1e7')).toEqual({
+      selector: '#pay',
+      inFrame: true,
+    });
   });
 });
 
@@ -1038,7 +1239,9 @@ describe('globToRegExp speaks the same glob as page.route', () => {
 
 describe('what a run leaves behind goes through the redactor too', () => {
   it('runBatch masks the secret in <stamp>/_manifest.json and in the JUnit file', async () => {
-    const secret = `Tajne-Haslo-42`;
+    // `&` and `<` on purpose: the JUnit writer escapes before it redacts unless the redactor runs
+    // INSIDE `renderJUnit`, and a secret without an XML metacharacter cannot tell the two apart.
+    const secret = `Tajne&Haslo<42`;
     const { engine } = harness({ texts: { '[data-testid=pass]': secret } });
     const dir = await tmp();
     const config = {
@@ -1062,6 +1265,7 @@ describe('what a run leaves behind goes through the redactor too', () => {
     expect(manifest).toContain(MASK);
     expect(manifest).not.toContain(secret);
     expect(junit).not.toContain(secret);
+    expect(junit).not.toContain('Tajne&amp;Haslo&lt;42');
   });
 });
 

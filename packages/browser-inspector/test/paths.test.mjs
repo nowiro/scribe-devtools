@@ -124,6 +124,30 @@ describe('collectIdentity / srcStamp', () => {
     });
   });
 
+  it('an EMPTY variable means "not set", exactly as the launch plan reads it', () => {
+    // `collectIdentity` used `??` and `launchPlan` `||`, so `BROWSER_INSPECTOR_CHANNEL=` (a CI job
+    // with an empty input, `export X=` in bash) silently dropped `browser.channel`: the config's
+    // channel vanished from the identity AND from the launch, and two configs naming two different
+    // browsers hashed the same.
+    const withEmpty = (/** @type {Record<string, string>} */ env, /** @type {any} */ browser) =>
+      collectIdentity({ packageDir: PACKAGE_DIR, env, browser, nodeMajor: 26 });
+    const edge = withEmpty({ BROWSER_INSPECTOR_CHANNEL: '' }, { channel: 'msedge' });
+    expect(edge.channel).toBe('msedge');
+    expect(withEmpty({ BROWSER_INSPECTOR_BROWSER_PATH: '' }, { executablePath: 'C:/chrome.exe' }).executablePath).toBe(
+      'C:/chrome.exe',
+    );
+    const chrome = withEmpty({ BROWSER_INSPECTOR_CHANNEL: '' }, { channel: 'chrome' });
+    expect(identityHash(edge)).not.toBe(identityHash(chrome));
+    // The same rule for the flags: an empty (or blank) variable is not an override, so it cannot
+    // hash like "unset" while the launch drops FAST_HEADLESS_ARGS.
+    const unset = withEmpty({}, {});
+    expect(identityHash(withEmpty({ BROWSER_INSPECTOR_BROWSER_ARGS: '' }, {}))).toBe(identityHash(unset));
+    expect(identityHash(withEmpty({ BROWSER_INSPECTOR_BROWSER_ARGS: '   ' }, {}))).toBe(identityHash(unset));
+    expect(identityHash(withEmpty({ BROWSER_INSPECTOR_BROWSER_ARGS: '--no-sandbox' }, {}))).not.toBe(
+      identityHash(unset),
+    );
+  });
+
   it('carries browser.fastHeadless and browser.motion — they shape the browser, so they shape the identity', () => {
     const parts = collectIdentity({
       packageDir: PACKAGE_DIR,

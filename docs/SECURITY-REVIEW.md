@@ -123,7 +123,7 @@ wiersze (tak liczy się bilans), z odsyłaczem w opisie. Sortowanie: waga malej�
 | AGENT-8   | low    | CWE-312      | `src/session-log.mjs:67`                          | CONFIRMED, repro                           | Literalne `fill` na polu hasła trafia do `journal.jsonl` i do configu z `browser-inspector export`; stdout nie daje żadnego sygnału.                                                                                                  |
 | AGENT-11  | low    | CWE-459      | `AGENTS.md:107`                                   | CONFIRMED                                  | Brak retencji i `browser-inspector clean` — zrzuty zalogowanych aplikacji, `net/*.txt` i stany rosną bez końca (40 MB w app-factory, ACL Modify).                                                                                     |
 | AGENT-12  | low    | CWE-532      | `src/redact.mjs`                                  | NAPRAWIONE (test), resztka w AGENT-14      | `snap.md`/`snap.full.yml`/`snap.json` omijały pełny `redact`, a `sensitiveRefs` nie działało dla nazwy z dwukropkiem — wartość pola hasła zostawała jawna.                                                                            |
-| AGENT-14  | medium | CWE-532      | `src/redact.mjs:133`, `src/snapshot.mjs`          | NAPRAWIONE (test, smoke)                   | Cztery resztkowe drogi wartości pola hasła do `snap.md`/`snap.full.yml`: ref brany sprzed nazwy dostępnej, wartość w slocie nazwy i w tekście `dialog`, parowanie ramek po pozycji, nieudany obchód DOM jako „nic nie jest wrażliwe”. |
+| AGENT-14  | medium | CWE-532      | `src/redact.mjs:133`, `src/snapshot.mjs`          | NAPRAWIONE (test, smoke); + runda 3        | Cztery resztkowe drogi wartości pola hasła do `snap.md`/`snap.full.yml`: ref brany sprzed nazwy dostępnej, wartość w slocie nazwy i w tekście `dialog`, parowanie ramek po pozycji, nieudany obchód DOM jako „nic nie jest wrażliwe”. |
 | AGENT-13  | low    | CWE-1059     | `scripts/portable-zip.mjs:13`                     | CONFIRMED (częściowo naprawione w dff6ac7) | Dryf wydania: trzy różne „0.1.0” (drzewo tagu, asset, śledzony zip); brak `--check` w `verify`.                                                                                                                                       |
 | IPC-7     | info   | CWE-208/328  | `src/keeper.mjs:1404`                             | CONFIRMED (podzagadnienie odrzucone)       | Token porównywany `!==`, 32-bitowy FNV jako jedyny klucz routingu, bramka `run` per keeper — bez realnego wpływu w tym modelu.                                                                                                        |
 | EXEC-11   | info   | CWE-22       | `src/keeper.mjs:1091`                             | CONFIRMED, repro (warstwa ścieżek)         | Nazwa sesji i `--out` bez walidacji — `../../x` przenosi journal i `run-NNN.mjs` poza `.scribe-devtools/`.                                                                                                                            |
@@ -1566,6 +1566,23 @@ podpięcia), `engine.test.mjs` (obchód, który rzuca), smoke na prawdziwym Chro
 (ukryta ramka przed widżetem, hasło ustawione przez samą stronę) obok istniejących `iframe.html` i `shadow.html`.
 
 **Koszt.** M.
+
+**Runda 3 — cztery dalsze drogi tej samej rodziny, wszystkie domknięte.** Punkt 1 zakładał, że nazwa dostępna jest
+zawsze w cudzysłowach; `createKey` zostawia BEZ cudzysłowów nazwę, która zaczyna się i kończy `/`, więc `afterName`
+zwracało 0 i `aria-label="/Hasło [ref=e1]/"` znów przejmowało linię — `afterName` pomija teraz nazwę w obu formach.
+Punkt 4 był wszystko-albo-nic: `sidecarFromPage` łykało awarię obchodu POJEDYNCZEJ ramki (`.catch(() => undefined)`),
+a także obchód, który się udał, ale odpowiedział za inny dokument (ramka przenawigowana w locie), więc pola tej ramki
+traciły `sensitive` przy `valuesUnknown === false`; `boxJoin` liczy teraz niedopasowanie **per pole**
+(`valueUnknown`) i `sensitiveRefs` je obejmuje. Dwie drogi całkiem nowe: pole pod `pointer-events: none` nie dostaje
+od playwrighta refa, więc nie ma wpisu w sidecarze i cała ochrona (sidecar → `sensitive` → maska) go omijała — linia
+o roli niosącej wartość bez `[ref=]` jest teraz cięta w obu widokach, a `COMPACT_HEAD` dopuszcza linię bez refa, żeby
+tryb fail-closed nie miał w kompakcie dziury; pole z atrybutem `placeholder` różnym od etykiety renderuje wartość jako
+liść `- text:` pod kluczem, którego żadna reguła nie widziała — maska schodzi teraz do poddrzewa pola.
+Regresja: `redact.test.mjs` (nazwa `/…/` w obu kierunkach, linia bez refa w obu trybach, liść `- text:`),
+`snapshot.test.mjs` (`valueUnknown` per ramka, kompakt bez refa), `engine.test.mjs` (`writeSnapshotFiles` tnie tylko
+pole, którego obchód nie zidentyfikował) i smoke na prawdziwym Chrome: `fixtures/iframe-hostile.html` (ramka, której
+obchód rzuca, pole pod `pointer-events: none`, pole z `placeholder`) obok `iframe.html`, `iframe-blank.html`
+i `shadow.html`.
 
 #### AGENT-13 — Dryf wydania: trzy różne „0.1.0”; częściowo naprawione w dff6ac7 (low)
 

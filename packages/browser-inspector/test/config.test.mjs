@@ -319,8 +319,27 @@ describe('storageState next to an auth block', () => {
 
   it('is accepted next to `auth: false`, which is what makes it take effect', () => {
     expect(parseConfig(withAuth({ storageState: './readonly.json', auth: false })).snapshots[0].storageState).toBe(
-      './readonly.json',
+      path.resolve(process.cwd(), 'readonly.json'),
     );
+  });
+
+  it('is anchored to the config directory, like `auth.storageState` and `outputDir`', () => {
+    // The raw string went to `newContext({ storageState })`, which resolves it against the cwd of
+    // whatever process holds the browser — the KEEPER's, started from wherever it once was. The same
+    // config then ran under a different account (or failed on a file its author never wrote) depending
+    // on the directory it was launched from.
+    const cfg = path.resolve('/repo/apps/web/read.config.json');
+    const anchored = (/** @type {string} */ cwd) =>
+      parseConfig(withAuth({ storageState: 'auth/reader.json', auth: false }), { configPath: cfg, cwd }).snapshots[0]
+        .storageState;
+    // Same config, another cwd — the same file. That is the whole point.
+    expect(anchored(path.resolve('/repo'))).toBe(path.resolve('/repo/apps/web/auth/reader.json'));
+    expect(anchored(path.resolve('/somewhere/else'))).toBe(anchored(path.resolve('/repo')));
+    const absolute = path.resolve('/elsewhere/state.json');
+    expect(
+      parseConfig(withAuth({ storageState: absolute, auth: false }), { configPath: cfg, cwd: path.resolve('/repo') })
+        .snapshots[0].storageState,
+    ).toBe(absolute);
   });
 });
 
@@ -346,5 +365,51 @@ describe('a session-only field does not pass silently in a config', () => {
         }),
       )[0],
     ).toMatch(/\.video: session only/u);
+  });
+
+  it('rejects every `snapshot` filter in a config — a batch has no stdout for them to trim', () => {
+    // They passed validation, `lint-config` returned 0, the run said `ok 1/1` and `snap-<name>.md`
+    // was the full compact: the author got something other than what the config asked for, and
+    // nothing said so. `names` is the sharpest — the requested context simply never existed.
+    const withFilter = (/** @type {Record<string, unknown>} */ filter) =>
+      errorsOf(() =>
+        parseConfig({
+          snapshots: [
+            { name: 'p', type: 'flow', url: 'http://x/', steps: [{ do: 'snapshot', name: 'tylko-linki', ...filter }] },
+          ],
+        }),
+      )[0];
+    for (const [field, value] of [
+      ['max', 1],
+      ['diff', true],
+      ['grep', 'link'],
+      ['names', true],
+      ['all', true],
+    ]) {
+      expect(withFilter({ [String(field)]: value }), String(field)).toMatch(
+        new RegExp(`steps\\[0\\]\\.${String(field)}: session only`, 'u'),
+      );
+    }
+    // `around` is a ref, so a FIRST snapshot step already rejects it — but the second one did not.
+    expect(
+      errorsOf(() =>
+        parseConfig({
+          snapshots: [
+            {
+              name: 'p',
+              type: 'flow',
+              url: 'http://x/',
+              steps: [{ do: 'snapshot' }, { do: 'snapshot', name: 'x', around: 'e5' }],
+            },
+          ],
+        }),
+      )[0],
+    ).toMatch(/steps\[1\]\.around: session only/u);
+    // A snapshot step without filters is exactly as valid as before.
+    expect(() =>
+      parseConfig({
+        snapshots: [{ name: 'p', type: 'flow', url: 'http://x/', steps: [{ do: 'snapshot', name: 'koszyk' }] }],
+      }),
+    ).not.toThrow();
   });
 });

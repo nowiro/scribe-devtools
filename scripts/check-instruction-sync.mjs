@@ -21,19 +21,26 @@ export const COPILOT_FILE = '.github/copilot-instructions.md';
 export const TOKEN_LIMIT = 200;
 
 /**
- * The quoted instruction from AGENTS.md text, or `null` when the markers are missing.
+ * The quoted instruction from AGENTS.md text, or `null` when the markers are missing or the text between
+ * them is not one blockquote.
+ *
+ * A non-empty line without `>` fails the block instead of being skipped: an application repository is told to
+ * paste everything between the markers (`.github/prompts/migrate-from-mcp-playwright.prompt.md` §4) and markdown
+ * renders such a line as part of the quote, so skipping it would compare and measure less text than the agent
+ * reads — the gate would print `ok` over exactly the drift it exists to catch. Blank lines stay skippable: the
+ * copy in `.github/copilot-instructions.md` separates the markers from the quote with them.
  * @param {string} markdown
  * @returns {string | null}
  */
 export function extractInstruction(markdown) {
   const match = /<!--\s*INSTRUCTION:START\s*-->([\s\S]*?)<!--\s*INSTRUCTION:END\s*-->/u.exec(markdown);
   if (!match) return null;
-  const quoted = match[1]
+  const lines = match[1]
     .split('\n')
     .map((line) => line.trimEnd())
-    .filter((line) => line.startsWith('>'))
-    .map((line) => line.replace(/^>\s?/u, ''));
-  return quoted.length > 0 ? quoted.join('\n') : null;
+    .filter((line) => line !== '');
+  if (lines.length === 0 || !lines.every((line) => line.startsWith('>'))) return null;
+  return lines.map((line) => line.replace(/^>\s?/u, '')).join('\n');
 }
 
 /**
@@ -62,7 +69,7 @@ export async function checkInstructionSync(root) {
   if (fromAgents === null) {
     return {
       ok: false,
-      message: `${AGENTS_FILE}: no blockquote between <!-- INSTRUCTION:START --> and <!-- INSTRUCTION:END -->`,
+      message: `${AGENTS_FILE}: the text between <!-- INSTRUCTION:START --> and <!-- INSTRUCTION:END --> is not one blockquote (markers missing, or a line between them does not start with '>' — an extra sentence belongs next to the block, not inside it)`,
     };
   }
   const tokens = await countTokens(fromAgents);
@@ -76,7 +83,7 @@ export async function checkInstructionSync(root) {
   if (fromCopilot === null) {
     return {
       ok: false,
-      message: `${COPILOT_FILE}: no blockquote between <!-- INSTRUCTION:START --> and <!-- INSTRUCTION:END -->`,
+      message: `${COPILOT_FILE}: the text between <!-- INSTRUCTION:START --> and <!-- INSTRUCTION:END --> is not one blockquote (markers missing, or a line between them does not start with '>' — an extra sentence belongs next to the block, not inside it)`,
     };
   }
   if (fromCopilot !== fromAgents) {

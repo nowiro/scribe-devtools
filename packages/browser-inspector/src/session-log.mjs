@@ -90,6 +90,9 @@ export function normalizeEntry(entry, secretValues = []) {
     ...(entry.title !== undefined ? { title: entry.title } : {}),
     ...(entry.selector !== undefined ? { selector: entry.selector } : {}),
     ...(entry.resolved !== undefined ? { resolved: { ...entry.resolved } } : {}),
+    // Dropping this made `exportFlow`'s iframe refusal unreachable: the marker never reached
+    // `journal.jsonl`, so an export wrote the frame-local selector as if it addressed the main document.
+    ...(entry.inFrame === true ? { inFrame: true } : {}),
     ...(entry.line !== undefined ? { line: entry.line } : {}),
     ...(entry.error !== undefined ? { error: entry.error } : {}),
   };

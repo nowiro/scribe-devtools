@@ -109,11 +109,14 @@ export class BrowserMissingError extends Error {
  */
 export function launchPlan(browser = {}, env = process.env) {
   const headless = browser.headless !== false;
-  const envArgs = env.BROWSER_INSPECTOR_BROWSER_ARGS?.split(/\s+/u).filter(Boolean);
-  const args = envArgs ?? [
-    ...(headless && browser.fastHeadless !== false ? FAST_HEADLESS_ARGS : []),
-    ...(browser.args ?? []),
-  ];
+  // An empty (or blank) variable is NOT an override — the identity hashes it as "unset", so
+  // honouring it here launched a browser without the fast-headless flags under a hash that promised
+  // them, and two such clients shared one keeper.
+  const envArgs = (env.BROWSER_INSPECTOR_BROWSER_ARGS ?? '').split(/\s+/u).filter(Boolean);
+  const args =
+    envArgs.length > 0
+      ? envArgs
+      : [...(headless && browser.fastHeadless !== false ? FAST_HEADLESS_ARGS : []), ...(browser.args ?? [])];
   const executablePath = env.BROWSER_INSPECTOR_BROWSER_PATH || browser.executablePath;
   if (executablePath) return { attempts: [{ executablePath }], headless, args };
   const channel = env.BROWSER_INSPECTOR_CHANNEL || browser.channel;
@@ -381,7 +384,11 @@ export function createLanePool(input) {
     if (prewarming || spare || !browser) return;
     prewarming = (async () => {
       try {
-        const context = await browser.newContext({ viewport: { ...DEFAULT_VIEWPORT }, serviceWorkers: 'allow' });
+        const context = await browser.newContext({
+          viewport: { ...DEFAULT_VIEWPORT },
+          serviceWorkers: 'allow',
+          ...(motion === 'reduce' ? { reducedMotion: 'reduce' } : {}),
+        });
         const page = await context.newPage();
         if (connected && !isClosed()) spare = { context, page };
         else await context.close().catch(() => {});
@@ -410,6 +417,10 @@ export function createLanePool(input) {
     const context = await browser.newContext({
       viewport: { ...(wanted.viewport ?? DEFAULT_VIEWPORT) },
       serviceWorkers: 'allow',
+      // `browser.motion` shapes EVERY context, not only the lanes: without it here a session, an
+      // auth run and every `isolation: "fresh"` snapshot ran with animations while the report
+      // header still printed `motion=reduce`.
+      ...(motion === 'reduce' ? { reducedMotion: 'reduce' } : {}),
       ...(wanted.storageState ? { storageState: wanted.storageState } : {}),
       ...(wanted.video ? { recordVideo: { dir: wanted.video } } : {}),
     });
@@ -563,7 +574,14 @@ export function createLanePool(input) {
           await guard('setExtraHTTPHeaders', () => context.setExtraHTTPHeaders({}));
           await guard('setGeolocation', () => context.setGeolocation(null));
           await guard('emulateMedia', () =>
-            lane.page.emulateMedia({ colorScheme: null, reducedMotion: null, media: null }),
+            // `null` goes to the browser as `no-override`, which drops the CONTEXT option too
+            // instead of falling back to it — so a plain reset turned `browser.motion: "reduce"`
+            // off for the rest of the tab's life while the report kept saying `motion=reduce`.
+            lane.page.emulateMedia({
+              colorScheme: null,
+              reducedMotion: motion === 'reduce' ? 'reduce' : null,
+              media: null,
+            }),
           );
           await guard('viewport', async () => {
             const current = lane.page.viewportSize?.();

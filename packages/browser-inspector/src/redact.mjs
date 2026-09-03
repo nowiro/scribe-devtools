@@ -82,8 +82,12 @@ const VALUE_ROLES = 'textbox|searchbox|combobox|spinbutton|slider';
 const VALUE_ROLE_SET = new Set(VALUE_ROLES.split('|'));
 /** A ref as the snapshot writes it. Only ever run PAST the accessible name — see `afterName`. */
 const REF_IN_LINE = /\[ref=((?:f\d+)?e\d+)\]/u;
-/** Head of a compact line (`snap.md`): `e39 textbox "Szukaj…" = Harry`. */
-const COMPACT_HEAD = new RegExp(`^((?:f\\d+)?e\\d+)\\s+(?:${VALUE_ROLES})\\b`, 'u');
+/**
+ * Head of a compact line (`snap.md`): `e39 textbox "Szukaj…" = Harry`. The ref is OPTIONAL: a field
+ * playwright gave no ref to (`pointer-events: none`, its own or inherited) renders as
+ * `textbox "Hasło" = …`, and anchoring on the ref made the fail-closed mode walk straight past it.
+ */
+const COMPACT_HEAD = new RegExp(`^(?:((?:f\\d+)?e\\d+)\\s+)?(?:${VALUE_ROLES})\\b`, 'u');
 
 /**
  * Index of the `:` that closes the key of a `- ` YAML item body, or -1. Cannot be a regexp over
@@ -136,6 +140,19 @@ function keyEnd(body) {
  * @returns {number}
  */
 function afterName(key) {
+  const role = /^\s*[a-zA-Z][\w-]*/u.exec(key);
+  const start = role ? role[0].length : 0;
+  const rest = key.slice(start);
+  if (/^\s+\//u.test(rest)) {
+    // `createKey` leaves a name that already starts AND ends with `/` UNQUOTED, so there is no
+    // quote to skip and the whole key was scanned again — a `/Hasło [ref=e1]/` label handed the
+    // line the ref of another node and the password stayed in `snap.full.yml`. The name ends at the
+    // last `/` before the trailing run of `[attr]` / `[attr=value]`, which the renderer appends
+    // after the name and after every state attribute.
+    const tail = /(?:\s\[[a-z]+(?:=[^\]]*)?\])+$/u.exec(key);
+    const end = key.lastIndexOf('/', (tail ? tail.index : key.length) - 1);
+    return end > start ? end + 1 : 0;
+  }
   const quote = key.indexOf('"');
   if (quote < 0) return 0;
   let i = quote + 1;
@@ -151,26 +168,35 @@ function afterName(key) {
 }
 
 /**
- * A raw aria YAML line that carries an inline value: its role, its own ref and where the key ends.
- * A line whose value is empty is a container whose children follow — cutting its `:` would break
- * the nesting, so it does not count.
+ * A raw aria YAML line with a key: its role, its own ref, where the key ends and whether anything
+ * follows the `:`. A line whose value is EMPTY is a container — cutting its `:` would break the
+ * nesting — but it is not automatically harmless either: when a field carries a property
+ * (`- /placeholder: …`) the renderer cannot write the value inline and puts it in a `- text:` leaf
+ * underneath, so the caller has to cut that leaf instead.
  * @param {string} line
- * @returns {{ ref?: string, role: string, at: number } | undefined} `at` = index of the `:` that ends the key
+ * @returns {{ ref?: string, role: string, at: number, indent: number, empty: boolean } | undefined}
+ *   `at` = index of the `:` that ends the key
  */
-function yamlValueLine(line) {
-  const item = /^\s*-\s+/u.exec(line);
+function yamlLine(line) {
+  const item = /^(\s*)-\s+/u.exec(line);
   if (!item) return undefined;
   const start = item[0].length;
   const body = line.slice(start);
   const colon = keyEnd(body);
-  if (colon < 0 || body.slice(colon + 1).trim() === '') return undefined;
+  if (colon < 0) return undefined;
   const key = body.slice(0, colon);
   // A name containing `: ` makes the renderer quote the WHOLE key; the role and the attributes are
   // then inside those quotes.
   const inner = key.startsWith("'") || key.startsWith('"') ? key.slice(1, -1) : key;
   const role = /^\s*([a-zA-Z][\w-]*)/u.exec(inner)?.[1] ?? '';
   const ref = REF_IN_LINE.exec(inner.slice(afterName(inner)))?.[1];
-  return { ...(ref !== undefined ? { ref } : {}), role, at: start + colon };
+  return {
+    ...(ref !== undefined ? { ref } : {}),
+    role,
+    at: start + colon,
+    indent: item[1].length,
+    empty: body.slice(colon + 1).trim() === '',
+  };
 }
 
 /**
@@ -178,7 +204,7 @@ function yamlValueLine(line) {
  * name is skipped as a quoted run, so a name containing ` = ` neither hides the value nor eats the
  * rest of the line.
  * @param {string} line
- * @returns {{ ref: string, at: number } | undefined}
+ * @returns {{ ref?: string, at: number } | undefined}
  */
 function compactValueLine(line) {
   const head = COMPACT_HEAD.exec(line);
@@ -197,7 +223,7 @@ function compactValueLine(line) {
     i = Math.min(j + 1, line.length);
   }
   const at = line.indexOf(' = ', i);
-  return at < 0 ? undefined : { ref: head[1], at };
+  return at < 0 ? undefined : { ...(head[1] !== undefined ? { ref: head[1] } : {}), at };
 }
 
 /**
@@ -217,15 +243,30 @@ export function maskSnapshotValues(text, options = {}) {
   const sensitive = new Set(options.sensitiveRefs ?? []);
   const secrets = options.secretValues ?? [];
   const all = options.maskAllValueRoles === true;
+  /** Indentation of the value field whose `- text:` leaf must go, -1 when there is none open. */
+  let cutUnder = -1;
   return text
     .split('\n')
     .map((line) => {
-      const yaml = yamlValueLine(line);
-      if (yaml && ((yaml.ref !== undefined && sensitive.has(yaml.ref)) || (all && VALUE_ROLE_SET.has(yaml.role)))) {
-        return line.slice(0, yaml.at);
+      const yaml = yamlLine(line);
+      if (cutUnder >= 0 && (yaml === undefined || yaml.indent <= cutUnder)) cutUnder = -1;
+      if (yaml) {
+        // A value-carrying line WITHOUT a ref cannot be checked against the sidecar at all: the
+        // sidecar is keyed by ref and playwright hands none to a field that does not receive
+        // pointer events, so `sensitive` never reached it. Unknown sensitivity is cut, like a
+        // snapshot whose walk did not run.
+        const unvouched = VALUE_ROLE_SET.has(yaml.role) && (all || yaml.ref === undefined);
+        if ((yaml.ref !== undefined && sensitive.has(yaml.ref)) || unvouched) {
+          if (!yaml.empty) return line.slice(0, yaml.at);
+          cutUnder = yaml.indent;
+          return redact(line, secrets);
+        }
+        if (cutUnder >= 0 && yaml.role === 'text' && !yaml.empty) return line.slice(0, yaml.at);
       }
       const compact = compactValueLine(line);
-      if (compact && (all || sensitive.has(compact.ref))) return line.slice(0, compact.at);
+      if (compact && (all || compact.ref === undefined || sensitive.has(compact.ref))) {
+        return line.slice(0, compact.at);
+      }
       return redact(line, secrets);
     })
     .join('\n');

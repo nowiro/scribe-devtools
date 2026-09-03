@@ -478,7 +478,7 @@ export function createFlowRunner(input) {
       await mkdir(path.dirname(junitFile), { recursive: true });
       await writeFile(
         junitFile,
-        scrub(renderJUnit(path.basename(configPath || 'browser-inspector'), manifest.snapshots)),
+        renderJUnit(path.basename(configPath || 'browser-inspector'), manifest.snapshots, { redact: scrub }),
         'utf8',
       );
       files.push(junitFile);

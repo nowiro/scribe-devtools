@@ -2,6 +2,7 @@
 // XML-escaped, seconds with three decimals — the shape GitLab and every CI read as a test tab.
 import { describe, expect, it } from 'vitest';
 
+import { redact } from '../src/redact.mjs';
 import { renderJUnit } from '../src/report.mjs';
 
 describe('renderJUnit', () => {
@@ -56,6 +57,50 @@ describe('renderJUnit', () => {
     expect(illegal).toEqual([]);
     expect(junit).toContain('Error: zapis nie powiodl sie:  [31mHTTP 500 [0m');
     expect(junit).toContain('<testcase name="raport "');
+  });
+
+  it('redacts BEFORE escaping — a secret with & < > " survived as its entity form', () => {
+    // The caller used to redact the finished document, so `xml()` had already turned the secret
+    // into `p&amp;ss&lt;word`: `secretForms` knows no entity spelling, the mask missed it, and the
+    // one artifact CI publishes as a test tab carried the password in a trivially reversible form.
+    const secret = 'p&ss<word';
+    const junit = renderJUnit('cfg.json', [
+      {
+        name: 'logowanie',
+        completed: false,
+        ms: 12,
+        failure: `step 3 "verify value #pw" — Error: expected #pw value "x", got ${JSON.stringify(secret)}`,
+      },
+    ]);
+    expect(junit).toContain('p&amp;ss&lt;word');
+    const masked = renderJUnit(
+      'cfg.json',
+      [
+        {
+          name: 'logowanie',
+          completed: false,
+          ms: 12,
+          failure: `step 3 "verify value #pw" — Error: expected #pw value "x", got ${JSON.stringify(secret)}`,
+        },
+      ],
+      { redact: (text) => redact(text, [secret]) },
+    );
+    expect(masked).not.toContain('p&amp;ss&lt;word');
+    expect(masked).not.toContain(secret);
+    expect(masked).toContain('***');
+  });
+
+  it('redacts the suite, the name and the directory too, not only the failure', () => {
+    const secret = 'a>b';
+    const masked = renderJUnit(
+      `cfg-${secret}.json`,
+      [{ name: `snap-${secret}`, completed: true, dir: `out/${secret}` }],
+      {
+        redact: (text) => redact(text, [secret]),
+      },
+    );
+    expect(masked).not.toContain('a&gt;b');
+    expect(masked).not.toContain(secret);
   });
 
   it('an empty run is still a valid document', () => {

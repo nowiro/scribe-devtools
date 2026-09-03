@@ -400,6 +400,14 @@ export function attachRecorder(page, options = {}) {
  * @param {string} failure
  */
 function recordFailure(recorder, entry, request, failure) {
+  if (entry?.failure !== undefined) {
+    // The SAME request can fail twice: a 4xx/5xx whose body never arrives fires `response` and
+    // then `requestfailed`. Counting and listing it twice inflated `net N (M failed)`, printed
+    // `## errors` in duplicate and pushed real failures out of the cap; overwriting the first
+    // reason lost the HTTP status the entry was recorded for. One entry, both reasons.
+    if (entry.failure !== failure) entry.failure = `${entry.failure} → ${failure}`;
+    return;
+  }
   if (entry) entry.failure = failure;
   recorder.failedTotal += 1;
   if (recorder.failed.length >= FAILED_REQUEST_CAP) return;

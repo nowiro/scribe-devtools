@@ -63,6 +63,11 @@ import { maskSnapshotEntries, maskSnapshotValues } from './redact.mjs';
  * @property {number[]} [box]
  * @property {string} [url]
  * @property {boolean} [sensitive] Never carries a value in snap.md / snap.json.
+ * @property {boolean} [valueUnknown] The field holds a value but no walked element backs it, so
+ *   nothing can say it is not a password — its value is cut like a sensitive one.
+ * @property {boolean} [inIframe] The node sits under an `iframe` node of the tree — a selector for
+ *   it is local to that document. Absent means the main one; the `f<seq>` ref prefix does NOT say
+ *   this (after any navigation the main document's refs carry one too).
  */
 
 /**
@@ -317,12 +322,33 @@ export function textUnder(nodes, node, max = 200) {
   const parts = [];
   /** @param {SnapNode} n */
   const walk = (n) => {
-    if (n.text && !VALUE_ROLES.has(n.role)) parts.push(n.text);
+    // The whole subtree, not only the node's own inline text: with a property under it (a
+    // `placeholder`) the renderer moves the typed value into a `- text:` LEAF, and that leaf is not
+    // a value role, so the value came back out as a label or as a dialog's message.
+    if (VALUE_ROLES.has(n.role)) return;
+    if (n.text) parts.push(n.text);
     for (const child of n.children) walk(nodes[child]);
   };
   walk(node);
   const joined = parts.join(' ').replace(/\s+/gu, ' ').trim();
   return joined.length > max ? `${joined.slice(0, max - 1)}…` : joined;
+}
+
+/**
+ * The typed value of a value-role node: inline when the renderer could write it there, else the
+ * `- text:` leaf it had to move it to (any property under the node — `- /placeholder:` — forces
+ * that shape). `undefined` when the field is empty.
+ * @param {SnapNode[]} nodes
+ * @param {SnapNode} node
+ * @returns {string | undefined}
+ */
+export function valueOf(nodes, node) {
+  if (node.text) return node.text;
+  for (const child of node.children) {
+    const leaf = nodes[child];
+    if (leaf?.kind === 'text' && leaf.text) return leaf.text;
+  }
+  return undefined;
 }
 
 /**
@@ -399,6 +425,10 @@ function renderLine(nodes, node, ctx) {
   const parts = [];
   if (node.role === 'heading') {
     // `h2 "Nowości"` — a heading orients, it is not a target, so the ref would be dead weight.
+    // Unless the page made it one: an accordion `<h3 onclick>` has no other address at all —
+    // `walkInteractive` does not match it either, so the sidecar has no selector to fall back on.
+    // The ref goes FIRST, because `aroundRef` matches on the first token of the line.
+    if (node.ref && node.attrs.cursor === 'pointer' && !ctx.structural) parts.push(node.ref);
     parts.push(`h${typeof node.attrs.level === 'string' ? node.attrs.level : '2'}`);
     if (!ctx.structural) parts.push(quote(node.name ?? textUnder(nodes, node, 80)));
   } else {
@@ -424,7 +454,12 @@ function renderLine(nodes, node, ctx) {
     }
     if (node.url !== undefined && node.role === 'link') parts.push(`→ ${node.url}`);
     parts.push(...selectorSuffix(entry?.selector).trim().split(' ').filter(Boolean));
-    if (VALUE_ROLES.has(node.role) && node.text && !entry?.sensitive) parts.push(`= ${node.text}`);
+    if (VALUE_ROLES.has(node.role) && node.ref !== undefined && !entry?.sensitive && !entry?.valueUnknown) {
+      // No ref means no sidecar entry (playwright hands none to a field that does not receive
+      // pointer events), and no entry means nothing knows whether this is a password field.
+      const value = valueOf(nodes, node);
+      if (value) parts.push(`= ${value}`);
+    }
     if (ctx.names) {
       const context = namesContext(nodes, node);
       if (context) parts.push(`(${context})`);
@@ -492,7 +527,10 @@ function renderTree(nodes, ctx) {
       while (j > i + 1 && sigs[j - 1] === '') j -= 1;
       const run = children.slice(i, j).filter((_, k) => sigs[i + k] !== '');
       const perItem = sigs[i].split('|').length;
-      if (run.length >= FOLD_MIN_RUN && run.length * perItem >= FOLD_MIN_LINES) {
+      // A sibling that renders to ONE line is its name and nothing else, and the signature ignores
+      // names on purpose — folding such a run replaced 12 different destinations with 3 sample
+      // labels, and `snap --diff` then answered `0 changed` to a relabelled entry behind the fold.
+      if (perItem >= 2 && run.length >= FOLD_MIN_RUN && run.length * perItem >= FOLD_MIN_LINES) {
         emit(run[0]);
         lines.push(foldLine(nodes, run.slice(1)));
       } else {
@@ -887,10 +925,21 @@ export function boxJoin(boxesYaml, walk) {
       );
   const main = walked.main ?? [];
   const frames = walked.frames ?? {};
-  /** @param {SnapNode} node */
+  /** @type {Map<number, boolean>} */
+  const framed = new Map();
+  /** @param {SnapNode} node @returns {boolean} */
   const inIframe = (node) => {
-    for (let p = node.parent; p >= 0; p = nodes[p].parent) if (nodes[p].role === 'iframe') return true;
-    return false;
+    const cached = framed.get(node.index);
+    if (cached !== undefined) return cached;
+    let answer = false;
+    for (let p = node.parent; p >= 0; p = nodes[p].parent) {
+      if (nodes[p].role === 'iframe') {
+        answer = true;
+        break;
+      }
+    }
+    framed.set(node.index, answer);
+    return answer;
   };
   /** @type {Map<string, { byBox: Map<string, WalkEntry[]>, all: WalkEntry[] }>} */
   const indexes = new Map();
@@ -917,10 +966,13 @@ export function boxJoin(boxesYaml, walk) {
     if (!node.ref || !isVisible(node)) continue;
     /** @type {SidecarEntry} */
     const entry = { ref: node.ref, role: node.role, name: node.name ?? '' };
+    if (inIframe(node)) entry.inIframe = true;
     if (node.box) entry.box = node.box;
     if (node.url !== undefined) entry.url = node.url;
     const wantsSelector = INTERACTIVE_ROLES.has(node.role) || node.attrs.cursor === 'pointer';
     if (wantsSelector) interactive += 1;
+    /** @type {WalkEntry | undefined} */
+    let joined;
     if (wantsSelector && node.box) {
       const seq = inIframe(node) ? (/^f(\d+)e/u.exec(node.ref)?.[1] ?? '') : '';
       const idx = indexes.get(seq);
@@ -943,10 +995,18 @@ export function boxJoin(boxesYaml, walk) {
       if (hit) {
         used.add(hit);
         matched += 1;
+        joined = hit;
         const selector = locatorFor({ ...hit, name: node.name || hit.label }, uniques.get(seq));
         if (selector) entry.selector = selector;
         if (hit.sensitive) entry.sensitive = true;
       }
+    }
+    // The aria tree does not carry the DOM type, so `sensitive` can only come from the walk. A
+    // field that HOLDS a value and matched nothing (its frame's walk failed or answered for another
+    // document, the box moved between the two passes) is therefore of unknown kind — and unknown
+    // has to mean "cut the value", the same rule a snapshot without any walk follows.
+    if (joined === undefined && VALUE_ROLES.has(node.role) && valueOf(nodes, node) !== undefined) {
+      entry.valueUnknown = true;
     }
     entries.push(entry);
   }
@@ -954,12 +1014,14 @@ export function boxJoin(boxesYaml, walk) {
 }
 
 /**
- * Refs whose value must never be shown (`maskSnapshotValues({ sensitiveRefs })` in redact.mjs).
+ * Refs whose value must never be shown (`maskSnapshotValues({ sensitiveRefs })` in redact.mjs):
+ * the fields the walk marked sensitive AND the ones it could not identify at all — a value nothing
+ * vouched for is cut, not printed.
  * @param {readonly SidecarEntry[]} entries
  * @returns {string[]}
  */
 export function sensitiveRefs(entries) {
-  return entries.filter((e) => e.sensitive).map((e) => e.ref);
+  return entries.filter((e) => e.sensitive || e.valueUnknown).map((e) => e.ref);
 }
 
 /**

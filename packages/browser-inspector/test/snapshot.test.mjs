@@ -216,6 +216,123 @@ describe('compactSnapshot — bookstore 952 lines → ≤ 90 lines', () => {
   });
 });
 
+describe('the compact never loses a value it can show and never shows one it cannot vouch for', () => {
+  it('renders the value playwright had to put in a `- text:` leaf (a field with a placeholder)', () => {
+    // With any property under it the renderer cannot write the value inline, so `node.text` is
+    // empty and `snap.md`, `snap --grep` and `find` all showed the field as if nothing was typed —
+    // an agent checking "did my fill land?" saw an empty field and typed it again.
+    const yaml = [
+      '- generic [ref=e1] [box=0,0,300,120]:',
+      '  - textbox "Z placeholderem" [ref=e4] [box=0,0,80,20]:',
+      '    - /placeholder: np. Anna',
+      '    - text: WARTOSC-A',
+      '  - textbox "Bez placeholdera" [ref=e6] [box=0,20,80,20]: WARTOSC-B',
+      '  - textbox "Hasło" [ref=e8] [box=0,40,80,20]:',
+      '    - /placeholder: min. 8 znaków',
+      '    - text: TAJNE',
+      '',
+    ].join('\n');
+    const side = [
+      { ref: 'e4', role: 'textbox', name: 'Z placeholderem' },
+      { ref: 'e6', role: 'textbox', name: 'Bez placeholdera' },
+      { ref: 'e8', role: 'textbox', name: 'Hasło', sensitive: true },
+    ];
+    expect(compactLines(yaml, { sidecar: side })).toEqual([
+      'e4 textbox "Z placeholderem" = WARTOSC-A',
+      'e6 textbox "Bez placeholdera" = WARTOSC-B',
+      'e8 textbox "Hasło"',
+    ]);
+    expect(compactLines(yaml, { sidecar: side, grep: 'WARTOSC' })).toHaveLength(2);
+    expect(findInSnapshot(yaml, 'WARTOSC-A', { sidecar: side }).lines).toEqual([
+      'e4 textbox "Z placeholderem" = WARTOSC-A',
+    ]);
+    // The value of a field is never text on screen: a dialog wrapping it must not fold it in.
+    const inDialog = ['- dialog "Zaloguj" [ref=e1]:', '  - textbox "Hasło" [ref=e2]:', '    - text: TAJNE'].join('\n');
+    expect(compactLines(inDialog)[0]).toBe('e1 dialog "Zaloguj"');
+  });
+
+  it('shows no value for a field playwright gave no ref — the sidecar cannot be asked about it', () => {
+    // `pointer-events: none` (its own or inherited) costs a node its ref, so it has no sidecar
+    // entry and no `sensitive` flag; the compact printed the password anyway.
+    const yaml = [
+      '- textbox "Hasło w kontenerze" [box=139,47,177,21]: BBBpointerBBB',
+      '- textbox "Zwykłe" [ref=e5] [box=0,0,10,10]: jawne',
+      '',
+    ].join('\n');
+    expect(compactLines(yaml)).toEqual(['textbox "Hasło w kontenerze"', 'e5 textbox "Zwykłe" = jawne']);
+    const art = snapshotArtifacts(yaml, boxJoin(yaml, []).entries);
+    expect(art.full).not.toContain('BBBpointerBBB');
+    expect(art.md).not.toContain('BBBpointerBBB');
+  });
+
+  it('a value field the DOM walk could not identify is fail-closed, frame by frame', () => {
+    // The walk of ONE child frame failing left every field of that frame without `sensitive` while
+    // the whole sidecar still looked healthy, so the password of an embedded login widget went to
+    // snap.full.yml, snap.md and the session's stdout in clear.
+    const yaml = [
+      '- generic [ref=e1] [box=0,0,300,120]:',
+      '  - textbox "Szukaj" [ref=e2] [box=0,0,80,20]: jawna-fraza',
+      '  - iframe [ref=e3] [box=0,20,300,100]:',
+      '    - generic [ref=f1e1] [box=0,20,300,100]:',
+      '      - textbox "Hasło" [ref=f1e2] [box=8,28,177,21]: TAJNE-WEWNETRZNE',
+      '',
+    ].join('\n');
+    const { entries } = boxJoin(yaml, { main: [{ tag: 'input', type: 'text', id: 's', box: [0, 0, 80, 20] }] });
+    const byRef = new Map(entries.map((e) => [e.ref, e]));
+    expect(byRef.get('f1e2')?.valueUnknown).toBe(true);
+    expect(byRef.get('e2')?.valueUnknown).toBeUndefined();
+    expect(sensitiveRefs(entries)).toEqual(['f1e2']);
+    const art = snapshotArtifacts(yaml, entries);
+    expect(art.full).not.toContain('TAJNE-WEWNETRZNE');
+    expect(art.md).not.toContain('TAJNE-WEWNETRZNE');
+    // The main frame is unaffected — this is not a blanket mask.
+    expect(art.md).toContain('= jawna-fraza');
+  });
+});
+
+describe('a heading the page made clickable is addressable', () => {
+  it('keeps the ref of a `cursor=pointer` heading, first on the line, and only of that one', () => {
+    // An accordion `<h3 onclick>` has no other address: `walkInteractive` does not match it (no
+    // role, no tabindex, no href), so the sidecar has no selector either — the compact, `find` and
+    // `snap --around` were the three views an agent reads, and none of them gave it a ref.
+    const yaml = [
+      '- heading "Akordeon" [level=1] [ref=e2] [box=8,8,1264,40]',
+      '- heading "Dane firmy" [level=3] [ref=e3] [cursor=pointer] [box=8,80,1264,30]',
+      '- button "Zapisz" [ref=e4] [box=8,200,80,30]',
+      '',
+    ].join('\n');
+    expect(compactLines(yaml)).toEqual(['h1 "Akordeon"', 'e3 h3 "Dane firmy"', 'e4 button "Zapisz"']);
+    expect(aroundRef(yaml, 'e3', { n: 0 })).toEqual(['e3 h3 "Dane firmy"']);
+    expect(findInSnapshot(yaml, 'Dane firmy').lines).toEqual(['e3 h3 "Dane firmy"']);
+    // A plain heading orients and stays without a ref (DESIGN.md §4.3).
+    expect(compactLines(yaml)[0]).toBe('h1 "Akordeon"');
+  });
+});
+
+describe('the fold never hides a name that IS the line', () => {
+  it('leaves a run of one-line siblings whole — 12 different links are 12 different targets', () => {
+    // The fold ignores names by design (that is what makes 33 look-alike cards one line), but for a
+    // sibling that renders to a SINGLE line the name is the entire content: a 13-item navigation
+    // collapsed to one link plus three sample names, and `snap --diff` answered `0 changed` when a
+    // hidden entry was relabelled.
+    const items = Array.from(
+      { length: 13 },
+      (_, i) =>
+        `  - listitem [ref=e${String(100 + i * 2)}]:\n    - link "Pozycja ${String(i)}" [ref=e${String(101 + i * 2)}]:\n      - /url: /${String(i)}`,
+    );
+    const yaml = ['- list [ref=e99]:', ...items, ''].join('\n');
+    const lines = compactLines(yaml);
+    expect(lines).toHaveLength(13);
+    expect(lines.some((l) => l.startsWith('…'))).toBe(false);
+    expect(lines).toContain('e121 link "Pozycja 10" → /10');
+  });
+
+  it('still folds a run whose item costs more than one line — the bookstore cards', () => {
+    expect(compact.find((l) => l.startsWith('… ×32 similar (e228–e1220)'))).toBeDefined();
+    expect(compact).toHaveLength(compactLines(bookstore, { sidecar }).length);
+  });
+});
+
 describe('wizard — refs after navigation are f1eN and pass literally', () => {
   it('keeps f<seq>eN refs verbatim and lists the clickable steps', () => {
     const lines = compactLines(wizard);

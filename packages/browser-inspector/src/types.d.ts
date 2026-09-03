@@ -237,6 +237,8 @@ export interface ExtractedValue {
   truncated: boolean;
   /** Characters the whole value has; present when it was capped and `values/<name>.txt` holds it all. */
   length?: number;
+  /** The node was not rendered — `innerText` fell back to `textContent`, so this is not screen text. */
+  hidden?: boolean;
 }
 
 export interface Verification {

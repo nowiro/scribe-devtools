@@ -736,8 +736,19 @@ export const STEPS = Object.freeze({
       names: 'bool?',
       all: 'bool?',
     },
+    // The filters shape the SESSION's stdout and nothing else: `snapshotLines` runs under
+    // `ctx.lines && ctx.session`, and the files a batch writes are always the full compact. In a
+    // config they used to pass validation, be rendered in the generated table as config fields and
+    // do nothing — `lint-config` said 0, the run said `ok`, and `snap-<name>.md` was unfiltered.
+    validate: (s, where, ctx) => {
+      if (ctx.mode === 'session') return undefined;
+      const field = ['max', 'diff', 'around', 'grep', 'names', 'all'].find((f) => s[f] !== undefined);
+      return field === undefined
+        ? undefined
+        : `${where}.${field}: session only (browser-inspector snap --${field}) — a config always writes the full snapshot`;
+    },
     describe: (s) => `snapshot ${String(s.name ?? '')}`.trimEnd(),
-    help: 'snap [--max 25] [--diff] [--around eN] [--grep text] [--names] [--all]',
+    help: 'snap [--max 25] [--diff] [--around eN] [--grep text] [--names] [--all]   (filters: session only; a config writes the full snapshot)',
     fromArgv: (_, flags) => ({
       ...(flags.max !== undefined ? { max: flags.max } : {}),
       ...(flags.diff ? { diff: true } : {}),

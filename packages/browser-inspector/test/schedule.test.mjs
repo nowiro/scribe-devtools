@@ -52,6 +52,26 @@ describe('planLanes', () => {
     const same = Array.from({ length: 6 }, () => ({ steps: [{ do: 'wait', ms: 5 }] }));
     expect(planLanes(same, 3)).toEqual(roundRobin(6, 3));
     expect(planLanes(same, 1)).toEqual([0, 0, 0, 0, 0, 0]);
+    // The alike-and-FREE variant, which is the whole of `{ "parallel": 3, snapshots: [six pages] }`
+    // — the config the `lint-config` hint suggests `parallel` for. A step estimate of 0 is still an
+    // equal estimate, so it has to degenerate the same way instead of piling onto lane 0.
+    const pages = Array.from({ length: 6 }, () => ({ type: 'page', url: 'http://localhost:4311/' }));
+    expect(planLanes(pages, 3)).toEqual(roundRobin(6, 3));
+  });
+
+  it('spreads stepless snapshots even when a flow shares the config', () => {
+    // A snapshot with no steps is not free — it still pays a goto, a settle and the final evidence —
+    // so it must never be the snapshot a lane can take an unbounded number of.
+    /** @type {Record<string, any>[]} */
+    const snapshots = [
+      { steps: [{ do: 'wait', ms: 700 }, { do: 'click' }] },
+      { steps: [{ do: 'click' }] },
+      ...Array.from({ length: 4 }, () => ({ type: 'page', url: 'http://localhost:4311/' })),
+    ];
+    const plan = planLanes(snapshots, 3);
+    expect(new Set(plan).size).toBe(3);
+    const pagesPerLane = [0, 1, 2].map((lane) => plan.filter((l, i) => l === lane && !snapshots[i].steps).length);
+    expect(Math.max(...pagesPerLane)).toBeLessThan(4);
   });
 
   it('is a function of the config alone: same input, same plan, no lane out of range', () => {

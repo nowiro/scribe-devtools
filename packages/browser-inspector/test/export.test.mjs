@@ -13,6 +13,7 @@ import {
   appendJournal,
   exportFlow,
   flowNameFrom,
+  formatJournalLine,
   journalPath,
   normalizeEntry,
   readJournal,
@@ -165,6 +166,27 @@ describe('exportFlow', () => {
     expect(() => exportFlow(entries)).toThrow(/step 3 \(click e112\): the ref resolved inside an iframe/u);
     // Without the marker the same journal exports as before — the refusal is not blanket.
     expect(exportFlow(journal()).count).toBeGreaterThan(0);
+  });
+
+  it('carries the iframe marker THROUGH the journal — the refusal has to survive serialization', () => {
+    // The marker used to be dropped by `normalizeEntry`, so it never reached `journal.jsonl` and
+    // the refusal above could only fire on a hand-built entry: a real session exported the bare
+    // frame-local selector and the replay clicked a like-named element of the parent document.
+    const written = JSON.parse(
+      formatJournalLine({
+        seq: 2,
+        sid: 's1',
+        command: 'click',
+        step: { do: 'click', ref: 'f1e12' },
+        ok: true,
+        url: 'http://x/',
+        selector: '#btn',
+        inFrame: true,
+      }),
+    );
+    expect(written.inFrame).toBe(true);
+    const entries = [{ seq: 1, sid: 's1', command: 'goto', step: { do: 'goto', url: 'http://x/' }, ok: true }, written];
+    expect(() => exportFlow(entries)).toThrow(/the ref resolved inside an iframe/u);
   });
 
   it('refuses a ref without a resolved selector instead of exporting a ref (negative test)', () => {

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ramka wroga</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; }
+      iframe.widget { width: 400px; height: 140px; border: 1px solid #888; display: block; margin-top: 12px; }
+      .busy { pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Three shapes that used to carry a password out of the sidecar and into snap.md / snap.full.yml
+      (DESIGN.md §2.6, AC-10). Every value here is set by the PAGE, so `secretValues` knows nothing
+      about any of them — the box-join is the only thing between them and the artifacts.
+
+      1. A child frame whose DOM walk THROWS (an anti-scraping shim patching `getClientRects` is the
+         realistic form; a frame detaching mid-walk is the racy one). `sidecarFromPage` swallowed the
+         failure per frame, so the widget's field arrived without `sensitive` while the sidecar as a
+         whole still looked healthy — the fail-closed mode never fired.
+      2. A password field under `pointer-events: none` (a form "being submitted"): playwright gives
+         such a node NO ref, so it gets no sidecar entry at all and nothing could mark it sensitive.
+      3. A password field with a `placeholder` DIFFERENT from its label: the renderer then cannot
+         write the value inline and moves it into a `- text:` leaf, a shape no masking rule matched.
+    -->
+    <h1>Ramka wroga</h1>
+    <button id="parent-btn" data-testid="hostile-parent">Przycisk rodzica</button>
+
+    <div class="busy">
+      <p>
+        <label for="inert-pass">Hasło w kontenerze</label>
+        <input id="inert-pass" type="password" data-testid="inert-pass" value="TAJNE-BEZ-REFA" />
+      </p>
+    </div>
+
+    <p>
+      <label for="ph-pass">Hasło z podpowiedzią</label>
+      <input
+        id="ph-pass"
+        type="password"
+        data-testid="ph-pass"
+        placeholder="min. 8 znaków"
+        value="TAJNE-Z-PLACEHOLDEREM"
+      />
+    </p>
+
+    <script>
+      if (new URLSearchParams(location.search).get('child') === 'login') {
+        document.title = 'Widżet logowania';
+        document.body.innerHTML =
+          '<h2>Zaloguj</h2>' +
+          '<p><label for="hostile-pass">Hasło:</label> ' +
+          '<input id="hostile-pass" type="password" data-testid="hostile-pass" value="TAJNE-W-RAMCE-WROGIEJ" /></p>';
+        // The walk reads `getClientRects` for every candidate, so this kills the walk of THIS frame
+        // and only of this frame — the main document's walk still succeeds.
+        Element.prototype.getClientRects = function () {
+          throw new Error('zablokowane');
+        };
+      } else {
+        const frame = document.createElement('iframe');
+        frame.src = 'iframe-hostile.html?child=login';
+        frame.className = 'widget';
+        frame.title = 'login';
+        document.body.appendChild(frame);
+      }
+    </script>
+  </body>
+</html>

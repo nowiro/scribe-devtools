@@ -300,6 +300,13 @@ export function parseConfig(raw, options = {}) {
       ...snapshot,
       viewport: { ...DEFAULTS.snapshot.viewport, ...(snapshot.viewport ?? {}) },
       render: [...(snapshot.render ?? DEFAULTS.snapshot.render)],
+      // Anchored HERE, like `outputDir` and `auth.storageState`: the raw string went straight to
+      // `newContext({ storageState })`, which resolves it against the cwd of the process holding
+      // the browser — the keeper's, from wherever it was once started. The same config then ran
+      // under whatever account happened to live at that path, and said `completed: true`.
+      ...(snapshot.storageState !== undefined
+        ? { storageState: path.resolve(baseDir, String(snapshot.storageState)) }
+        : {}),
     })),
     ...(file ? { configPath: path.resolve(options.cwd ?? process.cwd(), file) } : {}),
   };

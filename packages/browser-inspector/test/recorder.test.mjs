@@ -115,6 +115,24 @@ describe('attachRecorder', () => {
     });
   });
 
+  it('counts a 4xx/5xx that then fails on the transport ONCE, keeping both reasons', () => {
+    // A 500 whose body never arrives (content-length mismatch, an aborted fetch, a navigation mid
+    // body) fires `response` AND `requestfailed` for the same request: `failedTotal` counted two,
+    // `## errors` printed the line twice, and `HTTP 500` was overwritten by the transport error.
+    const page = createFakePage();
+    const recorder = attachRecorder(page);
+    const req = request({ url: 'http://localhost:4300/broken', failure: 'net::ERR_CONTENT_LENGTH_MISMATCH' });
+    page.emit('request', req);
+    page.emit('response', response(req, { status: 500, headers: { 'content-type': 'text/html' } }));
+    page.emit('requestfailed', req);
+    expect(recorder.failedTotal).toBe(1);
+    expect(recorder.failed).toHaveLength(1);
+    expect(recorder.failed[0]).toMatchObject({
+      status: 500,
+      failure: 'HTTP 500 → net::ERR_CONTENT_LENGTH_MISMATCH',
+    });
+  });
+
   it('never reads a bundle, an oversized or a streaming body — and says why; a stuck read cannot hold settle()', async () => {
     const page = createFakePage();
     const recorder = attachRecorder(page, { bodyReadMs: 60 });

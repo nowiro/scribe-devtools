@@ -175,13 +175,18 @@ export function collectIdentity(input) {
     pkgVersion: packageVersion(packageDir),
     pwVersion: playwrightCoreVersion(packageDir),
     nodeMajor: input.nodeMajor ?? Number(process.versions.node.split('.')[0]),
-    channel: env.BROWSER_INSPECTOR_CHANNEL ?? browser.channel ?? '',
-    executablePath: env.BROWSER_INSPECTOR_BROWSER_PATH ?? browser.executablePath ?? '',
+    // `||`, not `??`, and the same for the flags below: this is the one place that must read the
+    // environment exactly as `launchPlan` does, and there an EMPTY variable is not an override. A
+    // CI job exporting `BROWSER_INSPECTOR_CHANNEL=` with an empty input otherwise dropped
+    // `browser.channel` from the identity while the browser still launched from the config —
+    // and two configs naming two different browsers hashed into one keeper.
+    channel: env.BROWSER_INSPECTOR_CHANNEL || browser.channel || '',
+    executablePath: env.BROWSER_INSPECTOR_BROWSER_PATH || browser.executablePath || '',
     headless: browser.headless !== false,
     args: browser.args ?? [],
     fastHeadless: browser.fastHeadless !== false,
     motion: browser.motion === 'reduce' ? 'reduce' : 'no-preference',
-    browserArgsEnv: env.BROWSER_INSPECTOR_BROWSER_ARGS ?? '',
+    browserArgsEnv: (env.BROWSER_INSPECTOR_BROWSER_ARGS ?? '').split(/\s+/u).filter(Boolean).join(' '),
     httpProxy: env.HTTP_PROXY ?? env.http_proxy ?? '',
     httpsProxy: env.HTTPS_PROXY ?? env.https_proxy ?? '',
     noProxy: env.NO_PROXY ?? env.no_proxy ?? '',

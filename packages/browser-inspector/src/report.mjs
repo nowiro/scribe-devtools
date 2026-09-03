@@ -155,9 +155,18 @@ export function buildReport(input) {
       // how much is there. `length` is what makes that number true: the head alone always reads
       // "5 000+", whatever the value was.
       files[`values/${name}.txt`] = value;
-      extracts[name] = { value: sliceUnits(value, CAPS.extract), truncated: true, length: value.length };
+      extracts[name] = {
+        value: sliceUnits(value, CAPS.extract),
+        truncated: true,
+        length: value.length,
+        ...(typeof raw !== 'string' && raw.hidden === true ? { hidden: true } : {}),
+      };
     } else {
-      extracts[name] = { value, truncated };
+      extracts[name] = {
+        value,
+        truncated,
+        ...(typeof raw !== 'string' && raw.hidden === true ? { hidden: true } : {}),
+      };
     }
   }
 
@@ -274,16 +283,19 @@ export function artifactFiles(report) {
  * @returns {string[]}
  */
 function renderValue(name, value) {
+  // `(hidden)` because `innerText` answers with `textContent` for a node the page does not render:
+  // without it the report presented a validation error nobody could see as observed screen text.
+  const name_ = value.hidden === true ? `${name} (hidden)` : name;
   if (value.truncated) {
     // `length` = the whole value is in the file; without it the head is all anyone has, and the
     // number can only be a lower bound.
     const chars =
       typeof value.length === 'number' ? `${formatMs(value.length)} chars` : `${formatMs(value.value.length)}+ chars`;
-    return [`${name}: values/${name}.txt (${chars})`];
+    return [`${name_}: values/${name}.txt (${chars})`];
   }
-  if (!value.value.includes('\n')) return [`${name}: ${value.value}`];
+  if (!value.value.includes('\n')) return [`${name_}: ${value.value}`];
   const fence = value.value.includes('```') ? '````' : '```';
-  return [`${name}:`, fence, value.value, fence];
+  return [`${name_}:`, fence, value.value, fence];
 }
 
 /**
@@ -489,21 +501,27 @@ const xml = (value) => {
  * `--junit f.xml`: the format every CI reads as a test tab. One `testcase` per snapshot; an
  * incomplete run is a `failure` naming the step that failed (or the navigation error). Without
  * this a batch is mute in CI — exit 0 by design, nobody notices.
+ * Redaction happens HERE, before `xml()`, and not on the finished document: the escaper turns a
+ * secret with `&`, `<`, `>` or `"` into an entity spelling `secretForms` does not know, so a
+ * caller redacting the output masked nothing and shipped the password to the CI test tab.
  * @param {string} suite the config file basename
  * @param {readonly { name: string, completed: boolean, ms?: number, failure?: string, dir?: string }[]} snapshots
+ * @param {{ redact?: (text: string) => string }} [options]
  * @returns {string}
  */
-export function renderJUnit(suite, snapshots) {
+export function renderJUnit(suite, snapshots, options = {}) {
+  const scrub = options.redact ?? ((/** @type {string} */ text) => text);
+  const text = (/** @type {unknown} */ value) => xml(scrub(String(value)));
   const failures = snapshots.filter((s) => !s.completed).length;
   const seconds = (/** @type {number} */ ms) => (ms / 1000).toFixed(3);
   const totalMs = snapshots.reduce((sum, s) => sum + (s.ms ?? 0), 0);
   const cases = snapshots.map((s) => {
-    const open = `    <testcase name="${xml(s.name)}" classname="browser-inspector.${xml(suite)}" time="${seconds(s.ms ?? 0)}">`;
-    const out = s.dir ? `      <system-out>${xml(s.dir)}</system-out>\n` : '';
+    const open = `    <testcase name="${text(s.name)}" classname="browser-inspector.${text(suite)}" time="${seconds(s.ms ?? 0)}">`;
+    const out = s.dir ? `      <system-out>${text(s.dir)}</system-out>\n` : '';
     if (s.completed) return out ? `${open}\n${out}    </testcase>` : `${open}</testcase>`;
     return [
       open,
-      `      <failure message="${xml(s.failure ?? 'incomplete')}"></failure>`,
+      `      <failure message="${text(s.failure ?? 'incomplete')}"></failure>`,
       out.trimEnd(),
       '    </testcase>',
     ]
@@ -513,7 +531,7 @@ export function renderJUnit(suite, snapshots) {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<testsuites name="browser-inspector" tests="${String(snapshots.length)}" failures="${String(failures)}" time="${seconds(totalMs)}">`,
-    `  <testsuite name="${xml(suite)}" tests="${String(snapshots.length)}" failures="${String(failures)}" time="${seconds(totalMs)}">`,
+    `  <testsuite name="${text(suite)}" tests="${String(snapshots.length)}" failures="${String(failures)}" time="${seconds(totalMs)}">`,
     ...cases,
     '  </testsuite>',
     '</testsuites>',

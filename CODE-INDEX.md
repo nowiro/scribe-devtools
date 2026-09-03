@@ -154,7 +154,7 @@ Modules: 40.
 - imported by: `packages/browser-inspector/src/steps.ctx.mjs`
 
 ## packages/browser-inspector/src/snapshot.mjs
-- exports: `CONTEXT_ROLES`, `FIND_MAX`, `INTERACTIVE_ROLES`, `REF_PATTERN`, `RefNotFoundError`, `SEMANTIC_ROLES`, `aroundRef`, `boxJoin`, `compactLines`, `compactSnapshot`, `diffSnapshot`, `findInSnapshot`, `implicitRole`, `locatorFor`, `locatorForElement`, `namesContext`, `parseSnapshot`, `resolveRef`, `sensitiveRefs`, `sidecarFromPage`, `snapshotArtifacts`, `textUnder`, `uniqueIn`, `walkInteractive`
+- exports: `CONTEXT_ROLES`, `FIND_MAX`, `INTERACTIVE_ROLES`, `REF_PATTERN`, `RefNotFoundError`, `SEMANTIC_ROLES`, `aroundRef`, `boxJoin`, `compactLines`, `compactSnapshot`, `diffSnapshot`, `findInSnapshot`, `implicitRole`, `locatorFor`, `locatorForElement`, `namesContext`, `parseSnapshot`, `resolveRef`, `sensitiveRefs`, `sidecarFromPage`, `snapshotArtifacts`, `textUnder`, `uniqueIn`, `valueOf`, `walkInteractive`
 - imports: `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 

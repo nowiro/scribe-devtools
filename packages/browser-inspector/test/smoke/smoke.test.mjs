@@ -213,6 +213,35 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
     expect(selectors).not.toContain('#u');
   }, 60_000);
 
+  it('a password survives no shape the box-join cannot vouch for (AC-10)', async () => {
+    // Three shapes that reached snap.md / snap.full.yml with the value in clear, all of them set by
+    // the PAGE, so `secretValues` cannot help: a child frame whose DOM walk throws, a field under
+    // `pointer-events: none` (playwright gives it no ref, so it has no sidecar entry at all) and a
+    // field whose `placeholder` forces the renderer to move the value into a `- text:` leaf.
+    const hostile = await run({
+      name: 'ramka-wroga',
+      url: a.url('iframe-hostile.html'),
+      stepTimeoutMs: 5000,
+      steps: [{ do: 'waitFor', selector: 'iframe.widget' }, { do: 'wait', ms: 200 }, { do: 'snapshot' }],
+    });
+    expect(hostile.failure).toBeUndefined();
+    const full = await text(hostile.dir, 'snap.full.yml');
+    const md = await text(hostile.dir, 'snap.md');
+    const json = await text(hostile.dir, 'snap.json');
+    for (const secret of ['TAJNE-W-RAMCE-WROGIEJ', 'TAJNE-BEZ-REFA', 'TAJNE-Z-PLACEHOLDEREM']) {
+      expect(full, secret).not.toContain(secret);
+      expect(md, secret).not.toContain(secret);
+      expect(json, secret).not.toContain(secret);
+    }
+    // The walk of the MAIN document ran, so the two fields it can see are marked properly and only
+    // the unreadable frame degrades — this is not a blanket mask.
+    const entries = JSON.parse(json);
+    expect(entries.find((/** @type {any} */ e) => e.selector === '[data-testid="ph-pass"]')).toMatchObject({
+      sensitive: true,
+    });
+    expect(entries.some((/** @type {any} */ e) => String(e.ref).startsWith('f'))).toBe(true);
+  }, 60_000);
+
   it('the scrub keeps the HTTP cache: the second run on the same lane counts cacheHits (AC-12)', async () => {
     // The number this pins is a design claim, not a detail: `SCRUB_STORAGE_TYPES` deliberately omits
     // `all`, so the scrub clears storage and leaves the HTTP cache — that is what makes a warm run
@@ -336,7 +365,9 @@ describe.skipIf(skip)('smoke: batch engine on a real browser', () => {
       ],
     });
     expect(upload.failure).toBeUndefined();
-    expect(upload.report.extracts.lista.value).toBe('notatka.txt (12 B)');
+    // The TYPE is part of the contract: the inline (client) branch used to hardcode
+    // `application/octet-stream`, so the same step behaved differently for a small and a large file.
+    expect(upload.report.extracts.lista.value).toBe('notatka.txt (12 B, text/plain)');
 
     const drag = await run({
       url: a.url('drag.html'),
@@ -699,6 +730,20 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     // The failure took milliseconds in the engine; the process spawn around it is the client's cost.
     expect(Number(deadEntry?.ms)).toBeLessThan(100);
 
+    // export: refs → selectors; status counts the session; doctor; close; stop.
+    const exported = await cmd(['export', 'flows/koszyk.json']);
+    expect(exported.lines[0]).toMatch(
+      /^ok export \d+ steps → flows\/koszyk\.json \(refs → data-testid\/#id\/role=\)$/u,
+    );
+    const flow = JSON.parse(await readFile(path.join(h.cwd, 'flows', 'koszyk.json'), 'utf8'));
+    expect(flow.snapshots[0].url).toBe(server.url('form.html'));
+    expect(flow.snapshots[0].steps.find((s) => s.do === 'fill')).toEqual({
+      do: 'fill',
+      selector: '[data-testid="field-name"]',
+      value: 'Jan Kowalski',
+    });
+    expect(JSON.stringify(flow)).not.toMatch(/"ref":/u);
+
     // iframe.html: a ref inside the frame resolves from the page; `frame` scopes CSS selectors only.
     const framed = await cmd(['open', server.url('iframe.html')]);
     // The frame's controls are part of what the agent can act on: a count that stops at the main
@@ -715,6 +760,14 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     expect((await cmd(['get', '#child-out'])).lines).toEqual(['kliknięto w ramce']);
     expect((await cmd(['frame', 'main'])).lines).toEqual(['ok frame main']);
     expect((await cmd(['get', '#parent-out'])).lines).toEqual(['nic']);
+    // The selector recorded next to a ref from a frame is unique in THAT document; replayed from a
+    // config it finds a like-named element of the parent, or nothing. The marker used to be dropped
+    // on the way into `journal.jsonl`, so the refusal below was unreachable and the export happily
+    // wrote the bare selector.
+    expect(readJournal(path.join(sessionDir(), 'journal.jsonl')).some((e) => e.inFrame === true)).toBe(true);
+    const refused = await cmd(['export', 'flows/z-ramka.json'], { exit: 2 });
+    expect(refused.stdout).toMatch(/the ref resolved inside an iframe/u);
+    expect(existsSync(path.join(h.cwd, 'flows', 'z-ramka.json'))).toBe(false);
 
     // tabs.html: a popup becomes a tab of the session.
     await cmd(['open', server.url('tabs.html')]);
@@ -742,19 +795,7 @@ describe.skipIf(skip)('smoke: session commands through the keeper', () => {
     expect(leave.lines[0]).toMatch(/navigated → refs f\d+eN \(browser-inspector snap\)/u);
     expect(leave.lines[0]).toContain('dialog beforeunload "" → accepted');
 
-    // export: refs → selectors; status counts the session; doctor; close; stop.
-    const exported = await cmd(['export', 'flows/koszyk.json']);
-    expect(exported.lines[0]).toMatch(
-      /^ok export \d+ steps → flows\/koszyk\.json \(refs → data-testid\/#id\/role=\)$/u,
-    );
-    const flow = JSON.parse(await readFile(path.join(h.cwd, 'flows', 'koszyk.json'), 'utf8'));
-    expect(flow.snapshots[0].url).toBe(server.url('form.html'));
-    expect(flow.snapshots[0].steps.find((s) => s.do === 'fill')).toEqual({
-      do: 'fill',
-      selector: '[data-testid="field-name"]',
-      value: 'Jan Kowalski',
-    });
-    expect(JSON.stringify(flow)).not.toMatch(/"ref":/u);
+    // status counts the session; doctor; close; stop.
     const status = await runBrowserInspector(['status'], h);
     expect(status.code).toBe(0);
     expect(status.lines[1]).toContain('sessions 1');

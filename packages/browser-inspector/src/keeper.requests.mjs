@@ -414,7 +414,11 @@ async function runBatch(parsed, request, ctx, secretValues) {
       const junitPath = path.resolve(cwd, parsed.options.junit);
       writes.push(
         mkdir(path.dirname(junitPath), { recursive: true }).then(() =>
-          writeFile(junitPath, redactor(renderJUnit(path.basename(configPath), manifest.snapshots)), 'utf8'),
+          writeFile(
+            junitPath,
+            renderJUnit(path.basename(configPath), manifest.snapshots, { redact: redactor }),
+            'utf8',
+          ),
         ),
       );
       written.push(junitPath);

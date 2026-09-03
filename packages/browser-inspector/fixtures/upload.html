@@ -16,7 +16,7 @@
     list.replaceChildren();
     for (const file of input.files) {
       const li = document.createElement('li');
-      li.textContent = `${file.name} (${file.size} B)`;
+      li.textContent = `${file.name} (${file.size} B, ${file.type || 'brak'})`;
       list.append(li);
     }
     document.querySelector('[data-testid=count]').textContent = `${input.files.length} files`;

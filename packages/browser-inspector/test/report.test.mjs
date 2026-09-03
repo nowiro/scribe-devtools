@@ -177,6 +177,27 @@ describe('report.md — DESIGN.md §5.1 sample (AC-7)', () => {
   });
 });
 
+describe('report.md — a value the page did not render', () => {
+  it('marks it, so `## values` stops presenting textContent as screen text', () => {
+    // `innerText` falls back to `textContent` on a hidden node, so the report showed a validation
+    // error and a confirmation card nobody could see — next to a green `verify hidden` for the same
+    // element.
+    const report = buildReport(
+      sampleInput({
+        extracts: {
+          widoczne: { value: 'Zapisano', truncated: false },
+          ukryte: { value: 'Podaj poprawny adres e-mail', truncated: false, hidden: true },
+        },
+      }),
+    ).report;
+    expect(report.extracts.ukryte).toMatchObject({ hidden: true });
+    expect(report.extracts.widoczne.hidden).toBeUndefined();
+    const text = renderReportMd(report);
+    expect(text).toContain('ukryte (hidden): Podaj poprawny adres e-mail');
+    expect(text).toContain('widoczne: Zapisano');
+  });
+});
+
 describe('report.md — failure (AC-7)', () => {
   const failed = buildReport(
     sampleInput({

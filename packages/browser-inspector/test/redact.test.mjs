@@ -133,6 +133,74 @@ describe('maskSnapshotValues', () => {
     expect(maskSnapshotValues(line, { sensitiveRefs: ['e9'] })).toBe(line);
   });
 
+  it('takes the ref from behind an UNQUOTED name too — playwright leaves `/…/` names bare', () => {
+    // `createKey`: a name that starts and ends with `/` is written without quotes, so `afterName`
+    // found no quote, returned 0 and scanned the whole key again — the `[ref=e1]` a page put in its
+    // own `aria-label` took the line and the password stayed in snap.full.yml.
+    const crafted = [
+      '- textbox /x [ref=e1] y/ [active] [ref=e6] [box=8,68,177,21]: TAJNE',
+      `- 'textbox /x: [ref=e1] y/ [ref=e7] [box=1,2,3,4]': TAJNE-2`,
+    ].join('\n');
+    expect(maskSnapshotValues(crafted, { sensitiveRefs: ['e6', 'e7'] }).split('\n')).toEqual([
+      '- textbox /x [ref=e1] y/ [active] [ref=e6] [box=8,68,177,21]',
+      `- 'textbox /x: [ref=e1] y/ [ref=e7] [box=1,2,3,4]'`,
+    ]);
+    // The other direction is the same bug: a bare name mentioning a sensitive ref must not cost an
+    // unrelated field the value it should keep.
+    const innocent = '- textbox /Powtórz [ref=e9] niżej/ [ref=e5] [box=1,2,3,4]: jawna wartość';
+    expect(maskSnapshotValues(innocent, { sensitiveRefs: ['e9'] })).toBe(innocent);
+    // A `/…/` name with no ref inside still resolves to the node's own ref.
+    expect(maskSnapshotValues('- textbox /Szukaj/ [ref=e4]: sekret', { sensitiveRefs: ['e4'] })).toBe(
+      '- textbox /Szukaj/ [ref=e4]',
+    );
+  });
+
+  it('cuts a value-carrying line that has NO ref — nothing can vouch for it', () => {
+    // A field under `pointer-events: none` gets no ref from playwright, so it gets no sidecar entry
+    // and no `sensitive` flag: the whole protection hung on the ref, and a password field kept its
+    // value in snap.full.yml, in snap.md and on the session's stdout.
+    const inert = [
+      '- textbox "Hasło w kontenerze" [box=139,47,177,21]: BBBpointerBBB',
+      '- generic [box=0,0,1,1]:',
+    ].join('\n');
+    expect(maskSnapshotValues(inert).split('\n')).toEqual([
+      '- textbox "Hasło w kontenerze" [box=139,47,177,21]',
+      '- generic [box=0,0,1,1]:',
+    ]);
+    expect(maskSnapshotValues('textbox "Hasło w kontenerze" = BBBpointerBBB')).toBe('textbox "Hasło w kontenerze"');
+    expect(maskSnapshotValues('textbox "Hasło" = x', { maskAllValueRoles: true })).toBe('textbox "Hasło"');
+  });
+
+  it('cuts the `- text:` leaf a value field carries when it also has a property', () => {
+    // With a `placeholder` playwright cannot render the value inline, so it becomes a child leaf —
+    // a shape no rule matched, and neither `sensitiveRefs` nor the fail-closed mode cut it.
+    const tree = [
+      '  - textbox "Hasło" [ref=e4] [box=45,80,177,21]:',
+      '    - /placeholder: min. 8 znaków',
+      '    - text: TAJNE-ZE-STRONY',
+      '  - textbox "Imię" [ref=e5] [box=45,110,177,21]:',
+      '    - /placeholder: np. Anna',
+      '    - text: Anna',
+    ].join('\n');
+    expect(maskSnapshotValues(tree, { sensitiveRefs: ['e4'] }).split('\n')).toEqual([
+      '  - textbox "Hasło" [ref=e4] [box=45,80,177,21]:',
+      '    - /placeholder: min. 8 znaków',
+      '    - text',
+      '  - textbox "Imię" [ref=e5] [box=45,110,177,21]:',
+      '    - /placeholder: np. Anna',
+      '    - text: Anna',
+    ]);
+    // Fail-closed cuts both, and the property lines survive — they are attributes, not the value.
+    expect(maskSnapshotValues(tree, { maskAllValueRoles: true }).split('\n')).toEqual([
+      '  - textbox "Hasło" [ref=e4] [box=45,80,177,21]:',
+      '    - /placeholder: min. 8 znaków',
+      '    - text',
+      '  - textbox "Imię" [ref=e5] [box=45,110,177,21]:',
+      '    - /placeholder: np. Anna',
+      '    - text',
+    ]);
+  });
+
   it('with `maskAllValueRoles` cuts every value-carrying line — the sensitivity of the walk is unknown', () => {
     const yaml2 = [
       '- textbox "Hasło:" [ref=e2] [box=1,2,3,4]: TAJNE',

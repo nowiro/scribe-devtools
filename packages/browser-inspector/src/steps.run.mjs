@@ -38,6 +38,7 @@ import {
 } from './print.mjs';
 import { maskSnapshotValues } from './redact.mjs';
 import {
+  RefNotFoundError,
   aroundRef,
   compactLines,
   diffSnapshot,
@@ -105,8 +106,30 @@ export function fileContent(ctx, name) {
 }
 
 /**
+ * MIME type by extension, the way Playwright derives one for the PATH branch. Small on purpose:
+ * what an upload step realistically carries, everything else stays the generic type.
+ */
+const UPLOAD_TYPES = Object.freeze({
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.pdf': 'application/pdf',
+  '.json': 'application/json',
+  '.csv': 'text/csv',
+  '.txt': 'text/plain',
+  '.html': 'text/html',
+  '.xml': 'text/xml',
+  '.zip': 'application/zip',
+});
+
+/**
  * What `setInputFiles` gets for one step file: an inline payload when the client sent the bytes,
- * a path otherwise.
+ * a path otherwise. The type comes from the extension in BOTH branches — the client sends the bytes
+ * only up to 1 MB, so a hardcoded `application/octet-stream` made the same step behave differently
+ * for a small and a large file: a page checking `file.type` rejected the small one.
  * @param {Ctx} ctx @param {string} name
  */
 function uploadPayload(ctx, name) {
@@ -114,7 +137,9 @@ function uploadPayload(ctx, name) {
   if (sent?.base64) {
     return {
       name: path.basename(name),
-      mimeType: 'application/octet-stream',
+      mimeType:
+        /** @type {Record<string, string>} */ (UPLOAD_TYPES)[path.extname(name).toLowerCase()] ??
+        'application/octet-stream',
       buffer: Buffer.from(sent.base64, 'base64'),
     };
   }
@@ -176,12 +201,13 @@ export function globToRegExp(pattern) {
  * The result of a query step goes where its mode says: under `name` into `extracts` (batch, or a
  * session `--name`), otherwise onto the session's stdout lines.
  * @param {Ctx} ctx @param {Step} s @param {string} text
+ * @param {{ hidden?: boolean }} [extra] flags kept next to the value in the report
  */
-function emit(ctx, s, text) {
+function emit(ctx, s, text, extra = {}) {
   // The WHOLE value goes to the report: capping it here made `values/<name>.txt` a duplicate of the
   // head report.json already holds, and the rest of the value existed nowhere. `buildReport` keeps
   // the head in the JSON and writes the whole thing to the file report.md points at.
-  if (typeof s.name === 'string') ctx.capture.extracts[s.name] = { value: text, truncated: false };
+  if (typeof s.name === 'string') ctx.capture.extracts[s.name] = { value: text, truncated: false, ...extra };
   else if (ctx.lines) ctx.lines.push(text.length > EXTRACT_CAP ? text.slice(0, EXTRACT_CAP) : text);
   return text;
 }
@@ -260,6 +286,12 @@ function maskLines(ctx, lines) {
  * ref inside an `<iframe>` therefore exported as a bare selector that replayed against a
  * like-named element of the parent — or against nothing. The ref prefix does not help: after any
  * navigation the MAIN document's refs carry an `f<seq>` too.
+ *
+ * The probe has THREE outcomes, not two. Its budget is a second while the action itself gets the
+ * whole step timeout, so a frame busy for longer let the click succeed and still answered "main
+ * document" — `false` was at once the degradation default, the `catch` value and a real answer.
+ * A probe that did not answer therefore asks the snapshot tree, which knows the same thing, and
+ * only claims the main document when something actually said so.
  * @param {Ctx} ctx @param {string} ref
  * @returns {Promise<{ selector?: string, inFrame: boolean }>}
  */
@@ -274,16 +306,12 @@ export async function durableSelector(ctx, ref) {
     budget,
     `locator ${ref}`,
   );
+  const entry = (ctx.lastSnapshot?.entries ?? []).find((/** @type {any} */ e) => e?.ref === ref);
   const selector =
-    typeof live === 'string' && live !== ''
-      ? live
-      : (() => {
-          const entry = (ctx.lastSnapshot?.entries ?? []).find((/** @type {any} */ e) => e?.ref === ref);
-          return entry ? (entry.selector ?? locatorFor(entry)) : undefined;
-        })();
+    typeof live === 'string' && live !== '' ? live : entry ? (entry.selector ?? locatorFor(entry)) : undefined;
   if (selector === undefined) return { selector: undefined, inFrame: false };
-  const inFrame = await degradeTo(
-    false,
+  const probe = await degradeTo(
+    undefined,
     Promise.resolve()
       .then(() =>
         locator.evaluate((/** @type {any} */ el) => {
@@ -291,11 +319,14 @@ export async function durableSelector(ctx, ref) {
           return Boolean(view && view.top !== view);
         }),
       )
-      .catch(() => false),
+      .catch(() => undefined),
     budget,
     `frame of ${ref}`,
   );
-  return { selector, inFrame: inFrame === true };
+  if (typeof probe === 'boolean') return { selector, inFrame: probe };
+  // The sidecar entry answers from the TREE (`inIframe`), which is where the truth lives anyway;
+  // with neither, the export refuses rather than writing a step that replays in another document.
+  return { selector, inFrame: entry === undefined || entry.inIframe === true };
 }
 
 /** Console entry types → the three levels of `--level`; `pageerror` counts as an error. */
@@ -580,8 +611,26 @@ export const RUNNERS = {
     );
   },
   waitFor: async (ctx, s) => {
-    const sel = await ctx.sel(s);
-    await root(ctx, sel).waitForSelector(sel, { ...opts(ctx), state: /** @type {any} */ (s.state ?? 'visible') });
+    const state = String(s.state ?? 'visible');
+    /** @type {string} */
+    let sel;
+    try {
+      sel = await ctx.sel(s);
+    } catch (error) {
+      // Waiting for something to GO is satisfied by it being gone. `ctx.sel` resolves the ref
+      // BEFORE the wait and `resolveRef` throws once the element is detached, so the step failed at
+      // the exact moment its condition came true — and whether a flow passed depended on whether
+      // the app hides with `display:none` or by removing the node. A ref no snapshot ever showed
+      // still fails: "gone" must not be a green answer to an address that never existed (§3.2).
+      const seen =
+        error instanceof RefNotFoundError &&
+        (state === 'hidden' || state === 'detached') &&
+        typeof ctx.lastSnapshot?.text === 'string' &&
+        ctx.lastSnapshot.text.includes(`[ref=${String(s.ref)}]`);
+      if (!seen) throw error;
+      return undefined;
+    }
+    await root(ctx, sel).waitForSelector(sel, { ...opts(ctx), state: /** @type {any} */ (state) });
   },
   screenshot: async (ctx, s) => {
     const name = typeof s.name === 'string' ? s.name : 'shot';
@@ -610,8 +659,14 @@ export const RUNNERS = {
   extract: async (ctx, s) => {
     const sel = await ctx.sel(s);
     const target = ctx.loc(sel).first();
-    const text = s.value === true ? await target.inputValue?.(opts(ctx)) : await target.innerText(opts(ctx));
-    return emit(ctx, s, String(text ?? '').trim());
+    if (s.value === true) return emit(ctx, s, String((await target.inputValue?.(opts(ctx))) ?? '').trim());
+    // `innerText` falls back to `textContent` on a node the page does not render, so `## values`
+    // reported a validation error and a confirmation card nobody could see — next to a green
+    // `verify hidden` for the same element. The read stays (a collapsed panel is a legitimate
+    // target); what changes is that the report no longer presents it as something on screen.
+    const visible = (await target.isVisible?.()) !== false;
+    const text = await target.innerText(opts(ctx));
+    return emit(ctx, s, String(text ?? '').trim(), visible ? {} : { hidden: true });
   },
   evaluate: async (ctx, s) => {
     const expression = typeof s.file === 'string' ? fileContent(ctx, s.file).toString('utf8') : String(s.expression);
