@@ -36,13 +36,15 @@ tam; `scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości.
 
 Ten sam mechanizm, własne **nazwane** znaczniki — regex bramki łapie pierwszy NIENAZWANY blok, więc
 drugi musi się nazwać. Kopia w `.github/copilot-instructions.md`, porównywana znak po znaku.
-Limit 200 tokenów na blok (zmierzone 184) i **400 na wszystkie razem** (dziś 342): agent czyta każdy
+Limit 200 tokenów na blok (zmierzone 195) i **400 na wszystkie razem** (dziś 353): agent czyta każdy
 blok, więc sam limit per blok pozwalałby rość kosztowi stałemu o jedno narzędzie naraz, nie czerwieniąc
-nigdy żadnej bramki. Blok nie wymienia `serve` ani `docs` — tych komend jeszcze nie ma, a instrukcja
-opisuje to, co działa, nie plan. `affected` nie zastępuje niczego z żadnego serwera MCP: żaden go nie ma.
+nigdy żadnej bramki. Blok nie wymienia `docs` — tej komendy jeszcze nie ma, a instrukcja opisuje to, co działa,
+nie plan. `affected` nie zastępuje niczego z żadnego serwera MCP: żaden go nie ma. **Blok jest
+blisko sufitu** (195 z 200) — `docs` nie zmieści się bez skrócenia czegoś innego, i to jest
+zamierzone: limit ma zmuszać do wyboru, a nie ustępować.
 
 <!-- INSTRUCTION:nx-angular-inspector:START -->
-> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
+> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>` · `serve [wait|stop] <projekt>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
 <!-- INSTRUCTION:nx-angular-inspector:END -->
 
 ## Bramki — uruchamiaj PRZED uznaniem zmiany za skończoną
@@ -69,7 +71,9 @@ W trakcie pracy nad jednym pakietem uruchamiaj swoje testy (`npx vitest run <śc
 `npx prettier --check <pliki>`; pełne `npm run verify` przed oddaniem. Testy z prawdziwą
 przeglądarką: kanał `chrome` z fallbackiem `msedge`, headless, własny zakres portów dla serwerów
 fixture'ów (smoke WP2: 4501–4519, WP3 generator: 4531–4533, sesja WP6: 4541–4559, auth WP7:
-4561–4564, compat WP8: 4571–4579) i unikalny pipe (`keeper-harness.makeEnv()` daje `BROWSER_INSPECTOR_SOCKET`
+4561–4564, compat WP8: 4571–4579; `nx-angular-inspector` **nie rezerwuje zakresu** — jego
+fixture serwera dev bierze port efemeryczny (`listen(0)`) i ogłasza go w logu, więc równoległe
+przebiegi nie mogą sobie wejść w drogę) i unikalny pipe (`keeper-harness.makeEnv()` daje `BROWSER_INSPECTOR_SOCKET`
 + `BROWSER_INSPECTOR_TMPDIR`), żeby równoległe agenty nie dzieliły keepera.
 
 Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md`, `docs/STEPS.md` i zip portable

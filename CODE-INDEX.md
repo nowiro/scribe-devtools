@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 60.
+Modules: 61.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
@@ -223,11 +223,16 @@ Modules: 60.
 
 ## packages/nx-angular-inspector/src/paths.mjs
 - exports: `ROOT_MARKERS`, `findRoot`, `graphFile`, `nxBin`, `outDir`, `packageManifest`, `walkUp`, `workspaceDataDir`
-- imported by: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/target.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+- imported by: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/serve.mjs`, `packages/nx-angular-inspector/src/target.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
 
 ## packages/nx-angular-inspector/src/print.mjs
 - exports: `MAX_LINE`, `SEP`, `VERDICT`, `formatAge`, `formatFail`, `formatInt`, `formatLine`, `formatOk`, `plural`, `relPath`, `sliceUnits`, `truncate`
 - imported by: `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`
+
+## packages/nx-angular-inspector/src/serve.mjs
+- exports: `DEFAULT_READY`, `DEFAULT_WAIT_MS`, `alive`, `lastLines`, `logFile`, `readState`, `sizeOf`, `startServe`, `stateFile`, `stopServe`, `tail`, `waitForServe`
+- imports: `packages/nx-angular-inspector/src/paths.mjs`
+- imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/stamp.mjs
 - exports: `INFERRING_FILES`, `ROOT_INPUTS`, `inputSet`, `mtime`, `stampGraph`
@@ -239,8 +244,8 @@ Modules: 60.
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/verbs.run.mjs
-- exports: `RUNNERS`, `affected`, `env`, `gen`, `graph`, `guide`, `projects`, `run`
-- imports: `packages/nx-angular-inspector/src/affected.mjs`, `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/generators.mjs`, `packages/nx-angular-inspector/src/graph.mjs`, `packages/nx-angular-inspector/src/guide.mjs`, `packages/nx-angular-inspector/src/out.mjs`, `packages/nx-angular-inspector/src/paths.mjs`, `packages/nx-angular-inspector/src/print.mjs`, `packages/nx-angular-inspector/src/stamp.mjs`, `packages/nx-angular-inspector/src/target.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
+- exports: `RUNNERS`, `affected`, `env`, `gen`, `graph`, `guide`, `projects`, `run`, `serve`
+- imports: `packages/nx-angular-inspector/src/affected.mjs`, `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/generators.mjs`, `packages/nx-angular-inspector/src/graph.mjs`, `packages/nx-angular-inspector/src/guide.mjs`, `packages/nx-angular-inspector/src/out.mjs`, `packages/nx-angular-inspector/src/paths.mjs`, `packages/nx-angular-inspector/src/print.mjs`, `packages/nx-angular-inspector/src/serve.mjs`, `packages/nx-angular-inspector/src/stamp.mjs`, `packages/nx-angular-inspector/src/target.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
 - imported by: `packages/nx-angular-inspector/src/main.mjs`
 
 ## packages/nx-angular-inspector/src/verbs.schema.mjs

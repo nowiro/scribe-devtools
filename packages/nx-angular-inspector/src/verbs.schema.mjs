@@ -81,6 +81,14 @@ export const VERBS = Object.freeze([
     writes: '.ws/run/<projekt>-<target>.log',
     needsGraph: false,
   },
+  {
+    name: 'serve',
+    args: '[wait|stop] <projekt>',
+    flags: ['--ready', '--timeout'],
+    summary: 'startuje serwer dev w tle; `wait` czeka na gotowość, `stop` ubija drzewo procesów',
+    writes: '.ws/serve/<projekt>.log',
+    needsGraph: true,
+  },
 ]);
 
 /** @type {readonly string[]} */

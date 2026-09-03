@@ -137,10 +137,15 @@ export function makeWorkspace(dir, kind) {
     graphFileContent(projects, { portal: ['ui-kit', 'utils'], 'ui-kit': ['utils'] }),
   );
 
+  // `serve-hang` and `serve-die` are answered by the stand-in but deliberately NOT declared in the
+  // graph: a real workspace has no such targets, and putting them there would shift every other
+  // test's target counts to accommodate a testing convenience. The serve tests reach them through
+  // `startServe` directly.
   // The `nx` stand-in lives in its own file (`nx-stub.cjs`) and is COPIED here rather than
   // written as a string: a program embedded in a string literal is unreadable in a diff and one
   // escaping mistake away from being silently broken.
   write('node_modules/nx/bin/nx.js', readFileSync(path.join(HERE, 'nx-stub.cjs'), 'utf8'));
+  write('node_modules/nx/bin/dev-server.cjs', readFileSync(path.join(HERE, 'dev-server.cjs'), 'utf8'));
 
   // A generator collection, so `gen` has something real to find in every Nx fixture.
   write('node_modules/@nx/js/package.json', { name: '@nx/js', version: '23.1.1', generators: './generators.json' });

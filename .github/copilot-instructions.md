@@ -29,11 +29,11 @@ bez zmian — każde dopisane zdanie to koszt w każdej sesji.
 ## Blok instrukcji `nx-angular-inspector` (koszt stały, własne nazwane znaczniki)
 
 Równy co do znaku blokowi w `AGENTS.md`. Znaczniki są nazwane, bo regex bramki łapie pierwszy nienazwany blok.
-Limit 200 tokenów na blok (zmierzone 184), 400 na wszystkie razem.
+Limit 200 tokenów na blok (zmierzone 195), 400 na wszystkie razem.
 
 <!-- INSTRUCTION:nx-angular-inspector:START -->
 
-> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
+> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>` · `serve [wait|stop] <projekt>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
 
 <!-- INSTRUCTION:nx-angular-inspector:END -->
 

@@ -17,6 +17,18 @@ import { parseSpec, scanGenerators, schemaOptions } from './generators.mjs';
 import { document, generatorPath, writeOut } from './out.mjs';
 import { workspaceDataDir } from './paths.mjs';
 import { formatAge, formatFail, formatInt, formatOk, plural, relPath, truncate, VERDICT } from './print.mjs';
+import {
+  alive,
+  DEFAULT_READY,
+  DEFAULT_WAIT_MS,
+  lastLines,
+  logFile,
+  readState,
+  startServe,
+  stopServe,
+  tail,
+  waitForServe,
+} from './serve.mjs';
 import { errorLines, parseTargetSpec, runTarget } from './target.mjs';
 import { INFERRING_FILES } from './stamp.mjs';
 import { loadModel, readJsonOrNull } from './workspace.mjs';
@@ -27,7 +39,7 @@ import { loadModel, readJsonOrNull } from './workspace.mjs';
  * @property {string} cwd where the agent ran the command, for relative paths on the line
  * @property {string} outDir
  * @property {string[]} args
- * @property {{ root?: string, out?: string, base?: string, fresh?: boolean, reverse?: boolean }} flags
+ * @property {{ root?: string, out?: string, base?: string, ready?: string, timeout?: string, fresh?: boolean, reverse?: boolean }} flags
  * @property {import('./detect.mjs').Detected} detected
  * @property {NodeJS.ProcessEnv} env
  * @property {number} now epoch ms, injected so a test does not race the clock
@@ -438,10 +450,79 @@ export function run(ctx) {
 }
 
 /**
+ * `serve [wait|stop] <projekt>` — a dev server started in the background, waited for, and stopped.
+ *
+ * The three modes are one verb because they are one object with a lifecycle, and the agent's
+ * instruction block pays for every name it lists.
+ * @param {Context} ctx
+ * @returns {Outcome}
+ */
+export function serve(ctx) {
+  const mode = ctx.args.length === 2 ? ctx.args[0] : 'start';
+  const project = ctx.args.length === 2 ? ctx.args[1] : (ctx.args[0] ?? '');
+  if (!['start', 'wait', 'stop'].includes(mode)) {
+    return { line: fail('serve', mode, `nieznany tryb ${mode} — oczekiwano wait albo stop`), exit: 1 };
+  }
+  if (project === '' || project === 'wait' || project === 'stop') {
+    return { line: fail('serve', mode === 'start' ? '' : mode, 'brakuje nazwy projektu'), exit: 1 };
+  }
+  const head = mode === 'start' ? `serve ${project}` : `serve ${mode} ${project}`;
+  const state = readState(ctx.outDir, project);
+
+  if (mode === 'stop') {
+    if (state === null) return { line: formatOk(head, ['nic nie działało']), exit: 0 };
+    const stopped = stopServe({ outDir: ctx.outDir, state });
+    if (!stopped.ok)
+      return { line: fail('serve', `stop ${project}`, stopped.error, [`pid ${String(state.pid)}`]), exit: 1 };
+    return { line: formatOk(head, ['zatrzymany', `pid ${String(state.pid)}`]), exit: 0 };
+  }
+
+  if (mode === 'wait') {
+    if (state === null)
+      return { line: fail('serve', `wait ${project}`, 'nic nie wystartowano — najpierw `serve <projekt>`'), exit: 1 };
+    const timeoutMs = Number(ctx.flags.timeout ?? 0) > 0 ? Number(ctx.flags.timeout) * 1000 : DEFAULT_WAIT_MS;
+    const ready = ctx.flags.ready === undefined ? DEFAULT_READY : new RegExp(ctx.flags.ready, 'u');
+    const result = waitForServe({ state, ready, timeoutMs });
+    const shownLog = shown(ctx, state.log);
+    if (result.status === 'ready') {
+      const seconds = `${(result.waitedMs / 1000).toFixed(1).replace('.', ',')} s`;
+      return { line: formatOk(head, ['gotowy', seconds, result.url, shownLog]), exit: 0 };
+    }
+    const why =
+      result.status === 'timeout'
+        ? `brak gotowości po ${formatInt(Math.round(timeoutMs / 1000))} s`
+        : 'proces zakończył się';
+    return { line: fail('serve', `wait ${project}`, why, [shownLog, result.tail.at(-1)]), exit: 1 };
+  }
+
+  // start
+  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const found = model.graph.projects.find((p) => p.name === project);
+  if (found === undefined)
+    return { line: fail('serve', project, `brak projektu ${project}`, [nonHit(model)]), exit: 1 };
+  const target = found.targets.includes('serve') ? 'serve' : '';
+  if (target === '') {
+    return { line: fail('serve', project, 'brak targetu serve', [found.targets.join(' ')]), exit: 1 };
+  }
+  if (state !== null && alive(state.pid)) {
+    return { line: formatOk(head, ['już działa', `pid ${String(state.pid)}`, shown(ctx, state.log)]), exit: 0 };
+  }
+
+  const started = startServe({ root: ctx.root, outDir: ctx.outDir, project, target, env: ctx.env });
+  if (!started.ok || started.state === null) {
+    return { line: fail('serve', project, started.error, [shown(ctx, logFile(ctx.outDir, project))]), exit: 1 };
+  }
+  return {
+    line: formatOk(head, [`pid ${String(started.state.pid)}`, 'czeka na `serve wait`', shown(ctx, started.state.log)]),
+    exit: 0,
+  };
+}
+
+/**
  * The table the CLI dispatches on. Same keys, same order as `VERBS` — a test asserts it, because a
  * verb present in one table and missing from the other fails silently.
  */
-export const RUNNERS = Object.freeze({ env, projects, graph, affected, gen, guide, run });
+export const RUNNERS = Object.freeze({ env, projects, graph, affected, gen, guide, run, serve });
 
 /**
  * `FAIL <verb> <arg> · reason · parts`.

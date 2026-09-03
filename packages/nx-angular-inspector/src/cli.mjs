@@ -17,14 +17,14 @@ export class CliError extends Error {
 }
 
 /** Flags that take a value; everything else in the tables is a boolean. */
-const VALUED = Object.freeze(new Set(['--root', '--out', '--base']));
+const VALUED = Object.freeze(new Set(['--root', '--out', '--base', '--ready', '--timeout']));
 
 /**
  * @typedef {object} Parsed
  * @property {'help' | 'version' | 'run'} mode
  * @property {string} verb '' in help/version mode
  * @property {string[]} args positional arguments after the verb
- * @property {{ root?: string, out?: string, base?: string, fresh?: boolean, reverse?: boolean }} flags
+ * @property {{ root?: string, out?: string, base?: string, ready?: string, timeout?: string, fresh?: boolean, reverse?: boolean }} flags
  */
 
 /**
@@ -72,11 +72,16 @@ export function parseArgs(argv) {
     flags[name.slice(2)] = value;
   }
 
-  const maxArgs = verb.args === '' ? 0 : 1;
-  if (args.length > maxArgs) {
+  // The arity comes from the `args` string in the table rather than a second field: two places to
+  // state the same thing is two places to disagree, and the help text is generated from that string
+  // anyway. `<foo>` is required, `[foo]` is not, and a token with no space in it counts as one
+  // argument (`<projekt>:<target>` is one word the caller types).
+  const tokens = verb.args.split(/\s+/u).filter((token) => token !== '');
+  const required = tokens.filter((token) => token.startsWith('<')).length;
+  if (args.length > tokens.length) {
     throw new CliError(`${verb.name}: za dużo argumentów (${String(args.length)})\n\n${usage(verb.name)}`);
   }
-  if (verb.args.startsWith('<') && args.length === 0) {
+  if (args.length < required) {
     throw new CliError(`${verb.name}: brakuje argumentu ${verb.args}\n\n${usage(verb.name)}`);
   }
 

@@ -35,6 +35,19 @@ if (argv[0] === 'run' && argv[1] === 'portal:build') {
   process.exit(1);
 }
 
+// The three serve targets. The dev server is a CHILD, not this process, because that is the shape
+// `stop` has to survive: killing the parent alone leaves the real server holding the port.
+const SERVE_MODES = { 'portal:serve': 'ready', 'portal:serve-hang': 'hang', 'portal:serve-die': 'die' };
+if (argv[0] === 'run' && SERVE_MODES[argv[1]] !== undefined) {
+  const child = require('node:child_process').spawn(
+    process.execPath,
+    [path.join(__dirname, 'dev-server.cjs'), SERVE_MODES[argv[1]]],
+    { stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true },
+  );
+  child.on('exit', (code) => process.exit(code === null ? 1 : code));
+  return;
+}
+
 if (argv[0] === 'run') {
   process.stdout.write(`${ESC}[32mok${ESC}[0m ${argv[1]}\n`);
   process.exit(0);

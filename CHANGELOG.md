@@ -14,6 +14,23 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   Node'a — keeper mógłby uratować najwyżej te 86 ms i kosztowałby identity hash, lock, nazwany pipe,
   sondę martwego pidu i doctora. W browser-inspectorze arytmetyka szła w drugą stronę i keeper był
   jedynym wyjściem.
+- **`serve [wait|stop] <projekt>`** — serwer dev startowany w tle, oczekiwany i zatrzymywany, bez trzymania
+  terminala i bez wieszania się. Trzy własności, które uzasadniają złożoność tego modułu:
+  dziecko jest **odczepione**, a jego wyjście idzie prosto na deskryptor, który potem zamykamy (na Windows
+  odziedziczony potok trzyma rodzica przy życiu, a otwarty uchwyt blokuje log);
+  `wait` **zawsze się kończy** — timeout to FAIL z ostatnimi liniami logu i ścieżką, a serwer, który padnie
+  w trakcie czekania, jest zauważony od razu, nie odczekany do deadline'u (zmierzone: 174 ms zamiast 30 s);
+  `stop` ubija **drzewo** — `nx run <p>:serve` jest rodzicem prawdziwego serwera, a zabicie samego rodzica
+  zostawia zajęty port. Test to sprawdza dosłownie: pyta port HTTP-em przed i po `stop`.
+  Sen w pętli oczekiwania to `Atomics.wait`, bo każdy inny czasownik tego narzędzia jest synchroniczny,
+  a promise w środku ścieżki, której cały kontrakt brzmi „jedna linia i wyjście", byłby ciężarem bez powodu.
+- **Fixture dostaje namiastkę serwera dev** (`fixtures/dev-server.cjs`) w trzech trybach: `ready` (bindnie port
+  i ogłasza się), `hang` (pisze, ale nigdy nie mówi że gotowy) i `die` (pada z błędem kompilacji). `wait`,
+  który tylko się udaje, nie dowodzi niczego. Port jest **efemeryczny** (`listen(0)`), więc pakiet nie rezerwuje
+  zakresu portów i równoległe przebiegi nie wchodzą sobie w drogę.
+- **Arność komend wynika z kolumny `args`** w tabeli czasowników, zamiast osobnego pola: dwa miejsca na
+  to samo to dwa miejsca do rozjechania się, a tekst pomocy i tak jest z tej kolumny generowany.
+
 - **`affected [--base <ref>]` i `run <projekt>:<target>`** w `nx-angular-inspector`. `affected` nie zastępuje
   niczego z żadnego serwera MCP — żaden go nie ma. Trzy kroki, każdy testowany osobno: `git diff --name-only
   <base>...HEAD` (trzy kropki, czyli wobec merge-base — dwie kropki uznałyby każdy commit, który wpadł na `main`,
