@@ -29,3 +29,6 @@ download/
 # Pages under test and a committed app build — not this repository's code style.
 **/fixtures/**
 bench/app/
+
+# Reconnaissance reports: a published artifact copied in verbatim, and its index.
+docs/research/
