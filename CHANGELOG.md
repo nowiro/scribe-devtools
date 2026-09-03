@@ -5,6 +5,25 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Added
+
+- **`scripts/pins.config.mjs` + bramka `scripts/check-pins.mjs`** (WP0 doktryny aktualności, `docs/research/`):
+  jedno miejsce, w którym wersja zależności jest deklarowana, i offline'owa bramka jako **drugi krok `verify`**,
+  zaraz po `prettier`. Pilnuje czterech rzeczy, których zielony zestaw testów nie pilnował: META (każda z 7
+  zależności w 3 manifestach ma wiersz — i odwrotnie; nowa paczka bez wiersza = FAIL), SHAPE (`exact` = goły numer,
+  `caret` = `^`), FLOOR (`minSupported`) i SYNC (lustra + `@playwright/mcp@<wersja>` w `.mcp.json` i
+  `.vscode/mcp.json`). Piąta, LAG, jest tą, po którą to powstało: podbicie `playwright-core` wskazuje dziś **28
+  linii prozy** cytujących starą wersję — w tym `docs/DESIGN.md:27`, gdzie mieszka sześć faktów o `aria-ref`
+  odczytanych z bundle'a 1.62.1. Bramka **wskazuje, nie przepisuje**: połowa tych linii to zdania o zachowaniu
+  („`response.fromCache()` nie istnieje w playwright-core 1.62.1”), więc podmiana numeru zamieniłaby zdanie prawdziwe
+  na fałszywe z nowym numerem. `pins:ignore` w linii zwalnia świadomy cytat starej wersji; `CHANGELOG.md`,
+  `docs/handoff/` i `docs/research/` są zamrożone globalnie, bo wersja jest tam zapisem zdarzenia.
+- **`playwright-core` dostaje podłogę `minSupported: '1.62.1'`** — próg, nie zakres. Pin w obu manifestach zostaje
+  **exact**, bo `scripts/portable-zip.mjs:84` porównuje string manifestu z wersją w `node_modules` przez `!==`:
+  `>=1.62.1` wywaliłoby każdy build portable, zanim zdążyłoby cokolwiek zepsuć w silniku. 22 testy w
+  `scripts/check-pins.test.mjs`, wszystkie na syntetycznych drzewach w `tmp` — test asertujący „to repo jest teraz
+  czyste” zzielenieje w dniu, w którym bramka przestanie działać.
+
 ### Changed
 
 - **Bench przeliczony przy `29c3119`**: ciepła ścieżka **315 → 275 ms**, `warm-tight` 296 → 265 ms, iloraz wobec

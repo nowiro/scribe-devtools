@@ -34,6 +34,7 @@ tam; `scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości.
 | --- | --- |
 | `npm run verify` | wszystko poniżej, w tej kolejności |
 | `prettier --check .` | format: 120 kolumn, LF, pojedyncze cudzysłowy (`.prettierignore`: proza z wąskimi tabelami, generowane, fixture'y) |
+| `node scripts/check-pins.mjs` | `scripts/pins.config.mjs` to jedyne miejsce, gdzie wersja zależności jest **deklarowana**. Bramka jest offline i deterministyczna (dlatego stoi tak wysoko): META — każda zależność w każdym manifeście ma wiersz, i odwrotnie; SHAPE — `exact` znaczy goły numer, `caret` znaczy `^`; FLOOR — `minSupported` jako podłoga (`playwright-core >= 1.62.1`), która **nie** rozluźnia `exact`; SYNC — lustra i linie komend (`@playwright/mcp@<wersja>` w `.mcp.json` i `.vscode/mcp.json`); LAG — proza cytująca inną wersję niż pin. Bramka **wskazuje, nie przepisuje**: część tych linii to twierdzenia o zachowaniu, więc podmiana numeru zrobiłaby z prawdy fałsz z nowym numerem. Świadomy cytat starej wersji zwalnia `pins:ignore` w linii. Pytanie „czy pin to nadal `latest`” jest kalendarzowe, wymaga sieci i **nie należy tutaj** |
 | `vitest run --project !smoke` | projekty `unit` (FakePage, keeper na prawdziwym pipe z fake'iem silnika w czterech plikach, `client-imports`), `scripts` (CODE-INDEX, portable staging + `browser-inspector help` z rozpakowanego drzewa), `bench`, `compat` (perf tylko z `BROWSER_INSPECTOR_PERF=1`). `smoke` jest wykluczony i idzie OSOBNO, na końcu (`npm run smoke`) — inaczej `vitest run` uruchamiał go drugi raz, a prawdziwy Chrome obok testów jednostkowych obciążał maszynę na tyle, że testy z budżetem 200 ms migotały |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**`, `bench/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
@@ -95,10 +96,16 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
   binarki wymaga PR w app-factory.
 - fixture `packages/browser-inspector/fixtures/app-factory.config.json` ≡ `read.config.browser-inspector.json`
   w app-factory (porty 4311–4314 → test przepisuje na 4571–4574).
+- **wszystkie wersje zależności**: `scripts/pins.config.mjs` ≡ manifesty ≡ linie komend ≡ proza
+  (bramka `check-pins`). Nowa zależność bez wiersza = FAIL — kontrola, która nie wie, czego nie
+  sprawdza, czyta się jak pokrycie, będąc jego brakiem. Poniższe dwa punkty są tego szczególnym
+  przypadkiem i zostają, bo mówią **co** się psuje, czego bramka powiedzieć nie umie.
 - wersja `@playwright/mcp`: `bench/package.json` ↔ `.mcp.json` ↔ `.vscode/mcp.json` (test).
-- `playwright-core` przypięty **exact** `1.62.1` w `packages/browser-inspector` i `bench`
-  (fakty o `aria-ref` w DESIGN.md dotyczą tej wersji); tożsamość keepera liczy tę wersję;
-  `stagePortable` odmawia, gdy `node_modules` ma inną.
+- `playwright-core` przypięty **exact** `1.62.1`, podłoga `minSupported: '1.62.1'`,
+  w `packages/browser-inspector` i `bench` (fakty o `aria-ref` w DESIGN.md dotyczą tej wersji);
+  tożsamość keepera liczy tę wersję; `stagePortable` odmawia, gdy `node_modules` ma inną —
+  i dlatego zakres zamiast gołego numeru wywala **każdy** build portable (`portable-zip.mjs:84`
+  porównuje string manifestu `!==`).
 - tabela budżetu §6 DESIGN.md ↔ `bench/budget.mjs` (`DESIGN_BUDGET`).
 - README „Sesja" (próbki stdout) ↔ `src/print.mjs` (test reprodukuje próbki DESIGN §4.4 co do znaku).
 

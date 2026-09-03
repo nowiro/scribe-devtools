@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 40.
+Modules: 42.
 
 ## bench/bench.mjs
 - exports: `SESSIONS_PER_DAY`, `WORKDAYS`
@@ -176,11 +176,19 @@ Modules: 40.
 ## scripts/check-instruction-sync.mjs
 - exports: `AGENTS_FILE`, `BENCH_FILE`, `COPILOT_FILE`, `TOKEN_LIMIT`, `checkInstructionSync`, `countTokens`, `extractInstruction`
 
+## scripts/check-pins.mjs
+- exports: `bareVersion`, `checkPins`, `compareVersions`, `discoverManifests`, `proseLag`, `readDeclarations`, `walkText`
+- imports: `scripts/pins.config.mjs`
+
 ## scripts/gen-steps-doc.mjs
 - exports: `DOC_FILE`, `SCHEMA_FILE`, `renderFromRepo`, `renderStepsDoc`
 
 ## scripts/index-code.mjs
 - exports: `INDEX_FILE`, `buildIndex`, `generateIndex`, `listSourceFiles`, `parseExports`, `parseImports`, `renderIndex`
+
+## scripts/pins.config.mjs
+- exports: `FROZEN_ALWAYS`, `PINS`
+- imported by: `scripts/check-pins.mjs`
 
 ## scripts/portable-zip.mjs
 - exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`
