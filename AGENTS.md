@@ -36,13 +36,13 @@ tam; `scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości.
 
 Ten sam mechanizm, własne **nazwane** znaczniki — regex bramki łapie pierwszy NIENAZWANY blok, więc
 drugi musi się nazwać. Kopia w `.github/copilot-instructions.md`, porównywana znak po znaku.
-Limit 200 tokenów na blok (zmierzone 164) i **400 na wszystkie razem** (dziś 322): agent czyta każdy
+Limit 200 tokenów na blok (zmierzone 184) i **400 na wszystkie razem** (dziś 342): agent czyta każdy
 blok, więc sam limit per blok pozwalałby rość kosztowi stałemu o jedno narzędzie naraz, nie czerwieniąc
-nigdy żadnej bramki. Blok nie wymienia `run`, `serve`, `docs` ani `affected` — tych komend jeszcze
-nie ma, a instrukcja opisuje to, co działa, nie plan.
+nigdy żadnej bramki. Blok nie wymienia `serve` ani `docs` — tych komend jeszcze nie ma, a instrukcja
+opisuje to, co działa, nie plan. `affected` nie zastępuje niczego z żadnego serwera MCP: żaden go nie ma.
 
 <!-- INSTRUCTION:nx-angular-inspector:START -->
-> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `gen [wzorzec|kolekcja:generator]` · `guide`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
+> Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
 <!-- INSTRUCTION:nx-angular-inspector:END -->
 
 ## Bramki — uruchamiaj PRZED uznaniem zmiany za skończoną

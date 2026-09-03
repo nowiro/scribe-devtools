@@ -13,9 +13,11 @@
 //   nx-too-old       nx 22                                     → FAIL, names nx >= 23
 //   angular-too-old  @angular/core 21                          → FAIL, names angular >= 22
 //   plain-npm        npm workspaces and nothing else           → FAIL, no third ecosystem branch
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {readonly string[]} */
 export const KINDS = Object.freeze([
@@ -134,6 +136,11 @@ export function makeWorkspace(dir, kind) {
     '.nx/workspace-data/project-graph.json',
     graphFileContent(projects, { portal: ['ui-kit', 'utils'], 'ui-kit': ['utils'] }),
   );
+
+  // The `nx` stand-in lives in its own file (`nx-stub.cjs`) and is COPIED here rather than
+  // written as a string: a program embedded in a string literal is unreadable in a diff and one
+  // escaping mistake away from being silently broken.
+  write('node_modules/nx/bin/nx.js', readFileSync(path.join(HERE, 'nx-stub.cjs'), 'utf8'));
 
   // A generator collection, so `gen` has something real to find in every Nx fixture.
   write('node_modules/@nx/js/package.json', { name: '@nx/js', version: '23.1.1', generators: './generators.json' });

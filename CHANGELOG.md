@@ -14,6 +14,26 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   Node'a — keeper mógłby uratować najwyżej te 86 ms i kosztowałby identity hash, lock, nazwany pipe,
   sondę martwego pidu i doctora. W browser-inspectorze arytmetyka szła w drugą stronę i keeper był
   jedynym wyjściem.
+- **`affected [--base <ref>]` i `run <projekt>:<target>`** w `nx-angular-inspector`. `affected` nie zastępuje
+  niczego z żadnego serwera MCP — żaden go nie ma. Trzy kroki, każdy testowany osobno: `git diff --name-only
+  <base>...HEAD` (trzy kropki, czyli wobec merge-base — dwie kropki uznałyby każdy commit, który wpadł na `main`,
+  za zmianę tej gałęzi), mapowanie po **najdłuższym prefiksie segmentowym** roota, i **domknięcie zależnych**.
+  Domknięcie jest połową, o której się zapomina: zmiana liścia dotyka każdej aplikacji, która go konsumuje,
+  a odpowiedź wymieniająca samą bibliotekę to ten rodzaj błędu, który przechodzi review i potem pomija build.
+- **Dopasowanie ścieżek zakotwiczone na SEGMENTACH** (`src/glob.mjs`). Naiwny matcher podciągowy testuje
+  `tools/testing/**/*.ts` przeciw `tools/scripts/x.spec.mjs` i mówi „tak", bo pozwolił gwiazdce zjeść ukośnik —
+  jedna pomyłka, która na prawdziwym workspace zamienia 21 dotkniętych projektów w 80. Osobno: `libs/ui` nie
+  zagarnia `libs/ui-kit`, a projekt zagnieżdżony wygrywa z rodzicem.
+- **`run` zdejmuje ANSI przed zapisem** (45-51 % tokenów kolorowego logu, których agent i tak nie widzi)
+  i wyciąga **maksymalnie pięć** unikalnych linii błędu, pomijając banery podsumowania. Na linii jest liczba
+  błędów i PIERWSZY z nich, przycięty do 40 znaków — limit 120 znaków i limit 40 tokenów to dwa różne limity,
+  a błąd kompilatora obok ścieżki jest dość gęsty, żeby przejść pierwszy i oblać drugi (zmierzone: 120 znaków
+  = 41 tokenów).
+- **Fixture'y dostają namiastkę binarki `nx`** (`fixtures/nx-stub.cjs`, kopiowana — nie wklejana jako napis —
+  do `node_modules/nx/bin/nx.js`). Dzięki niej testowalne są wreszcie dwie ścieżki, które OPUSZCZAJĄ proces:
+  fallback do CLI (`--fresh` → `przeliczone`, nieznana `version` → `nieznany format` i odpowiedź mimo to)
+  oraz `run`. `portal:build` zawodzi tam CELOWO i W KOLORZE, żeby zdejmowanie ANSI miało co żuć.
+
 - **Graf Nx jako źródło prawdy, `project.json` nie**: `readGraph` asertuje `version` (`"6.0"` — jedyna znana
   przy nx >= 23), nieznany kształt to werdykt `nieznany format` i fallback do `nx graph --file`, nigdy
   nadziejny parse. To dokładnie ta awaria, która położyła `nx-mcp` 0.25.0 na nx 23 — z tą różnicą, że tam
@@ -52,6 +72,15 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
   `>=1.62.1` wywaliłoby każdy build portable, zanim zdążyłoby cokolwiek zepsuć w silniku. 22 testy w
   `scripts/check-pins.test.mjs`, wszystkie na syntetycznych drzewach w `tmp` — test asertujący „to repo jest teraz
   czyste” zzielenieje w dniu, w którym bramka przestanie działać.
+
+### Fixed
+
+- **Linia `FAIL` z `nx-angular-inspector` nie była przycinana.** Lokalny helper `fail()` składał napis ręcznie
+  i omijał `formatFail`, więc `run portal:build` wypuścił linię 127-znakową przy limicie 120. Złapał to test
+  budżetu linii, bo obejmuje **każdą** komendę, a nie próbkę.
+- **`projects` w workspace z samym `angular.json`** raportowało `5/5 targetów z pluginów` — liczbę prawdziwą
+  arytmetycznie i fałszywą co do znaczenia, bo tam targety SĄ zadeklarowane, tylko w `angular.json`. Ta część
+  linii po prostu nie pada, gdy źródłem nie jest graf.
 
 ### Changed
 

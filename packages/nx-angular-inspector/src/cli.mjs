@@ -17,14 +17,14 @@ export class CliError extends Error {
 }
 
 /** Flags that take a value; everything else in the tables is a boolean. */
-const VALUED = Object.freeze(new Set(['--root', '--out']));
+const VALUED = Object.freeze(new Set(['--root', '--out', '--base']));
 
 /**
  * @typedef {object} Parsed
  * @property {'help' | 'version' | 'run'} mode
  * @property {string} verb '' in help/version mode
  * @property {string[]} args positional arguments after the verb
- * @property {{ root?: string, out?: string, fresh?: boolean, reverse?: boolean }} flags
+ * @property {{ root?: string, out?: string, base?: string, fresh?: boolean, reverse?: boolean }} flags
  */
 
 /**

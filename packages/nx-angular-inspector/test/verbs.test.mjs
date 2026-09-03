@@ -1,7 +1,8 @@
 // End to end through `main()`: the exact line, the exit code, and the file the line points at.
 // Nothing is mocked — every case runs against a generated workspace on a real filesystem, because
 // the two things most likely to be wrong (path handling and freshness) only exist there.
-import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -60,6 +61,8 @@ describe('kontrakt linii — obowiązuje każdą komendę', () => {
     ['nx-angular', ['gen']],
     ['nx-angular', ['gen', '@nx/js:library']],
     ['nx-angular', ['guide']],
+    ['nx-angular', ['run', 'ui-kit:test']],
+    ['nx-angular', ['run', 'portal:build']],
     ['nx-too-old', ['env']],
     ['plain-npm', ['projects']],
   ];
@@ -210,6 +213,108 @@ describe('świeżość na linii', () => {
     expect(line).toContain('nieświeże');
     // Ta sama komenda ODPOWIADA mimo nieświeżości — mówi o ryzyku, nie odmawia.
     expect(line.startsWith('ok ')).toBe(true);
+  });
+});
+
+describe('run — jedyna komenda, która coś zmienia', () => {
+  it('sukces: czas i ścieżka logu, kod 0', () => {
+    const { line, exit } = run('nx-angular', ['run', 'ui-kit:test']);
+    expect(exit).toBe(0);
+    expect(line).toMatch(/^ok run ui-kit:test · \d+,\d s · \.ws\/run\/ui-kit-test\.log$/u);
+  });
+
+  it('porażka: liczba błędów, ścieżka, PIERWSZY błąd — i kod 1', () => {
+    const { line, exit } = run('nx-angular', ['run', 'portal:build']);
+    expect(exit).toBe(1);
+    // Fragment błędu jest PRZYCIęTY: linia niesie wskazówkę, która to awaria, a cały tekst leży
+    // w logu jeden odczyt dalej. Limit 120 znaków i limit 40 tokenów to dwa różne limity, a błąd
+    // kompilatora obok ścieżki jest dość gęsty, żeby przejść pierwszy i oblać drugi.
+    expect(line).toBe(
+      'FAIL run portal:build · 2 błędy · .ws/run/portal-build.log · ERROR apps/portal/src/app/x.ts(12,5): e…',
+    );
+  });
+
+  it('log na dysku jest bez ANSI — to 45-51 % tokenów, których agent i tak nie widzi', () => {
+    run('nx-angular', ['run', 'portal:build']);
+    const log = readFileSync(outFile('nx-angular', 'run/portal-build.log'), 'utf8');
+    expect(log).toContain('error TS2322');
+    expect(log).not.toContain(String.fromCharCode(27));
+  });
+
+  it('zły kształt argumentu pada, zanim cokolwiek wystartuje', () => {
+    const { line, exit } = run('nx-angular', ['run', 'portal']);
+    expect(exit).toBe(1);
+    expect(line).toBe('FAIL run portal · oczekiwano <projekt>:<target>');
+  });
+});
+
+describe('affected', () => {
+  /**
+   * A fixture workspace that is also a git repository, with one commit on `main` and one on a
+   * branch touching a leaf library.
+   * @returns {string}
+   */
+  function gitWorkspace() {
+    const dir = path.join(base, 'nx-git');
+    makeWorkspace(dir, 'nx-only');
+    const git = (/** @type {string[]} */ args) =>
+      spawnSync('git', args, { cwd: dir, shell: false, windowsHide: true, encoding: 'utf8' });
+    git(['init', '-q', '-b', 'main']);
+    git(['config', 'user.email', 'test@example.invalid']);
+    git(['config', 'user.name', 'test']);
+    git(['config', 'commit.gpgsign', 'false']);
+    writeFileSync(path.join(dir, '.gitignore'), ['node_modules/', '.nx/', '.ws/', ''].join('\n'), 'utf8');
+    git(['add', '-A']);
+    git(['commit', '-qm', 'base']);
+    git(['checkout', '-qb', 'feature']);
+    writeFileSync(path.join(dir, 'libs', 'utils', 'nowy.ts'), 'export const a = 1;\n', 'utf8');
+    git(['add', '-A']);
+    git(['commit', '-qm', 'zmiana w utils']);
+    // Git dotknęło plików po zapisaniu grafu, więc stempel słusznie mówiłby `nieświeże`.
+    // Test dotyczy tego, co liczy `affected`, nie tego, co robi `git checkout` z mtime.
+    const soon = (Date.now() + 60_000) / 1000;
+    utimesSync(path.join(dir, '.nx', 'workspace-data', 'project-graph.json'), soon, soon);
+    return dir;
+  }
+
+  it('zmiana w libs/utils dotyka utils I wszystkich, którzy od niego zależą', () => {
+    const dir = gitWorkspace();
+    const { line, exit } = main(['affected', '--root', dir], { cwd: dir, env, now: Date.now() });
+    expect(exit).toBe(0);
+    expect(line).toBe('ok affected · 3/3 · 1 plik · main...HEAD · świeże · .ws/affected.md');
+    const written = readFileSync(path.join(dir, '.ws', 'affected.md'), 'utf8');
+    expect(written).toContain('- portal');
+    expect(written).toContain('domknięciem zależnych');
+  });
+
+  it('brak gita to FAIL nazywający zakres, nie cicha pusta odpowiedź', () => {
+    const dir = ws['nx-only'];
+    const { line, exit } = main(['affected', '--root', dir, '--base', 'nie-ma'], { cwd: dir, env, now: Date.now() });
+    expect(exit).toBe(1);
+    expect(line).toContain('FAIL affected');
+    expect(line).toContain('nie-ma...HEAD');
+  });
+});
+
+describe('fallback do CLI — ścieżka, która opuszcza ten proces', () => {
+  it('--fresh liczy graf przez `nx graph` i mówi `przeliczone`', () => {
+    const { line, exit } = run('nx-angular', ['projects', '--fresh']);
+    expect(exit).toBe(0);
+    expect(line).toContain('przeliczone');
+    expect(line).toContain('3');
+  });
+
+  it('nieznana wersja grafu → `nieznany format` i odpowiedź mimo to', () => {
+    const dir = path.join(base, 'nx-future-shape');
+    makeWorkspace(dir, 'nx-only');
+    const graph = path.join(dir, '.nx', 'workspace-data', 'project-graph.json');
+    const parsed = JSON.parse(readFileSync(graph, 'utf8'));
+    writeFileSync(graph, JSON.stringify({ ...parsed, version: '9.9' }), 'utf8');
+    const { line, exit } = main(['projects', '--root', dir], { cwd: dir, env, now: Date.now() });
+    expect(exit).toBe(0);
+    expect(line).toContain('nieznany format');
+    // Zdegradowało się do CLI, nie do złej odpowiedzi: projekty są te same.
+    expect(line).toContain('3');
   });
 });
 

@@ -9,13 +9,15 @@
 // verdict there would be a word that means nothing).
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { affectedProjects, changedFiles, sharedGlobals } from './affected.mjs';
 import { versionParts } from './detect.mjs';
 import { inferredTargets, matchProjects } from './graph.mjs';
 import { findGuides } from './guide.mjs';
 import { parseSpec, scanGenerators, schemaOptions } from './generators.mjs';
 import { document, generatorPath, writeOut } from './out.mjs';
 import { workspaceDataDir } from './paths.mjs';
-import { formatAge, formatInt, formatOk, plural, relPath, VERDICT } from './print.mjs';
+import { formatAge, formatFail, formatInt, formatOk, plural, relPath, truncate, VERDICT } from './print.mjs';
+import { errorLines, parseTargetSpec, runTarget } from './target.mjs';
 import { INFERRING_FILES } from './stamp.mjs';
 import { loadModel, readJsonOrNull } from './workspace.mjs';
 
@@ -25,11 +27,20 @@ import { loadModel, readJsonOrNull } from './workspace.mjs';
  * @property {string} cwd where the agent ran the command, for relative paths on the line
  * @property {string} outDir
  * @property {string[]} args
- * @property {{ root?: string, out?: string, fresh?: boolean, reverse?: boolean }} flags
+ * @property {{ root?: string, out?: string, base?: string, fresh?: boolean, reverse?: boolean }} flags
  * @property {import('./detect.mjs').Detected} detected
  * @property {NodeJS.ProcessEnv} env
  * @property {number} now epoch ms, injected so a test does not race the clock
  */
+
+/**
+ * How much of the first error `run` puts on the line.
+ *
+ * The 120-character cap and the 40-token cap are two different limits, and a compiler error next to
+ * a path is dense enough to pass the first and fail the second. The line carries a HINT about which
+ * failure this is; the full text is in the log, one read away.
+ */
+const ERROR_SNIPPET_MAX = 40;
 
 /** @typedef {{ line: string, exit: number }} Outcome */
 
@@ -330,13 +341,114 @@ export function guide(ctx) {
 }
 
 /**
+ * `affected [--base <ref>]` — which projects a range of commits touched, closed over the
+ * dependents.
+ *
+ * The closure is the half people leave out: changing a leaf library affects every application that
+ * consumes it, and an answer listing only the library is the sort of wrong that passes review and
+ * then skips a build.
+ * @param {Context} ctx
+ * @returns {Outcome}
+ */
+export function affected(ctx) {
+  const model = loadModel({ root: ctx.root, detected: ctx.detected, fresh: ctx.flags.fresh, env: ctx.env });
+  const nxJson = readJsonOrNull(path.join(ctx.root, 'nx.json'));
+  const base = ctx.flags.base ?? String(nxJson?.defaultBase ?? 'main');
+  const range = `${base}...HEAD`;
+
+  const changed = changedFiles(ctx.root, base);
+  if (!changed.ok) return { line: fail('affected', '', changed.error, [range]), exit: 1 };
+
+  const shared = sharedGlobals(nxJson);
+  const { projects: hit, sharedHit } = affectedProjects({
+    files: changed.files,
+    projects: model.graph.projects,
+    dependedOnBy: model.graph.dependedOnBy,
+    shared,
+  });
+
+  const file = writeOut(
+    ctx.outDir,
+    'affected.md',
+    document({ title: `Dotknięte przez ${range}`, source: model.source, freshness: verdict(model) }, [
+      sharedHit === null
+        ? `${formatInt(hit.length)} z ${formatInt(model.graph.projects.length)} projektów, z domknięciem zależnych.`
+        : `Zmieniony plik wspólny \`${sharedHit}\` — dotknięte są WSZYSTKIE projekty. Domknięcie nie ma tu nic do roboty.`,
+      '',
+      '## Projekty',
+      '',
+      ...(hit.length === 0 ? ['_żaden_'] : hit.map((name) => `- ${name}`)),
+      '',
+      `## Zmienione pliki (${formatInt(changed.files.length)})`,
+      '',
+      ...(changed.files.length === 0 ? ['_żaden_'] : changed.files.map((f) => `- \`${f}\``)),
+      '',
+      `Wzorce plików wspólnych: ${shared.map((g) => `\`${g}\``).join(', ')}.`,
+    ]),
+  );
+
+  return {
+    line: formatOk('affected', [
+      `${formatInt(hit.length)}/${formatInt(model.graph.projects.length)}`,
+      sharedHit === null ? plural(changed.files.length, ['plik', 'pliki', 'plików']) : `wspólny ${sharedHit}`,
+      range,
+      verdict(model),
+      shown(ctx, file),
+    ]),
+    exit: 0,
+  };
+}
+
+/**
+ * `run <projekt>:<target>` — the one verb that changes something.
+ *
+ * The full log lands on disk with the ANSI stripped (45-51 % of the tokens in a coloured build) and
+ * the line carries the error COUNT and the FIRST error, because that pair is what decides the next
+ * move. A failing TypeScript build prints hundreds of lines that are usually one mistake.
+ * @param {Context} ctx
+ * @returns {Outcome}
+ */
+export function run(ctx) {
+  const spec = ctx.args[0] ?? '';
+  const parsed = parseTargetSpec(spec);
+  if (parsed === null) return { line: fail('run', spec, 'oczekiwano <projekt>:<target>'), exit: 1 };
+
+  const started = Date.now();
+  const result = runTarget(ctx.root, parsed.project, parsed.target, ctx.env);
+  const seconds = `${((Date.now() - started) / 1000).toFixed(1).replace('.', ',')} s`;
+  const logPath = writeOut(
+    ctx.outDir,
+    `run/${parsed.project.replaceAll('/', '-')}-${parsed.target.replaceAll(':', '-')}.log`,
+    result.log === '' ? '(bez wyjścia)' : result.log,
+  );
+
+  if (result.error !== '') return { line: fail('run', spec, result.error, [shown(ctx, logPath)]), exit: 1 };
+  if (result.status === 0) return { line: formatOk(`run ${spec}`, [seconds, shown(ctx, logPath)]), exit: 0 };
+
+  const errors = errorLines(result.log);
+  return {
+    line: fail(
+      'run',
+      spec,
+      errors.length === 0 ? `kod ${formatInt(result.status)}` : plural(errors.length, ['błąd', 'błędy', 'błędów']),
+      [shown(ctx, logPath), errors[0] === undefined ? '' : truncate(errors[0], ERROR_SNIPPET_MAX)],
+    ),
+    exit: 1,
+  };
+}
+
+/**
  * The table the CLI dispatches on. Same keys, same order as `VERBS` — a test asserts it, because a
  * verb present in one table and missing from the other fails silently.
  */
-export const RUNNERS = Object.freeze({ env, projects, graph, gen, guide });
+export const RUNNERS = Object.freeze({ env, projects, graph, affected, gen, guide, run });
 
 /**
  * `FAIL <verb> <arg> · reason · parts`.
+ *
+ * Delegates to `formatFail` rather than joining by hand. The hand-rolled version skipped the
+ * truncation and shipped a 127-character line — over the 120 cap the whole contract rests on, and
+ * caught only because the line-budget test covers every verb rather than a sample.
  * @param {string} verb
  * @param {string} arg
  * @param {string} reason
@@ -344,8 +456,7 @@ export const RUNNERS = Object.freeze({ env, projects, graph, gen, guide });
  * @returns {string}
  */
 function fail(verb, arg, reason, parts = []) {
-  const kept = parts.filter((p) => typeof p === 'string' && p !== '');
-  return ['FAIL', `${verb}${arg === '' ? '' : ` ${arg}`}`].join(' ') + ['', reason, ...kept].join(' · ');
+  return formatFail(`${verb}${arg === '' ? '' : ` ${arg}`}`, reason, parts);
 }
 
 /**

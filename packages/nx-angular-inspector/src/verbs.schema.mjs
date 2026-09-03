@@ -50,6 +50,14 @@ export const VERBS = Object.freeze([
     needsGraph: true,
   },
   {
+    name: 'affected',
+    args: '',
+    flags: ['--base'],
+    summary: 'projekty dotknięte zmianami wobec bazy, z domknięciem zależnych',
+    writes: '.ws/affected.md',
+    needsGraph: true,
+  },
+  {
     name: 'gen',
     args: '[wzorzec|kolekcja:generator]',
     flags: [],
@@ -63,6 +71,14 @@ export const VERBS = Object.freeze([
     flags: [],
     summary: 'gdzie leżą zasady dla tego workspace i ile kosztuje ich przeczytanie',
     writes: '.ws/guide.md',
+    needsGraph: false,
+  },
+  {
+    name: 'run',
+    args: '<projekt>:<target>',
+    flags: [],
+    summary: 'uruchamia target; pełny log bez ANSI na dysk, na linii liczba błędów i pierwszy z nich',
+    writes: '.ws/run/<projekt>-<target>.log',
     needsGraph: false,
   },
 ]);
