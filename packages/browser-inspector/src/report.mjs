@@ -45,11 +45,29 @@ export const CAPS = Object.freeze({
   errorLines: 10,
 });
 
+/**
+ * `## values` inlines a value only while it still reads as a line or a short block; past this it is
+ * a pointer at `values/<name>.txt`, whatever `CAPS.extract` lets report.json keep. report.md is
+ * written against a ~200-token budget, and one 40-line extract used to spend four of them.
+ */
+export const INLINE_VALUE = Object.freeze({ chars: 300, lines: 6 });
+
+/** @param {string} value */
+const inlineable = (value) => value.length <= INLINE_VALUE.chars && value.split('\n').length <= INLINE_VALUE.lines;
+
 export const SOURCE = 'browser-inspector';
 export const SCRIPT = 'browser-inspector';
 
 /** @param {unknown} text */
 const firstLine = (text) => String(text).split('\n')[0] ?? '';
+
+/**
+ * `shots a.png b.png` while the list is short; a flow that shoots every step would otherwise spend
+ * the header on file names report.json lists anyway.
+ * @param {readonly string[]} names
+ */
+const shotsSummary = (names) =>
+  names.length <= 3 ? `shots ${names.join(' ')}` : `shots ${String(names.length)}: ${names.slice(0, 2).join(' ')} …`;
 
 /**
  * `Error: uczen widzi przycisk nauczyciela` — the form the app-factory gate prints and its spec
@@ -267,17 +285,20 @@ export function artifactFiles(report) {
     files[report.files.text] = report.text.content;
   }
   for (const [name, value] of Object.entries(report.extracts)) {
-    // Only the head is left here — the whole value exists while `buildReport` still has it, and it
-    // puts the file in `BuiltReport.files`, which wins over this one in `writeArtifacts`.
-    if (value.truncated) files[`values/${name}.txt`] = value.value;
+    // A truncated value: only the head is left here — the whole exists while `buildReport` still
+    // has it, and it puts the file in `BuiltReport.files`, which wins over this one in
+    // `writeArtifacts`. A long value under the cap is whole here, and report.md points at the file
+    // instead of inlining it.
+    if (value.truncated || !inlineable(value.value)) files[`values/${name}.txt`] = value.value;
   }
   return files;
 }
 
 // ── report.md ────────────────────────────────────────────────────────────────
 
-/** A value in `## values`: one line inline, several lines fenced, over the cap a file. */
 /**
+ * A value in `## values`: one line inline, a few lines fenced, anything longer (`INLINE_VALUE`) or
+ * truncated a pointer at its file.
  * @param {string} name
  * @param {ExtractedValue} value
  * @returns {string[]}
@@ -286,11 +307,13 @@ function renderValue(name, value) {
   // `(hidden)` because `innerText` answers with `textContent` for a node the page does not render:
   // without it the report presented a validation error nobody could see as observed screen text.
   const name_ = value.hidden === true ? `${name} (hidden)` : name;
-  if (value.truncated) {
+  if (value.truncated || !inlineable(value.value)) {
     // `length` = the whole value is in the file; without it the head is all anyone has, and the
-    // number can only be a lower bound.
+    // number can only be a lower bound. An untruncated value IS whole, so its own length is exact.
     const chars =
-      typeof value.length === 'number' ? `${formatMs(value.length)} chars` : `${formatMs(value.value.length)}+ chars`;
+      typeof value.length === 'number'
+        ? `${formatMs(value.length)} chars`
+        : `${formatMs(value.value.length)}${value.truncated ? '+' : ''} chars`;
     return [`${name_}: values/${name}.txt (${chars})`];
   }
   if (!value.value.includes('\n')) return [`${name_}: ${value.value}`];
@@ -408,7 +431,7 @@ export function renderReportMd(report) {
     `${where}${report.title !== undefined ? ` ${JSON.stringify(report.title)}` : ''}`,
     `console ${String(report.console.total)}${consoleErrors > 0 ? ` (${String(consoleErrors)} err)` : ''}`,
     `net ${String(report.network.total)}${netFailed > 0 ? ` (${String(netFailed)} failed)` : ''}`,
-    ...(report.screenshots.length > 0 ? [`shots ${report.screenshots.join(' ')}`] : []),
+    ...(report.screenshots.length > 0 ? [shotsSummary(report.screenshots)] : []),
   ].join(' · ');
 
   const out = [head, summary];

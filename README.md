@@ -77,7 +77,8 @@ ok affected --base main · 2 projekty (świeże) · .ws/affected.txt
 Każda komenda kończy się ścieżką pliku w `.ws/` z całą odpowiedzią — odpowiedź jest w tym pliku,
 nie w powtórzeniu komendy. Stempel świeżości chodzi po katalogach (18 ms), `--deep` dokłada mtime
 plików. Wspierane tylko nx >= 23 i angular >= 22 — starsze wersje dają czytelny komunikat, nie
-zgadywanie. Pełna lista komend: `nx-angular-inspector guide`.
+zgadywanie. Pełna lista komend: `nx-angular-inspector help`; zasady workspace'u i koszt ich przeczytania:
+`nx-angular-inspector guide`.
 
 ## Wersja portable
 
@@ -92,7 +93,7 @@ Bez npm, bez builda: `npm run portable` pakuje oba narzędzia do
 - `.github/copilot-instructions.md` — karta repo i kanoniczna kopia bloków instrukcji obu narzędzi
   (ta sama, którą kopiuje repozytorium aplikacji; `npm run verify` pilnuje równości z `AGENTS.md`).
 - `.github/instructions/*.instructions.md` — reguły per obszar plików (`source`, `scripts`,
-  `docs`), dołączane automatycznie według `applyTo`.
+  `docs`, `nx-angular-inspector`), dołączane automatycznie według `applyTo`.
 - `.github/prompts/`: `/migrate-from-mcp-playwright` prowadzi migrację repozytorium aplikacji
   (Nx monorepo) z serwera MCP Playwrighta na `browser-inspector`; `/browser-session` to pętla
   „spójrz, potem kliknij" dla sesji interaktywnej.

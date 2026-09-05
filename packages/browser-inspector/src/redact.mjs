@@ -43,8 +43,22 @@ export function secretForms(secretValues) {
  */
 export function redact(text, secretValues) {
   if (typeof text !== 'string' || text.length === 0) return text;
+  return redactWith(text, secretForms(secretValues));
+}
+
+/**
+ * `redact` with the forms already computed — for a caller that redacts many strings against one
+ * set of secrets (every stdout line of a keeper, a 200-entry jsonl flush). `secretForms` costs
+ * ~10 µs per call and the replacement under 1 µs, so recomputing the forms per line WAS the cost
+ * of redaction.
+ * @param {string} text
+ * @param {readonly string[]} forms from `secretForms`
+ * @returns {string}
+ */
+export function redactWith(text, forms) {
+  if (typeof text !== 'string' || text.length === 0) return text;
   let out = text;
-  for (const form of secretForms(secretValues)) {
+  for (const form of forms) {
     if (out.includes(form)) out = out.replaceAll(form, MASK);
   }
   return out;
@@ -64,12 +78,12 @@ export function redactDeep(value, secretValues) {
   if (forms.length === 0) return value;
   /** @param {any} node @returns {any} */
   const walk = (node) => {
-    if (typeof node === 'string') return redact(node, secretValues);
+    if (typeof node === 'string') return redactWith(node, forms);
     if (Array.isArray(node)) return node.map(walk);
     if (node && typeof node === 'object') {
       /** @type {Record<string, any>} */
       const out = {};
-      for (const [key, inner] of Object.entries(node)) out[redact(key, secretValues)] = walk(inner);
+      for (const [key, inner] of Object.entries(node)) out[redactWith(key, forms)] = walk(inner);
       return out;
     }
     return node;

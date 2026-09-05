@@ -460,8 +460,8 @@ async function runBatch(parsed, request, ctx, secretValues) {
 
 /**
  * The part of a report the run manifest reads, for a flow that returned a summary (a fake engine)
- * or none at all (`runFlow` threw): the timing gets every field so `bench/budget.mjs` never
- * reads `undefined`, and the missing measurements are honest zeros, not guesses.
+ * or none at all (`runFlow` threw): the timing gets every field so a budget reader never sees
+ * `undefined`, and the missing measurements are honest zeros, not guesses.
  * @param {boolean} completed
  * @param {Record<string, any>} [timing]
  * @returns {ManifestReport}

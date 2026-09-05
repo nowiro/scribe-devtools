@@ -1,6 +1,7 @@
 // steps.run.mjs — `RUNNERS[name] = async (ctx, step) => …`, the engine-side twin of `STEPS`
 // (DESIGN.md §3.2). Imported ONLY by the engine: the client parses argv from `steps.schema.mjs`
-// and never pays for playwright-core. A test keeps `Object.keys(RUNNERS)` ≡ `Object.keys(STEPS)`.
+// and never pays for playwright-core. `Object.keys(RUNNERS)` must equal `Object.keys(STEPS)` — a
+// test asserts it where the suite is checked out.
 //
 // The batch section (WP2) covers every step a config may carry. The session section (WP6) covers
 // the rows marked `batch: false` in the schema (find, routes, tabs, console, net, trace, video,

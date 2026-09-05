@@ -106,20 +106,29 @@ export function mtime(file) {
   }
 }
 
+/** Runaway guards for a symlinked or pathological tree. */
+const DIR_LIMIT = 20_000;
+const FILE_LIMIT = 200_000;
+
 /**
- * Every directory at or below `from`, skipping installed and generated trees.
+ * ONE sweep below `from`: every directory and, with `files`, every file too, skipping installed
+ * and generated trees. One `readdirSync` per directory — `--deep` used to walk the same tree three
+ * times (the directory list, the same list again inside `filesUnder`, then one more readdir per
+ * directory for its files).
  * @param {string} from
- * @param {number} [limit] a runaway guard for a symlinked or pathological tree
- * @returns {string[]}
+ * @param {{ files: boolean, dirLimit?: number, fileLimit?: number }} options
+ * @returns {{ dirs: string[], files: string[] }}
  */
-export function directoriesUnder(from, limit = 20_000) {
+function sweep(from, { files, dirLimit = DIR_LIMIT, fileLimit = FILE_LIMIT }) {
+  /** @type {string[]} */
+  const dirs = [];
   /** @type {string[]} */
   const found = [];
   /** @type {string[]} */
   const stack = [from];
-  while (stack.length > 0 && found.length < limit) {
+  while (stack.length > 0 && dirs.length < dirLimit && (!files || found.length < fileLimit)) {
     const dir = /** @type {string} */ (stack.pop());
-    found.push(dir);
+    dirs.push(dir);
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
@@ -127,12 +136,25 @@ export function directoriesUnder(from, limit = 20_000) {
       continue;
     }
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
-      stack.push(path.join(dir, entry.name));
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
+        stack.push(path.join(dir, entry.name));
+      } else if (files && found.length < fileLimit && !entry.name.startsWith('.')) {
+        found.push(path.join(dir, entry.name));
+      }
     }
   }
-  return found;
+  return { dirs, files: found };
+}
+
+/**
+ * Every directory at or below `from`, skipping installed and generated trees.
+ * @param {string} from
+ * @param {number} [limit] a runaway guard for a symlinked or pathological tree
+ * @returns {string[]}
+ */
+export function directoriesUnder(from, limit = DIR_LIMIT) {
+  return sweep(from, { files: false, dirLimit: limit }).dirs;
 }
 
 /**
@@ -141,24 +163,24 @@ export function directoriesUnder(from, limit = 20_000) {
  * @param {number} [limit]
  * @returns {string[]}
  */
-export function filesUnder(from, limit = 200_000) {
-  /** @type {string[]} */
-  const found = [];
-  for (const dir of directoriesUnder(from)) {
-    if (found.length >= limit) break;
-    let entries;
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      if (entry.isDirectory() || entry.name.startsWith('.')) continue;
-      found.push(path.join(dir, entry.name));
-      if (found.length >= limit) break;
-    }
-  }
-  return found;
+export function filesUnder(from, limit = FILE_LIMIT) {
+  return sweep(from, { files: true, fileLimit: limit }).files;
+}
+
+/**
+ * Whether `child` is inside `parent` along a path the sweep would have walked — so its own sweep
+ * would only repeat `readdirSync` calls already made. A child behind a skipped directory (`dist/`,
+ * a dot-directory) is NOT covered and keeps its own sweep.
+ * @param {string} parent absolute
+ * @param {string} child absolute
+ */
+function sweptBy(parent, child) {
+  if (child === parent) return true;
+  if (!child.startsWith(parent + path.sep)) return false;
+  return child
+    .slice(parent.length + 1)
+    .split(path.sep)
+    .every((segment) => !SKIP_DIRS.has(segment) && !segment.startsWith('.'));
 }
 
 /**
@@ -176,8 +198,12 @@ export function inputSet(root, projectRoots, deep = false) {
   // only this one, and the previous version of this function did not look at it.
   paths.add(root);
 
-  for (const projectRoot of projectRoots) {
-    const abs = path.resolve(root, projectRoot);
+  // Sorted, so a root that contains another comes first and the nested one skips its sweep: with a
+  // project at `.` (the `nx init` on an Angular app shape) every other project's tree was read
+  // twice — the same `readdirSync` calls, deduplicated only in the Set afterwards.
+  /** @type {string[]} */
+  const swept = [];
+  for (const abs of projectRoots.map((projectRoot) => path.resolve(root, projectRoot)).sort()) {
     for (const file of INFERRING_FILES) paths.add(path.join(abs, file));
     // EVERY ancestor up to the workspace root, not just the immediate parent: with projects under
     // `libs/shared/ui/*`, a new project at `libs/shared/data/store` moves `libs/shared`, which the
@@ -186,8 +212,11 @@ export function inputSet(root, projectRoots, deep = false) {
       paths.add(dir);
       if (dir === path.dirname(dir)) break;
     }
-    for (const dir of directoriesUnder(abs)) paths.add(dir);
-    if (deep) for (const file of filesUnder(abs)) paths.add(file);
+    if (swept.some((done) => sweptBy(done, abs))) continue;
+    swept.push(abs);
+    const { dirs, files } = sweep(abs, { files: deep });
+    for (const dir of dirs) paths.add(dir);
+    for (const file of files) paths.add(file);
   }
   return [...paths];
 }

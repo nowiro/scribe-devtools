@@ -1,10 +1,11 @@
 // cli.mjs — the pure argv parser. Nothing here touches the disk or the environment: the result
 // says what to do and `verbs.run.mjs` does it.
 //
-// A typo fails HERE, with the help line of the verb, and never as an empty result from a graph
-// query — `nx-angular-inspector projcts` must not read a 1,4 MB file before saying it does not know
-// that word. `CliError.exit` is 2 for every parsing failure, so an agent can tell "you typed it
-// wrong" (2) from "the answer is no" (1).
+// A typo fails HERE, as ONE `FAIL` line in the shape of every other answer, and never as an empty
+// result from a graph query — `nx-angular-inspector projcts` must not read a 1,4 MB file before
+// saying it does not know that word. The line names the verb's `help` instead of printing it: the
+// full table after a missing argument cost ~150 tokens per mistake. `CliError.exit` is 2 for every
+// parsing failure, so an agent can tell "you typed it wrong" (2) from "the answer is no" (1).
 import { findVerb, GLOBAL_FLAGS, usage, VERB_NAMES } from './verbs.schema.mjs';
 
 export class CliError extends Error {
@@ -42,7 +43,7 @@ export function parseArgs(argv) {
 
   const verb = findVerb(first);
   if (verb === undefined) {
-    throw new CliError(`nieznana komenda: ${first} — znane: ${VERB_NAMES.join(', ')}`);
+    throw new CliError(`FAIL ${first} · nieznana komenda · znane: ${VERB_NAMES.join(', ')}`);
   }
 
   /** @type {string[]} */
@@ -60,10 +61,10 @@ export function parseArgs(argv) {
     const eq = token.indexOf('=');
     const name = eq === -1 ? token : token.slice(0, eq);
     if (!allowed.has(name)) {
-      throw new CliError(`${verb.name}: nieznana flaga ${name} — dozwolone: ${[...allowed].join(' ')}`);
+      throw new CliError(`FAIL ${verb.name} · nieznana flaga ${name} · dozwolone: ${[...allowed].join(' ')}`);
     }
     if (!VALUED.has(name)) {
-      if (eq !== -1) throw new CliError(`${verb.name}: flaga ${name} nie przyjmuje wartości`);
+      if (eq !== -1) throw new CliError(`FAIL ${verb.name} · flaga ${name} nie przyjmuje wartości`);
       flags[name.slice(2)] = true;
       continue;
     }
@@ -71,7 +72,7 @@ export function parseArgs(argv) {
     // A flag is never a value. `--root --deep` used to set root to the string `--deep` and then
     // silently drop `--deep` — two wrong things from one typo, neither of them reported.
     if (value === undefined || value === '' || (eq === -1 && value.startsWith('--'))) {
-      throw new CliError(`${verb.name}: flaga ${name} wymaga wartości`);
+      throw new CliError(`FAIL ${verb.name} · flaga ${name} wymaga wartości`);
     }
     if (eq === -1) i += 1;
     flags[name.slice(2)] = value;
@@ -83,11 +84,12 @@ export function parseArgs(argv) {
   // argument (`<projekt>:<target>` is one word the caller types).
   const tokens = verb.args.split(/\s+/u).filter((token) => token !== '');
   const required = tokens.filter((token) => token.startsWith('<')).length;
+  const help = `nx-angular-inspector help ${verb.name}`;
   if (args.length > tokens.length) {
-    throw new CliError(`${verb.name}: za dużo argumentów (${String(args.length)})\n\n${usage(verb.name)}`);
+    throw new CliError(`FAIL ${verb.name} · za dużo argumentów (${String(args.length)}) · ${help}`);
   }
   if (args.length < required) {
-    throw new CliError(`${verb.name}: brakuje argumentu ${verb.args}\n\n${usage(verb.name)}`);
+    throw new CliError(`FAIL ${verb.name} · brakuje argumentu ${verb.args} · ${help}`);
   }
 
   return { mode: 'run', verb: verb.name, args, flags };

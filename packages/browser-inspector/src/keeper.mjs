@@ -25,7 +25,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { EngineUnavailableError, done, handleRequest, messageOf, statusOf } from './keeper.requests.mjs';
 import { DEFAULT_OUTPUT_DIR, lockFile, logFile, packageVersion, pidFile } from './paths.mjs';
 import { formatMs } from './print.mjs';
-import { redact } from './redact.mjs';
+import { redact, redactWith, secretForms } from './redact.mjs';
 
 /** 30 min — an agent↔human loop has long pauses; 5 min turned most "second" calls into cold ones. */
 export const IDLE_MS_DEFAULT = 30 * 60 * 1000;
@@ -370,6 +370,8 @@ export function createContext(options = {}) {
   const sessions = new Map();
   /** Every secret ever seen by this process — the log is redacted against all of them. */
   const secrets = new Set();
+  /** Their spellings, recomputed only when the set grows — `redactAll` runs on every stdout line. */
+  let secretFormsNow = /** @type {string[]} */ ([]);
   const idleMs = options.idleMs ?? intEnv(env, 'BROWSER_INSPECTOR_IDLE_MS', IDLE_MS_DEFAULT);
   const sessionTtlMs = options.sessionTtlMs ?? intEnv(env, 'BROWSER_INSPECTOR_SESSION_TTL_MS', SESSION_TTL_MS_DEFAULT);
   const maxJobs = options.maxJobs ?? intEnv(env, 'BROWSER_INSPECTOR_MAX_JOBS', MAX_JOBS_DEFAULT);
@@ -530,9 +532,11 @@ export function createContext(options = {}) {
     engineError: () => engineError,
     stats: () => ({ jobs, lastJobEndedAt, idleMs, sessionTtlMs, maxJobs, maxRssMb, recycleDue }),
     noteSecrets: (/** @type {string[]} */ values) => {
+      const before = secrets.size;
       for (const v of values) if (typeof v === 'string' && v !== '') secrets.add(v);
+      if (secrets.size !== before) secretFormsNow = secretForms([...secrets]);
     },
-    redactAll: (/** @type {string} */ text) => redact(text, [...secrets]),
+    redactAll: (/** @type {string} */ text) => redactWith(text, secretFormsNow),
     /**
      * Run `fn` on the queue `key` once the engine is ready; counts the job, arms idle, recycles.
      * Rejects with `EngineUnavailableError` when there is no engine — the caller turns that into
@@ -650,14 +654,24 @@ export async function startKeeper(options) {
   /** @type {string[]} */
   const secretsForLog = [];
 
+  // The size is counted, not stat'ed: `log` runs at least once per request on the keeper's event
+  // loop, and two synchronous syscalls per line add up under an antivirus filter driver. One stat
+  // at start-up picks up what an earlier keeper left in the file.
+  let logBytes = 0;
+  try {
+    logBytes = fs.statSync(logPath).size;
+  } catch {
+    // No log yet.
+  }
   const log = (/** @type {string} */ line) => {
     try {
-      const stat = fs.existsSync(logPath) ? fs.statSync(logPath).size : 0;
-      if (stat > LOG_MAX_BYTES) fs.writeFileSync(logPath, '');
-      fs.appendFileSync(
-        logPath,
-        `${new Date().toISOString()} [${String(process.pid)}] ${redact(line, secretsForLog)}\n`,
-      );
+      if (logBytes > LOG_MAX_BYTES) {
+        fs.writeFileSync(logPath, '');
+        logBytes = 0;
+      }
+      const entry = `${new Date().toISOString()} [${String(process.pid)}] ${redact(line, secretsForLog)}\n`;
+      fs.appendFileSync(logPath, entry);
+      logBytes += Buffer.byteLength(entry);
     } catch {
       // A log that cannot be written must not take the keeper down.
     }

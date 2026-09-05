@@ -41,21 +41,10 @@ bramki.
 > Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>` · `serve [wait|stop] <projekt>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
 <!-- INSTRUCTION:nx-angular-inspector:END -->
 
-## Znane granice `nx-angular-inspector` — nazwane, nie ukryte
-
-- **Tani stempel świeżości nie widzi edycji istniejącego pliku.** Krawiedzie grafu biorą się
-  z importów, a zmiana `import` w pliku, który już istnieje, nie rusza mtime żadnego katalogu
-  (sprawdzone na NTFS). Domyślny stempel chodzi po katalogach — **18 ms**, łapie dodanie, usunięcie
-  i zmianę nazwy pliku oraz nowy projekt gdziekolwiek. `--deep` dokłada mtime plików — **275 ms**
-  przy 20 000 plików. Obie liczby zmierzone; wybór należy do wołającego, a `env` drukuje tę lukę.
-- **Limit 120 znaków na linię jest twardy** i pilnuje go `formatLine`, który **nigdy nie tnie
-  dwóch ostatnich części** (werdyktu i ścieżki).
-- **`project-graph.json` to prywatny kontrakt Nx.** Asertujemy `version` (`"6.0"`); nieznana wartość
-  to werdykt `nieznany format` i fallback do CLI — wolniej, nigdy źle.
-- **`docs` nie istnieje.** Wymagałoby klucza Algolii osadzonego w angular.dev, który może się
-  zrotować, i endpointu nx.dev — czyli dokładnie tego cichego dryfu, przed którym ostrzega instrukcja
-  wyżej. Blok instrukcji jest przy tym blisko sufitu (200 tokenów): `docs` nie zmieści się bez
-  skrócenia czegoś innego, i to jest zamierzone.
+Znane granice `nx-angular-inspector` (stempel świeżości a edycja pliku, twardy limit 120 znaków, prywatny
+kontrakt `project-graph.json`, brak `docs`):
+[.github/instructions/nx-angular-inspector.instructions.md](.github/instructions/nx-angular-inspector.instructions.md)
+— Copilot dołącza go sam, gdy edytujesz ten pakiet.
 
 ## Bramki — uruchamiaj PRZED uznaniem zmiany za skończoną
 
@@ -66,24 +55,18 @@ bramki.
 | `node scripts/check-pins.mjs` | `scripts/pins.config.mjs` to jedyne miejsce, gdzie wersja zależności jest **deklarowana**. Bramka jest offline i deterministyczna: META — każda zależność w każdym manifeście ma wiersz, i odwrotnie; SHAPE — `exact` znaczy goły numer, `caret` znaczy `^`; FLOOR — `minSupported` jako podłoga (`playwright-core >= 1.62.1`), która **nie** rozluźnia `exact`; LAG — proza cytująca inną wersję niż pin. Bramka **wskazuje, nie przepisuje**: świadomy cytat starej wersji zwalnia `pins:ignore` w linii |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
-| `node scripts/check-instruction-sync.mjs` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 200 tokenów na blok i 400 na wszystkie razem. Blok nieobecny w OBU plikach jest pomijany; obecny w jednym i brakujący w drugim to FAIL |
+| `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 200 tokenów na blok i 400 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; `--require-all` robi FAIL także z bloku brakującego w OBU plikach — bez tego skasowanie obu kopii przechodziłoby jako „pominięty” |
 
-**Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — kalendarzowa połowa
-doktryny aktualności, dopełnienie `check-pins`. Pyta rejestr npm o `dist-tags.latest` dla każdego
-pinu i mierzy, od kiedy pin jest za `latest` — **od `firstSeenBehind`, nie od daty wydania
-`latest`**, bo ta resetuje się przy każdym release'ie niezależnie od tego, czy jesteśmy jedną
-wersją w tyle czy dziesięcioma. Zegar żyje w commitowanym `scripts/upstream-state.json` i przeżywa
-między uruchomieniami: samo odpalenie skryptu **nie** przesuwa `firstSeenBehind`. WARN dopiero po
-przekroczeniu `staleDays` z wiersza pinu; exit 1 tylko z `--strict`. WARN nie znaczy „błąd" —
-`@types/node` jest przypięty na majorze 22 **celowo** (`pins.config.mjs` mówi dlaczego) i będzie
-WARN-ował co `staleDays` bez końca; `--ack <id|all>` to zapis decyzji człowieka „widziałem,
-zostaję" — resetuje zegar tylko dla pinu, który faktycznie jest za `latest`, i tylko wtedy, gdy
-ktoś o to świadomie poprosi.
+**Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — pyta rejestr npm o `latest` dla
+każdego pinu i mierzy, od kiedy pin jest w tyle (zegar `firstSeenBehind` w commitowanym
+`scripts/upstream-state.json`, nie data wydania `latest`). WARN po `staleDays` z wiersza pinu, exit 1 tylko ze
+`--strict`; `--ack <id|all>` to świadoma decyzja „widziałem, zostaję". `@types/node` WARN-uje celowo
+(`pins.config.mjs` mówi dlaczego). Reszta w nagłówku skryptu.
 
-Ta gałąź nie ma zestawu testów ani benchmarku — nie ma więc `vitest run`, `npm run smoke` ani
-projektu `compat` w `npm run verify`. Reguły, które gdzie indziej pilnuje test (granica importów
-klienta browser-inspectora, kształt `report.json`, zgodność z app-factory), tu trzeba pilnować
-ręcznie przy review — patrz [.github/instructions/source.instructions.md](.github/instructions/source.instructions.md).
+Ta gałąź nie ma testów ani benchmarku: reguły, które na `main` pilnuje test, tu pilnuje review — lista w
+[.github/instructions/source.instructions.md](.github/instructions/source.instructions.md). Komentarze w kodzie
+odwołują się do `docs/DESIGN.md §n`, `docs/handoff/WPn.md` i testów (`test/…`, `FakePage`) — to pliki gałęzi
+`main`; kod jest ten sam, dokumentów tu nie ma.
 
 Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md` przed każdym commitem. Uzbraja go
 `npm run prepare` — **jawnie**, bo `.npmrc` ma `ignore-scripts=true` i `npm install` skryptu
@@ -101,16 +84,14 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Czego nie robić
 
-- Nie commituj wyników: `.scribe-devtools/`, `read.config.*.json` (poza `examples/`) — to zrzuty
-  i sesje cudzej aplikacji.
+- Nie commituj wyników: `.scribe-devtools/`, `read.config.*.json` — to zrzuty i sesje cudzej aplikacji.
 - Nie dodawaj ścieżek DELETE — jedyne czyszczenie to `storage … clear` w piaskownicy
   własnego kontekstu i scrub między przebiegami.
 - Sekrety wyłącznie przez zmienne środowiskowe (`valueFromEnv`, `--env`, `@{NAZWA}`) —
   literał w `auth.login` ma być błędem walidacji; keeper nigdy nie dostaje `env`.
 - Nie importuj `playwright-core` ani żadnego modułu silnika (`engine.mjs`, `lanes.mjs`, `flow.mjs`,
   `session.mjs`, `steps.ctx.mjs`, `steps.run.mjs`) w kliencie (`bin/browser-inspector.mjs`,
-  `src/client.mjs`) — budżet startu klienta to 72 ms; ta gałąź nie ma testu `client-imports`, więc
-  pilnuj tego ręcznie przy review.
+  `src/client.mjs`) — budżet startu klienta to 72 ms.
 - Nie używaj `networkidle` domyślnie, `isTTY` do czegokolwiek, ping-pongu kart ani
   `about:blank` między przebiegami.
 - Nieudany krok to wynik w raporcie (exit 0 w batchu), nie wyjątek.
@@ -120,10 +101,6 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Gdzie co jest
 
-Mapa zależności: [CODE-INDEX.md](CODE-INDEX.md). Opis narzędzi i użycie: [README.md](README.md).
-
-Copilot i VS Code: `.github/copilot-instructions.md` (karta repo + kopia bloków instrukcji),
-`.github/instructions/*.instructions.md` (reguły per obszar plików), `.github/prompts/*.prompt.md`
-(`/migrate-from-mcp-playwright` — migracja repozytorium aplikacji z MCP Playwrighta;
-`/browser-session` — pętla sesji), `.vscode/tasks.json` (bramki i komendy narzędzia jako
-zadania), `.vscode/settings.json` (prettier, prompt files, AGENTS.md).
+Mapa importów całego repo (≈ 6 k tokenów — czytaj, gdy potrzebujesz jej całej, nie zamiast wyszukiwania):
+[CODE-INDEX.md](CODE-INDEX.md). Opis narzędzi i użycie: [README.md](README.md). Pliki Copilota i VS Code
+(`.github/`, `.vscode/`): sekcja „GitHub Copilot i VS Code" w README.

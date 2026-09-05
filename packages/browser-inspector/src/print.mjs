@@ -171,7 +171,9 @@ export const formatFail = (head, reason, parts = []) => formatLine('FAIL', head,
 export function formatDeltas(before, after, options = {}) {
   const parts = [];
   if (after.navigated) {
-    parts.push(`navigated → refs f${String(after.frameSeq ?? 1)}eN (browser-inspector snap)`);
+    // No `(browser-inspector snap)` hint: the instruction block already says where refs come from,
+    // and six tokens on every navigating action added up.
+    parts.push(`navigated → refs f${String(after.frameSeq ?? 1)}eN`);
   } else if (after.url !== undefined && before.url !== undefined && after.url !== before.url) {
     const title = after.title ? ` ${JSON.stringify(truncate(after.title, 40))}` : '';
     // Without a session origin the previous URL says what "same origin" means: a cross-origin hop

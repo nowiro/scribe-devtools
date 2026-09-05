@@ -5,8 +5,8 @@
 //              what it is not checking reads as coverage while covering nothing, so a package
 //              added without a row is a failure, not a silence.
 //   2. SHAPE — does the declared spec match the row's `policy`? `exact` means a bare version:
-//              scripts/portable-zip.mjs:84 compares the manifest string to the installed version
-//              with `!==`, so a range there throws on every portable build.
+//              `stagePortable` in scripts/portable-zip.mjs compares the manifest string to the
+//              installed version with `!==`, so a range there throws on every portable build.
 //   3. SYNC  — do the mirrors and the command lines repeat the owner character for character?
 //   4. LAG   — does any prose still quote a different version of the package than the pin?
 //
@@ -227,7 +227,7 @@ export function checkPins(root) {
     }
     if (pin.policy === 'exact' && ownerSpec !== version) {
       problems.push(
-        `SHAPE ${pin.id}: policy is exact but ${pin.owner} says "${ownerSpec}" — a range breaks scripts/portable-zip.mjs:84 and resolves differently on two machines`,
+        `SHAPE ${pin.id}: policy is exact but ${pin.owner} says "${ownerSpec}" — a range breaks stagePortable in scripts/portable-zip.mjs and resolves differently on two machines`,
       );
     }
     if (pin.policy === 'caret' && !ownerSpec.startsWith('^')) {

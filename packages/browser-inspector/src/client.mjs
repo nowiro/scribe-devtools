@@ -1,7 +1,8 @@
 // client.mjs — the process the agent actually runs (DESIGN.md §2.4): parse, resolve, connect, print.
 //
 // Budget 72 ms, so the imports are `node:*` plus the pure modules only — never playwright-core,
-// never engine.mjs, never steps.run.mjs (test/client-imports.test.mjs is the guard). Three things
+// never engine.mjs, never steps.run.mjs (the `client-imports` test guards it where the suite is
+// checked out; without it, review the import lists by hand). Three things
 // happen HERE and nowhere else, for reasons that are about trust, not speed:
 //
 //   1. `valueFromEnv` / `--env NAME` / `@{NAME}` are resolved from THIS process's environment. The
