@@ -16,7 +16,8 @@ applyTo: 'scripts/**/*.mjs,bench/**/*.mjs,.githooks/*'
 - Bench mierzy TO SAMO zadanie po obu stronach (`bench/task.mjs`, bramka `checkFindings`), czas od
   `spawn` do `exit` prawdziwego procesu klienta, tokeny tym samym tokenizerem; warianty
   `browser-inspector-warm|warm-tight|warm-fresh|first|cold|interactive-*` i MCP `naive|lean|lean
---timeout-settle 100`; pin `@playwright/mcp` w `bench/package.json` ↔ `.mcp.json` ↔
-  `.vscode/mcp.json` (test). `--assert-speedup N` kończy się kodem 1 poniżej progu.
+--timeout-settle 100`; pin `@playwright/mcp` w `bench/package.json` ↔ `.mcp.playwright.example.json` ↔
+  `.vscode/mcp.playwright.example.json` (test; przykłady, nie żywa konfiguracja — żywy `mcp.json` kosztuje
+  4069 tokenów na rozmowę). `--assert-speedup N` kończy się kodem 1 poniżej progu.
 - RAPORT.md / WYNIKI.md / BUDGET.md / blok BENCH w README generuje wyłącznie `npm run bench`;
   zmieniasz generator → uruchamiasz bench, nie edytujesz wyników.

@@ -55,7 +55,10 @@ export const PINS = [
   {
     id: '@playwright/mcp',
     owner: 'bench/package.json#devDependencies',
-    argv: ['.mcp.json', '.vscode/mcp.json'],
+    // Example files, not live configs: a live `.vscode/mcp.json` puts 4069 tokens of tool schemas
+    // into every Copilot request, which is the cost this repository exists to avoid. The pin still
+    // has to match, because a human copies these files verbatim to compare the two by hand.
+    argv: ['.mcp.playwright.example.json', '.vscode/mcp.playwright.example.json'],
     policy: 'exact',
     prose: ['AGENTS.md', 'README.md', 'docs/', 'bench/'],
     regenerate: ['npm run bench'],

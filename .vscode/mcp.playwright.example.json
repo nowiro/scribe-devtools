@@ -1,0 +1,15 @@
+{
+  // NOT loaded by VS Code — the file is named `.example` on purpose. The @playwright/mcp server it
+  // describes puts 24 tool schemas (4069 o200k tokens, measured in bench/RAPORT.md) into EVERY agent
+  // request once trusted, and this repository exists to not pay that. The bench spawns the pinned
+  // server itself (bench/mcp-run.mjs); it does not read this file. To compare the two by hand, copy
+  // this file to `.vscode/mcp.json` for the session and delete it afterwards. The version here is a
+  // mirror of the pin in bench/package.json — `check-pins` keeps the two equal.
+  "servers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.80", "--browser", "chrome", "--headless", "--isolated"]
+    }
+  }
+}

@@ -17,7 +17,7 @@ docs/handoff/
 # Written by `nx-angular-inspector` (twin of the .gitignore entry).
 .ws/
 
-# Dropped by the @playwright/mcp server configured in `.mcp.json` (also during `npm run bench`).
+# Dropped by the @playwright/mcp server (during `npm run bench`, or from a hand-copied `mcp.json`).
 .playwright-mcp/
 
 # Generated.

@@ -132,13 +132,19 @@ describe('SYNC', () => {
     const dir = fixture({
       bench: { name: 'bench', devDependencies: { '@playwright/mcp': '0.0.80' } },
       files: {
-        '.mcp.json': JSON.stringify({ mcpServers: { playwright: { args: ['-y', '@playwright/mcp@0.0.79'] } } }),
-        '.vscode/mcp.json': JSON.stringify({ servers: { playwright: { args: ['-y', '@playwright/mcp@0.0.80'] } } }),
+        '.mcp.playwright.example.json': JSON.stringify({
+          mcpServers: { playwright: { args: ['-y', '@playwright/mcp@0.0.79'] } },
+        }),
+        '.vscode/mcp.playwright.example.json': JSON.stringify({
+          servers: { playwright: { args: ['-y', '@playwright/mcp@0.0.80'] } },
+        }),
       },
     });
     const problems = checkPins(dir).problems.join('\n');
-    expect(problems).toContain('SYNC @playwright/mcp: .mcp.json does not spawn @playwright/mcp@0.0.80');
-    expect(problems).not.toContain('.vscode/mcp.json does not spawn');
+    expect(problems).toContain(
+      'SYNC @playwright/mcp: .mcp.playwright.example.json does not spawn @playwright/mcp@0.0.80',
+    );
+    expect(problems).not.toContain('.vscode/mcp.playwright.example.json does not spawn');
   });
 });
 

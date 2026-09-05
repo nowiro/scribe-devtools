@@ -271,8 +271,10 @@ Repozytorium jest przygotowane do pracy w VS Code z GitHub Copilotem (tryb agent
 - `.vscode/tasks.json` — bramki jako zadania (Terminal → Run Task: `verify`, `test`, `smoke`, `bench`, `portable`,
   `docs`) i komendy narzędzia (`browser-inspector: doctor | up | stop | batch z fixture`); `.vscode/settings.json`
   włącza prettier, prompt files, instrukcje i AGENTS.md; `.vscode/extensions.json` poleca prettier, vitest i Copilot Chat.
-- `.vscode/mcp.json` zawiera serwer `@playwright/mcp` wyłącznie na potrzeby benchu — do pracy z `browser-inspector`
-  nie jest potrzebny, a w repozytorium aplikacji ma zniknąć (krok 4 promptu migracji).
+- Repozytorium **nie** ma żywego `.vscode/mcp.json` ani `.mcp.json`: serwer `@playwright/mcp` kosztowałby 4069 tokenów
+  schematów narzędzi w każdej rozmowie (pomiar w benchu), a do pracy z `browser-inspector` nie jest potrzebny. Bench
+  uruchamia przypięty serwer sam. Do ręcznego porównania: skopiuj `.vscode/mcp.playwright.example.json` pod
+  `.vscode/mcp.json` (albo `.mcp.playwright.example.json` pod `.mcp.json` dla Claude Code) na czas sesji.
 
 ## Migracja ze scribe (`integrations/browser-inspector`)
 

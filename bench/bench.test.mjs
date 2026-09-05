@@ -18,13 +18,21 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MCP_PIN = '0.0.80';
 
 describe('pin @playwright/mcp', () => {
-  test(`bench/package.json, .mcp.json and .vscode/mcp.json all pin ${MCP_PIN}`, () => {
+  /** The example configs carry `//` comments (JSONC), so a plain JSON.parse would choke on them. */
+  const readJsonc = (/** @type {string} */ file) =>
+    JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\s*\/\/.*$/gmu, ''));
+
+  test(`bench/package.json and both MCP example configs pin ${MCP_PIN}`, () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(REPO, 'bench', 'package.json'), 'utf8'));
     expect(pkg.devDependencies['@playwright/mcp']).toBe(MCP_PIN);
-    const mcpJson = JSON.parse(fs.readFileSync(path.join(REPO, '.mcp.json'), 'utf8'));
+    const mcpJson = readJsonc(path.join(REPO, '.mcp.playwright.example.json'));
     expect(mcpJson.mcpServers.playwright.args).toContain(`@playwright/mcp@${MCP_PIN}`);
-    const vscode = JSON.parse(fs.readFileSync(path.join(REPO, '.vscode', 'mcp.json'), 'utf8'));
+    const vscode = readJsonc(path.join(REPO, '.vscode', 'mcp.playwright.example.json'));
     expect(vscode.servers.playwright.args).toContain(`@playwright/mcp@${MCP_PIN}`);
+  });
+  test('no live MCP config ships in the repository — the server would cost 4069 tokens per agent request', () => {
+    expect(fs.existsSync(path.join(REPO, '.mcp.json'))).toBe(false);
+    expect(fs.existsSync(path.join(REPO, '.vscode', 'mcp.json'))).toBe(false);
   });
   test('the installed @playwright/mcp is the pinned version', () => {
     expect(mcpVersion()).toBe(MCP_PIN);

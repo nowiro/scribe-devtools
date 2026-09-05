@@ -20,9 +20,15 @@ Thumbs.db
 bench/out/
 
 # What the @playwright/mcp server drops in the working directory (console logs, page snapshots) when
-# it runs from `.mcp.json` / `.vscode/mcp.json` — including during `npm run bench`. Untracked AND
-# unformatted: without the `.prettierignore` twin, one bench run turns `npm run verify` red.
+# it runs — during `npm run bench`, or from a `.vscode/mcp.json` / `.mcp.json` a human copied from the
+# `.example` files for a manual comparison. Untracked AND unformatted: without the `.prettierignore`
+# twin, one bench run turns `npm run verify` red.
 .playwright-mcp/
+
+# A live MCP config would put 4069 tokens of tool schemas into every agent request; the repository
+# ships only the `.example` twins. A copy made for a manual comparison must not be committed.
+.mcp.json
+.vscode/mcp.json
 
 # The portable zip IS tracked — every version lives in download/ (built by the pre-commit hook,
 # deterministic bytes, .sha256 sidecar). A zip anywhere else is a stray build.

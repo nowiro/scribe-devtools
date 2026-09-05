@@ -5,6 +5,55 @@ Wpisy odwołują się do kryteriów `AC-n` z `docs/ACCEPTANCE.md` i pakietów `W
 
 ## Unreleased
 
+### Changed
+
+- **Konfiguracja MCP Playwrighta to przykład, nie żywy plik.** `.vscode/mcp.json` → `.vscode/mcp.playwright.example.json`,
+  `.mcp.json` → `.mcp.playwright.example.json`. Żywy plik wkładał 24 schematy narzędzi (4069 tokenów o200k, pomiar w
+  `bench/RAPORT.md`) do każdej rozmowy Copilota albo Claude Code, gdy serwer był zaufany — czyli dokładnie ten koszt, przed
+  którym `/migrate-from-mcp-playwright` ostrzega repozytoria aplikacji, a którego to repo samo nie unikało. Bench sam
+  uruchamia przypięty serwer (`bench/mcp-run.mjs`) i tych plików nie czytał. Pin `@playwright/mcp` jest dalej lustrowany
+  przez `check-pins` (wiersz `argv` wskazuje przykłady); `bench.test.mjs` sprawdza, że żywej konfiguracji w repo nie ma,
+  a `.gitignore` nie pozwala jej scommitować po ręcznym skopiowaniu.
+- **`AGENTS.md` bez „Punktów synchronizacji” i „Wydania”** — obie sekcje (~1500 tokenów) przeniesione dosłownie do
+  `docs/MAINTAINING.md`; w AGENTS.md zostaje wskaźnik. Plik ładuje się w każdej rozmowie, a te reguły są potrzebne przy
+  zmianie kontraktu między modułami albo przy wydaniu. `AGENTS.md`: 6943 → 5486 tokenów.
+- **`.github/copilot-instructions.md` to karta repo + bloki instrukcji, bez powtarzania AGENTS.md** (1391 → 916 tokenów).
+  VS Code ładuje oba pliki naraz (`chat.useAgentsMdFile`), więc ~450 tokenów reguł było płacone dwa razy. Karta opisuje
+  teraz oba narzędzia. Instrukcje per obszar plików mówią o pełnych nazwach obu narzędzi (nie „skrót `bi`”), a
+  `source.instructions.md` obejmuje oba pakiety i wiersz w `pins.config.mjs`. Prompt migracji: bez `SCRIBE_DEVTOOLS_DIR`
+  (żaden kod go nie czyta), bez odwołania do prywatnego app-factory, gramatyka kroków przez `browser-inspector help
+[krok]`, kopia bloku z `copilot-instructions.md`. `settings.json` bez wycofanego `chat.promptFiles`; `tasks.json` z
+  zadaniem `nx-angular-inspector: help`.
+- **browser-inspector: `report.md` nie inlinuje długich wartości.** Wartość dłuższa niż 300 znaków albo 6 linii idzie
+  do `values/<name>.txt`, a `## values` dostaje wskaźnik z liczbą znaków (`INLINE_VALUE` w `report.mjs`). Do tej pory
+  granicą był `CAPS.extract` = 5000 znaków, więc jeden 40-liniowy extract robił z ~200-tokenowego raportu raport na 790
+  tokenów. Nagłówek z więcej niż trzema zrzutami podaje liczbę i dwa pierwsze (`shots 8: krok-0.png krok-1.png …`).
+  `report.json` bez zmian. Linia po nawigacji bez `(browser-inspector snap)`, linia zwinięcia snapshotu bez
+  `· browser-inspector find <text>` — obie podpowiedzi są w bloku instrukcji, a kosztowały 6–7 tokenów za każdym razem.
+  `browser-inspector version` odpowiada z `bin` bez ładowania klienta (~6 ms). Redakcja sekretów liczy formy raz na
+  zbiór (`redactWith`), nie na każdą linię stdout; log keepera liczy bajty zamiast `existsSync` + `statSync` na wpis.
+- **nx-angular-inspector: błąd składni komendy to jedna linia `FAIL`.** `graph` bez argumentu drukował 11 linii pomocy
+  (153 tokeny); teraz `FAIL graph · brakuje argumentu <projekt> · nx-angular-inspector help graph` (exit 2, jak dotąd).
+  Nieznana komenda i nieznana flaga też z prefiksem `FAIL` i w tym samym kształcie; `help <literówka>` to jedna linia
+  zamiast całej tabeli (472 → 28 tokenów). `help` podaje plik wyjściowy na linii wywołania (`→ .ws/env.md`) zamiast
+  zdania per verb (463 → ~360 tokenów). Linia `env` bez `demon …` — stan demona zostaje w `env.md`, bo kod sam mówi, że
+  o świeżości nie dowodzi niczego. Ścieżka `.ws/` względna z `../`, gdy cwd jest w podkatalogu workspace (do trzech
+  poziomów; dalej absolutna). `env.md`: lista plików inferujących w jednej linii (była 40 % pliku), ścieżka grafu
+  względna; `gen.md` bez ścieżki absolutnej. Stempel świeżości: jeden przebieg `readdir` zamiast trzech przy `--deep`,
+  projekt zagnieżdżony w już przeszukanym korzeniu (`.` z `nx init`) nie jest czytany drugi raz.
+- **`check-instruction-sync --require-all` w `npm run verify`.** Blok nieobecny w OBU plikach był „pominięty” (tryb dla
+  repozytorium aplikacji bez tego narzędzia) — tu oznaczał bramkę rozbrojoną przez skasowanie obu kopii. Na gałęzi
+  `copilot`, która nie ma testu asertującego obecność bloków, przechodziłoby to jako `ok`. Test na nowy tryb.
+- **`portable-zip`: zamrożenie po tagu tylko dla zipa śledzonego przez git** (`isTracked`). Na gałęzi z ignorowanym
+  `download/` drugi `npm run portable` pod otagowaną wersją oddawał pierwszy build zamiast nowego kodu. `README-PORTABLE.md`
+  wylicza faktycznie spakowane katalogi zamiast stałej listy.
+
+### Fixed
+
+- **`package-lock.json` nie znał workspace'u `@scribe-devtools/nx-angular-inspector`** (pakiet doszedł w 77e36c6, lock
+  został z 6dacdf5) — `npm ci` na świeżym klonie padał z `EUSAGE`. Przeliczony `npm install --package-lock-only`;
+  `.gitattributes -diff` na lockfile ukrywał różnicę w przeglądzie.
+
 ### Added
 
 - **`nx-angular-inspector` w zipie portable — JEDEN zip, JEDNA wersja, oba narzędzia.**

@@ -32,7 +32,10 @@ tylko wtedy, gdy zmieniasz kontrakt między modułami albo tniesz wydanie. Tu ko
   (bramka `check-pins`). Nowa zależność bez wiersza = FAIL — kontrola, która nie wie, czego nie
   sprawdza, czyta się jak pokrycie, będąc jego brakiem. Poniższe dwa punkty są tego szczególnym
   przypadkiem i zostają, bo mówią **co** się psuje, czego bramka powiedzieć nie umie.
-- wersja `@playwright/mcp`: `bench/package.json` ↔ `.mcp.json` ↔ `.vscode/mcp.json` (test).
+- wersja `@playwright/mcp`: `bench/package.json` ↔ `.mcp.playwright.example.json` ↔
+  `.vscode/mcp.playwright.example.json` (test). Pliki są **przykładami**, nie żywą konfiguracją: żywy
+  `.vscode/mcp.json` wkłada 4069 tokenów schematów narzędzi do każdej rozmowy Copilota (pomiar w
+  `bench/RAPORT.md`); do ręcznego porównania kopiujesz przykład pod właściwą nazwę i kasujesz po sesji.
 - `playwright-core` przypięty **exact** `1.62.1`, podłoga `minSupported: '1.62.1'`,
   w `packages/browser-inspector` i `bench` (fakty o `aria-ref` w DESIGN.md dotyczą tej wersji);
   tożsamość keepera liczy tę wersję; `stagePortable` odmawia, gdy `node_modules` ma inną —

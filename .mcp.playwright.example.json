@@ -1,0 +1,11 @@
+{
+  // NOT loaded by Claude Code — the file is named `.example` on purpose; see .vscode/mcp.playwright.example.json
+  // for why (4069 o200k tokens of tool schemas per session). Copy to `.mcp.json` for a one-off manual
+  // comparison and delete it afterwards. The version is a mirror of the pin in bench/package.json.
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.80", "--browser", "chrome", "--headless", "--isolated"]
+    }
+  }
+}
