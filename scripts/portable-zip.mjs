@@ -9,13 +9,13 @@
 //   packages/nx-angular-inspector   bin, src, package.json — no templates/fixtures, nothing to ship
 //
 // The two are coupled deliberately, not by oversight: a single zip is what "one portable release of
-// this repository" means, and it is the shape the existing release procedure (docs/MAINTAINING.md § Wydanie)
-// already assumes — one tag, one asset, one CHANGELOG section. The cost of the coupling is real and
-// worth naming: a browser-inspector-only bugfix release still bumps nx-angular-inspector's version
-// even when nothing in it changed. `readVersion` enforces the coupling by checking EVERY package
-// in `PACKAGES` against the root version, not just the first one — a bump that only touches one
-// manifest fails loudly here, the same way a browser-inspector-only bump already failed before
-// nx-angular-inspector existed.
+// this repository" means, and it is the shape the existing release procedure (§ Wydanie in
+// docs/MAINTAINING.md, kept on the main branch) already assumes — one tag, one asset, one CHANGELOG
+// section. The cost of the coupling is real and worth naming: a browser-inspector-only bugfix release
+// still bumps nx-angular-inspector's version even when nothing in it changed. `readVersion` enforces
+// the coupling by checking EVERY package in `PACKAGES` against the root version, not just the first
+// one — a bump that only touches one manifest fails loudly here, the same way a browser-inspector-only
+// bump already failed before nx-angular-inspector existed.
 //
 // Inside: each package's files (below), `node_modules/playwright-core` (browser-inspector's only
 // runtime dependency — nx-angular-inspector has none, so nothing else is copied for it), a

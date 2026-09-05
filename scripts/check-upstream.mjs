@@ -5,7 +5,8 @@
 // "is what we declared still what upstream calls `latest`, and for how long has it not been" — and
 // that question needs the network. It is therefore NOT part of `verify`: a gate that depends on
 // npm's registry being reachable is a gate that goes red on a train. Run it by hand, or with
-// `--strict` at release time (docs/MAINTAINING.md § Wydanie), where a stale pin should actually block.
+// `--strict` at release time (§ Wydanie in docs/MAINTAINING.md, kept on the main branch), where a
+// stale pin should actually block.
 //
 //   node scripts/check-upstream.mjs                report only, exit 0 regardless
 //   node scripts/check-upstream.mjs --strict        exit 1 if any pin is stale past its staleDays

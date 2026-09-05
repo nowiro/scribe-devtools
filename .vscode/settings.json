@@ -7,10 +7,17 @@
   "files.trimTrailingWhitespace": true,
   "[markdown]": { "files.trimTrailingWhitespace": false },
 
-  // Wyniki przebiegów to dane cudzej aplikacji — nie indeksuj ich i nie pokazuj w wyszukiwaniu.
-  "files.exclude": { "**/.scribe-devtools": true, "**/bench/out": true },
-  "search.exclude": { "**/.scribe-devtools": true, "**/bench/out": true, "**/download": true, "**/node_modules": true },
-  "files.watcherExclude": { "**/.scribe-devtools/**": true, "**/bench/out/**": true },
+  // Wyniki przebiegów narzędzi (browser-inspector: .scribe-devtools, nx-angular-inspector: .ws) i benchu to
+  // dane cudzej aplikacji/workspace'a — nie indeksuj ich i nie pokazuj w wyszukiwaniu.
+  "files.exclude": { "**/.scribe-devtools": true, "**/.ws": true, "**/bench/out": true },
+  "search.exclude": {
+    "**/.scribe-devtools": true,
+    "**/.ws": true,
+    "**/bench/out": true,
+    "**/download": true,
+    "**/node_modules": true
+  },
+  "files.watcherExclude": { "**/.scribe-devtools/**": true, "**/.ws/**": true, "**/bench/out/**": true },
 
   // GitHub Copilot: instrukcje repo (.github/copilot-instructions.md, .github/instructions/*.instructions.md),
   // prompt files (.github/prompts/*.prompt.md → /migrate-from-mcp-playwright, /browser-session) i AGENTS.md.
