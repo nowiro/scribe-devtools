@@ -9,7 +9,7 @@
 //   packages/nx-angular-inspector   bin, src, package.json — no templates/fixtures, nothing to ship
 //
 // The two are coupled deliberately, not by oversight: a single zip is what "one portable release of
-// this repository" means, and it is the shape the existing release procedure (AGENTS.md § Wydanie)
+// this repository" means, and it is the shape the existing release procedure (docs/MAINTAINING.md § Wydanie)
 // already assumes — one tag, one asset, one CHANGELOG section. The cost of the coupling is real and
 // worth naming: a browser-inspector-only bugfix release still bumps nx-angular-inspector's version
 // even when nothing in it changed. `readVersion` enforces the coupling by checking EVERY package
