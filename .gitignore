@@ -22,3 +22,9 @@ download/
 # A read config carries the URLs, selectors and flows of the app it inspects — yours, not the
 # tool's.
 read.config.*.json
+
+# A live MCP config would put thousands of tokens of tool schemas into every agent request — not
+# paying that is the point of this repository. Nothing here ships one; a copy made for a manual
+# comparison must not be committed either (twin of the rule on `main`).
+.mcp.json
+.vscode/mcp.json
