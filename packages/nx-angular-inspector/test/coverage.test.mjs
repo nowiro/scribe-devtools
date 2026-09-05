@@ -211,13 +211,27 @@ describe('daemonState — przez `env`, trzy nieoczywiste gałęzie', () => {
     return root;
   }
 
+  /**
+   * The daemon state lives in env.md, not on the line: it proves nothing about freshness, and a
+   * fact that proves nothing does not belong in the 40-token budget of every `env` call.
+   * @param {string} root
+   */
+  function envMd(root) {
+    const { line, exit } = main(['env', '--root', root], {
+      cwd: root,
+      env: { ...process.env, NX_ANGULAR_INSPECTOR_OUT: '' },
+    });
+    expect(exit, line).toBe(0);
+    expect(line).not.toContain('demon');
+    return readFileSync(path.join(root, '.ws', 'env.md'), 'utf8');
+  }
+
   it('marker `disabled` → „wyłączony”, nawet gdy server-process.json wskazuje żywy pid', () => {
     const root = withDaemonDir();
     const dir = path.join(root, '.nx', 'workspace-data', 'd');
     writeFileSync(path.join(dir, 'disabled'), '', 'utf8');
     writeFileSync(path.join(dir, 'server-process.json'), JSON.stringify({ processId: process.pid }), 'utf8');
-    const { line } = main(['env', '--root', root], { cwd: root });
-    expect(line).toContain('demon wyłączony');
+    expect(envMd(root)).toContain('demon Nx: wyłączony');
   });
 
   it('server-process.json z pid-em, który naprawdę odpowiada → „pid żyje”', () => {
@@ -225,16 +239,14 @@ describe('daemonState — przez `env`, trzy nieoczywiste gałęzie', () => {
     const dir = path.join(root, '.nx', 'workspace-data', 'd');
     // Własny pid tego procesu testowego — bezpieczny, bo na pewno istnieje przez cały test.
     writeFileSync(path.join(dir, 'server-process.json'), JSON.stringify({ processId: process.pid }), 'utf8');
-    const { line } = main(['env', '--root', root], { cwd: root });
-    expect(line).toContain('demon pid żyje');
+    expect(envMd(root)).toContain('demon Nx: pid żyje');
   });
 
   it('server-process.json z pid-em, który nie istnieje → „martwy”', () => {
     const root = withDaemonDir();
     const dir = path.join(root, '.nx', 'workspace-data', 'd');
     writeFileSync(path.join(dir, 'server-process.json'), JSON.stringify({ processId: 0x7ffffff0 }), 'utf8');
-    const { line } = main(['env', '--root', root], { cwd: root });
-    expect(line).toContain('demon martwy');
+    expect(envMd(root)).toContain('demon Nx: martwy');
   });
 });
 

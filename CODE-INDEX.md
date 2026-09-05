@@ -130,11 +130,11 @@ Modules: 63.
 - imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/lanes.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`
 
 ## packages/browser-inspector/src/redact.mjs
-- exports: `MASK`, `maskSnapshotEntries`, `maskSnapshotValues`, `redact`, `redactDeep`, `secretForms`
+- exports: `MASK`, `maskSnapshotEntries`, `maskSnapshotValues`, `redact`, `redactDeep`, `redactWith`, `secretForms`
 - imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/report.mjs
-- exports: `CAPS`, `SCRIPT`, `SOURCE`, `artifactFiles`, `buildManifest`, `buildReport`, `buildSnapshotManifest`, `failureOf`, `formatStepError`, `renderElementsMd`, `renderJUnit`, `renderReportMd`, `writeArtifacts`
+- exports: `CAPS`, `INLINE_VALUE`, `SCRIPT`, `SOURCE`, `artifactFiles`, `buildManifest`, `buildReport`, `buildSnapshotManifest`, `failureOf`, `formatStepError`, `renderElementsMd`, `renderJUnit`, `renderReportMd`, `writeArtifacts`
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`
 
@@ -284,4 +284,4 @@ Modules: 63.
 - imported by: `scripts/check-pins.mjs`, `scripts/check-upstream.mjs`
 
 ## scripts/portable-zip.mjs
-- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`
+- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `isTracked`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`

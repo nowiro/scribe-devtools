@@ -142,7 +142,8 @@ describe('compactSnapshot — bookstore 952 lines → ≤ 90 lines', () => {
     const fold = compact.find((l) => l.startsWith('… ×32 similar (e228–e1220)'));
     expect(fold).toBeDefined();
     expect(fold).toContain('"Penguin 1984"');
-    expect(fold).toContain('browser-inspector find <text>');
+    // No per-fold hint about `find`: the instruction block says it once; a fold line pays for it never.
+    expect(fold).not.toContain('browser-inspector find');
     const unfolded = compactLines(bookstore, { sidecar, fold: false });
     expect(unfolded.length).toBeGreaterThan(compact.length);
     const refsShown = new Set(unfolded.map((l) => l.split(' ')[0]));

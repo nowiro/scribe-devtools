@@ -27,11 +27,13 @@
 // the same reason a build number is stamped on a part with no serial number reader yet — it says
 // what this directory is, and it costs one file.
 //
-// The zip is TRACKED: every version lives in `download/scribe-devtools-portable-<version>.zip`
-// (plus a `.sha256` sidecar), and the pre-commit hook rebuilds it before every commit. That only
-// works because the build is DETERMINISTIC — fixed mtimes, sorted entries, no timestamp in the
-// marker — so an unchanged tree yields byte-identical bytes and git sees nothing to add. Without
-// that, every commit would append a 3 MB blob to history.
+// Where the zip is TRACKED (the release branch), every version lives in
+// `download/scribe-devtools-portable-<version>.zip` (plus a `.sha256` sidecar) and the pre-commit
+// hook rebuilds it before every commit. That only works because the build is DETERMINISTIC — fixed
+// mtimes, sorted entries, no timestamp in the marker — so an unchanged tree yields byte-identical
+// bytes and git sees nothing to add. Without that, every commit would append a 3 MB blob to
+// history. Where `download/` is ignored instead, the zip is an on-demand scratch build and the
+// "frozen after the tag" rule below does not apply to it (`isTracked`).
 //
 // Usage: npm run portable                                (zip + .sha256 land in download/)
 //        node scripts/portable-zip.mjs [--out <dir>] [--stage <dir>]   (--stage: copy only, no zip — for tests)
@@ -58,6 +60,17 @@ export const FIXED_MTIME = new Date('2026-01-01T00:00:00Z');
  * @property {string[]} entries what of the package goes into the zip — tests stay out
  * @property {Set<string>} required entries whose absence is a broken tree, not an early checkout
  */
+
+/**
+ * The package directories that actually went into the zip, for README-PORTABLE.md: `fixtures/`
+ * ships where it is checked out and is absent on a branch without it — a fixed list lied there.
+ * @param {string} root
+ * @param {PackageSpec} pkg
+ */
+const shipped = (root, pkg) =>
+  pkg.entries
+    .filter((entry) => entry !== 'package.json' && entry !== 'README.md' && existsSync(join(root, pkg.dir, entry)))
+    .join(', ');
 
 /** @type {readonly PackageSpec[]} */
 export const PACKAGES = Object.freeze([
@@ -183,7 +196,7 @@ export function stagePortable(root, staging) {
       'node packages/browser-inspector/bin/browser-inspector.mjs help',
       '```',
       '',
-      'Zawartość: `packages/browser-inspector` (bin, src, templates, fixtures), `node_modules/playwright-core`' +
+      `Zawartość: \`packages/browser-inspector\` (${shipped(root, PACKAGES[0])}), \`node_modules/playwright-core\`` +
         ` ${playwrightVersion}, marker \`packages/browser-inspector/${PORTABLE_MARKER}\` (keeper pomija stempel mtime źródeł).`,
       '',
       '## nx-angular-inspector',
@@ -195,7 +208,7 @@ export function stagePortable(root, staging) {
       'node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs help',
       '```',
       '',
-      'Zawartość: `packages/nx-angular-inspector` (bin, src).',
+      `Zawartość: \`packages/nx-angular-inspector\` (${shipped(root, PACKAGES[1])}).`,
       '',
       'Dokumentacja: README.md i AGENTS.md w repozytorium.',
       '',
@@ -360,6 +373,22 @@ export const sha256 = (file) => createHash('sha256').update(readFileSync(file)).
  */
 export const isFrozen = (version, tags, zipExists) => zipExists && tags.includes(`v${version}`);
 
+/**
+ * Whether git tracks `file` (repo-relative). Only a tracked zip is a release asset worth freezing:
+ * an ignored one is a scratch build, and freezing it meant the second `npm run portable` under a
+ * tagged version silently handed back the first build, whatever changed in between.
+ * @param {string} root
+ * @param {string} file
+ */
+export function isTracked(root, file) {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', file], { cwd: root, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** @param {string} root @returns {string[]} `git tag -l` of the repository, [] outside git */
 export function gitTags(root) {
   try {
@@ -419,7 +448,9 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import
   } else {
     const outDir = resolve(argValue('--out') ?? join(REPO, DOWNLOAD_DIR));
     const version = readVersion(REPO);
-    const frozen = isFrozen(version, gitTags(REPO), existsSync(join(outDir, zipName(version))));
+    const zipRel = relative(REPO, join(outDir, zipName(version))).replaceAll('\\', '/');
+    const frozen =
+      isFrozen(version, gitTags(REPO), existsSync(join(outDir, zipName(version)))) && isTracked(REPO, zipRel);
     if (frozen && !process.argv.includes('--force')) {
       console.log(
         `[zip] wersja ${version} jest wydana (tag v${version}) — ${relative(REPO, join(outDir, zipName(version)))} zostaje bez zmian; nowy kod wymaga podbicia wersji (--force przebudowuje mimo to)`,

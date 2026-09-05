@@ -106,12 +106,17 @@ export function findVerb(name) {
  */
 export function usage(name) {
   const verb = name === undefined ? undefined : findVerb(name);
-  if (name !== undefined && verb === undefined) return `nieznana komenda: ${name}\n\n${usage()}`;
+  if (name !== undefined && verb === undefined) {
+    // One line, like every other typo: the whole table after a misspelt verb cost ~470 tokens.
+    return `FAIL ${name} · nieznana komenda · znane: ${VERB_NAMES.join(', ')}`;
+  }
   const rows = (verb ? [verb] : VERBS).map((entry) => {
     const invocation = `nx-angular-inspector ${entry.name}${entry.args === '' ? '' : ` ${entry.args}`}`;
     const flags = entry.flags.length === 0 ? '' : ` [${entry.flags.join('] [')}]`;
-    const writes = entry.writes === '' ? 'nie zapisuje pliku — linia jest odpowiedzią' : `zapisuje ${entry.writes}`;
-    return `  ${invocation}${flags}\n      ${entry.summary}\n      ${writes}`;
+    // The file on the invocation line, not in a sentence of its own: every answer line ends with
+    // it anyway, so the help only has to say which one — 80 tokens less per `help`.
+    const writes = entry.writes === '' ? '' : `  → ${entry.writes}`;
+    return `  ${invocation}${flags}${writes}\n      ${entry.summary}`;
   });
   return [
     'nx-angular-inspector — graf Nx i zainstalowane pakiety Angulara, bez serwera MCP.',
@@ -121,7 +126,7 @@ export function usage(name) {
     '',
     `  flagi globalne: ${GLOBAL_FLAGS.join(' ')}`,
     '  --fresh liczy graf przez `nx graph` zamiast czytać cache',
-    '  --deep dokłada mtime plików źródłowych do stempla: widzi zmianę importu, której tani stempel nie widzi',
+    '  --deep dokłada mtime plików do stempla świeżości (widzi zmianę importu; wolniej)',
     '',
   ].join('\n');
 }

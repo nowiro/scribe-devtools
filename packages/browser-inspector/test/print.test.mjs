@@ -73,7 +73,7 @@ describe('DESIGN.md §4.4 samples', () => {
           { url: 'http://localhost:4313/szukaj?q=Harry', el: 58, navigated: true, frameSeq: 1 },
         ),
       ),
-      'ok fill e39 · navigated → refs f1eN (browser-inspector snap) · el 58',
+      'ok fill e39 · navigated → refs f1eN · el 58',
     ],
     ['overflow', formatOverflow(55, 'session/default/snap.md'), '…+55 lines · session/default/snap.md'],
     [
@@ -206,9 +206,7 @@ describe('rules', () => {
       }),
     ).toEqual(['el 10', 'dialog beforeunload "" → accepted']);
     expect(formatDeltas(before, { url: 'http://b/x', title: 'B', el: 5 })).toEqual(['url http://b/x "B"', 'el 10→5']);
-    expect(formatDeltas({}, { navigated: true, frameSeq: 2 })).toEqual([
-      'navigated → refs f2eN (browser-inspector snap)',
-    ]);
+    expect(formatDeltas({}, { navigated: true, frameSeq: 2 })).toEqual(['navigated → refs f2eN']);
     expect(formatDeltas(before, { url: 'http://a/', el: 10, consoleErrors: 0 })).toEqual(['el 10']);
   });
 

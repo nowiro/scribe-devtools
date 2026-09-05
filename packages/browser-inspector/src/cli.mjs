@@ -453,6 +453,6 @@ export function usage(command) {
     `queries:  ${byKind('query').map(spell).join(' ')}`,
     `control:  ${byKind('control').map(spell).join(' ')}`,
     '',
-    'browser-inspector help <command> shows the arguments; docs/STEPS.md lists the config fields of every step.',
+    'browser-inspector help <command> shows the arguments and config fields of that step.',
   ].join('\n');
 }

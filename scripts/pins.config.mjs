@@ -49,7 +49,7 @@ export const PINS = [
     frozen: ['scripts/check-pins.test.mjs'],
     regenerate: ['node packages/browser-inspector/fixtures/generate.mjs', 'npm run bench'],
     staleDays: 45,
-    why: 'The engine reads playwright-core internals: `aria-ref` resolution through `_lastAriaSnapshotForQuery`, `ariaSnapshotWithRefs`, `ariaSnapshotForFrame`, `computeAriaRef` ref stability, the `f<seq>` frame prefix. Six of those facts are written down in docs/DESIGN.md:27 and none of them is asserted against the installed bundle. The four golden fixtures were rendered by 1.62.1 and have no `--check` mode, so a grammar change repaints them and stays green. `pwVersion` is also part of the keeper `identityHash`, and scripts/portable-zip.mjs:84 compares this manifest string to the installed version literally — a range here throws on every portable build.',
+    why: 'The engine reads playwright-core internals: `aria-ref` resolution through `_lastAriaSnapshotForQuery`, `ariaSnapshotWithRefs`, `ariaSnapshotForFrame`, `computeAriaRef` ref stability, the `f<seq>` frame prefix. Six of those facts are written down in docs/DESIGN.md:27 and none of them is asserted against the installed bundle. The four golden fixtures were rendered by 1.62.1 and have no `--check` mode, so a grammar change repaints them and stays green. `pwVersion` is also part of the keeper `identityHash`, and `stagePortable` in scripts/portable-zip.mjs compares this manifest string to the installed version literally — a range here throws on every portable build.',
     links: ['https://www.npmjs.com/package/playwright-core/v/1.62.1'],
   },
   {

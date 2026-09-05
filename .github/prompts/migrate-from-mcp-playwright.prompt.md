@@ -30,15 +30,15 @@ i lista plików z konfiguracją MCP. Pokaż ją i czekaj na „dalej".
 - W `package.json` aplikacji dodaj skrypt:
   `"browser-inspector": "node ../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs"`
   i od tej pory wołaj **`pnpm browser-inspector …`** (npm: `npm run browser-inspector -- …`).
-  Inna lokalizacja narzędzia: zmienna `SCRIBE_DEVTOOLS_DIR`.
 - Sprawdź: `pnpm browser-inspector help` i `pnpm browser-inspector doctor` (keeper startuje,
   przeżywa zamknięcie powłoki, drugi call jest ciepły).
 
 ## 2. Config flow: `read.config.browser-inspector.json` w korzeniu repo
 
 Jeden snapshot per aplikacja jako start (`type: "page"` — zrzut, konsola, sieć, mapa elementów),
-potem flow przepisane ze scenariuszy z kroku 0. Gramatyka i pełna lista kroków:
-`../scribe-devtools/docs/STEPS.md`, przykłady: `../scribe-devtools/packages/browser-inspector/templates/flow.md`.
+potem flow przepisane ze scenariuszy z kroku 0. Gramatyka kroków: `pnpm browser-inspector help [krok]`
+(pola configu i flagi jednego kroku, bez czytania źródeł); przykłady:
+`../scribe-devtools/packages/browser-inspector/templates/flow.md`.
 
 ```json
 {
@@ -79,8 +79,7 @@ podpowiada migracje.
 
 ## 3. Bramka `smoke:browser` (Nx build → serwer statyczny → flow → werdykt)
 
-Napisz `tools/scripts/smoke-browser.mjs` (Node, zero zależności, cross-platform) na wzór
-`app-factory/tools/scripts/smoke-browser.mjs`:
+Napisz `tools/scripts/smoke-browser.mjs` (Node, zero zależności, cross-platform):
 
 1. dla każdej aplikacji z tabeli: brak `dist/apps/<app>/browser/index.html` → komunikat z komendą
    naprawczą (`pnpm nx build <app> --configuration=production`) i exit 3;
@@ -101,7 +100,7 @@ buildach (`pnpm nx run-many -t build --configuration=production`). Uruchom lokal
 ## 4. Instrukcje dla Copilota i sprzątanie MCP
 
 - Do `.github/copilot-instructions.md` (i `AGENTS.md`, jeśli jest) wklej **dokładnie** blok
-  instrukcji z `../scribe-devtools/AGENTS.md` (między `INSTRUCTION:START/END`) — to cały koszt
+  instrukcji z `../scribe-devtools/.github/copilot-instructions.md` (między `INSTRUCTION:START/END`) — to cały koszt
   stały narzędzia w każdej sesji (mierzony w benchu; nie dopisuj do niego własnych zdań, dopisz
   osobny akapit o `pnpm smoke:browser`).
 - Skopiuj `../scribe-devtools/.github/prompts/browser-session.prompt.md` do `.github/prompts/`
@@ -113,7 +112,7 @@ buildach (`pnpm nx run-many -t build --configuration=production`). Uruchom lokal
 
 ## 5. Sesja interaktywna zamiast `browser_snapshot`
 
-Do rozpoznania nieznanego ekranu (to, co dotąd robił MCP):
+Rozpoznanie nieznanego ekranu prowadzi `/browser-session` (skopiowany w kroku 4); w skrócie:
 
 ```
 pnpm browser-inspector open http://localhost:4311/
@@ -123,8 +122,7 @@ pnpm browser-inspector snap --diff
 pnpm browser-inspector export flow.json      # sesja → config, wartości z --env jako valueFromEnv
 ```
 
-Każda komenda drukuje jedną linię (`exit 1` = FAIL), zrzuty i snapshoty lądują w
-`.scribe-devtools/browser-inspector/session/<nazwa>/`. Wyeksportowany flow dopisz do configu z kroku 2.
+Wyeksportowany flow dopisz do configu z kroku 2.
 
 ## Kryteria ukończenia
 

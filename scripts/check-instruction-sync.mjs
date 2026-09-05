@@ -15,8 +15,9 @@
 //
 // A block absent from BOTH files is skipped rather than failed: that is a checkout of this tooling
 // in a repository that does not use that tool. Present in one and missing from the other is a FAIL —
-// that is drift, and it is the whole point. The repository's own test asserts both of ITS blocks
-// exist, so the "skip" branch cannot quietly disarm the gate here.
+// that is drift, and it is the whole point. THIS repository ships both tools, so `npm run verify`
+// passes `--require-all` and a test asserts both of ITS blocks exist: here a block missing from
+// both files is not a foreign checkout, it is the gate quietly disarmed.
 //
 // The block in AGENTS.md sits between the markers as a markdown blockquote (`> …` lines); the
 // comparison strips the `> ` prefixes and joins the lines with `\n`, so a wrapped quote equals its
@@ -103,9 +104,10 @@ export async function countTokens(text) {
 
 /**
  * @param {string} root
+ * @param {{ requireAll?: boolean }} [options] `requireAll`: a block missing from BOTH files is a FAIL, not a skip
  * @returns {Promise<{ ok: boolean, message: string }>}
  */
-export async function checkInstructionSync(root) {
+export async function checkInstructionSync(root, { requireAll = false } = {}) {
   const agentsPath = path.join(root, AGENTS_FILE);
   if (!existsSync(agentsPath)) return { ok: false, message: `${AGENTS_FILE} missing` };
   const copilotPath = path.join(root, COPILOT_FILE);
@@ -127,6 +129,12 @@ export async function checkInstructionSync(root) {
       const markers = block.name === '' ? 'INSTRUCTION' : `INSTRUCTION:${block.name}`;
       if (agentsText.includes(markers) || copilotText.includes(markers)) {
         return { ok: false, message: badBlock(name, AGENTS_FILE, block.name) };
+      }
+      if (requireAll) {
+        return {
+          ok: false,
+          message: `${name}: block missing from both ${AGENTS_FILE} and ${COPILOT_FILE} — this repository ships ${name}, so its instruction block is not optional here (--require-all)`,
+        };
       }
       notes.push(`${name}: block absent from both files, skipped`);
       continue;
@@ -211,7 +219,7 @@ function firstDifference(expected, actual) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
-  const { ok, message } = await checkInstructionSync(REPO);
+  const { ok, message } = await checkInstructionSync(REPO, { requireAll: process.argv.includes('--require-all') });
   (ok ? process.stdout : process.stderr).write(`${ok ? 'ok' : 'FAIL'} instruction sync: ${message}\n`);
   process.exitCode = ok ? 0 : 1;
 }

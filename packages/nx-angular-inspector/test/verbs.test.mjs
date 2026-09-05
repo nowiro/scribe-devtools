@@ -182,9 +182,9 @@ describe('guide', () => {
 });
 
 describe('env', () => {
-  it('mówi wersje, wiek grafu, werdykt i stan demona', () => {
+  it('mówi wersje, wiek grafu i werdykt; stan demona zostaje w env.md, bo o świeżości nie mówi nic', () => {
     const { line } = run('nx-angular', ['env']);
-    expect(line).toMatch(/^ok env · nx 23\.1\.1 · ng 22\.1\.3 · graf \d+ \S+ · demon brak · świeże · \.ws\/env\.md$/u);
+    expect(line).toMatch(/^ok env · nx 23\.1\.1 · ng 22\.1\.3 · graf \d+ \S+ · świeże · \.ws\/env\.md$/u);
     const written = readFileSync(outFile('nx-angular', 'env.md'), 'utf8');
     expect(written).toContain('nie jest to dowód świeżości');
     expect(written).toContain('Pliki inferujące targety');

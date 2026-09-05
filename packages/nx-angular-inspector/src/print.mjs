@@ -10,6 +10,8 @@
 // The line is Polish because the agent instruction block in AGENTS.md is Polish and the two are
 // read together; the code around it is English, like the rest of the repository.
 
+import path from 'node:path';
+
 export const SEP = ' · ';
 
 /**
@@ -108,7 +110,17 @@ export function relPath(file, cwd) {
   const lower = (/** @type {string} */ value) => (process.platform === 'win32' ? value.toLowerCase() : value);
   if (lower(f).startsWith(`${lower(c)}/`)) return f.slice(c.length + 1);
   if (lower(f) === lower(c)) return '.';
-  return f;
+  // A few `../` beat an absolute path: Copilot's terminal often sits in the open file's folder, and
+  // `C:/Users/…/repo/.ws/projects.md` (17+ tokens) was also the part `formatLine` cut first when
+  // the line ran long. Past three levels up the absolute path is the more readable of the two.
+  const drive = (/** @type {string} */ value) => /^[a-z]:/iu.exec(value)?.[0].toLowerCase() ?? '';
+  if (drive(f) !== drive(c)) return f;
+  const segments = path.posix.relative(lower(c), lower(f)).split('/');
+  const climbs = segments.filter((segment) => segment === '..').length;
+  if (climbs === 0 || climbs > 3 || segments.slice(0, climbs).some((segment) => segment !== '..')) return f;
+  // `segments` came from the case-folded strings; the tail is taken from the original spelling.
+  const tail = f.split('/').slice(f.split('/').length - (segments.length - climbs));
+  return [...segments.slice(0, climbs), ...tail].join('/');
 }
 
 /**

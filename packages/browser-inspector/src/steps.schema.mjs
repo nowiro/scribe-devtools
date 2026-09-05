@@ -3,12 +3,11 @@
 // Every step `browser-inspector` knows is a row here: how it is spelled in a config (`config`), how it is typed in
 // a session (`argv`, `flags`, `fromArgv`), how it is validated (`validate` on top of the field types),
 // how it is described in a report and a journal (`describe` — never a fill VALUE, only its origin)
-// and how `browser-inspector help <step>` and docs/STEPS.md explain it (`help`). `src/steps.run.mjs` holds the
-// twin table `RUNNERS` with the same keys — the engine imports that one, the client only this one,
-// and a test keeps the key sets equal.
+// and how `browser-inspector help <step>` explains it (`help`). `src/steps.run.mjs` holds the
+// twin table `RUNNERS` with the same keys — the engine imports that one, the client only this one.
 //
 // No zod: the field types are a five-word mini-language (`FIELD_TYPES`) checked by `checkField`,
-// which is all a config format with forty flat shapes needs — and it renders itself into docs.
+// which is all a config format with forty flat shapes needs.
 
 /** @typedef {import('./types.js').Step} Step */
 /** @typedef {import('./types.js').StepDef} StepDef */
@@ -28,7 +27,7 @@ export const MODIFIERS = Object.freeze({ ctrl: 'Control', shift: 'Shift', alt: '
 export const WAIT_UNTIL = Object.freeze(['load', 'domcontentloaded', 'networkidle', 'settled']);
 
 /**
- * The field type mini-language. A trailing `?` makes a field optional. Rendered into docs/STEPS.md.
+ * The field type mini-language. A trailing `?` makes a field optional.
  * @type {Readonly<Record<string, string>>}
  */
 export const FIELD_TYPES = Object.freeze({

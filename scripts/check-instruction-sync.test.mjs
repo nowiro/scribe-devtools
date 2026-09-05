@@ -144,6 +144,12 @@ describe('named blocks', () => {
     expect(message).toMatch(/nx-angular-inspector: block absent from both files, skipped/u);
   });
 
+  it('with `requireAll` (what `npm run verify` passes) the same absence is a FAIL — deleting both copies cannot disarm the gate', async () => {
+    const { ok, message } = await checkInstructionSync(fakeRepo(block(QUOTE), block(QUOTE)), { requireAll: true });
+    expect(ok).toBe(false);
+    expect(message).toMatch(/nx-angular-inspector: block missing from both/u);
+  });
+
   it('the per-block cap and the sum of the caps are both real numbers, and the sum is the tighter one', () => {
     expect(BLOCKS.every((b) => b.limit === TOKEN_LIMIT)).toBe(true);
     expect(TOTAL_TOKEN_LIMIT).toBeLessThan(BLOCKS.length * TOKEN_LIMIT + 1);

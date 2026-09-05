@@ -94,7 +94,7 @@ export function env(ctx) {
       `- workspace: \`${ctx.root.replaceAll('\\', '/')}\``,
       `- nx: ${ctx.detected.nx.version ?? 'nie zainstalowane'} (${ctx.detected.nx.present ? 'nx.json obecny' : 'brak nx.json'})`,
       `- angular: ${ctx.detected.angular.version ?? 'nie zainstalowany'} (${ctx.detected.angular.evidence || 'brak'})`,
-      `- graf: \`${model.graphPath.replaceAll('\\', '/')}\``,
+      `- graf: \`${relPath(model.graphPath, ctx.root)}\``,
       `- wiek grafu: ${model.graphMtime === 0 ? 'nie dotyczy (odpowiedź nie z cache)' : formatAge(ctx.now - model.graphMtime)}`,
       `- werdykt świeżości: ${verdict(model)} (\`${model.cache}\`)`,
       model.stamp.newestPath === null
@@ -108,12 +108,15 @@ export function env(ctx) {
       'Plugin, który wnioskuje target z pliku spoza tej listy, nie podbije stempla świeżości.',
       'Wtedy `--fresh`.',
       '',
-      ...INFERRING_FILES.map((name) => `- \`${name}\``),
+      // One line, not a bullet per name: the list is static and was 40 % of every env.md read.
+      INFERRING_FILES.map((name) => `\`${name}\``).join(' · '),
     ]),
   );
 
   return {
-    line: formatOk('env', [...versionParts(ctx.detected), age, `demon ${daemon}`, verdict(model), shown(ctx, file)]),
+    // The daemon state stays in env.md only: the code below says it proves nothing about freshness,
+    // and a fact that proves nothing does not belong on the line.
+    line: formatOk('env', [...versionParts(ctx.detected), age, verdict(model), shown(ctx, file)]),
     exit: 0,
   };
 }
@@ -222,7 +225,7 @@ export function graph(ctx) {
   const name = ctx.args[0];
   const project = model.graph.projects.find((p) => p.name === name);
   if (project === undefined) {
-    return { line: fail('graph', name, `brak projektu ${name}`, [verdict(model)]), exit: 1 };
+    return { line: fail('graph', name, `brak projektu ${name}`, [nonHit(model)]), exit: 1 };
   }
 
   const dependsOn = model.graph.dependsOn.get(name) ?? [];
@@ -314,7 +317,7 @@ export function gen(ctx) {
   const file = writeOut(
     ctx.outDir,
     'gen.md',
-    document({ title: 'Generatory', source: `${ctx.root.replaceAll('\\', '/')}/node_modules`, freshness: '' }, [
+    document({ title: 'Generatory', source: 'node_modules (workspace)', freshness: '' }, [
       '| generator | opis |',
       '| --- | --- |',
       ...filtered.map((g) => `| \`${g.collection}:${g.name}\` | ${g.description} |`),

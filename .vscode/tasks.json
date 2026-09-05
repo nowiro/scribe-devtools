@@ -56,6 +56,12 @@
       "problemMatcher": []
     },
     {
+      "label": "nx-angular-inspector: help",
+      "type": "shell",
+      "command": "node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs help",
+      "problemMatcher": []
+    },
+    {
       "label": "browser-inspector: batch z fixture (--no-daemon)",
       "type": "shell",
       "command": "node packages/browser-inspector/bin/browser-inspector.mjs packages/browser-inspector/fixtures/app-factory.config.json --no-daemon",

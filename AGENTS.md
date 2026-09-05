@@ -75,7 +75,7 @@ zamierzone: limit ma zmuszać do wyboru, a nie ustępować.
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**`, `bench/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
 | `node scripts/gen-steps-doc.mjs --check` | świeżość `docs/STEPS.md` |
-| `node scripts/check-instruction-sync.mjs` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md` ≡ `INSTRUCTION` w benchu (gdy narzędzie ma harness); limit 200 tokenów na blok i 400 na wszystkie razem. Blok nieobecny w OBU plikach jest pomijany — to checkout tego oprzyrządowania w repo bez tego narzędzia; obecny w jednym i brakujący w drugim to FAIL |
+| `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md` ≡ `INSTRUCTION` w benchu (gdy narzędzie ma harness); limit 200 tokenów na blok i 400 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; bez `--require-all` blok nieobecny w OBU plikach jest pomijany (checkout tego oprzyrządowania w repo bez tego narzędzia) — tu oba narzędzia są, więc `verify` wymaga obu bloków |
 | `npm run smoke` | jeden smoke na prawdziwym Chrome/Edge: batch, izolacja dwóch originów, sesja przez keepera, `browser-inspector script`, auth (`BROWSER_INSPECTOR_SKIP_SMOKE=1` tylko bez przeglądarki) |
 
 **Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — kalendarzowa połowa
@@ -206,7 +206,7 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 ## Czego nie robić
 
 - Nie commituj wyników: `.scribe-devtools/`, `bench/out/`, `read.config.*.json` (poza
-  `fixtures/` i `examples/`) — to zrzuty i sesje cudzej aplikacji.
+  `fixtures/`) — to zrzuty i sesje cudzej aplikacji.
 - Nie dodawaj ścieżek DELETE — jedyne czyszczenie to `storage … clear` w piaskownicy
   własnego kontekstu i scrub między przebiegami.
 - Sekrety wyłącznie przez zmienne środowiskowe (`valueFromEnv`, `--env`, `@{NAZWA}`) —

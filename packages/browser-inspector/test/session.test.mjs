@@ -191,7 +191,7 @@ describe('session: open, deltas, one line per command', () => {
     expect(named.lines).toEqual(['ok get suma ← #total · text of #total']);
   });
 
-  it('a navigation prints `navigated → refs f<seq>eN (browser-inspector snap)` and a same-document URL change prints the path', async () => {
+  it('a navigation prints `navigated → refs f<seq>eN` and a same-document URL change prints the path', async () => {
     const h = await harness();
     await h.open('http://localhost:4300/');
     const page = h.page();
@@ -203,7 +203,7 @@ describe('session: open, deltas, one line per command', () => {
       },
     };
     const nav = await h.run({ do: 'click', ref: 'e3' });
-    expect(nav.lines).toEqual(['ok click e3 · navigated → refs f1eN (browser-inspector snap) · el 23']);
+    expect(nav.lines).toEqual(['ok click e3 · navigated → refs f1eN · el 23']);
     assertBudget(nav.lines);
     const journal = readJournal(path.join(h.dir, 'journal.jsonl'));
     expect(journal.at(-1)).toMatchObject({

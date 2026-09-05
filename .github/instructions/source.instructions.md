@@ -2,18 +2,20 @@
 applyTo: 'packages/**/src/**/*.mjs,packages/**/bin/**/*.mjs'
 ---
 
-# Kod narzędzia (`packages/browser-inspector/src`, `bin`)
+# Kod narzędzi (`packages/*/src`, `packages/*/bin`)
 
 - Czysty ESM `.mjs`, bez kroku budowania; typy przez JSDoc (`tsc --checkJs --noEmit` jest bramką).
-  Tylko wbudowane moduły Node ≥ 22 i `playwright-core` (przypięty exact) — żadnej nowej zależności.
+  Tylko wbudowane moduły Node ≥ 22 i, dla browser-inspectora, `playwright-core` (przypięty exact) —
+  nx-angular-inspector ma celowo zero zależności runtime. Żadnej nowej zależności bez wiersza
+  w `scripts/pins.config.mjs` (bramka `check-pins`).
 - Komentarze po angielsku i mówią **dlaczego**, nie co; identyfikatory po angielsku; komunikaty dla
   użytkownika po polsku, jedna linia ≤ 160 znaków, prefiks `ok` / `FAIL`.
 - Klient (`bin/browser-inspector.mjs`, `src/client.mjs`, `src/cli.mjs`, `src/steps.schema.mjs`,
   `src/paths.mjs`, `src/print.mjs`) NIGDY nie importuje `playwright-core`, modułów silnika
   (`engine.mjs`, `lanes.mjs`, `flow.mjs`, `session.mjs`, `steps.ctx.mjs`) ani
   `steps.run.mjs` — budżet startu klienta pilnuje test `client-imports`.
-- Pełna nazwa **browser-inspector** wszędzie: binarka, skrypty, zmienne `BROWSER_INSPECTOR_*`, nazwy
-  pipe'a i plików keepera, teksty pomocy. Skrót `bi` jest zakazany.
+- Pełne nazwy narzędzi wszędzie: binarki, skrypty, zmienne środowiskowe, nazwy pipe'ów i plików,
+  teksty pomocy — skróty w kodzie i komunikatach są zakazane.
 - Sekrety wyłącznie przez `valueFromEnv` / `--env` / `@{NAZWA}`; wartość rozwiązuje klient, keeper
   redaguje ją jedną funkcją `redact()`; nic nie loguje wartości. Krok `run --file` tylko pod
   `BROWSER_INSPECTOR_UNSAFE=1` i tylko w sesji.

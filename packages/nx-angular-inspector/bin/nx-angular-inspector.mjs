@@ -19,7 +19,10 @@ import { main } from '../src/main.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** Our own version, for `nx-angular-inspector version`. Read lazily and never fatal. */
+/**
+ * Our own version, for `nx-angular-inspector version`. Read on every call (34 µs measured — `main`
+ * destructures its options, so a getter would not defer it) and never fatal.
+ */
 function ownVersion() {
   try {
     return String(JSON.parse(readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version ?? '');

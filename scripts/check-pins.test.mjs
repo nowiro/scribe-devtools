@@ -95,7 +95,7 @@ describe('SHAPE and FLOOR', () => {
   it('rejects a range on an exact pin and says why it breaks', () => {
     const problems = checkPins(fixture(tree('>=1.62.1'))).problems.join('\n');
     expect(problems).toContain('SHAPE playwright-core: policy is exact');
-    expect(problems).toContain('portable-zip.mjs:84');
+    expect(problems).toContain('stagePortable in scripts/portable-zip.mjs');
   });
 
   it('rejects a version below the floor', () => {

@@ -15,8 +15,8 @@
 // `_manifest.json.snapshots[]`, of JUnit `<testcase>` and of the value addresses `snapshots[i]` all
 // stay the config's, because only the lane NUMBER moves. And the order WITHIN a lane stays the
 // config's too — which is what keeps the scrub between two snapshots of one batch inside `scrubMs`
-// instead of moving it to `queuedMs` (the property `bench/BUDGET.md` reports and
-// `test/compat/smoke-gate.test.mjs` asserts).
+// instead of moving it to `queuedMs` (the property the budget report and the app-factory compat
+// gate read).
 
 /**
  * What one snapshot is expected to cost, in arbitrary units that only have to ORDER snapshots
