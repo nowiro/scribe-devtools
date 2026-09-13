@@ -9,7 +9,7 @@ przepływy: `/migrate-from-mcp-playwright`, `/browser-session`; bramki jako zada
 **scribe-devtools**: skrypty zamiast serwerów MCP, wyniki na dysku. `packages/browser-inspector/` — binarka
 **browser-inspector** (flow batch z configu JSON + sesja na refach `eN`, playwright-core z systemowym Chrome/Edge);
 `packages/nx-angular-inspector/` — binarka **nx-angular-inspector** (graf Nx jako źródło prawdy, zero zależności
-runtime, tylko nx >= 23 i angular >= 22). Gałąź `copilot` jest minimalna: kod narzędzi, skrypty, instrukcje i
+runtime, tylko nx >= 23 i angular >= 22). Repozytorium jest minimalne: kod narzędzi, skrypty, instrukcje i
 ustawienia Copilota — bez testów, benchmarku i dokumentacji projektowej.
 
 - Pełne nazwy narzędzi wszędzie (binarki, skrypty, zmienne środowiskowe, pipe, teksty) — skróty są zakazane.

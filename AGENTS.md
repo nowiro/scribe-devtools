@@ -1,8 +1,8 @@
 # Instrukcje dla agenta pracującego w tym repozytorium
 
 To repozytorium to **scribe-devtools**: narzędzia deweloperskie w duchu scribe — skrypty
-zamiast serwerów MCP, wyniki na dysku, „banalnie proste". Ta gałąź (`copilot`) to minimalna
-wersja pod GitHub Copilota: sam kod narzędzi, skrypty, instrukcje i ustawienia Copilota/VS Code —
+zamiast serwerów MCP, wyniki na dysku, „banalnie proste". Repozytorium jest minimalne i nastawione
+na VS Code i GitHub Copilota: sam kod narzędzi, skrypty, instrukcje i ustawienia Copilota/VS Code —
 bez testów, benchmarku i długiej dokumentacji projektowej.
 
 - `packages/browser-inspector/` — binarka `browser-inspector`: flow batch z configu JSON
@@ -63,10 +63,11 @@ każdego pinu i mierzy, od kiedy pin jest w tyle (zegar `firstSeenBehind` w comm
 `--strict`; `--ack <id|all>` to świadoma decyzja „widziałem, zostaję". `@types/node` WARN-uje celowo
 (`pins.config.mjs` mówi dlaczego). Reszta w nagłówku skryptu.
 
-Ta gałąź nie ma testów ani benchmarku: reguły, które na `main` pilnuje test, tu pilnuje review — lista w
+Repozytorium nie ma testów ani benchmarku: reguły, które kiedyś pilnował test, pilnuje dziś review — lista w
 [.github/instructions/source.instructions.md](.github/instructions/source.instructions.md). Komentarze w kodzie
-odwołują się do `docs/DESIGN.md §n`, `docs/handoff/WPn.md` i testów (`test/…`, `FakePage`) — to pliki gałęzi
-`main`; kod jest ten sam, dokumentów tu nie ma.
+odwołują się do `docs/DESIGN.md §n`, `docs/handoff/WPn.md` i testów (`test/…`, `FakePage`) — tych plików już tu
+nie ma. Są w **historii**, przed scaleniem `04ae6c1`: `git show <commit>:docs/DESIGN.md`, albo `git log --all --
+docs/`. Kod jest ten sam, więc numery paragrafów dalej się zgadzają.
 
 Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md` przed każdym commitem. Uzbraja go
 `npm run prepare` — **jawnie**, bo `.npmrc` ma `ignore-scripts=true` i `npm install` skryptu

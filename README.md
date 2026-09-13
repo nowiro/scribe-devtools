@@ -1,9 +1,10 @@
 # scribe-devtools
 
 Narzędzia deweloperskie w duchu scribe: skrypty zamiast serwerów MCP, wyniki na dysku, zero
-schematów narzędzi w kontekście agenta. Gałąź `copilot` to minimalna wersja repozytorium: kod obu
-narzędzi, skrypty, instrukcje dla agenta i ustawienia GitHub Copilota — bez testów, benchmarku
-i dokumentacji projektowej.
+schematów narzędzi w kontekście agenta. Repozytorium jest minimalne i nastawione na VS Code
+i GitHub Copilota: kod obu narzędzi, skrypty, instrukcje dla agenta i ustawienia Copilota — bez
+testów, benchmarku i dokumentacji projektowej. Te części żyją tylko w historii, w gałęziach
+sprzed scalenia; kod jest ten sam.
 
 Dwa narzędzia, dwie binarki:
 
