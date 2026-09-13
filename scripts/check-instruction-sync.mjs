@@ -1,7 +1,7 @@
 // The instruction block quoted in AGENTS.md IS the measured fixed cost of a tool's side of an
-// agent session (AC-6: ≤ 200 o200k tokens per block — the owner trades tokens for the full tool
-// name `browser-inspector` in every command; the two-letter abbreviation never appears in the
-// application, so the block cannot go back to the old 150). A second copy lives in
+// agent session (AC-6: originally ≤ 200 o200k tokens per block — the owner trades tokens for the
+// full tool name `browser-inspector` in every command; the two-letter abbreviation never appears in
+// the application, so the block cannot go back to the old 150). A second copy lives in
 // `.github/copilot-instructions.md`: VS Code Copilot reads that file instead of AGENTS.md in some
 // modes, and an application repository migrating from MCP Playwright copies the block from there —
 // so it is compared too, and it is required, not optional. `pnpm run verify` compares the two
@@ -27,6 +27,18 @@
 // The block in AGENTS.md sits between the markers as a markdown blockquote (`> …` lines); the
 // comparison strips the `> ` prefixes and joins the lines with `\n`, so a wrapped quote equals its
 // single-line source.
+//
+// THE UNIT IS BYTES, and that is a deliberate downgrade. The cap used to be counted in o200k tokens
+// by `gpt-tokenizer`; the dependency is gone, Node has no tokenizer, and the only honest options
+// left were a guessed token number or a different unit. A guessed one was never on the table — see
+// `packages/nx-angular-inspector/src/guide.mjs`, which refused exactly that and reported bytes
+// instead. Now the whole repository reports bytes, and `guide` is the rule rather than the
+// exception. What bytes are NOT is a bound on tokens: the two blocks here measure 527 B/158 tok and
+// 550 B/195 tok, so density varies by ~18 % between two files written by the same hand on the same
+// day. The caps below are calibrated on those two measurements, not derived from them — they keep
+// the headroom the token caps had (353/400 ≈ 88 % full, 1077/1200 ≈ 90 % full), so the gate stayed
+// as tight as it was. What survives the change is the only thing the cap was ever for: an
+// instruction block cannot grow unnoticed.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -35,14 +47,14 @@ const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const AGENTS_FILE = 'AGENTS.md';
 export const COPILOT_FILE = '.github/copilot-instructions.md';
 
-/** Per-block cap (AC-6). */
-export const TOKEN_LIMIT = 200;
+/** Per-block cap in UTF-8 bytes (AC-6, restated in bytes — see the note at the top of the file). */
+export const BYTE_LIMIT = 600;
 
 /**
  * Cap on all blocks together. An agent reads every block in AGENTS.md, so the per-block limit alone
  * would let the fixed cost grow one tool at a time without any single gate ever going red.
  */
-export const TOTAL_TOKEN_LIMIT = 400;
+export const TOTAL_BYTE_LIMIT = 1200;
 
 /**
  * @typedef {object} Block
@@ -53,8 +65,8 @@ export const TOTAL_TOKEN_LIMIT = 400;
 
 /** @type {readonly Block[]} */
 export const BLOCKS = Object.freeze([
-  { name: '', bench: null, limit: TOKEN_LIMIT },
-  { name: 'nx-angular-inspector', bench: null, limit: TOKEN_LIMIT },
+  { name: '', bench: null, limit: BYTE_LIMIT },
+  { name: 'nx-angular-inspector', bench: null, limit: BYTE_LIMIT },
 ]);
 
 /** How a block is referred to in messages. @param {string} name */
@@ -93,18 +105,18 @@ export function extractInstruction(markdown, name = '') {
 }
 
 /**
- * o200k token count when gpt-tokenizer is installed (root devDependency), `null` otherwise —
- * the sync check must not depend on the bench's tokenizer to run.
+ * Size of the instruction in UTF-8 bytes — the unit every size in this repository is stated in.
+ *
+ * `Buffer.byteLength`, not `text.length`: Polish prose is full of two-byte characters, and counting
+ * UTF-16 code units would make the same sentence cheaper here than it is on disk or on the wire.
+ * There is no failure mode to handle and nothing to import, which is the other half of why the
+ * measurement moved — the old token count lived behind a dynamic import and a `try/catch` that
+ * silently turned the cap off whenever the tokenizer was missing.
  * @param {string} text
- * @returns {Promise<number | null>}
+ * @returns {number}
  */
-export async function countTokens(text) {
-  try {
-    const { encode } = await import('gpt-tokenizer/encoding/o200k_base');
-    return encode(text).length;
-  } catch {
-    return null;
-  }
+export function sizeInBytes(text) {
+  return Buffer.byteLength(text, 'utf8');
 }
 
 /**
@@ -123,7 +135,6 @@ export async function checkInstructionSync(root, { requireAll = false } = {}) {
   /** @type {string[]} */
   const notes = [];
   let total = 0;
-  let counted = true;
 
   for (const block of BLOCKS) {
     const name = label(block.name);
@@ -153,27 +164,22 @@ export async function checkInstructionSync(root, { requireAll = false } = {}) {
       };
     }
 
-    const tokens = await countTokens(fromAgents);
-    if (tokens === null) counted = false;
-    else {
-      total += tokens;
-      if (tokens > block.limit) {
-        return {
-          ok: false,
-          message: `${name}: instruction is ${tokens} o200k tokens, limit ${block.limit} (AC-6)`,
-        };
-      }
+    const bytes = sizeInBytes(fromAgents);
+    total += bytes;
+    if (bytes > block.limit) {
+      return {
+        ok: false,
+        message: `${name}: instruction is ${bytes} B, limit ${block.limit} B (AC-6)`,
+      };
     }
 
     if (block.bench === null) {
-      notes.push(`${name} ≡ ${COPILOT_FILE}${tokens === null ? '' : ` · ${tokens} tok`} (bez benchu)`);
+      notes.push(`${name} ≡ ${COPILOT_FILE} · ${bytes} B (bez benchu)`);
       continue;
     }
     const benchPath = path.join(root, block.bench);
     if (!existsSync(benchPath)) {
-      notes.push(
-        `${name} ≡ ${COPILOT_FILE}${tokens === null ? '' : ` · ${tokens} tok`} (${block.bench} not present yet)`,
-      );
+      notes.push(`${name} ≡ ${COPILOT_FILE} · ${bytes} B (${block.bench} not present yet)`);
       continue;
     }
     const mod = await import(pathToFileURL(benchPath).href);
@@ -186,17 +192,17 @@ export async function checkInstructionSync(root, { requireAll = false } = {}) {
         message: `${name}: ${AGENTS_FILE} block ≠ INSTRUCTION in ${block.bench} (first difference at character ${firstDifference(fromAgents, mod.INSTRUCTION)}) — the measured fixed cost would lie`,
       };
     }
-    notes.push(`${name} ≡ ${block.bench} ≡ ${COPILOT_FILE}${tokens === null ? '' : ` · ${tokens} tok`}`);
+    notes.push(`${name} ≡ ${block.bench} ≡ ${COPILOT_FILE} · ${bytes} B`);
   }
 
-  if (counted && total > TOTAL_TOKEN_LIMIT) {
+  if (total > TOTAL_BYTE_LIMIT) {
     return {
       ok: false,
-      message: `all blocks together are ${total} o200k tokens, limit ${TOTAL_TOKEN_LIMIT} — the agent reads every block, so the caps have to add up`,
+      message: `all blocks together are ${total} B, limit ${TOTAL_BYTE_LIMIT} B — the agent reads every block, so the caps have to add up`,
     };
   }
 
-  return { ok: true, message: `${notes.join(' · ')}${counted ? ` · razem ${total}/${TOTAL_TOKEN_LIMIT}` : ''}` };
+  return { ok: true, message: `${notes.join(' · ')} · razem ${total}/${TOTAL_BYTE_LIMIT} B` };
 }
 
 /**

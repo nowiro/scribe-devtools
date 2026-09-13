@@ -11,10 +11,10 @@ applyTo: '**/*.md'
   w AGENTS.md).
 - Bloki `INSTRUCTION…START/END` w AGENTS.md ≡ ich kopie w `.github/copilot-instructions.md`
   (`node scripts/check-instruction-sync.mjs --require-all`).
-- Pliki `.md` formatuje **prettier**, nie Biome: Biome nie ma formatera Markdownu (schemat 2.x zna
-  css, graphql, grit, html, javascript, json). Bramka to `prettier --check "**/*.md"`, naprawa to
-  `pnpm run format`. `proseWrap: 'preserve'` znaczy, że zawijania prettier NIE ruszy — 120 kolumn
-  i jedno zdanie na linię nadal trzymasz ręcznie; prettier pilnuje tabel, list i nagłówków.
-- Poza formaterem (`.prettierignore`): `README.md` i `AGENTS.md` — tabele zawężone ręcznie, prettier
-  rozepchałby każdy wiersz do jednej długiej linii — oraz generowany `CODE-INDEX.md`. Tam szerokość
-  jest w całości Twoja.
+- Plików `.md` **nie formatuje żadna bramka**: repozytorium formatuje Biome, a ten nie ma formatera
+  Markdownu (schemat 2.x zna css, graphql, grit, html, javascript, json) i wtyczka tego nie nadrobi.
+  Prettier wrócił tu na jeden commit i wyleciał — 120 kolumn, jedno zdanie na linię i szerokość
+  tabel trzymasz ręcznie, a EditorConfig pilnuje tylko LF, spacji i finalnej nowej linii.
+- Rozmiary podawaj w **bajtach** (`kB` = 1000 bajtów), nigdy w tokenach: nic w tym repo nie liczy już
+  tokenów, a liczba, której nie sprawdza bramka, zgnije. Rozmiary `CODE-INDEX.md` i `GLOSSARY.md`
+  w AGENTS.md sprawdza `check-claims` (± 10 %) i muszą stać w tej samej linii co odnośnik.

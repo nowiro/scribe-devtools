@@ -8,7 +8,7 @@ applyTo: 'scripts/**/*.mjs,.githooks/*'
   basha/PowerShella/`npx` w logice; żadnych wywołań LLM ze skryptów.
 - Skrypty są bramkami `pnpm run verify` i mają tryb `--check` (świeżość artefaktu) obok trybu
   generującego, gdzie to ma sens: `index-code` (CODE-INDEX.md), `check-instruction-sync` (blok
-  AGENTS.md ≡ `.github/copilot-instructions.md`, limit tokenów o200k), `check-pins` (offline,
+  AGENTS.md ≡ `.github/copilot-instructions.md`, limit bajtów), `check-pins` (offline,
   deterministyczny — `scripts/pins.config.mjs` to jedyne miejsce deklaracji wersji zależności),
   `check-upstream` (online, WARN, poza `verify` — kalendarzowa połowa doktryny aktualności),
   `portable-zip` (`download/`, deterministyczny, `.sha256`, wersja tylko z `package.json`; zamrożenie po tagu

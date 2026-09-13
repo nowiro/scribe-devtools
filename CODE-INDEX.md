@@ -292,11 +292,12 @@ Modules: 52.
 
 ## scripts/check-claims.mjs
 - purpose: the gate that guards the repository's PROMISES, now that no test does.
-- imports: `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `scripts/index-code.mjs`
+- imports: `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `scripts/check-instruction-sync.mjs`, `scripts/index-code.mjs`
 
 ## scripts/check-instruction-sync.mjs
-- purpose: The instruction block quoted in AGENTS.md IS the measured fixed cost of a tool's side of an agent session (AC-6: ≤ 200 o200k tokens per blo…
-- exports: `AGENTS_FILE`, `BLOCKS`, `COPILOT_FILE`, `TOKEN_LIMIT`, `TOTAL_TOKEN_LIMIT`, `checkInstructionSync(root, {…}) → Promise<{ ok: boolean, message: string }>`, `countTokens(text) → Promise<number | null>`, `extractInstruction(markdown, name) → string | null`
+- purpose: The instruction block quoted in AGENTS.md IS the measured fixed cost of a tool's side of an agent session (AC-6: originally ≤ 200 o200k tok…
+- exports: `AGENTS_FILE`, `BLOCKS`, `BYTE_LIMIT`, `COPILOT_FILE`, `TOTAL_BYTE_LIMIT`, `checkInstructionSync(root, {…}) → Promise<{ ok: boolean, message: string }>`, `extractInstruction(markdown, name) → string | null`, `sizeInBytes(text) → number`
+- imported by: `scripts/check-claims.mjs`
 
 ## scripts/check-pins.mjs
 - purpose: Offline, deterministic gate over scripts/pins.config.mjs — the first step of `pnpm run verify`, next to `biome format .`.

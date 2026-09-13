@@ -24,9 +24,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { encode } from 'gpt-tokenizer/model/gpt-4o';
-
 import { listSourceFiles } from './index-code.mjs';
+import { sizeInBytes } from './check-instruction-sync.mjs';
 
 import { RUNNERS } from '../packages/browser-inspector/src/steps.run.mjs';
 import { STEPS } from '../packages/browser-inspector/src/steps.schema.mjs';
@@ -183,6 +182,11 @@ const CLAIMS = [
     // already guards for dependency versions (`check-pins`, rule LAG). It went stale the first time
     // the index grew: AGENTS.md still promised ~6 k while the file had become 8,5 k. A reader
     // budgets on that number, so it is a promise like any other.
+    //
+    // The unit is kB (1000 bytes), not tokens: `gpt-tokenizer` is gone and nothing here can count
+    // tokens any more — the reasoning is at the top of `check-instruction-sync.mjs`. The tolerance
+    // stays ± 10 % because the number's job is unchanged: it is read to decide "whole file or just
+    // the part I need", and that decision does not turn on a percent.
     claim: 'Rozmiary plików czytanych na starcie sesji, podane w AGENTS.md, zgadzają się z nimi (± 10 %)',
     where: 'AGENTS.md (sekcja „Gdzie co jest")',
     run(fail) {
@@ -191,21 +195,21 @@ const CLAIMS = [
         // The figure must sit on the SAME line as the link: two files with two budgets share this
         // section, and a regex that scanned the whole document would compare one file's size with
         // the other's number and pass while lying.
-        const line = agents.split('\n').find((l) => l.includes(`(${name})`) && l.includes('k tokenów'));
+        const line = agents.split('\n').find((l) => l.includes(`(${name})`) && l.includes('kB'));
         if (!line) {
           fail(`${name}: AGENTS.md nie podaje już rozmiaru w linii z odnośnikiem`);
           continue;
         }
-        const stated = /≈\s*([\d,.]+)\s*k tokenów/u.exec(line);
+        const stated = /≈\s*([\d,.]+)\s*kB/u.exec(line);
         if (!stated) {
           fail(`${name}: nie umiem odczytać liczby z linii „${line.trim()}"`);
           continue;
         }
         const promised = Number.parseFloat(stated[1].replace(',', '.')) * 1000;
-        const actual = encode(readFileSync(path.join(REPO, name), 'utf8')).length;
+        const actual = sizeInBytes(readFileSync(path.join(REPO, name), 'utf8'));
         const drift = Math.abs(actual - promised) / promised;
         if (drift > 0.1) {
-          fail(`${name}: obiecane ${Math.round(promised)}, jest ${actual} (${Math.round(drift * 100)} % różnicy)`);
+          fail(`${name}: obiecane ${Math.round(promised)} B, jest ${actual} B (${Math.round(drift * 100)} % różnicy)`);
         }
       }
     },

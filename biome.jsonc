@@ -1,7 +1,7 @@
 {
-  // biome.jsonc — ONE formatting configuration for the whole repository, successor of
-  // prettier.config.mjs. The numbers are carried over unchanged (120 columns, LF, single quotes,
-  // trailing commas everywhere), so the migration is a change of TOOL, not of style.
+  // biome.jsonc — THE formatting configuration of this repository, and the only one. The numbers
+  // are the ones prettier used before it (120 columns, LF, single quotes, trailing commas
+  // everywhere), so replacing it was a change of TOOL, not of style.
   //
   // `$schema` points at the copy inside node_modules on purpose: the published schema URL carries
   // the version in its path, which would be a SECOND place where the Biome version is declared —
@@ -10,9 +10,10 @@
   // What Biome does NOT do here: Markdown. The 2.x configuration schema knows css, graphql, grit,
   // html, javascript and json — there is no markdown section, and a plugin cannot add one, because
   // plugins are GritQL patterns matched against a tree Biome itself parsed and `.md` never reaches
-  // that parser (`biome check x.md` answers "these paths were provided but ignored"). So prose is
-  // formatted by prettier instead — see prettier.config.mjs — over a disjoint set of files: every
-  // `.md` there, everything else here. AGENTS.md says the same in the gate table.
+  // that parser (`biome check x.md` answers "these paths were provided but ignored"). Prose is
+  // therefore formatted by NOBODY: prettier was brought back for it for one commit and removed
+  // again, because a second formatter, a second config and a second editor extension are a worse
+  // deal than review for nine files. AGENTS.md says the same in the gate table.
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": false },
   "formatter": {
@@ -40,8 +41,8 @@
   // a project decision, not a side effect of changing formatter.
   "linter": { "enabled": false },
   "assist": { "enabled": false },
-  // Twin of the top of .prettierignore: what a human maintains by hand and what a generator writes.
-  // The Markdown entries of that file have no counterpart here — Biome never looks at Markdown.
+  // What a human maintains by hand and what a generator writes. `.ws/**` and `.scribe-devtools/**`
+  // are output of the two tools: one run would otherwise turn this gate red.
   "files": {
     "includes": [
       "**",

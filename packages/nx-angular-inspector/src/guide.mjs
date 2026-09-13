@@ -6,8 +6,10 @@
 // server that answers it by pasting the file has already taken the decision away.
 //
 // Cost is reported in bytes, not tokens. A token count would need a tokenizer, this package has
-// zero runtime dependencies on purpose, and a guessed token number in a repository that measures
-// tokens for a living would be worse than no number at all.
+// zero runtime dependencies on purpose, and a guessed token number is worse than an honest number
+// in another unit. That used to be this file's private exception — the repository still had a
+// tokenizer at the root for its own gates. The tokenizer is gone now, every size here is in bytes,
+// and this comment describes the rule instead of the deviation.
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 

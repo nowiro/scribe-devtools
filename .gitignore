@@ -11,8 +11,8 @@ Thumbs.db
 
 # Output of every `nx-angular-inspector` run: digests of somebody's workspace. Short on purpose —
 # the path is printed on every line of stdout, and `.ws/projects.md` is 3 o200k tokens against 10
-# for the long form. Needs the `.prettierignore` twin: one run of the tool would otherwise turn
-# `prettier --check .` red.
+# for the long form (measured back when this repository still had a tokenizer). Its twin is the
+# `!.ws/**` entry in biome.jsonc: one run of the tool would otherwise turn `biome format .` red.
 .ws/
 
 # `npm run portable` output. On this branch it is an on-demand build, not a tracked release

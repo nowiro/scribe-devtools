@@ -19,8 +19,8 @@ ustawienia Copilota — bez testów, benchmarku i dokumentacji projektowej.
 
 ## Blok instrukcji `browser-inspector`
 
-Co do znaku równy blokowi w `AGENTS.md` (`scripts/check-instruction-sync.mjs` w `pnpm run verify`; limit 200 tokenów
-o200k). Repozytorium aplikacji kopiuje go STĄD bez zmian — każde dopisane zdanie to koszt w każdej sesji.
+Co do znaku równy blokowi w `AGENTS.md` (`scripts/check-instruction-sync.mjs` w `pnpm run verify`; limit 600
+bajtów). Repozytorium aplikacji kopiuje go STĄD bez zmian — każde dopisane zdanie to koszt w każdej sesji.
 
 <!-- INSTRUCTION:START -->
 
@@ -30,7 +30,7 @@ o200k). Repozytorium aplikacji kopiuje go STĄD bez zmian — każde dopisane zd
 
 ## Blok instrukcji `nx-angular-inspector` (nazwane znaczniki)
 
-Równy co do znaku blokowi w `AGENTS.md`; limit 200 tokenów na blok, 400 na wszystkie razem.
+Równy co do znaku blokowi w `AGENTS.md`; limit 600 bajtów na blok, 1200 na wszystkie razem.
 
 <!-- INSTRUCTION:nx-angular-inspector:START -->
 

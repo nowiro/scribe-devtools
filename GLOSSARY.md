@@ -47,6 +47,6 @@ się, zamiast zostawić słownik, który cicho zgnił.
 | bramka          | krok `pnpm run verify`, który ma prawo zatrzymać zmianę; bramka wskazuje, nie przepisuje  | `package.json`, `scripts/`           | test, lint, CI         |
 | pin             | wiersz deklarujący wersję jednej zależności i mówiący, co się psuje przy jej zmianie      | `PINS`, `scripts/pins.config.mjs`    | wersja, zależność      |
 | obietnica       | zdanie, które proza podaje jako fakt o zachowaniu binarki, sprawdzane przez bramkę claims | `scripts/check-claims.mjs`           | asercja, test          |
-| blok instrukcji | fragment AGENTS.md liczony w tokenach i kopiowany znak w znak do instrukcji Copilota      | `scripts/check-instruction-sync.mjs` | prompt, systemowy      |
+| blok instrukcji | fragment AGENTS.md mierzony w bajtach i kopiowany znak w znak do instrukcji Copilota      | `scripts/check-instruction-sync.mjs` | prompt, systemowy      |
 | portable        | jeden zip niosący OBA narzędzia pod jedną wersją, do użycia bez menedżera pakietów        | `scripts/portable-zip.mjs`           | paczka, release, build |
 | indeks          | `CODE-INDEX.md`: mapa modułów z wejściem, wyjściem i subskrypcjami zdarzeń                | `scripts/index-code.mjs`             | dokumentacja, API docs |

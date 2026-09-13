@@ -9,11 +9,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "verify": "biome format . && prettier --check \"**/*.md\" && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all && node scripts/check-claims.mjs",
+    "verify": "biome format . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all && node scripts/check-claims.mjs",
     "typecheck": "tsc --noEmit",
     "claims": "node scripts/check-claims.mjs",
-    "format": "biome format --write . && prettier --write \"**/*.md\"",
-    "format:check": "biome format . && prettier --check \"**/*.md\"",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "code-index": "node scripts/index-code.mjs",
     "portable": "node scripts/portable-zip.mjs",
     "prepare": "git config core.hooksPath .githooks || exit 0",
@@ -23,8 +23,6 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
     "@types/node": "^22.20.2",
-    "gpt-tokenizer": "^4.0.0",
-    "prettier": "^3.9.6",
     "typescript": "^7.0.2"
   }
 }

@@ -13,10 +13,10 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 [*.md]
-# README.md is hand-wrapped and excluded from prettier (see .prettierignore), so a hard
-# width limit here would fight tables that were narrowed by hand. Trimming trailing
-# whitespace stays on deliberately: the markdown "two trailing spaces = line break" is
-# invisible in review and does not survive a formatter.
+# No formatter touches Markdown here (Biome has none and prettier is gone), so this file is
+# the only thing keeping LF, spaces and a final newline in prose. No hard width limit: it
+# would fight tables that were narrowed by hand. Trimming trailing whitespace stays on
+# deliberately: the markdown "two trailing spaces = line break" is invisible in review.
 max_line_length = off
 
 [Makefile]

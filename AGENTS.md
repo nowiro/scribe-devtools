@@ -23,7 +23,7 @@ przez JSDoc, sprawdzane `tsc --checkJs`. Tylko wbudowane moduły Node i (dla bro
 
 Ten blok jest cytowany co do znaku przez `INSTRUCTION` w `.github/copilot-instructions.md`
 (kopia dla Copilota i dla repozytoriów aplikacji). Zmieniasz go tu → zmieniasz tam;
-`scripts/check-instruction-sync.mjs` w `pnpm run verify` pilnuje równości i limitu 200 tokenów o200k.
+`scripts/check-instruction-sync.mjs` w `pnpm run verify` pilnuje równości i limitu 600 bajtów.
 
 <!-- INSTRUCTION:START -->
 > Przeglądarka: `browser-inspector <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `browser-inspector open <url>`, `browser-inspector find <tekst>` / `browser-inspector snap` dają refy `eN`; `browser-inspector click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `browser-inspector export flow.json` zapisuje sesję jako config.
@@ -33,9 +33,11 @@ Ten blok jest cytowany co do znaku przez `INSTRUCTION` w `.github/copilot-instru
 
 Ten sam mechanizm, własne **nazwane** znaczniki — regex bramki łapie pierwszy NIENAZWANY blok, więc
 drugi musi się nazwać. Kopia w `.github/copilot-instructions.md`, porównywana znak po znaku.
-Limit 200 tokenów na blok i **400 na wszystkie razem**: agent czyta każdy blok, więc sam limit
+Limit 600 bajtów na blok i **1200 na wszystkie razem**: agent czyta każdy blok, więc sam limit
 per blok pozwalałby rość kosztowi stałemu o jedno narzędzie naraz, nie czerwieniąc nigdy żadnej
-bramki.
+bramki. Bajty, nie tokeny — od kiedy nie ma tu tokenizera, nic nie liczy tokenów i zgadywana liczba
+byłaby gorsza niż uczciwie inna jednostka (uzasadnienie w nagłówku `scripts/check-instruction-sync.mjs`).
+Limity są skalibrowane na obecnych blokach tak, by zapas był ten sam co przy limicie 200/400 tokenów.
 
 <!-- INSTRUCTION:nx-angular-inspector:START -->
 > Nx/Angular: `nx-angular-inspector env` · `projects [nazwa]` · `graph <projekt> [--reverse]` · `affected [--base <ref>]` · `gen [wzorzec|kolekcja:generator]` · `guide` · `run <projekt>:<target>` · `serve [wait|stop] <projekt>`. Każda drukuje JEDNĄ linię (exit 1 = FAIL) zakończoną ścieżką pliku z całością w `.ws/` — odpowiedź jest w tym pliku, nie powtarzaj komendy; `projects <nazwa>` odpowiada samą linią. Komendy z grafu dopisują świeżość (`świeże`|`nieświeże`), `--fresh` przelicza. Tylko nx >= 23 i angular >= 22.
@@ -51,12 +53,11 @@ kontrakt `project-graph.json`, brak `docs`):
 | komenda | co pilnuje |
 | --- | --- |
 | `pnpm run verify` | wszystko poniżej, w tej kolejności |
-| `biome format .` | format kodu i JSON-a: 120 kolumn, LF, pojedyncze cudzysłowy, przecinki końcowe wszędzie (`biome.jsonc`; wykluczenia w `files.includes`). Zastąpił prettiera na kodzie: te same liczby, ten sam styl, na tym drzewie różnica wyszła w JEDNEJ linii na 62 plikach |
-| `prettier --check "**/*.md"` | format prozy, bo **Markdownu Biome nie formatuje** — schemat konfiguracji 2.x zna `css`, `graphql`, `grit`, `html`, `javascript` i `json`, sekcji `markdown` nie ma, a wtyczka tego nie nadrobi: wtyczki to wzorce GritQL na drzewie, które Biome sam sparsował, a `.md` do parsera nie wchodzi. Stąd dwa formatery, każdy nad rozłącznym zbiorem plików. Liczby te same co w `biome.jsonc` (`prettier.config.mjs`: 120 kolumn, LF, `proseWrap: 'preserve'` — zawijanie zostaje ręczne; `singleQuote` trzyma front matter `.prompt.md` w pojedynczych cudzysłowach). Poza zasięgiem (`.prettierignore`): `README.md` i `AGENTS.md`, bo mają tabele zawężone ręcznie do czytelnej szerokości, a prettier dopchnąłby każdą komórkę do najszerszego wiersza, oraz generowany `CODE-INDEX.md` |
+| `biome format .` | format kodu i JSON-a: 120 kolumn, LF, pojedyncze cudzysłowy, przecinki końcowe wszędzie (`biome.jsonc`; wykluczenia w `files.includes`). Zastąpił prettiera: te same liczby, ten sam styl, na tym drzewie różnica wyszła w JEDNEJ linii na 62 plikach. **Markdownu nie formatuje nikt** — Biome go nie umie (schemat 2.x zna `css`, `graphql`, `grit`, `html`, `javascript`, `json`; wtyczka tego nie nadrobi, bo to wzorce GritQL na drzewie, a `.md` do parsera nie wchodzi), a prettier wrócił po to na jeden commit i wyleciał razem z tokenizerem: proza na review jest tańsza niż drugi formater, drugi config i druga wtyczka edytora dla dziewięciu plików. Szerokość i zawijanie prozy trzymasz ręcznie |
 | `node scripts/check-pins.mjs` | `scripts/pins.config.mjs` to jedyne miejsce, gdzie wersja zależności jest **deklarowana**. Bramka jest offline i deterministyczna: META — każda zależność w każdym manifeście ma wiersz, i odwrotnie; SHAPE — `exact` znaczy goły numer, `caret` znaczy `^`; FLOOR — `minSupported` jako podłoga (`playwright-core >= 1.62.1`), która **nie** rozluźnia `exact`; LAG — proza cytująca inną wersję niż pin. Bramka **wskazuje, nie przepisuje**: świadomy cytat starej wersji zwalnia `pins:ignore` w linii |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
-| `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 200 tokenów na blok i 400 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; `--require-all` robi FAIL także z bloku brakującego w OBU plikach — bez tego skasowanie obu kopii przechodziłoby jako „pominięty” |
+| `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 600 bajtów na blok i 1200 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; `--require-all` robi FAIL także z bloku brakującego w OBU plikach — bez tego skasowanie obu kopii przechodziłoby jako „pominięty” |
 | `node scripts/check-claims.mjs` | jedyna bramka, która URUCHAMIA obie binarki. Sprawdza zdania, które proza podaje jako fakty: jedna linia z prefiksem `ok`/`FAIL` na komendę, twardy limit 120 znaków, `exit 1 = FAIL` i `exit 2` dla błędu składni oraz błędu fatalnego, sesja bez keepera kończąca się nazwanym błędem, `Object.keys(RUNNERS) === Object.keys(STEPS)`, rozmiary `CODE-INDEX.md` i `GLOSSARY.md` obiecane w prozie oraz to, że każde mapowanie ze słownika wskazuje na żywą ścieżkę albo żywy symbol. Każda asercja niesie plik, który daną obietnicę składa, więc FAIL mówi, które zdanie przestało być prawdą. Bez przeglądarki, bez sieci, bez keepera — to, co wymaga prawdziwej strony, jest **poza** jej zasięgiem i zostaje sprawą review |
 
 **Poza `pnpm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — pyta rejestr npm o `latest` dla
@@ -107,10 +108,10 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 **Zacznij od tych dwóch, zanim zaczniesz szukać w drzewie.** Indeks mówi, GDZIE coś jest; słownik
 mówi, JAK to się nazywa. Rozmiary są podane po to, żebyś mógł zdecydować, czy czytasz w całości:
 
-- [CODE-INDEX.md](CODE-INDEX.md) — ≈ 10,4 k tokenów — mapa modułów: po co każdy jest, co eksportuje
+- [CODE-INDEX.md](CODE-INDEX.md) — ≈ 39 kB — mapa modułów: po co każdy jest, co eksportuje
   (z wejściem i wyjściem funkcji), na jakie zdarzenia się zapisuje, które zmienne środowiskowe
   czyta, co importuje w runtime, a co tylko jako typ, i kto importuje jego.
-- [GLOSSARY.md](GLOSSARY.md) — ≈ 1,5 k tokenów — słowa tego repo i ich nazwy w kodzie, w obie
+- [GLOSSARY.md](GLOSSARY.md) — ≈ 7 kB — słowa tego repo i ich nazwy w kodzie, w obie
   strony; proza jest po polsku, identyfikatory po angielsku, więc szukanie słowa wprost często nic
   nie daje.
 

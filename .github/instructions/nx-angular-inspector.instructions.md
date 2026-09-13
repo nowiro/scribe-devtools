@@ -15,6 +15,6 @@ applyTo: 'packages/nx-angular-inspector/**'
   `nieznany format` i fallback do CLI — wolniej, nigdy źle.
 - **`docs` nie istnieje.** Wymagałoby klucza Algolii osadzonego w angular.dev, który może się zrotować, i endpointu
   nx.dev — czyli dokładnie tego cichego dryfu, przed którym ostrzega instrukcja. Blok instrukcji jest przy tym blisko
-  sufitu (200 tokenów): `docs` nie zmieści się bez skrócenia czegoś innego, i to jest zamierzone.
+  sufitu (600 bajtów, zajęte 550): `docs` nie zmieści się bez skrócenia czegoś innego, i to jest zamierzone.
 - **Każda odpowiedź to jedna linia `ok`/`FAIL`** zakończona ścieżką pliku w `.ws/`; błąd składni komendy to też jedna
   linia `FAIL <verb> · … · nx-angular-inspector help <verb>` (exit 2), nigdy pełna tabela pomocy.

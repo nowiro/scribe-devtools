@@ -26,7 +26,7 @@ git clone <repo> scribe-devtools
 cd scribe-devtools
 pnpm install --frozen-lockfile   # .npmrc: ignore-scripts=true, engine-strict=true
 pnpm run prepare                 # uzbraja hook pre-commit (instalacja go NIE uruchamia — ignore-scripts)
-pnpm run verify                  # bramki: biome format, prettier (proza), check-pins, tsc, CODE-INDEX, sync, claims
+pnpm run verify                  # bramki: biome format, check-pins, tsc, CODE-INDEX, sync instrukcji, claims
 ```
 
 Bez binarek na PATH: `node packages/browser-inspector/bin/browser-inspector.mjs …` /
@@ -101,8 +101,8 @@ Bez menedżera pakietów, bez builda: `pnpm run portable` pakuje oba narzędzia 
   repozytorium aplikacji — indeks kodu i słownik pojęć pod ograniczanie kontekstu, cache Nx bez Nx
   Cloud, `affected`, natywne hooki, pipeline GitLab CI.
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
-  `.vscode/settings.json` ustawia formatery (Biome na kodzie, prettier na Markdownie), prompt files,
-  instrukcje i `AGENTS.md`; `.vscode/extensions.json` poleca oba formatery i Copilot Chat.
+  `.vscode/settings.json` włącza Biome jako formater, prompt files, instrukcje i `AGENTS.md`;
+  `.vscode/extensions.json` poleca Biome i Copilot Chat.
 
 Instrukcje dla agentów pracujących w tym repo: [AGENTS.md](AGENTS.md). Agent zaczyna sesję od
 dwóch plików: [CODE-INDEX.md](CODE-INDEX.md) mówi, gdzie co jest, a [GLOSSARY.md](GLOSSARY.md),
@@ -113,7 +113,6 @@ jak to się nazywa — proza jest po polsku, identyfikatory po angielsku.
 | skrypt | co robi |
 | --- | --- |
 | `pnpm run verify` | wszystkie bramki (patrz AGENTS.md) |
-| `pnpm run format` | Biome na kodzie i JSON-ie, prettier na `**/*.md` — dwa formatery, bo Biome nie umie Markdownu |
 | `pnpm run typecheck` | `tsc --noEmit` z `checkJs` |
 | `pnpm run claims` | uruchamia obie binarki i sprawdza obietnice z prozy (jedna linia, limit 120 znaków, kody wyjścia) |
 | `pnpm run code-index` | regeneracja `CODE-INDEX.md` |
