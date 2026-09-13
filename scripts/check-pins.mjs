@@ -40,7 +40,8 @@ const SKIP_FILES = new Set(['pnpm-lock.yaml']);
 const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.mts', '.ts', '.json', '.yml', '.yaml', '.txt']);
 
 /**
- * Manifests npm would install from: the root plus everything its `workspaces` patterns expand to.
+ * Manifests the package manager installs from: the root plus everything the workspace patterns
+ * expand to.
  * Discovered, not listed — a hardcoded list makes the META check blind to a new package, which is
  * the one thing it exists to catch.
  * @param {string} root

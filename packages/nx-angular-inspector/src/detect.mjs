@@ -120,8 +120,9 @@ function threshold(nx, angular) {
     if (angular.major < MIN_ANGULAR) return `wymagane angular >= ${String(MIN_ANGULAR)}`;
   }
   // The third line is what the word "only" in "we support only nx >= 23 and angular >= 22" costs.
-  // A workspace that is neither — plain npm workspaces, which is what scribe-devtools itself is —
-  // gets one FAIL line rather than an attempt to make something of its package.json. There is no
+  // A workspace that is neither — a plain package-manager workspace, which is what scribe-devtools
+  // itself is — gets one FAIL line rather than an attempt to make something of its package.json.
+  // There is no
   // third ecosystem branch and none is planned.
   if (!nx.present && !angular.present) return 'ani Nx, ani Angular — brak wsparcia';
   return null;
