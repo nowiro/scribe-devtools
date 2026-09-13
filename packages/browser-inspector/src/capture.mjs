@@ -13,7 +13,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { degradeTo, withDeadline } from './deadline.mjs';
-import { sliceUnits } from './print.mjs';
 
 /** @typedef {import('./types.js').PageLike} PageLike */
 /** @typedef {import('./types.js').CdpLike} CdpLike */
@@ -30,13 +29,6 @@ export const EVIDENCE_CAP_MS = 10_000;
  * falls back to Playwright, which stitches. 16384 is the limit on the GPU backends Chrome ships.
  */
 const MAX_CAPTURE_PX = 16_384;
-
-/**
- * Cap one captured value; the cap is marked, never silent.
- * @param {string} raw
- * @returns {ExtractedValue}
- */
-export const capExtract = (raw) => ({ value: sliceUnits(raw, EXTRACT_CAP), truncated: raw.length > EXTRACT_CAP });
 
 // ── Screenshots ──────────────────────────────────────────────────────────────
 
@@ -402,13 +394,6 @@ export async function pageEvidence(page, options = {}) {
     },
   };
 }
-
-/** @param {PageLike} page @param {number} [timeoutMs] */
-export const pageText = async (page, timeoutMs) => (await pageEvidence(page, { elements: false, timeoutMs })).text;
-
-/** @param {PageLike} page @param {number} [timeoutMs] */
-export const elementsMap = async (page, timeoutMs) =>
-  (await pageEvidence(page, { text: false, timeoutMs })).elements ?? { entries: [], total: 0, truncated: false };
 
 /**
  * Which final screenshot a snapshot gets (DESIGN.md §3.3): `type: "page"` always `page.png`;

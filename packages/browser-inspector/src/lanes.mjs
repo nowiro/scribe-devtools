@@ -20,7 +20,7 @@
 // browser and never pay the 270 ms import, and the keeper listens on its pipe BEFORE it imports.
 
 import { readFileSync } from 'node:fs';
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -184,34 +184,6 @@ const rssFromPs = (out) =>
     .map((l) => Number(l.trim()))
     .filter((n) => Number.isFinite(n))
     .reduce((a, b) => a + b, 0);
-
-/**
- * RSS of the browser's processes in MB, summed, best effort: `/proc` on Linux, `tasklist` on
- * Windows, `ps` elsewhere. `0` when it cannot be read — the recycling rule then rests on `maxJobs`
- * alone. Synchronous — for tools and tests; the engine samples with `processRssMbAsync` off the
- * job path.
- * @param {number | number[] | undefined} pids
- * @returns {number}
- */
-export function processRssMb(pids) {
-  const list = pidList(pids);
-  if (list.length === 0) return 0;
-  try {
-    if (process.platform === 'linux') return Math.round(procRssKb(list) / 1024);
-    if (process.platform === 'win32') {
-      const out = execFileSync('tasklist', ['/FO', 'CSV', '/NH'], {
-        encoding: 'utf8',
-        windowsHide: true,
-        timeout: 3000,
-      });
-      return Math.round(rssFromTasklist(out, list) / 1024);
-    }
-    const out = execFileSync('ps', ['-o', 'rss=', '-p', list.join(',')], { encoding: 'utf8', timeout: 3000 });
-    return Math.round(rssFromPs(out) / 1024);
-  } catch {
-    return 0;
-  }
-}
 
 /** @param {number[]} pids */
 function procRssKb(pids) {

@@ -9,9 +9,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-/** Marker files that make a directory a workspace root, most specific first. */
-export const ROOT_MARKERS = Object.freeze(['nx.json', 'angular.json', 'package.json']);
-
 /**
  * The workspace root at or above `from`: the nearest directory holding `nx.json` or `angular.json`,
  * else the nearest holding `package.json`, else `from` itself.

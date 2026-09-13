@@ -22,7 +22,6 @@
 // engine a fake browser and never pay the 270 ms import, and the keeper listens on its pipe BEFORE
 // it imports.
 
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -237,6 +236,3 @@ export function createEngine(first = {}, hooks = undefined) {
 }
 
 /** @typedef {ReturnType<typeof createEngine>} Engine */
-
-/** Whether the package directory carries the portable marker — informational for `browser-inspector status`. */
-export const isPortable = () => existsSync(path.join(PACKAGE_DIR, 'PORTABLE'));

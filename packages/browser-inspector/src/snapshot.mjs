@@ -18,7 +18,7 @@
 // prefix is the frame sequence the engine itself uses to route to the right iframe.
 
 import { REF_NOT_FOUND } from './print.mjs';
-import { maskSnapshotEntries, maskSnapshotValues } from './redact.mjs';
+import { maskSnapshotValues } from './redact.mjs';
 
 /** @typedef {import('./types.js').PageLike} PageLike */
 
@@ -1070,29 +1070,6 @@ export async function sidecarFromPage(page, boxesYaml) {
     if (Array.isArray(walk)) frames[seq] = walk;
   }
   return boxJoin(boxesYaml, { main, frames }).entries;
-}
-
-/**
- * The three snapshot files from one `boxes: true` snapshot and its walk, already masked: `full`
- * (the YAML with secret values redacted and sensitive values dropped), `md` (the compact view),
- * `entries` (the sidecar, `snap.json`). One call so the engine and the session write the same
- * thing (DESIGN.md §2.6: password / one-time-code fields never carry a value in `snap.md` or
- * `snap.json`, and every value goes through `redact`).
- * @param {string} boxesYaml
- * @param {readonly SidecarEntry[]} entries  From `boxJoin` / `sidecarFromPage`.
- * @param {CompactOptions & { secretValues?: readonly string[] }} [options]
- * @returns {{ full: string, md: string, entries: SidecarEntry[], sensitive: string[] }}
- */
-export function snapshotArtifacts(boxesYaml, entries, options = {}) {
-  const sensitive = sensitiveRefs(entries);
-  const mask = { secretValues: options.secretValues, sensitiveRefs: sensitive };
-  const { secretValues: _unused, ...compactOptions } = options;
-  return {
-    full: maskSnapshotValues(boxesYaml, mask),
-    md: maskSnapshotValues(compactSnapshot(boxesYaml, { ...compactOptions, sidecar: entries }), mask),
-    entries: /** @type {SidecarEntry[]} */ (maskSnapshotEntries(entries, mask)),
-    sensitive,
-  };
 }
 
 // ── Ref resolution against a live page ───────────────────────────────────────

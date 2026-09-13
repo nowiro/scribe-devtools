@@ -333,33 +333,6 @@ export function zipDirectory(staging, zipPath) {
   writeFileSync(zipPath, Buffer.concat([...local, centralBytes, end]));
 }
 
-/**
- * Entry names of a zip, read from its central directory — the portability check: a name with a
- * backslash unpacks as one flat file on Linux/macOS. Pure Node, so the test does not depend on
- * whichever `tar` the platform has (GNU tar cannot list a zip at all).
- * @param {string} zipPath
- * @returns {string[]}
- */
-export function zipEntries(zipPath) {
-  const buf = readFileSync(zipPath);
-  let eocd = buf.length - 22;
-  while (eocd >= 0 && buf.readUInt32LE(eocd) !== 0x06054b50) eocd -= 1;
-  if (eocd < 0) throw new Error(`${zipPath}: brak końca katalogu centralnego — to nie jest zip`);
-  const count = buf.readUInt16LE(eocd + 10);
-  let pos = buf.readUInt32LE(eocd + 16);
-  /** @type {string[]} */
-  const names = [];
-  for (let i = 0; i < count; i += 1) {
-    if (buf.readUInt32LE(pos) !== 0x02014b50) throw new Error(`${zipPath}: uszkodzony wpis katalogu ${i}`);
-    const nameLength = buf.readUInt16LE(pos + 28);
-    const extraLength = buf.readUInt16LE(pos + 30);
-    const commentLength = buf.readUInt16LE(pos + 32);
-    names.push(buf.subarray(pos + 46, pos + 46 + nameLength).toString('utf8'));
-    pos += 46 + nameLength + extraLength + commentLength;
-  }
-  return names;
-}
-
 /** @param {string} file @returns {string} hex sha256 */
 export const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 

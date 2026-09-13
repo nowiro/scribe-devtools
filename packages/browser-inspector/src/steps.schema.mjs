@@ -243,8 +243,8 @@ export const STEPS = Object.freeze({
     batch: true,
     session: true,
     argv: ['url'],
-    flags: { wait: 'enum:load,domcontentloaded,networkidle,settled', video: 'bool' },
-    config: { url: 'url', waitUntil: 'enum:load,domcontentloaded,networkidle,settled?', video: 'bool?' },
+    flags: { wait: `enum:${WAIT_UNTIL.join(',')}`, video: 'bool' },
+    config: { url: 'url', waitUntil: `enum:${WAIT_UNTIL.join(',')}?`, video: 'bool?' },
     // `video` is the session's `open --video` and nothing else: recording starts with the CONTEXT,
     // which a batch opens per snapshot. Outside a session the field used to pass validation and do
     // nothing at all — no `.video/`, no `files.video`, no warning.
@@ -288,8 +288,8 @@ export const STEPS = Object.freeze({
     batch: true,
     session: true,
     argv: [],
-    flags: { wait: 'enum:load,domcontentloaded,networkidle,settled' },
-    config: { waitUntil: 'enum:load,domcontentloaded,networkidle,settled?' },
+    flags: { wait: `enum:${WAIT_UNTIL.join(',')}` },
+    config: { waitUntil: `enum:${WAIT_UNTIL.join(',')}?` },
     describe: () => 'reload',
     help: 'reload [--wait load|settled|networkidle]',
     fromArgv: (_, flags) => (flags.wait ? { waitUntil: flags.wait } : {}),

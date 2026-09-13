@@ -883,28 +883,6 @@ export async function startKeeper(options) {
   return { pipe: options.pipe, pid: process.pid, token, stop: () => shutdown('stop()', 0) };
 }
 
-/**
- * Spawn a detached keeper — used by the client and by `browser-inspector doctor`. Never unlinks anything.
- * @param {{ hash: string, pipe: string, key?: string, browserOpts?: Record<string, any>, env?: NodeJS.ProcessEnv, engineModule?: string, binPath?: string, pwVersion?: string }} options
- * @returns {number | undefined} the child pid
- */
-export function spawnKeeper(options) {
-  const args = [KEEPER_PATH, '--hash', options.hash, '--pipe', options.pipe, '--key', options.key ?? options.hash];
-  if (options.browserOpts) args.push('--browser', JSON.stringify(options.browserOpts));
-  if (options.engineModule) args.push('--engine', options.engineModule);
-  if (options.binPath) args.push('--bin', options.binPath);
-  if (options.pwVersion) args.push('--pw', options.pwVersion);
-  const child = spawn(process.execPath, args, {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-    env: options.env ?? process.env,
-  });
-  child.on('error', () => {});
-  child.unref();
-  return child.pid;
-}
-
 /** @param {string[]} argv */
 function parseKeeperArgv(argv) {
   /** @type {Record<string, string>} */

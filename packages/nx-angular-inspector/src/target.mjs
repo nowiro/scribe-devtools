@@ -100,17 +100,6 @@ export function errorSummary(log, max = 5) {
 }
 
 /**
- * The first `max` distinct error lines. Kept as its own name because it reads better at the call
- * sites that only want the text.
- * @param {string} log
- * @param {number} [max]
- * @returns {string[]}
- */
-export function errorLines(log, max = 5) {
-  return errorSummary(log, max).shown;
-}
-
-/**
  * `portal:build` → the two halves, or null. A configuration (`portal:build:production`) is kept on
  * the target side and passed through to Nx untouched.
  * @param {string} spec

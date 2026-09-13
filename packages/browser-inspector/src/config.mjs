@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { resolveOutputDir } from './paths.mjs';
-import { ARTIFACT_NAME, checkField, validateSteps } from './steps.schema.mjs';
+import { ARTIFACT_NAME, WAIT_UNTIL, checkField, validateSteps } from './steps.schema.mjs';
 
 /** Defaults DESIGN.md §3.3 fixes; the report header names the ones that differ from them. */
 export const DEFAULTS = Object.freeze({
@@ -62,7 +62,7 @@ const SNAPSHOT_FIELDS = Object.freeze({
   name: 'name',
   type: 'enum:page,flow',
   url: 'url',
-  waitUntil: 'enum:load,domcontentloaded,networkidle,settled?',
+  waitUntil: `enum:${WAIT_UNTIL.join(',')}?`,
   fullPage: 'bool?',
   viewport: 'object?',
   steps: 'array?',

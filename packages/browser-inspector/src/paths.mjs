@@ -256,9 +256,6 @@ export function resolveOutputDir(outputDir, baseDir) {
   return path.resolve(baseDir, outputDir && outputDir !== '' ? outputDir : DEFAULT_OUTPUT_DIR);
 }
 
-/** @returns {string} */
-export const defaultOutputDir = () => DEFAULT_OUTPUT_DIR;
-
 /**
  * "Is this a CI runner?" — a pure list check, never `isTTY` (the Bash of an agent is not a TTY
  * either, and that is precisely where the keeper must live).

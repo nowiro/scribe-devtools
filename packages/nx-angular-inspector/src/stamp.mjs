@@ -148,16 +148,6 @@ function sweep(from, { files, dirLimit = DIR_LIMIT, fileLimit = FILE_LIMIT }) {
 }
 
 /**
- * Every directory at or below `from`, skipping installed and generated trees.
- * @param {string} from
- * @param {number} [limit] a runaway guard for a symlinked or pathological tree
- * @returns {string[]}
- */
-export function directoriesUnder(from, limit = DIR_LIMIT) {
-  return sweep(from, { files: false, dirLimit: limit }).dirs;
-}
-
-/**
  * Every FILE at or below `from` — the `--deep` half. Separated so the cost is opt-in and visible.
  * @param {string} from
  * @param {number} [limit]

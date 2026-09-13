@@ -13,7 +13,7 @@
 //     parent leaves the port held, and the next `serve` then fails for a reason that has nothing to
 //     do with what the agent just did.
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { nxBin } from './paths.mjs';
 
@@ -230,13 +230,4 @@ export function lastLines(text, count = 5) {
     .map((line) => line.trim())
     .filter((line) => line !== '')
     .slice(-count);
-}
-
-/** Bytes written so far, or 0. @param {string} file */
-export function sizeOf(file) {
-  try {
-    return statSync(file).size;
-  } catch {
-    return 0;
-  }
 }

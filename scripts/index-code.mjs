@@ -161,14 +161,6 @@ export function generateIndex(root) {
   return buildIndex(files);
 }
 
-/**
- * Alias kept for the name ACCEPTANCE.md lists among the exports of this module.
- * @param {string} root
- */
-export function renderIndex(root) {
-  return generateIndex(root);
-}
-
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {

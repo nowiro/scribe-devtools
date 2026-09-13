@@ -16,8 +16,8 @@ Modules: 51.
 - imported by: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`
 
 ## packages/browser-inspector/src/capture.mjs
-- exports: `ELEMENTS_CAP`, `EVIDENCE_CAP_MS`, `EXTRACT_CAP`, `TEXT_CAP`, `capExtract`, `elementsMap`, `evaluateWithTimeout`, `exceptionText`, `finalEvidence`, `finalScreenshotName`, `mapEvaluateResult`, `pageEvidence`, `pageText`, `pngSize`, `saveScreenshot`, `screenshotFast`, `stringifyResult`
-- imports: `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/types.js`
+- exports: `ELEMENTS_CAP`, `EVIDENCE_CAP_MS`, `EXTRACT_CAP`, `TEXT_CAP`, `evaluateWithTimeout`, `exceptionText`, `finalEvidence`, `finalScreenshotName`, `mapEvaluateResult`, `pageEvidence`, `pngSize`, `saveScreenshot`, `screenshotFast`, `stringifyResult`
+- imports: `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/cli.mjs
@@ -40,7 +40,7 @@ Modules: 51.
 - imported by: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/lanes.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/engine.mjs
-- exports: `createEngine`, `isPortable`
+- exports: `createEngine`
 - imports: `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/lanes.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/types.js`
 
 ## packages/browser-inspector/src/flow.mjs
@@ -54,7 +54,7 @@ Modules: 51.
 - imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/lanes.mjs`
 
 ## packages/browser-inspector/src/keeper.mjs
-- exports: `DEFAULT_ENGINE_MODULE`, `IDLE_MS_DEFAULT`, `KEEPER_PATH`, `LOCK_YOUNG_MS`, `LOG_MAX_BYTES`, `MAX_JOBS_DEFAULT`, `MAX_RSS_MB_DEFAULT`, `PROBE_TIMEOUT_MS`, `RSS_CHECK_EVERY`, `SESSION_TTL_MS_DEFAULT`, `acquireLock`, `createContext`, `createQueues`, `holderAnswers`, `isAlive`, `loadEngine`, `probePipe`, `spawnKeeper`, `startKeeper`
+- exports: `DEFAULT_ENGINE_MODULE`, `IDLE_MS_DEFAULT`, `KEEPER_PATH`, `LOCK_YOUNG_MS`, `LOG_MAX_BYTES`, `MAX_JOBS_DEFAULT`, `MAX_RSS_MB_DEFAULT`, `PROBE_TIMEOUT_MS`, `RSS_CHECK_EVERY`, `SESSION_TTL_MS_DEFAULT`, `acquireLock`, `createContext`, `createQueues`, `holderAnswers`, `isAlive`, `loadEngine`, `probePipe`, `startKeeper`
 - imports: `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`
 
@@ -64,17 +64,17 @@ Modules: 51.
 - imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.mjs`
 
 ## packages/browser-inspector/src/lanes.mjs
-- exports: `BrowserMissingError`, `DEFAULT_TIMEOUT_MS`, `E_BROWSER_MISSING`, `FAST_HEADLESS_ARGS`, `LANE_IDLE_MS_DEFAULT`, `MAX_JOBS_DEFAULT`, `MAX_RSS_MB_DEFAULT`, `RSS_CHECK_EVERY`, `SCRUB_OP_MS_DEFAULT`, `createLanePool`, `launchBrowser`, `launchPlan`, `processRssMb`, `processRssMbAsync`
+- exports: `BrowserMissingError`, `DEFAULT_TIMEOUT_MS`, `E_BROWSER_MISSING`, `FAST_HEADLESS_ARGS`, `LANE_IDLE_MS_DEFAULT`, `MAX_JOBS_DEFAULT`, `MAX_RSS_MB_DEFAULT`, `RSS_CHECK_EVERY`, `SCRUB_OP_MS_DEFAULT`, `createLanePool`, `launchBrowser`, `launchPlan`, `processRssMbAsync`
 - imports: `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/isolation.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session.mjs`
 
 ## packages/browser-inspector/src/paths.mjs
-- exports: `CI_VARS`, `DEFAULT_OUTPUT_DIR`, `PORTABLE_MARKER`, `collectIdentity`, `daemonEnabled`, `defaultOutputDir`, `fnv1a`, `identityHash`, `isCI`, `lockFile`, `logFile`, `packageVersion`, `pidFile`, `pipeName`, `playwrightCoreVersion`, `resolveOutputDir`, `sessionDir`, `srcStamp`
+- exports: `CI_VARS`, `DEFAULT_OUTPUT_DIR`, `PORTABLE_MARKER`, `collectIdentity`, `daemonEnabled`, `fnv1a`, `identityHash`, `isCI`, `lockFile`, `logFile`, `packageVersion`, `pidFile`, `pipeName`, `playwrightCoreVersion`, `resolveOutputDir`, `sessionDir`, `srcStamp`
 - imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/session.mjs`
 
 ## packages/browser-inspector/src/print.mjs
 - exports: `EVAL_INLINE_MAX`, `KEEPER_UNAVAILABLE`, `MAX_LINE`, `REF_NOT_FOUND`, `SEP`, `formatBytes`, `formatConsoleEntry`, `formatDeltas`, `formatDialogStatus`, `formatDoctor`, `formatEval`, `formatExport`, `formatFail`, `formatLine`, `formatMs`, `formatNetBody`, `formatNetEntry`, `formatNetSummary`, `formatNewEntries`, `formatOk`, `formatOpen`, `formatOverflow`, `formatShot`, `relPath`, `sliceUnits`, `truncate`, `urlDisplay`
-- imported by: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.run.mjs`
+- imported by: `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/report.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/recorder.mjs
 - exports: `BODY_LIMIT`, `BODY_READ_MS`, `BODY_TYPES`, `CONSOLE_CAP`, `DIALOG_CAP`, `FAILED_REQUEST_CAP`, `NETWORK_CAP`, `PAGE_ERROR_CAP`, `attachRecorder`, `createRecorder`, `errorMessage`, `originOf`, `summarize`
@@ -110,7 +110,7 @@ Modules: 51.
 - imported by: `packages/browser-inspector/src/steps.ctx.mjs`
 
 ## packages/browser-inspector/src/snapshot.mjs
-- exports: `CONTEXT_ROLES`, `FIND_MAX`, `INTERACTIVE_ROLES`, `REF_PATTERN`, `RefNotFoundError`, `SEMANTIC_ROLES`, `aroundRef`, `boxJoin`, `compactLines`, `compactSnapshot`, `diffSnapshot`, `findInSnapshot`, `implicitRole`, `locatorFor`, `locatorForElement`, `namesContext`, `parseSnapshot`, `resolveRef`, `sensitiveRefs`, `sidecarFromPage`, `snapshotArtifacts`, `textUnder`, `uniqueIn`, `valueOf`, `walkInteractive`
+- exports: `CONTEXT_ROLES`, `FIND_MAX`, `INTERACTIVE_ROLES`, `REF_PATTERN`, `RefNotFoundError`, `SEMANTIC_ROLES`, `aroundRef`, `boxJoin`, `compactLines`, `compactSnapshot`, `diffSnapshot`, `findInSnapshot`, `implicitRole`, `locatorFor`, `locatorForElement`, `namesContext`, `parseSnapshot`, `resolveRef`, `sensitiveRefs`, `sidecarFromPage`, `textUnder`, `uniqueIn`, `valueOf`, `walkInteractive`
 - imports: `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/types.js`
 - imported by: `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
@@ -178,7 +178,7 @@ Modules: 51.
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/paths.mjs
-- exports: `ROOT_MARKERS`, `findRoot`, `graphFile`, `nxBin`, `outDir`, `packageManifest`, `walkUp`, `workspaceDataDir`
+- exports: `findRoot`, `graphFile`, `nxBin`, `outDir`, `packageManifest`, `walkUp`, `workspaceDataDir`
 - imported by: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/serve.mjs`, `packages/nx-angular-inspector/src/target.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
 
 ## packages/nx-angular-inspector/src/print.mjs
@@ -186,16 +186,16 @@ Modules: 51.
 - imported by: `packages/nx-angular-inspector/src/main.mjs`, `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/serve.mjs
-- exports: `DEFAULT_READY`, `DEFAULT_WAIT_MS`, `alive`, `lastLines`, `logFile`, `readState`, `sizeOf`, `startServe`, `stateFile`, `stopServe`, `tail`, `waitForServe`
+- exports: `DEFAULT_READY`, `DEFAULT_WAIT_MS`, `alive`, `lastLines`, `logFile`, `readState`, `startServe`, `stateFile`, `stopServe`, `tail`, `waitForServe`
 - imports: `packages/nx-angular-inspector/src/paths.mjs`
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## packages/nx-angular-inspector/src/stamp.mjs
-- exports: `FUTURE_TOLERANCE_MS`, `INFERRING_FILES`, `ROOT_INPUTS`, `SKIP_DIRS`, `directoriesUnder`, `filesUnder`, `inputSet`, `mtime`, `stampGraph`
+- exports: `FUTURE_TOLERANCE_MS`, `INFERRING_FILES`, `ROOT_INPUTS`, `SKIP_DIRS`, `filesUnder`, `inputSet`, `mtime`, `stampGraph`
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`, `packages/nx-angular-inspector/src/workspace.mjs`
 
 ## packages/nx-angular-inspector/src/target.mjs
-- exports: `RUN_TIMEOUT_MS`, `errorLines`, `errorSummary`, `parseTargetSpec`, `runTarget`, `stripAnsi`
+- exports: `RUN_TIMEOUT_MS`, `errorSummary`, `parseTargetSpec`, `runTarget`, `stripAnsi`
 - imports: `packages/nx-angular-inspector/src/paths.mjs`
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
@@ -226,11 +226,11 @@ Modules: 51.
 - imports: `scripts/check-pins.mjs`, `scripts/pins.config.mjs`
 
 ## scripts/index-code.mjs
-- exports: `INDEX_FILE`, `buildIndex`, `generateIndex`, `listSourceFiles`, `parseExports`, `parseImports`, `renderIndex`
+- exports: `INDEX_FILE`, `buildIndex`, `generateIndex`, `listSourceFiles`, `parseExports`, `parseImports`
 
 ## scripts/pins.config.mjs
 - exports: `FROZEN_ALWAYS`, `PINS`
 - imported by: `scripts/check-pins.mjs`, `scripts/check-upstream.mjs`
 
 ## scripts/portable-zip.mjs
-- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `isTracked`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipEntries`, `zipName`
+- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable`, `crc32`, `gitTags`, `isFrozen`, `isTracked`, `listFiles`, `readVersion`, `sha256`, `stagePortable`, `zipDirectory`, `zipName`
