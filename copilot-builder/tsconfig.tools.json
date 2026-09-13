@@ -1,0 +1,43 @@
+{
+  // tsconfig.tools.json — TYPECHECK of the plain-ESM tooling: tools/scripts, tools/hooks and the
+  // vendored browser-inspector. There is no build step for any of it; node runs the `.mjs` files
+  // straight from the checkout, and `tsc --noEmit` with `checkJs` reads the JSDoc types and nothing
+  // else. `NodeNext` because node itself resolves the imports.
+  //
+  // `strict` is on, `noImplicitAny` is off ON PURPOSE: in JS files an unannotated parameter is `any`
+  // without an error, so a helper written before its JSDoc does not block the gate, while every
+  // declared type (JSDoc `@param`, `@type`, `@typedef`, the `.d.ts`) is checked strictly. `DOM` in
+  // `lib` because browser-inspector passes callbacks into `page.evaluate` — `document` and `window`
+  // in those arrow functions are real.
+  //
+  // tools/scribe is TypeScript with its own configuration (tools/scribe/integrations/tsconfig*.json)
+  // and is not part of this file.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": [
+    "tools/scripts/**/*.mjs",
+    "tools/hooks/**/*.mjs",
+    "tools/browser-inspector/**/*.mjs",
+    "tools/browser-inspector/**/*.d.ts"
+  ],
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/*.spec.mjs"]
+}

@@ -1,0 +1,17 @@
+{
+  // Minimum, które odtwarza bramki repo w edytorze: formatter z biome.jsonc, ESLint z flat config,
+  // Angular Language Service, Vitest i Playwright, Copilot Chat z plikami promptów i agentów oraz
+  // EditorConfig dla plików, których nie formatuje Biome (Markdown, szablony HTML).
+  "recommendations": [
+    "biomejs.biome",
+    "dbaeumer.vscode-eslint",
+    "angular.ng-template",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "github.copilot",
+    "github.copilot-chat",
+    "editorconfig.editorconfig"
+  ],
+  // Drugi formater walczyłby z Biome o ten sam plik; wtyczki Nx nie mają tu czego pokazać.
+  "unwantedRecommendations": ["esbenp.prettier-vscode", "nrwl.angular-console"]
+}

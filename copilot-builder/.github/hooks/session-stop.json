@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node tools/hooks/session-stop.mjs",
+        "timeout": 60
+      }
+    ]
+  }
+}

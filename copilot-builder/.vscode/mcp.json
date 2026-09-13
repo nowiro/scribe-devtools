@@ -1,0 +1,19 @@
+{
+  // Serwery MCP tego repozytorium. Używa ich WYŁĄCZNIE ukryty subagent `mcp-gateway`
+  // (.github/agents/mcp-gateway.agent.md) — tylko on ma nazwy serwerów na liście `tools:`, więc
+  // schematy narzędzi wchodzą do kontekstu jedynie w jego oknie, a wynik wraca do orkiestratora
+  // jako ścieżka artefaktu w `.mcp-artifacts/` plus streszczenie. Pilnuje tego `npm run ai:validate`.
+  //
+  // Zasada wyboru serwera: to, co da się zrobić skryptem, robi skrypt (ALM: `npm run alm:read`,
+  // przeglądarka: `npm run browser-inspector`) — serwer MCP zostaje dla pytań, których kształtu nie
+  // znamy z góry. Żadnego `npx` z ruchomą wersją: serwer startuje z pakietu zainstalowanego w repo.
+  "servers": {
+    // Oficjalny serwer MCP Angular CLI (`ng mcp`): najlepsze praktyki, lista projektów workspace'u,
+    // wyszukiwanie w dokumentacji angular.dev, migracje. Wersja = @angular/cli z package.json.
+    "angular-cli": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["node_modules/@angular/cli/bin/ng.js", "mcp"]
+    }
+  }
+}

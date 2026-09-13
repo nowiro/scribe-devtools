@@ -1,0 +1,5 @@
+#!/bin/sh
+# commit-msg — Conventional Commits with the scope list from commitlint.config.mjs.
+# `type(scope): subject`, header ≤ 100 characters. History is read by people and by the release notes.
+set -e
+node_modules/.bin/commitlint --edit "$1"

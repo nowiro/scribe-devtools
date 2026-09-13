@@ -32,7 +32,8 @@
  * design/handoff/research docs that used to live here are gone — there is no long-form prose left
  * to freeze, only the short files `prose` below already points at.
  */
-export const FROZEN_ALWAYS = [];
+// copilot-builder/ is a self-contained template tree with its own pins and gates — not this repository's prose.
+export const FROZEN_ALWAYS = ['copilot-builder/'];
 
 /** @type {Pin[]} */
 export const PINS = [

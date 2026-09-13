@@ -1,0 +1,202 @@
+# .gitlab-ci.yml — the same gates as `npm run verify`, split into jobs so a red lint does not hide
+# behind a long test run. Merge requests verify the AFFECTED projects; the default branch verifies
+# everything; the nightly schedule adds the online checks (`check:upstream`).
+#
+# Principles:
+#   - npm is installed from cache (`.cache/npm`, keyed on package-lock.json); `.npmrc` already has
+#     ignore-scripts=true, so `npm ci` is fast and runs no third-party install scripts.
+#   - One tooling cache per branch with a fallback to the default branch: Angular CLI build cache,
+#     ESLint cache, tsc incremental state, Vite/Vitest cache and the task hashes of
+#     tools/scripts/affected.mjs. This is the whole "cache without Nx Cloud" story: every tool has a
+#     cache of its own, and GitLab carries one directory between runners.
+#   - Build once; the e2e job consumes `dist/` as an artifact instead of rebuilding.
+#   - No secrets are needed for build or test. No publish job — release is a manual, tagged step.
+#   - The image follows .nvmrc (Node 24). Bump both together; `doctor` reports the local mismatch.
+#
+# Self-hosted runners: add `tags: [<your-tag>]` in `default:` (or per job). Nothing here assumes a
+# specific runner beyond docker executor + outbound access to the npm registry (or a mirror set via
+# the npm_config_registry variable in the project's CI/CD settings).
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_TAG
+
+default:
+  image: node:24-bookworm-slim
+  interruptible: true
+  retry:
+    max: 1
+    when: [runner_system_failure, stuck_or_timeout_failure]
+  before_script:
+    - node --version
+    - npm ci --prefer-offline --no-audit --no-fund
+  cache:
+    - key:
+        files: [package-lock.json]
+      paths: [.cache/npm]
+      policy: pull
+    - key: tools-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+      paths:
+        - .angular/cache
+        - .cache/eslint
+        - .cache/tsc
+        - .cache/vite
+        - .cache/tasks
+        - .cache/node-compile
+      policy: pull
+
+variables:
+  CI: 'true'
+  NG_CLI_ANALYTICS: 'false'
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+  npm_config_cache: $CI_PROJECT_DIR/.cache/npm
+  NODE_COMPILE_CACHE: $CI_PROJECT_DIR/.cache/node-compile
+  NODE_NO_WARNINGS: '1'
+  # affected.mjs diffs against the merge base — a shallow clone has no base to diff against.
+  GIT_DEPTH: '0'
+  FF_USE_FASTZIP: 'true'
+  CACHE_COMPRESSION_LEVEL: fastest
+  ARTIFACT_COMPRESSION_LEVEL: fastest
+  # MR pipelines verify what changed; the default branch, schedules and tags verify everything.
+  AFFECTED_FLAG: --all
+
+stages: [install, verify, build, e2e, nightly]
+
+# MR pipelines narrow every `affected` job to the merge base; everything else runs with --all.
+.mr-affected: &mr-affected
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        AFFECTED_FLAG: --base=$CI_MERGE_REQUEST_DIFF_BASE_SHA
+    - when: on_success
+
+# Warms both caches once per pipeline; every other job pulls.
+install:
+  stage: install
+  cache:
+    - key:
+        files: [package-lock.json]
+      paths: [.cache/npm]
+      policy: pull-push
+  script:
+    - echo "dependencies installed from cache-or-registry"
+
+# The static gates: formatting, pins, Copilot config, SDD hygiene, tech-stack canon, code index,
+# instruction sync, glossary, forbidden files. Under a minute, no compilation.
+static:
+  stage: verify
+  needs: [install]
+  script:
+    - npm run verify -- --static
+
+lint:
+  <<: *mr-affected
+  stage: verify
+  needs: [install]
+  script:
+    - npm run affected -- lint $AFFECTED_FLAG
+  cache:
+    - key:
+        files: [package-lock.json]
+      paths: [.cache/npm]
+      policy: pull
+    - key: tools-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+      paths: [.cache/eslint, .cache/tasks]
+      policy: pull-push
+
+typecheck:
+  <<: *mr-affected
+  stage: verify
+  needs: [install]
+  script:
+    - npm run typecheck
+    - npm run affected -- typecheck $AFFECTED_FLAG
+  cache:
+    - key:
+        files: [package-lock.json]
+      paths: [.cache/npm]
+      policy: pull
+    - key: tools-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+      paths: [.cache/tsc, .cache/tasks]
+      policy: pull-push
+
+test:
+  <<: *mr-affected
+  stage: verify
+  needs: [install]
+  script:
+    - npm run test:cov -- --reporter=default --reporter=junit --outputFile=reports/junit-tools.xml
+    - npm run affected -- test $AFFECTED_FLAG
+  coverage: '/Lines\s*:\s*([\d.]+)%/'
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths: [reports/, coverage/]
+    reports:
+      junit: [reports/*.xml]
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/tools/cobertura-coverage.xml
+  cache:
+    - key:
+        files: [package-lock.json]
+      paths: [.cache/npm]
+      policy: pull
+    - key: tools-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+      paths: [.cache/vite, .cache/tasks]
+      policy: pull-push
+
+build:
+  <<: *mr-affected
+  stage: build
+  needs: [static, lint, typecheck, test]
+  script:
+    - npm run affected -- build $AFFECTED_FLAG
+  artifacts:
+    expire_in: 1 day
+    paths: [dist/]
+  cache:
+    - key:
+        files: [package-lock.json]
+      paths: [.cache/npm]
+      policy: pull
+    - key: tools-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+      paths: [.angular/cache]
+      policy: pull-push
+
+# Playwright runs on the official image whose browsers match the pinned @playwright/test (the tag
+# follows the version in package.json — bump both together; check:pins reports the lag).
+e2e:
+  <<: *mr-affected
+  stage: e2e
+  needs: [build]
+  image: mcr.microsoft.com/playwright:v1.62.1-noble
+  variables:
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '0'
+  script:
+    - npm run affected -- e2e $AFFECTED_FLAG
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths: [playwright-report/, test-results/]
+    reports:
+      junit: [reports/junit-e2e-*.xml]
+
+# The online half of the currency doctrine: which pins fell behind `latest` and for how long.
+# WARN-only — a report, not a gate; a human decides with `npm run check:upstream -- --ack`.
+upstream:
+  stage: nightly
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - npm run check:upstream
+  allow_failure: true

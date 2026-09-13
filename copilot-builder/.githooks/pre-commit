@@ -1,0 +1,16 @@
+#!/bin/sh
+# pre-commit — the cheap gate that cannot be forgotten. Under a few seconds, no network, no build:
+# a hook that takes a minute gets bypassed with --no-verify, and then it checks nothing.
+#
+#   1. CODE-INDEX.md is regenerated and staged, so every commit carries a fresh index
+#      (`npm run verify` fails on a stale one; this makes staleness impossible).
+#   2. Biome checks the STAGED files only — formatting is a rule a machine enforces, not a review remark.
+#   3. The Copilot configuration is validated — a typo in `applyTo` or a model name outside the
+#      registry is invisible in a diff and visible only when an agent misbehaves.
+#
+# Armed by `npm run prepare` (core.hooksPath = .githooks). The full gate is `npm run verify`.
+set -e
+node tools/scripts/index-code.mjs
+git add CODE-INDEX.md
+node_modules/.bin/biome format --staged --no-errors-on-unmatched
+node tools/scripts/validate-ai-config.mjs

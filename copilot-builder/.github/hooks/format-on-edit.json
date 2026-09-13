@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "node tools/hooks/format-on-edit.mjs",
+        "timeout": 30
+      }
+    ]
+  }
+}

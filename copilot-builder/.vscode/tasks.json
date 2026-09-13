@@ -1,0 +1,60 @@
+{
+  // Zadania = skrypty z package.json, żeby VS Code (Terminal → Run Task) i Copilot w trybie agenta
+  // uruchamiały dokładnie te same bramki, co człowiek z konsoli. Nic tu nie omija hooków.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "verify (wszystkie bramki)",
+      "type": "npm",
+      "script": "verify",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "verify:affected (bramki dla zmienionych projektów)",
+      "type": "npm",
+      "script": "verify:affected",
+      "problemMatcher": []
+    },
+    { "label": "lint", "type": "npm", "script": "lint", "problemMatcher": ["$eslint-stylish"] },
+    { "label": "test (Vitest: tools + scribe)", "type": "npm", "script": "test", "problemMatcher": [] },
+    { "label": "build (wszystkie aplikacje)", "type": "npm", "script": "build", "problemMatcher": [] },
+    { "label": "code-index (CODE-INDEX.md)", "type": "npm", "script": "code-index", "problemMatcher": [] },
+    { "label": "doctor (diagnostyka środowiska)", "type": "npm", "script": "doctor", "problemMatcher": [] },
+    {
+      "label": "workflow:specify (nowe zadanie SDD)",
+      "type": "shell",
+      "command": "npm run workflow:specify -- --verb=${input:verb} --slug=${input:slug}",
+      "problemMatcher": []
+    },
+    {
+      "label": "browser-inspector: doctor",
+      "type": "shell",
+      "command": "node tools/browser-inspector/bin/browser-inspector.mjs doctor",
+      "problemMatcher": []
+    },
+    {
+      "label": "browser-inspector: up (ciepły keeper na czas sesji)",
+      "type": "shell",
+      "command": "node tools/browser-inspector/bin/browser-inspector.mjs up",
+      "problemMatcher": []
+    },
+    {
+      "label": "browser-inspector: stop",
+      "type": "shell",
+      "command": "node tools/browser-inspector/bin/browser-inspector.mjs stop",
+      "problemMatcher": []
+    },
+    { "label": "alm:read (lista źródeł)", "type": "shell", "command": "npm run alm:read", "problemMatcher": [] }
+  ],
+  "inputs": [
+    {
+      "id": "verb",
+      "type": "pickString",
+      "description": "Rodzaj zmiany (verb SDD)",
+      "options": ["feature", "fix", "refactor", "deps", "chore", "security", "docs"],
+      "default": "feature"
+    },
+    { "id": "slug", "type": "promptString", "description": "Slug zadania (kebab-case)" }
+  ]
+}
