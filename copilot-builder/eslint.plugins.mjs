@@ -29,6 +29,10 @@ export const TESTS = ['**/*.spec.ts', '**/*.test.ts', '**/*.spec.mjs'];
 export const E2E = ['apps/*-e2e/**/*.ts'];
 /** Node code: repository tooling, hooks and root configuration files. */
 export const NODE = ['tools/**/*.mjs', 'tools/**/*.mts', '*.mjs', '*.mts'];
+/** Angular application and library sources. */
+export const APP_CODE = ['apps/**/*.ts', 'libs/**/*.ts'];
+/** Agent hooks — the one place `process.exit` is the right tool. */
+export const HOOKS = ['tools/hooks/**/*.mjs'];
 
 /** A plugin preset narrowed to a file list; `name` makes `eslint --print-config` readable. */
 const scoped = (files, name, config) => ({ ...config, files, name });

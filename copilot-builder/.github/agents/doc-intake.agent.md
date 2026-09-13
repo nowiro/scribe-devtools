@@ -4,6 +4,11 @@ description: T1 · Klasyfikuje zgłoszenie (verb SDD, zakres, kompletność kryt
 model: GPT-5.6 Luna
 tools: ['read', 'search']
 user-invocable: false
+hooks:
+  PreToolUse:
+    - type: command
+      command: node tools/hooks/deny-writes.mjs
+      timeout: 10
 ---
 
 # doc-intake (T1)

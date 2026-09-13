@@ -6,8 +6,9 @@ applyTo: 'apps/**/*.ts,libs/**/*.ts'
 # Kod Angulara (`apps/**`, `libs/**`)
 
 Właściciel: `code-angular`. Brama: `npm run affected -- lint`, `npm run affected -- typecheck`,
-`npm run affected -- test`, `npm run affected -- build`. Zakres wyłącza `*.spec.ts` (`testing-unit`)
-i `apps/*-e2e/**` (`testing-e2e`).
+`npm run affected -- test`, `npm run affected -- build`. `applyTo` obejmuje też `*.spec.ts` i `apps/*-e2e/**`
+(glob nie zna negacji) — tam pierwszeństwo mają `testing-unit` i `testing-e2e`; poniższe zdania dotyczą
+kodu produkcyjnego.
 
 ## Zdania normatywne
 

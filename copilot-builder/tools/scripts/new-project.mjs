@@ -2,15 +2,16 @@
 // new-project.mjs — the ONE way an application or a library is added to this workspace (0 credits).
 //
 //   npm run new:app -- <name>                      → apps/<name> (+ apps/<name>-e2e with Playwright)
-//   npm run new:lib -- <scope>/<type>[-<name>]     → libs/<scope>/<type>[-<name>], alias @cb/<scope>/<type>[-<name>]
-//   options: --dry-run (print the generator command only), --prefix=<selector prefix> (default: cb)
+//   npm run new:lib -- <scope>/<type>[-<name>]     → libs/<scope>/<type>[-<name>], alias <ALIAS_SCOPE>/<scope>/<type>[-<name>]
+//   options: --dry-run (print the generator command only), --prefix=<selector prefix> (default: PREFIX of
+//   tools/scripts/workspace.config.mjs), --port=<n> (e2e port; default: derived from the name, first free)
 //
 // It runs the Angular CLI generator and then makes the result fit THIS repository — the things the
 // generator cannot know:
 //   - the manifest is restored afterwards (the schematics append prettier, jsdom and ng-packagr to
 //     package.json; every version here is pinned in ONE place, tools/scripts/pins.config.mjs);
 //   - the `test` target points at the shared Vitest runner config (coverage thresholds, CI reporters);
-//   - a library is consumed FROM SOURCE through a tsconfig alias (`@cb/<scope>/<type>` → its
+//   - a library is consumed FROM SOURCE through a tsconfig alias (`<ALIAS_SCOPE>/<scope>/<type>` → its
 //     public-api.ts) instead of the generated `dist/` alias; the ng-packagr `build` target stays as
 //     generated because the unit-test builder derives the library's compile options from it, but CI
 //     never runs it (`affected build` builds applications only) — publishing is a later, explicit step;
@@ -19,18 +20,22 @@
 //   - the result is run through `eslint --fix` and `biome format` so that it satisfies the
 //     repository's own rules on day one (the schematics know neither);
 //   - an application gets an e2e project (`apps/<name>-e2e`) with a Playwright config that serves the
-//     BUILT application through tools/testing/serve-static.mjs and a smoke test over the viewport matrix.
+//     BUILT application through tools/testing/serve-static.mjs and a smoke test over the viewport matrix
+//     (`ui.viewports` of .github/models-registry.json);
+//   - the change is transactional: when a post-processing step fails, angular.json and tsconfig.json go
+//     back to their previous content and the generated directories are removed, so the next attempt
+//     starts clean instead of hitting "already exists".
 //
 // The library <type> is one of feature, ui, data-access, util — it is the first segment of the name
 // and it is what eslint.rules.mjs uses to enforce the dependency direction.
 //
 // Exit codes: 0 done · 1 the generator or a post-processing step failed · 2 usage error.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { ALIAS_SCOPE, PREFIX } from './workspace.config.mjs';
+import { REPO, isMain, readJsonc } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const NG = path.join(REPO, 'node_modules', '@angular', 'cli', 'bin', 'ng.js');
 const RUNNER_CONFIG = 'tools/testing/vitest-angular.config.mts';
 export const LIB_TYPES = Object.freeze(['feature', 'ui', 'data-access', 'util']);
@@ -38,8 +43,8 @@ const KEBAB = /^[a-z][a-z0-9-]*$/u;
 
 const USAGE = [
   'usage:',
-  '  npm run new:app -- <name> [--prefix=cb] [--dry-run]',
-  '  npm run new:lib -- <scope>/<type>[-<name>] [--prefix=cb] [--dry-run]   type: feature | ui | data-access | util',
+  `  npm run new:app -- <name> [--prefix=${PREFIX}] [--port=<n>] [--dry-run]`,
+  `  npm run new:lib -- <scope>/<type>[-<name>] [--prefix=${PREFIX}] [--dry-run]   type: feature | ui | data-access | util`,
 ].join('\n');
 
 /** @param {string} rel @returns {any} */
@@ -48,8 +53,7 @@ const readJson = (rel) => JSON.parse(readFileSync(path.join(REPO, rel), 'utf8'))
 const writeJson = (rel, value) => writeFileSync(path.join(REPO, rel), `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 /** tsconfig.json is plain JSON (the CLI rewrites it without comments); a stray comment is tolerated on read. */
 function readTsconfig() {
-  const text = readFileSync(path.join(REPO, 'tsconfig.json'), 'utf8');
-  return JSON.parse(text.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/^\s*\/\/.*$/gmu, ''));
+  return readJsonc(path.join(REPO, 'tsconfig.json'));
 }
 /** @param {unknown} json */
 const writeTsconfig = (json) => writeJson('tsconfig.json', json);
@@ -116,6 +120,67 @@ function addOnPush(rel) {
   writeFileSync(abs, text, 'utf8');
 }
 
+/** Ports already taken by the e2e projects of this workspace (`const PORT = <n>;` in their configs). */
+export function existingE2ePorts(repo = REPO) {
+  /** @type {Set<number>} */
+  const taken = new Set();
+  const apps = path.join(repo, 'apps');
+  if (!existsSync(apps)) return taken;
+  for (const entry of readdirSync(apps, { withFileTypes: true })) {
+    const config = path.join(apps, entry.name, 'playwright.config.ts');
+    if (!entry.isDirectory() || !existsSync(config)) continue;
+    const match = /const PORT = (\d+);/u.exec(readFileSync(config, 'utf8'));
+    if (match) taken.add(Number(match[1]));
+  }
+  return taken;
+}
+
+/**
+ * The e2e port of a new application: the requested one when given, otherwise one derived from the
+ * NAME (so two branches scaffolding the same application agree) and moved up while it collides with
+ * a port already in use — a counter of projects would hand two applications created on parallel
+ * branches the same port.
+ * @param {string} name
+ * @param {Set<number>} taken
+ * @param {number} [requested]
+ * @returns {number}
+ */
+export function allocatePort(name, taken, requested) {
+  if (requested !== undefined) {
+    if (!Number.isInteger(requested) || requested < 1024 || requested > 65_535)
+      throw new Error(`--port must be an integer between 1024 and 65535 (got ${requested})`);
+    if (taken.has(requested)) throw new Error(`--port ${requested} is already used by another e2e project`);
+    return requested;
+  }
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 100_000;
+  let port = 4300 + (hash % 100);
+  while (taken.has(port)) port += 1;
+  return port;
+}
+
+/** The two workspace files every generator rewrites, as they were before it ran. */
+function snapshotWorkspace() {
+  return Object.fromEntries(
+    ['angular.json', 'tsconfig.json'].map((rel) => [rel, readFileSync(path.join(REPO, rel), 'utf8')]),
+  );
+}
+
+/**
+ * Undo a half-finished generation: the workspace files back to the snapshot, the new directories gone.
+ * @param {Record<string, string>} snapshot
+ * @param {string[]} roots directories the generation created
+ * @param {unknown} error
+ */
+function rollback(snapshot, roots, error) {
+  for (const [rel, text] of Object.entries(snapshot)) writeFileSync(path.join(REPO, rel), text, 'utf8');
+  for (const root of roots) rmSync(path.join(REPO, root), { recursive: true, force: true });
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(
+    `FAIL new-project · ${message}\n  rolled back: ${Object.keys(snapshot).join(', ')} restored, ${roots.join(', ')} removed\n`,
+  );
+}
+
 /**
  * The generated code through the repository's own tools: `eslint --fix` (type imports, catch
  * variables, void expressions the schematics do not care about) and then `biome format`. A problem
@@ -149,19 +214,30 @@ function polish(roots) {
 
 /**
  * @param {string} name
- * @param {{ prefix: string, dryRun: boolean }} options
+ * @param {{ prefix: string, dryRun: boolean, port?: number }} options
  * @returns {number}
  */
-export function newApplication(name, { prefix, dryRun }) {
+export function newApplication(name, { prefix, dryRun, port: requestedPort }) {
   if (!KEBAB.test(name) || name.endsWith('-e2e')) {
     process.stderr.write(`application name must be kebab-case and not end with -e2e (got "${name}")\n${USAGE}\n`);
     return 2;
   }
   const root = `apps/${name}`;
-  if (existsSync(path.join(REPO, root))) {
-    process.stderr.write(`FAIL ${root} already exists\n`);
+  const e2eName = `${name}-e2e`;
+  const e2eRoot = `apps/${e2eName}`;
+  if (existsSync(path.join(REPO, root)) || existsSync(path.join(REPO, e2eRoot))) {
+    process.stderr.write(`FAIL ${root} or ${e2eRoot} already exists\n`);
     return 1;
   }
+  /** @type {number} */
+  let port;
+  try {
+    port = allocatePort(name, existingE2ePorts(), requestedPort);
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n${USAGE}\n`);
+    return 2;
+  }
+  const snapshot = snapshotWorkspace();
   const ok = generate(
     [
       'generate',
@@ -179,7 +255,30 @@ export function newApplication(name, { prefix, dryRun }) {
   );
   if (!ok) return 1;
   if (dryRun) return 0;
+  try {
+    finishApplication({ name, root, e2eName, e2eRoot, port, prefix });
+  } catch (error) {
+    rollback(snapshot, [root, e2eRoot], error);
+    return 1;
+  }
+  const warning = polish([root, e2eRoot]);
+  if (warning) process.stdout.write(`${warning}\n`);
+  process.stdout.write(
+    [
+      `ok new:app · ${root} (project ${name}) + ${e2eRoot} (project ${e2eName}, port ${port})`,
+      `next: npm run affected -- test · npm run affected -- build · node node_modules/@angular/cli/bin/ng.js serve ${name}`,
+      '',
+    ].join('\n'),
+  );
+  return 0;
+}
 
+/**
+ * Everything after `ng generate application`: the workspace entries, the minimal template, the
+ * canonical bootstrap and the e2e project. Throws on any failure — the caller rolls back.
+ * @param {{ name: string, root: string, e2eName: string, e2eRoot: string, port: number, prefix: string }} app
+ */
+function finishApplication({ name, root, e2eName, e2eRoot, port, prefix }) {
   // build output mirrors the source layout (dist/apps/<name>/browser — what the e2e project serves);
   // test target → shared runner config
   const angular = readJson('angular.json');
@@ -215,10 +314,11 @@ export function newApplication(name, { prefix, dryRun }) {
     'utf8',
   );
 
-  // e2e project over the BUILT application
-  const e2eName = `${name}-e2e`;
-  const e2eRoot = `apps/${e2eName}`;
-  const port = 4300 + (Object.keys(angular.projects).length % 100);
+  // e2e project over the BUILT application; report paths are relative to the CONFIG FILE in
+  // Playwright, so they climb to the repository root where CI collects them
+  const viewports = JSON.stringify(
+    readJson('.github/models-registry.json').ui?.viewports ?? [360, 768, 1024, 1440, 1920],
+  );
   mkdirSync(path.join(REPO, e2eRoot, 'src'), { recursive: true });
   writeFileSync(
     path.join(REPO, e2eRoot, 'playwright.config.ts'),
@@ -234,7 +334,9 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 2 : 0,
   workers: process.env['CI'] ? 2 : undefined,
-  reporter: process.env['CI'] ? [['list'], ['junit', { outputFile: 'reports/junit-e2e-${name}.xml' }]] : 'list',
+  // Playwright resolves these against this file's directory: ../../ is the repository root.
+  reporter: process.env['CI'] ? [['list'], ['junit', { outputFile: '../../reports/junit-e2e-${name}.xml' }]] : 'list',
+  outputDir: '../../test-results/${name}',
   use: {
     baseURL: \`http://127.0.0.1:\${PORT}\`,
     trace: 'on-first-retry',
@@ -259,7 +361,7 @@ export default defineConfig({
 
 // The viewport matrix of the repository (models-registry.json → ui.viewports): mobile-first means
 // every screen is checked at every width, and a horizontal scrollbar at any of them is a defect.
-const VIEWPORTS = [360, 768, 1024, 1440, 1920];
+const VIEWPORTS = ${viewports};
 
 test('renders the start page without console errors', async ({ page }) => {
   const errors: string[] = [];
@@ -295,17 +397,6 @@ for (const width of VIEWPORTS) {
     architect: {},
   };
   writeJson('angular.json', angular);
-
-  const warning = polish([root, e2eRoot]);
-  if (warning) process.stdout.write(`${warning}\n`);
-  process.stdout.write(
-    [
-      `ok new:app · ${root} (project ${name}) + ${e2eRoot} (project ${e2eName}, port ${port})`,
-      `next: npm run affected -- test · npm run affected -- build · node node_modules/@angular/cli/bin/ng.js serve ${name}`,
-      '',
-    ].join('\n'),
-  );
-  return 0;
 }
 
 /**
@@ -328,11 +419,12 @@ export function newLibrary(spec, { prefix, dryRun }) {
   }
   const root = `libs/${scope}/${libName}`;
   const projectName = `${scope}-${libName}`;
-  const alias = `@cb/${scope}/${libName}`;
+  const alias = `${ALIAS_SCOPE}/${scope}/${libName}`;
   if (existsSync(path.join(REPO, root))) {
     process.stderr.write(`FAIL ${root} already exists\n`);
     return 1;
   }
+  const snapshot = snapshotWorkspace();
   const ok = generate(
     [
       'generate',
@@ -348,7 +440,25 @@ export function newLibrary(spec, { prefix, dryRun }) {
   );
   if (!ok) return 1;
   if (dryRun) return 0;
+  try {
+    finishLibrary({ root, projectName, alias, type, scope });
+  } catch (error) {
+    rollback(snapshot, [root], error);
+    return 1;
+  }
+  const warning = polish([root]);
+  if (warning) process.stdout.write(`${warning}\n`);
+  process.stdout.write(
+    `ok new:lib · ${root} (project ${projectName}) · import from '${alias}'\nnext: npm run affected -- test\n`,
+  );
+  return 0;
+}
 
+/**
+ * Everything after `ng generate library`. Throws on any failure — the caller rolls back.
+ * @param {{ root: string, projectName: string, alias: string, type: string, scope: string }} lib
+ */
+function finishLibrary({ root, projectName, alias, type, scope }) {
   // consumed from source: the alias points at public-api.ts, never at dist/
   const tsconfig = readTsconfig();
   tsconfig.compilerOptions.paths = Object.fromEntries(
@@ -400,26 +510,22 @@ export function newLibrary(spec, { prefix, dryRun }) {
     ].join('\n'),
     'utf8',
   );
-  const warning = polish([root]);
-  if (warning) process.stdout.write(`${warning}\n`);
-  process.stdout.write(
-    `ok new:lib · ${root} (project ${projectName}) · import from '${alias}'\nnext: npm run affected -- test\n`,
-  );
-  return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const [kind, target, ...flags] = process.argv.slice(2);
   const all = [target, ...flags].filter((arg) => arg !== undefined);
   const dryRun = all.includes('--dry-run');
-  const prefix = all.find((arg) => arg.startsWith('--prefix='))?.slice('--prefix='.length) ?? 'cb';
+  const prefix = all.find((arg) => arg.startsWith('--prefix='))?.slice('--prefix='.length) ?? PREFIX;
+  const portArg = all.find((arg) => arg.startsWith('--port='))?.slice('--port='.length);
+  const port = portArg === undefined ? undefined : Number(portArg);
   /** @type {Map<string, (name: string) => number>} */
   const kinds = new Map([
-    ['application', (name) => newApplication(name, { prefix, dryRun })],
+    ['application', (name) => newApplication(name, { prefix, dryRun, port })],
     ['library', (name) => newLibrary(name, { prefix, dryRun })],
   ]);
   const generate = kinds.get(kind ?? '');
-  if (generate === undefined || !target || target.startsWith('--')) {
+  if (generate === undefined || !target || target.startsWith('--') || !KEBAB.test(prefix)) {
     process.stderr.write(`${USAGE}\n`);
     process.exitCode = 2;
   } else {

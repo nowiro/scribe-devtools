@@ -16,10 +16,12 @@
 // Exit codes: 0 pass · 1 violation · 2 environment error (missing INDEX, unreadable registry).
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { stampToEpoch } from './stamp.mjs';
+import { REPO, frontmatter as readFrontmatter, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+/** @param {string} text */
+export const frontmatter = (text) => readFrontmatter(text, { unquote: true });
+
 const COMMITTED = ['decisions', 'reviews'];
 const NAME_RE = /^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})_[a-z0-9][a-z0-9-]*\.md$/u;
 const SPEC_STATUSES = new Set(['draft', 'clarified', 'done']);
@@ -32,29 +34,6 @@ const TEMPLATES = [
 ];
 /** Room for clock skew between the author's machine and the checking machine. */
 const CLOCK_SKEW_MS = 5 * 60_000;
-
-/**
- * Flat front matter reader — `key: value` pairs between the first two `---` lines. No YAML parser:
- * this is a gate, and the templates keep the front matter flat on purpose.
- * @param {string} text
- * @returns {Record<string, string> | null}
- */
-export function frontmatter(text) {
-  if (!text.startsWith('---')) return null;
-  const end = text.indexOf('\n---', 3);
-  if (end === -1) return null;
-  /** @type {Record<string, string>} */
-  const out = {};
-  for (const line of text.slice(3, end).split('\n')) {
-    const match = /^([A-Za-z_-]+):(.*)$/u.exec(line.trim());
-    if (match)
-      out[match[1]] = match[2]
-        .trim()
-        .replace(/^['"]|['"]$/gu, '')
-        .trim();
-  }
-  return out;
-}
 
 /**
  * The header cells of the first markdown table in `text`, lower-cased.
@@ -99,10 +78,13 @@ export function tableColumn(text, column) {
  * @returns {string[]}
  */
 export function agentNames(cell) {
+  // `n/a` and `—` mean "nobody" and are removed BEFORE the split — split first and `n/a` becomes two
+  // agents called `n` and `a`, which the template itself invites people to write.
   return cell
+    .replaceAll(/\bn\/a\b/giu, '')
     .split(/[+,/]/u)
     .map((part) => part.trim().replace(/^`|`$/gu, ''))
-    .filter((part) => part !== '' && part !== '—' && part !== '-' && part !== 'n/a');
+    .filter((part) => part !== '' && part !== '—' && part !== '-');
 }
 
 /**
@@ -254,7 +236,7 @@ export function validateSdd(repo = REPO) {
   return { ok: problems.length === 0, code: problems.length === 0 ? 0 : 1, problems, summary };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { ok, code, problems, summary } = validateSdd();
   if (ok) process.stdout.write(`ok sdd:check · ${summary}\n`);
   else process.stderr.write(`FAIL sdd:check\n${problems.map((p) => `  · ${p}`).join('\n')}\n`);

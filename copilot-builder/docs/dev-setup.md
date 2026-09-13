@@ -58,6 +58,11 @@
    Auto-cancel redundant pipelines włączony (`interruptible: true` w jobach).
 7. **Zero sekretów** dla builda i testów. Token do `alm:read` w CI (gdyby snapshoty miały powstawać
    w pipeline'ie) — zmienna masked + protected, nigdy w repozytorium.
+8. **Obrazy po digeście** (gdy jest lustro rejestru): tag `node:24-bookworm-slim` jest ruchomy; `docker buildx
+   imagetools inspect node:24-bookworm-slim` podaje `sha256`, które wpisujesz jako `image: node:24-bookworm-slim@sha256:…`
+   i bumpujesz razem z pinami. To samo dla obrazu Playwrighta w jobie `e2e`.
+9. **Nocny `audit`**: `npm audit --audit-level=high --omit=dev` jest bramą harmonogramu (czerwony job = ktoś czyta
+   raport), bo `.npmrc` wyłącza audit przy instalacji.
 
 ## Pliki workspace, których nie edytuje się ręcznie
 
@@ -71,6 +76,13 @@
   feature → ui/data-access/util). Plik jest czystym JSON-em bez komentarzy: Angular CLI przepisuje go przy
   każdym generatorze i komentarze by zgubił.
 - **`CODE-INDEX.md`**, **`docs/tech-stack.md`** (blok AUTOGEN) — generowane; `npm run verify` pilnuje świeżości.
+
+## Sekrety
+
+Tokeny ALM (`JIRA_*`, `GITLAB_*`) żyją w zmiennych środowiskowych albo w `~/.config/extract/config.json`
+(tryb `0600`), nigdy w repozytorium — `.gitignore` odrzuca `.env*`, `*.pem`, `*.key`, a hook pre-commit
+(`npm run check:secrets`) zatrzymuje commit, w którym dodana linia wygląda jak token, klucz prywatny albo
+przypisanie hasła. Linia, która świadomie pokazuje KSZTAŁT tokenu (dokumentacja, fixture), dostaje `secrets:ignore`.
 
 ## Aktualizacja wersji
 

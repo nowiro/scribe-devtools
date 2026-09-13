@@ -22,12 +22,15 @@ nigdy przeklejony transkrypt.
 | `apps/**`, `libs/**` — `.ts`, `.html`, `.css` (bez `*.spec.ts`)               | `code-angular`     |
 | `**/*.spec.ts` (testy jednostkowe Vitest)                                      | `code-tester-unit` |
 | `apps/*-e2e/**` (Playwright)                                                   | `code-tester-e2e`  |
-| `tools/**`, `.githooks/**`, `.gitlab-ci.yml`, `eslint.*.mjs`, `biome.jsonc`, `angular.json`, `package.json` | `code-tooling` |
+| `tools/**`, `.githooks/**`, `.gitlab-ci.yml`, `eslint.*.mjs`, `biome.jsonc`, `angular.json`, `tsconfig*.json`, `package.json`, `commitlint.config.mjs`, `.npmrc`, `.gitignore`, `.vscode/**` | `code-tooling` |
+| `.github/**` — mechanika (hooki, rejestr modeli, `applyTo`, `tools:` agentów)            | `code-tooling`     |
+| `.github/**` — treść promptów, agentów i instrukcji                                    | `doc-spec`         |
 | uruchamianie bram i triaż ich wyniku                                            | `code-verifier`    |
 | przegląd architektury, bezpieczeństwa, kosztu — read-only                      | `code-reviewer`    |
 | przegląd wizualny zrzutów z browser-inspectora — read-only                    | `code-reviewer-ui` |
 | klasyfikacja zgłoszenia, streszczenia, commit message, wiersz w `docs/INDEX.md` | `doc-intake`      |
 | `docs/specs/**`, `docs/plans/**`, `docs/runs/**`, ADR w `docs/decisions/**`     | `doc-spec`         |
+| `README.md`, `GLOSSARY.md`, `CHANGELOG.md`, `AGENTS.md`, `docs/*.md` (proza dla ludzi)  | `doc-spec`         |
 | przegląd dokumentacji (spec, plan, README, ADR) — read-only                    | `doc-reviewer`     |
 | dane z serwera MCP (`.vscode/mcp.json`)                                        | `mcp-gateway`      |
 

@@ -14,9 +14,11 @@
 // (`export [async] function|const|let|class NAME`, plus the occasional `export { a, b }`), a
 // wrong line in an index is a cosmetic bug rather than a runtime one, and a parser would be a
 // dependency taken on for a documentation file.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { REPO, isMain } from './lib/repo.mjs';
 
 export const INDEX_FILE = 'CODE-INDEX.md';
 
@@ -93,24 +95,33 @@ export function stripBlockComments(source) {
 export function parsePurpose(source) {
   /** @type {string[]} */
   const paragraph = [];
-  let started = false;
+  let inBlock = false;
   for (const raw of source.split('\n')) {
     const line = raw.trim();
-    if (!started && (line === '' || line.startsWith('#!'))) continue;
+    if (!inBlock && paragraph.length === 0 && (line === '' || line.startsWith('#!'))) continue;
     /** @type {string | null} */
     let text = null;
     if (line.startsWith('//')) text = line.slice(2).trim();
-    else if (line.startsWith('/**')) text = line.slice(3).replace(/\*\/$/u, '').trim();
-    else if (line.startsWith('/*')) text = line.slice(2).replace(/\*\/$/u, '').trim();
-    else if (started && line.startsWith('*')) text = line.slice(1).replace(/\*\/$/u, '').trim();
+    else if (line.startsWith('/*')) {
+      inBlock = true;
+      text = line
+        .replace(/^\/\*+/u, '')
+        .replace(/\*\/$/u, '')
+        .trim();
+    } else if (inBlock && line.startsWith('*'))
+      text = line
+        .replace(/^\*+\/?/u, '')
+        .replace(/\*\/$/u, '')
+        .trim();
     if (text === null) break;
-    // The header's first PARAGRAPH: an empty comment line ends it. Taking one physical line instead
-    // cut every wrapped header mid-sentence, which reads as a truncation bug rather than a summary.
-    if (text === '' && started) break;
-    if (text !== '') {
+    // The header's first PARAGRAPH: an empty comment line ends it once something was collected.
+    // Taking one physical line instead cut every wrapped header mid-sentence.
+    if (text === '') {
+      if (paragraph.length > 0) break;
+    } else {
       paragraph.push(text);
-      started = true;
     }
+    if (inBlock && line.endsWith('*/')) break;
   }
   if (paragraph.length === 0) return '';
   const joined = paragraph.join(' ').replace(/\s+/gu, ' ').trim();
@@ -184,6 +195,26 @@ export function insideTemplateLiteral(code, index) {
 }
 
 /**
+ * Whether `index` lies inside a single- or double-quoted string on its line: an odd number of
+ * unescaped quotes of one kind precede it. A generator that writes `"import { App } from './app/app';"`
+ * as a string is not importing anything.
+ * @param {string} code
+ * @param {number} index
+ * @returns {boolean}
+ */
+export function insideStringLiteral(code, index) {
+  const lineStart = code.lastIndexOf('\n', index) + 1;
+  let single = 0;
+  let double = 0;
+  for (let i = lineStart; i < index; i += 1) {
+    if (code[i - 1] === '\\') continue;
+    if (code[i] === "'") single += 1;
+    else if (code[i] === '"') double += 1;
+  }
+  return single % 2 === 1 || double % 2 === 1;
+}
+
+/**
  * LOCAL import specifiers (`./x.mjs`, `../shared/x.mjs`) from static `import … from` and dynamic
  * `import('…')`, resolved against the importing file into repository-relative POSIX paths.
  * Dynamic imports matter here: the keeper loads the engine lazily so the client never pays for it,
@@ -199,7 +230,8 @@ export function parseImports(source, fromFile) {
   const patterns = [/\bfrom\s+['"](\.[^'"]+)['"]/gu, /\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gu];
   for (const pattern of patterns) {
     for (const match of code.matchAll(pattern)) {
-      if (match[1].includes('${') || insideTemplateLiteral(code, match.index)) continue;
+      if (match[1].includes('${') || insideTemplateLiteral(code, match.index) || insideStringLiteral(code, match.index))
+        continue;
       const resolved = path.posix.join(path.posix.dirname(fromFile), match[1]);
       // TypeScript sources (tools/scribe) write `./x.js` (NodeNext) for a file that is `./x.ts` on disk.
       out.add(fromFile.endsWith('.ts') ? resolved.replace(/\.js$/u, '.ts') : resolved);
@@ -458,7 +490,9 @@ export function generateIndex(root) {
       path: rel,
       purpose: parsePurpose(source),
       exports: parseExports(source),
-      imports: parseImports(source, rel),
+      imports: parseImports(source, rel).map((spec) =>
+        existsSync(path.join(root, spec)) ? spec : `${spec} (unresolved)`,
+      ),
       typeImports: parseTypeImports(source, rel).map((spec) => resolveTypeImport(root, spec)),
       env: parseEnvKnobs(source),
       signatures: parseSignatures(source),
@@ -468,12 +502,27 @@ export function generateIndex(root) {
   return buildIndex(files);
 }
 
-const REPO_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+/**
+ * The STAGED tree exported to a temporary directory — what the commit will contain, as opposed to the
+ * working tree with its half-staged edits. The pre-commit hook indexes this.
+ * @returns {string} the directory; the caller removes it
+ */
+function exportStagedTree() {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'cb-index-staged-'));
+  const result = spawnSync('git', ['checkout-index', '-a', '--prefix', `${dir}${path.sep}`], {
+    cwd: REPO,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) throw new Error(`git checkout-index failed: ${result.stderr}`);
+  return dir;
+}
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   // Always the repository root, whatever the cwd: the hook and the gate call this from anywhere.
-  const fresh = generateIndex(REPO_ROOT);
-  const target = path.join(REPO_ROOT, INDEX_FILE);
+  const staged = process.argv.includes('--staged') ? exportStagedTree() : null;
+  const fresh = generateIndex(staged ?? REPO);
+  if (staged) rmSync(staged, { recursive: true, force: true });
+  const target = path.join(REPO, INDEX_FILE);
   if (process.argv.includes('--check')) {
     const current = existsSync(target) ? readFileSync(target, 'utf8') : '';
     if (current === fresh) {

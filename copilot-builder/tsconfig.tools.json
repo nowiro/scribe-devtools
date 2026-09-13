@@ -2,7 +2,8 @@
   // tsconfig.tools.json — TYPECHECK of the plain-ESM tooling: tools/scripts, tools/hooks and the
   // vendored browser-inspector. There is no build step for any of it; node runs the `.mjs` files
   // straight from the checkout, and `tsc --noEmit` with `checkJs` reads the JSDoc types and nothing
-  // else. `NodeNext` because node itself resolves the imports.
+  // else. `NodeNext` because node itself resolves the imports. `incremental` keeps the check fast
+  // between runs (`.cache/tsc`, carried by the CI cache of the typecheck job).
   //
   // `strict` is on, `noImplicitAny` is off ON PURPOSE: in JS files an unannotated parameter is `any`
   // without an error, so a helper written before its JSDoc does not block the gate, while every
@@ -16,6 +17,8 @@
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsc/tools.tsbuildinfo",
     "target": "ES2022",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "NodeNext",

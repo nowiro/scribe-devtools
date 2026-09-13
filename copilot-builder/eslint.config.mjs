@@ -23,9 +23,9 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import { pluginConfigs } from './eslint.plugins.mjs';
 import { customRules } from './eslint.rules.mjs';
+import { PREFIX } from './tools/scripts/workspace.config.mjs';
 
 /** Selector prefix of every component and directive of this workspace (angular.json → schematics). */
-const PREFIX = 'cb';
 
 export default defineConfig(
   globalIgnores([

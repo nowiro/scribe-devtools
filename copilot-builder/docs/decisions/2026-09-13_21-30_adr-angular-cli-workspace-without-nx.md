@@ -26,9 +26,9 @@ było naprawdę używane, jest odtworzone małymi skryptami bez zależności:
 
 | Potrzeba              | Rozwiązanie                                                                                                                        |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| graf projektów        | `tools/scripts/affected.mjs` czyta `angular.json` i aliasy `tsconfig.json` (`paths`); import aliasu = krawędź; `<app>-e2e` → `<app>` |
-| `affected`            | zmiany względem merge-base (`git diff`) + working tree; zmiana pliku korzenia (manifest, lockfile, konfiguracje) = wszystkie projekty |
-| cache zadań           | dla `lint`, `typecheck`, `test` (bez outputów): hash treści projektu, jego zależności i plików korzenia → marker w `.cache/tasks/`; GitLab CI przenosi `.cache/` między jobami i gałęziami |
+| graf projektów        | `tools/scripts/affected.mjs` czyta `angular.json` i aliasy `tsconfig.json` (`paths`); import aliasu = krawędź; `<app>-e2e` → `<app>`; `styles`/`assets`/`scripts` builda wskazujące inny projekt = krawędź |
+| `affected`            | zmiany względem merge-base (`git diff`) + working tree; zmiana pliku korzenia (manifest, lockfile, konfiguracje) = wszystkie projekty; brak bazy do porównania (świeży klon, inna gałąź domyślna) = wszystkie projekty, a nieistniejący `--base` to błąd (exit 2), nigdy „nic do zrobienia” |
+| cache zadań           | dla `lint`, `typecheck`, `test` (bez outputów): hash treści projektu, jego zależności, plików korzenia i samej linii komendy → marker w `.cache/tasks/`; GitLab CI przenosi `.cache/` per job i gałąź |
 | cache builda          | natywny cache Angular CLI (`.angular/cache`, `cli.cache.environment: all`) — również w CI                                          |
 | cache lintera / tsc   | `eslint --cache` (`.cache/eslint`), `tsc --incremental` (`.cache/tsc`), cache Vite (`.cache/vite`)                                  |
 | generatory            | `npm run new:app` / `new:lib` (`tools/scripts/new-project.mjs`) nad `ng generate` z post-procesingiem                              |
@@ -40,7 +40,7 @@ było naprawdę używane, jest odtworzone małymi skryptami bez zależności:
 | Alternatywa                                  | Powód odrzucenia                                                                                                              |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Nx z lokalnym cache, bez Nx Cloud            | koszt utrzymania wtyczek i migracji przy każdym wydaniu Angulara; cache lokalny daje w CI to samo, co katalog `.cache/` w GitLabie |
-| Nx tylko dla `affected` i grafu              | 150 linii skryptu robi to samo na `angular.json`; brak drugiego runnera i drugiego rejestru dla agenta                          |
+| Nx tylko dla `affected` i grafu              | jeden skrypt bez zależności robi to samo na `angular.json`; brak drugiego runnera i drugiego rejestru dla agenta                 |
 | Turborepo / moon                             | kolejny runner z własnym plikiem konfiguracji per projekt; problem był w Nx Cloud, nie w braku runnera                          |
 | osobne repozytorium per aplikacja            | dziesięć kopii konfiguracji Copilota, lintów i CI; współdzielone biblioteki przez publikację zamiast z źródeł                    |
 

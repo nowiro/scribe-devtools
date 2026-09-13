@@ -5,12 +5,16 @@
 //
 //   node tools/testing/serve-static.mjs <dir> <port>
 //
-// Zero dependencies: node:http and node:fs. Paths are resolved inside <dir> only (a request for
-// `../package.json` gets the index, not the file). Anything without a file extension falls back to
-// index.html — that is the Angular router's contract with the server.
-import { createReadStream, existsSync, statSync } from 'node:fs';
+// Zero dependencies: node:http and node:fs. A request is answered from inside <dir> only: an asset
+// (anything with a file extension) must exist there and REALLY live there — a symlink pointing out
+// of the directory is a 404, not a file. Anything without an extension is the Angular router's
+// business and gets index.html. A malformed URL is a 400, never an exception: the server must outlive
+// every request Playwright throws at it. Loopback only.
+import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -29,24 +33,66 @@ const TYPES = {
 };
 
 /**
- * The file to serve for a request path: the asset when it exists inside `root`, index.html otherwise.
- * @param {string} root
- * @param {string} pathname
- * @returns {string}
+ * @typedef {{ status: 200, file: string } | { status: 400 | 404, file?: undefined }} Resolution
  */
-export function resolveFile(root, pathname) {
-  const requested = path.normalize(decodeURIComponent(pathname)).replace(/^(?:\.\.[/\\])+/u, '');
-  const file = path.join(root, requested);
-  const servable =
-    file.startsWith(root) && path.extname(file) !== '' && existsSync(file) && !statSync(file).isDirectory();
-  return servable ? file : path.join(root, 'index.html');
+
+/**
+ * What a request path maps to: the asset inside `root`, index.html for a route, 404 for an asset
+ * that is missing or escapes the directory, 400 for a URL that cannot be decoded.
+ * @param {string} root absolute directory
+ * @param {string} pathname the URL path, still percent-encoded
+ * @returns {Resolution}
+ */
+export function resolveRequest(root, pathname) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return { status: 400 };
+  }
+  if (decoded.includes('\0')) return { status: 400 };
+  const requested = path.normalize(decoded).replace(/^(?:\.\.[/\\])+/u, '');
+  const candidate = path.join(root, requested);
+  const inside = candidate === root || candidate.startsWith(root + path.sep);
+  if (!inside || path.extname(candidate) === '') return { status: 200, file: path.join(root, 'index.html') };
+  if (!existsSync(candidate)) return { status: 404 };
+  const realRoot = realpathSync(root);
+  const real = realpathSync(candidate);
+  if (!(real === realRoot || real.startsWith(realRoot + path.sep)) || statSync(real).isDirectory())
+    return { status: 404 };
+  return { status: 200, file: real };
+}
+
+/**
+ * The request handler, exported so a test can drive it on an ephemeral port.
+ * @param {string} root
+ * @returns {import('node:http').RequestListener}
+ */
+export function handler(root) {
+  return (request, response) => {
+    const url = new URL(request.url ?? '/', 'http://localhost');
+    const resolved = resolveRequest(root, url.pathname);
+    const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' };
+    if (resolved.status !== 200) {
+      response.writeHead(resolved.status, { ...headers, 'content-type': 'text/plain; charset=utf-8' });
+      response.end(resolved.status === 400 ? 'bad request' : 'not found');
+      return;
+    }
+    response.writeHead(200, {
+      ...headers,
+      'content-type': TYPES[path.extname(resolved.file)] ?? 'application/octet-stream',
+    });
+    createReadStream(resolved.file)
+      .on('error', () => response.destroy())
+      .pipe(response);
+  };
 }
 
 /**
  * @param {string[]} argv
  * @returns {number} exit code (0 keeps the server running)
  */
-function main(argv) {
+export function main(argv) {
   const [dirArg, portArg] = argv;
   if (!dirArg || !portArg) {
     process.stderr.write('usage: node tools/testing/serve-static.mjs <dir> <port>\n');
@@ -57,19 +103,12 @@ function main(argv) {
     process.stderr.write(`FAIL serve-static: ${root}/index.html does not exist — build the application first\n`);
     return 2;
   }
-  const port = Number(portArg);
-  createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://localhost');
-    const file = resolveFile(root, url.pathname);
-    response.writeHead(200, {
-      'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream',
-      'cache-control': 'no-store',
-    });
-    createReadStream(file).pipe(response);
-  }).listen(port, '127.0.0.1', () => {
-    process.stdout.write(`serve-static · ${root} · http://127.0.0.1:${port}/\n`);
+  createServer(handler(root)).listen(Number(portArg), '127.0.0.1', () => {
+    process.stdout.write(`serve-static · ${root} · http://127.0.0.1:${portArg}/\n`);
   });
   return 0;
 }
 
-process.exitCode = main(process.argv.slice(2));
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+  process.exitCode = main(process.argv.slice(2));
+}

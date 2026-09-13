@@ -7,11 +7,10 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import process from 'node:process';
 import { nowStamp } from '../scripts/stamp.mjs';
-
-const ROOT = resolve(process.cwd());
+import { ROOT, isMain, parsePayload, readStdin } from './lib/payload.mjs';
 
 /**
  * @param {string[]} args
@@ -62,20 +61,6 @@ function openQuestions() {
 }
 
 /**
- * The hook payload from stdin — an object, or an empty one when the input is blank or malformed.
- * @param {string} raw
- * @returns {Record<string, any>}
- */
-function parsePayload(raw) {
-  try {
-    const parsed = raw.trim() === '' ? {} : JSON.parse(raw);
-    return parsed !== null && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-/**
  * @param {string[]} items
  * @param {string} empty
  * @returns {string}
@@ -84,13 +69,8 @@ function bullets(items, empty) {
   return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : `- ${empty}`;
 }
 
-let raw = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', (chunk) => {
-  raw += chunk;
-});
-process.stdin.on('end', () => {
-  const payload = parsePayload(raw);
+if (isMain(import.meta.url)) {
+  const payload = parsePayload(await readStdin());
   const session = String(payload.session_id ?? payload.sessionId ?? 'session')
     .replaceAll(/[^\w-]/gu, '')
     .slice(0, 24);
@@ -124,4 +104,4 @@ process.stdin.on('end', () => {
   const rel = `tmp/handoff/${stamp}_${session}.md`;
   writeFileSync(join(ROOT, rel), lines.join('\n'));
   process.stdout.write(JSON.stringify({ systemMessage: `Handoff saved to ${rel} — resume from it after compaction.` }));
-});
+}

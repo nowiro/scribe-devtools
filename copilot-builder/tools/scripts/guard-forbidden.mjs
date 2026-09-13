@@ -9,9 +9,7 @@
 // Exit codes: 0 pass · 1 something forbidden is present.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+import { REPO, isMain } from './lib/repo.mjs';
 
 /** @type {readonly [string, string][]} path → why it is forbidden */
 export const FORBIDDEN_PATHS = Object.freeze([
@@ -20,6 +18,8 @@ export const FORBIDDEN_PATHS = Object.freeze([
   ['.claude', 'the repository supports GitHub Copilot only'],
   ['.cursor', 'the repository supports GitHub Copilot only'],
   ['.codex', 'the repository supports GitHub Copilot only'],
+  ['.opencode', 'the repository supports GitHub Copilot only'],
+  ['.gemini', 'the repository supports GitHub Copilot only'],
   ['.ai', 'the repository supports GitHub Copilot only'],
   ['.mcp.json', 'MCP servers are declared in .vscode/mcp.json and used only through mcp-gateway'],
   ['.github/workflows', 'CI runs on GitLab (.gitlab-ci.yml); a second CI is a second place for the gates to drift'],
@@ -71,7 +71,7 @@ export function guardForbidden(repo = REPO) {
   return { ok: problems.length === 0, problems };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { ok, problems } = guardForbidden();
   if (ok)
     process.stdout.write(

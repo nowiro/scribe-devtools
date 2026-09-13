@@ -5,11 +5,11 @@ agent: orchestrator-sdd
 
 # /new-project — aplikacja albo biblioteka w workspace
 
-1. Ustal z operatorem: aplikacja (`<nazwa>`, SSR tak/nie) czy biblioteka (`<zakres>/<typ>-<nazwa>`,
+1. Ustal z operatorem: aplikacja (`<nazwa>`; SSR jest poza zakresem szablonu — osobna decyzja z ADR) czy biblioteka (`<zakres>/<typ>-<nazwa>`,
    typ ∈ `feature | ui | data-access | util` — typ wyznacza, co biblioteka może importować).
 2. Uruchom skrypt (deterministyczny; przywraca `package.json`, ustawia runner testów, alias do źródeł, `OnPush`):
-   - `npm run new:app -- <nazwa>` → `apps/<nazwa>` + `apps/<nazwa>-e2e` (Playwright, test dymny na matrycy viewportów)
-   - `npm run new:lib -- <zakres>/<typ>-<nazwa>` → `libs/<zakres>/<typ>-<nazwa>`, alias `@cb/<zakres>/<typ>-<nazwa>`
+   - `npm run new:app -- <nazwa> [--port=<n>]` → `apps/<nazwa>` + `apps/<nazwa>-e2e` (Playwright, test dymny na matrycy viewportów z rejestru)
+   - `npm run new:lib -- <zakres>/<typ>-<nazwa>` → `libs/<zakres>/<typ>-<nazwa>`, alias `<ALIAS_SCOPE>/<zakres>/<typ>-<nazwa>` (`tools/scripts/workspace.config.mjs`)
 3. Zweryfikuj: `npm run affected -- lint`, `npm run affected -- typecheck`, `npm run affected -- test`,
    dla aplikacji także `npm run affected -- build` i `npm run affected -- e2e`.
 4. `npm run code-index` (indeks pokazuje `public-api.ts` / `app.routes.ts` nowego projektu) i `npm run verify -- --static`.

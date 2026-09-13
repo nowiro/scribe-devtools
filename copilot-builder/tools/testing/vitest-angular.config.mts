@@ -1,21 +1,24 @@
 // vitest-angular.config.mts — the shared Vitest configuration of every Angular project, referenced
 // from angular.json as `test.options.runnerConfig` (written there by `npm run new:app` / `new:lib`).
 //
-// The Angular unit-test builder owns `test.projects` and `test.include` (it overrides them); this
-// file carries what the builder leaves to the team: the coverage contract and the reporters CI reads.
-// Thresholds are the Definition of Done for libraries and applications alike — a project below them
-// is red, not "noted". Raise them, never lower them, and never per project without an ADR.
+// The Angular unit-test builder owns `test.projects` and `test.include` (it overrides them) and
+// writes coverage to `coverage/<project>/` when this file names no `reportsDirectory` — so it must
+// not, or every project would overwrite the previous one. The junit file is per project too:
+// tools/scripts/affected.mjs sets CB_PROJECT before each `ng test`. Thresholds are the Definition of
+// Done for libraries and applications alike — a project below them is red, not "noted". Raise them,
+// never lower them, and never per project without an ADR.
 import { defineConfig } from 'vitest/config';
+
+const project = process.env.CB_PROJECT ?? 'angular';
 
 export default defineConfig({
   cacheDir: '.cache/vite',
   test: {
     reporters: process.env.CI ? ['default', 'junit'] : ['default'],
-    outputFile: { junit: 'reports/junit-angular.xml' },
+    outputFile: { junit: `reports/junit-${project}.xml` },
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov', 'cobertura'],
-      reportsDirectory: 'coverage/angular',
       exclude: [
         '**/*.spec.ts',
         '**/main.ts',

@@ -34,6 +34,7 @@
     "check:glossary": "node tools/scripts/check-glossary.mjs",
     "ai:validate": "node tools/scripts/validate-ai-config.mjs",
     "sdd:check": "node tools/scripts/validate-sdd.mjs",
+    "check:secrets": "node tools/scripts/check-secrets.mjs",
     "guard:forbidden": "node tools/scripts/guard-forbidden.mjs",
     "stack:sync": "node tools/scripts/stack.mjs sync",
     "stack:check": "node tools/scripts/stack.mjs check",

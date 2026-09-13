@@ -31,10 +31,9 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { displayCommand } from './display-command.mjs';
+import { REPO, isMain, readJsonc } from './lib/repo.mjs';
 
-export const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const TARGETS = Object.freeze(['lint', 'typecheck', 'test', 'build', 'e2e']);
 const CACHED_TARGETS = new Set(['lint', 'typecheck', 'test']);
 const CACHE_DIR = path.join(REPO, '.cache', 'tasks');
@@ -58,6 +57,8 @@ const SKIP_DIRS = new Set([
   'coverage',
   'playwright-report',
   'test-results',
+  'reports',
+  'tmp',
 ]);
 
 /**
@@ -98,10 +99,7 @@ export function readWorkspace(repo = REPO) {
   }
   /** @type {Map<string, string>} */
   const aliases = new Map();
-  const tsconfigText = readFileSync(path.join(repo, 'tsconfig.json'), 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//gu, '')
-    .replace(/^\s*\/\/.*$/gmu, '');
-  const paths = JSON.parse(tsconfigText).compilerOptions?.paths ?? {};
+  const paths = readJsonc(path.join(repo, 'tsconfig.json')).compilerOptions?.paths ?? {};
   for (const [alias, targets] of Object.entries(paths)) {
     const target = String(/** @type {string[]} */ (targets)[0] ?? '').replace(/^\.\//u, '');
     const owner = [...projects.values()].find(
@@ -136,6 +134,29 @@ export function listFiles(repo, dir) {
 }
 
 /**
+ * Repository-relative paths named by `styles`, `assets` and `scripts` of a project's targets, in
+ * both spellings the CLI accepts (a string or `{ input }`).
+ * @param {Project} project
+ * @returns {string[]}
+ */
+function optionFiles(project) {
+  /** @type {string[]} */
+  const out = [];
+  for (const target of Object.values(project.architect)) {
+    const options = /** @type {{ options?: Record<string, unknown> }} */ (target).options ?? {};
+    for (const key of ['styles', 'assets', 'scripts']) {
+      const entries = options[key];
+      if (!Array.isArray(entries)) continue;
+      for (const entry of entries) {
+        const value = typeof entry === 'string' ? entry : /** @type {{ input?: unknown }} */ (entry)?.input;
+        if (typeof value === 'string') out.push(value.replace(/^\.\//u, '').replace(/\/$/u, ''));
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Dependencies of every project: alias imports found in its `.ts` sources, plus the e2e convention.
  * @param {{ projects: Map<string, Project>, aliases: Map<string, string> }} workspace
  * @param {string} repo
@@ -144,22 +165,19 @@ export function listFiles(repo, dir) {
 export function buildGraph(workspace, repo = REPO) {
   /** @type {Map<string, Set<string>>} */
   const graph = new Map();
-  const pattern = /(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/gu;
   for (const project of workspace.projects.values()) {
-    const deps = new Set();
-    for (const file of listFiles(repo, project.root)) {
-      if (!/\.(?:ts|mts)$/u.test(file) || /\.d\.ts$/u.test(file)) continue;
-      const source = readFileSync(path.join(repo, file), 'utf8');
-      for (const match of source.matchAll(pattern)) {
-        const specifier = match[1];
-        for (const [alias, owner] of workspace.aliases) {
-          if ((specifier === alias || specifier.startsWith(`${alias}/`)) && owner !== project.name) deps.add(owner);
-        }
-      }
-    }
+    const deps = aliasEdges(project, workspace, repo);
     if (project.name.endsWith('-e2e')) {
       const app = project.name.slice(0, -4);
       if (workspace.projects.has(app)) deps.add(app);
+    }
+    // Shared styles, assets and scripts declared in angular.json are edges too: a change to a design
+    // token file under libs/shared/ui affects every application whose build lists it.
+    for (const file of optionFiles(project)) {
+      const owner = [...workspace.projects.values()].find(
+        (other) => other !== project && (file === other.root || file.startsWith(`${other.root}/`)),
+      );
+      if (owner) deps.add(owner.name);
     }
     graph.set(project.name, deps);
   }
@@ -167,7 +185,31 @@ export function buildGraph(workspace, repo = REPO) {
 }
 
 /**
+ * The projects a project imports through aliases in its `.ts` sources (declaration files excluded).
+ * @param {Project} project
+ * @param {Workspace} workspace
+ * @param {string} repo
+ * @returns {Set<string>}
+ */
+function aliasEdges(project, workspace, repo) {
+  const pattern = /(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/gu;
+  const deps = new Set();
+  for (const file of listFiles(repo, project.root)) {
+    if (!/\.(?:ts|mts)$/u.test(file) || /\.d\.ts$/u.test(file)) continue;
+    const source = readFileSync(path.join(repo, file), 'utf8');
+    for (const match of source.matchAll(pattern)) {
+      const specifier = match[1];
+      for (const [alias, owner] of workspace.aliases) {
+        if ((specifier === alias || specifier.startsWith(`${alias}/`)) && owner !== project.name) deps.add(owner);
+      }
+    }
+  }
+  return deps;
+}
+
+/**
  * @param {string[]} args
+ * @param {string} repo
  * @returns {string | null} stdout, or null when git is unavailable or the command failed
  */
 function git(args, repo = REPO) {
@@ -175,31 +217,55 @@ function git(args, repo = REPO) {
   return result.status === 0 ? result.stdout : null;
 }
 
+/** Where the default branch lives when no explicit base is given: the remote HEAD first, then the usual names. */
+const BASE_CANDIDATES = ['origin/main', 'main', 'origin/master', 'master'];
+
 /**
- * Changed files (committed since the merge base with `base`, staged, unstaged and untracked), or
- * null when there is no git history to compare against — the caller then treats everything as affected.
+ * The commit to diff against: the merge base of HEAD and `base`, or of HEAD and the first default
+ * branch candidate that exists. Null when nothing resolves — an explicit `base` that does not exist
+ * is the caller's error, an absent default branch means there is no history to compare.
+ * @param {string | undefined} base
+ * @param {string} repo
+ * @returns {string | null}
+ */
+export function mergeBaseFor(base, repo = REPO) {
+  const remoteHead = git(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'], repo)
+    ?.trim()
+    .replace(/^refs\/remotes\//u, '');
+  const candidates = base ? [base] : [...(remoteHead ? [remoteHead] : []), ...BASE_CANDIDATES];
+  for (const candidate of candidates) {
+    const found = git(['merge-base', candidate, 'HEAD'], repo)?.trim();
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Changed files — committed since the merge base, staged, unstaged and untracked — or null when there
+ * is nothing to compare against (no git, no history, no default branch): the caller then treats EVERY
+ * project as affected. Returning "only the uncommitted changes" here would turn a pre-push gate green
+ * on a clean tree, which is the one thing it must never do.
  * @param {string | undefined} base
  * @param {string} repo
  * @returns {string[] | null}
  */
 export function changedFiles(base, repo = REPO) {
   if (git(['rev-parse', '--is-inside-work-tree'], repo) === null) return null;
-  const candidates = base ? [base] : ['origin/main', 'main', 'origin/master', 'master'];
-  let mergeBase = null;
-  for (const candidate of candidates) {
-    mergeBase = git(['merge-base', candidate, 'HEAD'], repo)?.trim() ?? null;
-    if (mergeBase) break;
-  }
+  const mergeBase = mergeBaseFor(base, repo);
+  if (mergeBase === null) return null;
+  // -z and quotePath=false: a path with a non-ASCII character would otherwise come back quoted and
+  // octal-escaped ("apps/x/src/za\305\274.ts") and match no project root.
+  const quiet = ['-c', 'core.quotePath=false'];
   const outputs = [
-    mergeBase ? git(['diff', '--name-only', mergeBase, 'HEAD'], repo) : null,
-    git(['diff', '--name-only'], repo),
-    git(['diff', '--name-only', '--cached'], repo),
-    git(['ls-files', '--others', '--exclude-standard'], repo),
+    git([...quiet, 'diff', '-z', '--name-only', mergeBase, 'HEAD'], repo),
+    git([...quiet, 'diff', '-z', '--name-only'], repo),
+    git([...quiet, 'diff', '-z', '--name-only', '--cached'], repo),
+    git([...quiet, 'ls-files', '-z', '--others', '--exclude-standard'], repo),
   ];
-  if (mergeBase === null && outputs.slice(1).every((out) => out === null)) return null;
   const files = new Set();
-  for (const out of outputs)
-    for (const line of (out ?? '').split('\n')) if (line.trim() !== '') files.add(line.trim().replace(/\\/gu, '/'));
+  for (const out of outputs) {
+    for (const entry of (out ?? '').split('\0')) if (entry !== '') files.add(entry.replaceAll('\\', '/'));
+  }
   return [...files].sort();
 }
 
@@ -246,6 +312,12 @@ export function affectedProjects(changed, workspace, graph) {
 export function taskHash(project, graph, workspace, target, repo = REPO) {
   const hash = createHash('sha256');
   hash.update(`${target}\n${process.versions.node.split('.')[0]}\n`);
+  // The command lines are inputs too: a new flag in commandsFor must not be served from old markers.
+  hash.update(
+    `${commandsFor(project, target, repo)
+      .map((command) => displayCommand(command, repo))
+      .join('\n')}\n`,
+  );
   const roots = new Set([project.root]);
   const queue = [project.name];
   while (queue.length > 0) {
@@ -366,7 +438,7 @@ function runProject(name, ctx) {
     const result = spawnSync(command[0], command.slice(1), {
       cwd: repo,
       stdio: 'inherit',
-      env: { ...process.env, NG_CLI_ANALYTICS: 'false' },
+      env: { ...process.env, NG_CLI_ANALYTICS: 'false', CB_PROJECT: name },
     });
     if (result.status !== 0) {
       process.stderr.write(`FAIL ${target} ${name} · ${shown} (exit ${result.status ?? 'signal'})\n`);
@@ -389,6 +461,9 @@ function runProject(name, ctx) {
 function selectProjects(args, workspace, graph, repo) {
   const every = { selected: [...workspace.projects.keys()].sort(), reason: '--all' };
   if (args.all) return every;
+  if (args.base !== undefined && mergeBaseFor(args.base, repo) === null) {
+    throw new Error(`--base=${args.base} does not resolve to a commit reachable from HEAD (fetch it first)`);
+  }
   const changed = changedFiles(args.base, repo);
   if (changed === null) return { ...every, reason: 'no git history to compare — every project' };
   const { affected, reason } = affectedProjects(changed, workspace, graph);
@@ -410,7 +485,14 @@ export function main(argv, repo = REPO) {
   }
   const workspace = readWorkspace(repo);
   const graph = buildGraph(workspace, repo);
-  const { selected, reason } = selectProjects(args, workspace, graph, repo);
+  let selection;
+  try {
+    selection = selectProjects(args, workspace, graph, repo);
+  } catch (error) {
+    process.stderr.write(`FAIL affected · ${error instanceof Error ? error.message : String(error)}\n`);
+    return 2;
+  }
+  const { selected, reason } = selection;
   if (args.list) {
     process.stdout.write(`${selected.join('\n')}${selected.length > 0 ? '\n' : ''}`);
     return 0;
@@ -430,6 +512,6 @@ export function main(argv, repo = REPO) {
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   process.exitCode = main(process.argv.slice(2));
 }

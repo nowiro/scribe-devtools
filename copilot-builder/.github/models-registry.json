@@ -24,6 +24,8 @@
     "namePattern": "^(orchestrator|code|doc|mcp)-[a-z0-9-]+$",
     "maxVisible": 1,
     "toolSets": ["read", "search", "edit", "execute", "agent", "web", "todo"],
+    "$commentForbidden": "Tool sets no agent may list, whatever its role: data from outside the repository comes in through the scripts (alm:read, browser-inspector) and the MCP gateway, never through a browsing tool in a coding agent.",
+    "forbiddenToolSets": ["web"],
     "roles": {
       "orchestrator": { "requires": ["agent", "edit"], "forbids": [], "mcp": false },
       "writer": { "requires": ["edit"], "forbids": ["agent"], "mcp": false },

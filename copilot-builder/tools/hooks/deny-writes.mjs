@@ -1,55 +1,102 @@
 #!/usr/bin/env node
 /**
- * deny-writes.mjs — PreToolUse hook scoped to read-only agents (code-reviewer, code-reviewer-ui,
- * doc-reviewer): deny any tool that edits files or runs commands, whatever the agent's `tools:` list
- * says. Belt and braces for the read-only guarantee: the tools list is a request, this hook is an
- * enforcement. Exit code 0; the decision travels in stdout.
+ * deny-writes.mjs — PreToolUse hook of the read-only agents (code-reviewer, code-reviewer-ui,
+ * doc-reviewer): whatever the agent's `tools:` list says, only tools that READ may run.
+ *
+ * An allowlist, not a denylist: a list of forbidden verbs let `install_extension`, `memory` (which
+ * writes instruction files) or `mkdir` through because nobody had thought of them. Unknown tools are
+ * denied with a message that names the list to extend — a reviewer that cannot use a new read tool is
+ * a nuisance, a reviewer that can write is a broken guarantee. Exit code 0; the decision is in stdout.
  */
 import process from 'node:process';
+import { ALLOW, denyDecision, isMain, parsePayload, readStdin, toolCall } from './lib/payload.mjs';
 
-// Matched against the tool name split on every boundary a client uses: separators (`edit/createFile`,
-// `run_in_terminal`) and camelCase humps (`createFile`, `runInTerminal`, `multiReplaceString`).
-const WRITE_VERBS =
-  /^(?:edit|editfiles|write|create|replace|insert|patch|apply|delete|remove|execute|shell|bash|powershell|terminal|run|runcommands|runtasks|notebook)$/i;
-const isWriteTool = (name) =>
-  String(name)
-    .split(/[/_.-]|(?<=[a-z0-9])(?=[A-Z])/)
-    .some((part) => WRITE_VERBS.test(part));
+/** Tool names (normalised: lower case, no separators) that only read. Suffix match, so `copilot_readFile` counts. */
+export const READ_TOOLS = Object.freeze([
+  'readfile',
+  'listdir',
+  'filesearch',
+  'grepsearch',
+  'semanticsearch',
+  'codebase',
+  'search',
+  'searchworkspacesymbols',
+  'testsearch',
+  'findtestfiles',
+  'geterrors',
+  'problems',
+  'getchangedfiles',
+  'changes',
+  'listcodeusages',
+  'usages',
+  'getsearchviewresults',
+  'getterminaloutput',
+  'think',
+  'todos',
+  'managetodolist',
+]);
+
+/** Verbs that mean writing or executing, matched against every part of the name (`edit/createFile`, `runInTerminal`). */
+const WRITE_VERBS = new Set([
+  'edit',
+  'editfiles',
+  'write',
+  'create',
+  'replace',
+  'insert',
+  'patch',
+  'apply',
+  'delete',
+  'remove',
+  'execute',
+  'shell',
+  'bash',
+  'powershell',
+  'terminal',
+  'run',
+  'runcommands',
+  'runtasks',
+  'notebook',
+  'install',
+  'configure',
+  'memory',
+  'mkdir',
+  'rename',
+  'move',
+  'copy',
+  'append',
+  'save',
+  'upsert',
+  'store',
+  'fetch',
+  'web',
+  'browser',
+  'github',
+  'http',
+  'url',
+]);
+
+/** @param {string} name */
+const normalise = (name) => name.toLowerCase().replaceAll(/[^a-z0-9]/gu, '');
 
 /**
- * The hook payload from stdin — an object, or an empty one when the input is blank or malformed.
- * @param {string} raw
- * @returns {Record<string, any>}
+ * Why the tool may not run for a read-only agent, or null when it may.
+ * @param {string} tool
+ * @returns {string | null}
  */
-function parsePayload(raw) {
-  try {
-    const parsed = raw.trim() === '' ? {} : JSON.parse(raw);
-    return parsed !== null && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
+export function decide(tool) {
+  if (tool === '') return 'the call names no tool';
+  const parts = tool.split(/[/_.\-:]|(?<=[a-z0-9])(?=[A-Z])/u).filter(Boolean);
+  if (parts.some((part) => WRITE_VERBS.has(part.toLowerCase()))) return `'${tool}' writes or executes`;
+  const normalised = normalise(tool);
+  if (READ_TOOLS.some((entry) => normalised === entry || normalised.endsWith(entry))) return null;
+  return `'${tool}' is not on the read-only allowlist (READ_TOOLS in tools/hooks/deny-writes.mjs — extend it only for a tool that reads)`;
 }
 
-let raw = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', (chunk) => {
-  raw += chunk;
-});
-process.stdin.on('end', () => {
-  const payload = parsePayload(raw);
-  const tool = String(payload.tool_name ?? payload.toolName ?? '');
-  if (!isWriteTool(tool)) {
-    process.stdout.write('{}');
-    return;
-  }
+if (isMain(import.meta.url)) {
+  const { tool } = toolCall(parsePayload(await readStdin()));
+  const reason = decide(tool);
   process.stdout.write(
-    JSON.stringify({
-      continue: true,
-      hookSpecificOutput: {
-        hookEventName: 'PreToolUse',
-        permissionDecision: 'deny',
-        permissionDecisionReason: `deny-writes: this agent is read-only; '${tool}' is not allowed. Return findings, not fixes.`,
-      },
-    }),
+    reason ? denyDecision(`deny-writes: this agent is read-only; ${reason}. Return findings, not fixes.`) : ALLOW,
   );
-});
+}
