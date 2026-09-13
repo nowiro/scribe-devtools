@@ -267,7 +267,10 @@ Repozytorium jest przygotowane do pracy w VS Code z GitHub Copilotem (tryb agent
 - Prompt files (`.github/prompts/`): `/migrate-from-mcp-playwright` prowadzi migrację repozytorium aplikacji (Nx
   monorepo) z serwera MCP Playwrighta na `browser-inspector` — opis w
   [PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md](PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md); `/browser-session` to pętla „spójrz, potem
-  kliknij" dla sesji interaktywnej.
+  kliknij" dla sesji interaktywnej; `/perf-optimize` to runbook wydajności i DX dla repozytorium aplikacji
+  (Angular + Nx + Vitest + Playwright + ESLint): pomiar przed/po, cache Nx bez Nx Cloud, `affected`, natywne hooki,
+  pipeline GitLab CI. Runbook opisuje **cudze** repozytoria — co z niego dotyczy tego repo i co już zostało zmierzone
+  albo odrzucone, mówi [docs/DX-REVIEW.md](docs/DX-REVIEW.md).
 - `.vscode/tasks.json` — bramki jako zadania (Terminal → Run Task: `verify`, `test`, `smoke`, `bench`, `portable`,
   `docs`) i komendy narzędzia (`browser-inspector: doctor | up | stop | batch z fixture`); `.vscode/settings.json`
   włącza prettier, prompt files, instrukcje i AGENTS.md; `.vscode/extensions.json` poleca prettier, vitest i Copilot Chat.

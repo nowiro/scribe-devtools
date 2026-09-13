@@ -3,7 +3,7 @@
 Źródłem prawdy jest [AGENTS.md](../AGENTS.md) — VS Code ładuje go razem z tym plikiem (`chat.useAgentsMdFile`),
 więc ten plik go nie powtarza: niesie kartę repo w dwóch zdaniach, jedną regułę, której AGENTS.md nie ma, i
 kanoniczną kopię bloków instrukcji obu narzędzi. Reguły per obszar plików: `.github/instructions/*.instructions.md`;
-przepływy: `/migrate-from-mcp-playwright`, `/browser-session`; bramki jako zadania VS Code: Terminal → Run Task
+przepływy: `/migrate-from-mcp-playwright`, `/browser-session`, `/perf-optimize`; bramki jako zadania VS Code: Terminal → Run Task
 (`verify`, `test`, `smoke`, `bench`, `portable`, `browser-inspector: doctor|up|stop`, `nx-angular-inspector: help`).
 
 **scribe-devtools**: skrypty zamiast serwerów MCP, wyniki na dysku. `packages/browser-inspector/` — binarka

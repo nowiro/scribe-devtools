@@ -69,7 +69,7 @@ zamierzone: limit ma zmuszać do wyboru, a nie ustępować.
 | komenda | co pilnuje |
 | --- | --- |
 | `npm run verify` | wszystko poniżej, w tej kolejności |
-| `prettier --check .` | format: 120 kolumn, LF, pojedyncze cudzysłowy (`.prettierignore`: proza z wąskimi tabelami, generowane, fixture'y) |
+| `prettier --check . --cache` | format: 120 kolumn, LF, pojedyncze cudzysłowy (`.prettierignore`: proza z wąskimi tabelami, generowane, fixture'y). `--cache` (plik w `node_modules/.cache/prettier`, więc `npm ci` go czyści) pomija pliki o niezmienionej treści: 3400 ms → 730 ms na drugim przebiegu, zmierzone — patrz [docs/DX-REVIEW.md](docs/DX-REVIEW.md) |
 | `node scripts/check-pins.mjs` | `scripts/pins.config.mjs` to jedyne miejsce, gdzie wersja zależności jest **deklarowana**. Bramka jest offline i deterministyczna (dlatego stoi tak wysoko): META — każda zależność w każdym manifeście ma wiersz, i odwrotnie; SHAPE — `exact` znaczy goły numer, `caret` znaczy `^`; FLOOR — `minSupported` jako podłoga (`playwright-core >= 1.62.1`), która **nie** rozluźnia `exact`; SYNC — lustra i linie komend (`@playwright/mcp@<wersja>` w `.mcp.playwright.example.json` i `.vscode/mcp.playwright.example.json`); LAG — proza cytująca inną wersję niż pin. Bramka **wskazuje, nie przepisuje**: część tych linii to twierdzenia o zachowaniu, więc podmiana numeru zrobiłaby z prawdy fałsz z nowym numerem. Świadomy cytat starej wersji zwalnia `pins:ignore` w linii. Pytanie „czy pin to nadal `latest`” jest kalendarzowe, wymaga sieci i **nie należy tutaj** |
 | `vitest run --project !smoke` | projekty `unit` (FakePage, keeper na prawdziwym pipe z fake'iem silnika w czterech plikach, `client-imports`), `scripts` (CODE-INDEX, portable staging + `help` obu narzędzi z rozpakowanego drzewa), `bench`, `compat` (perf tylko z `BROWSER_INSPECTOR_PERF=1`). `smoke` jest wykluczony i idzie OSOBNO, na końcu (`npm run smoke`) — inaczej `vitest run` uruchamiał go drugi raz, a prawdziwy Chrome obok testów jednostkowych obciążał maszynę na tyle, że testy z budżetem 200 ms migotały |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**`, `bench/**` |
@@ -182,5 +182,7 @@ zmianą cudzego kontraktu. Wynik pomiaru: [bench/RAPORT.md](bench/RAPORT.md), bu
 Copilot i VS Code: `.github/copilot-instructions.md` (karta repo + kopia bloku instrukcji),
 `.github/instructions/*.instructions.md` (reguły per obszar plików), `.github/prompts/*.prompt.md`
 (`/migrate-from-mcp-playwright` — migracja repozytorium aplikacji z MCP Playwrighta, opis w
-[PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md](PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md); `/browser-session` — pętla sesji),
+[PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md](PROMPT-MIGRACJA-MCP-PLAYWRIGHT.md); `/browser-session` — pętla sesji;
+`/perf-optimize` — runbook wydajności i DX dla repozytorium aplikacji, zastosowany do tego repo w
+[docs/DX-REVIEW.md](docs/DX-REVIEW.md)),
 `.vscode/tasks.json` (bramki i komendy narzędzia jako zadania), `.vscode/settings.json` (prettier, prompt files, AGENTS.md).

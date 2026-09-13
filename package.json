@@ -13,12 +13,12 @@
     "bench"
   ],
   "scripts": {
-    "verify": "prettier --check . && node scripts/check-pins.mjs && vitest run --project !smoke && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/gen-steps-doc.mjs --check && node scripts/check-instruction-sync.mjs --require-all && npm run smoke",
+    "verify": "prettier --check . --cache && node scripts/check-pins.mjs && vitest run --project !smoke && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/gen-steps-doc.mjs --check && node scripts/check-instruction-sync.mjs --require-all && npm run smoke",
     "test": "vitest run",
     "smoke": "vitest run --project smoke",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write . --cache",
+    "format:check": "prettier --check . --cache",
     "docs": "node scripts/gen-steps-doc.mjs",
     "code-index": "node scripts/index-code.mjs",
     "portable": "node scripts/portable-zip.mjs",
