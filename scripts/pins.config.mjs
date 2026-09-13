@@ -52,7 +52,7 @@ export const PINS = [
     policy: 'caret',
     prose: [],
     staleDays: 120,
-    why: "The measuring instrument behind the 200-token limit on the AGENTS.md instruction block (`check-instruction-sync.mjs`), not a dependency of the product. Kept on caret deliberately: pinning it exact would freeze a tokenizer that is only ever a proxy for the agent's own, and the honest guard is the review calendar, not the range.",
+    why: "The measuring instrument behind the 200-token limit on the AGENTS.md instruction block (`check-instruction-sync.mjs`) and behind the size CODE-INDEX.md promises in prose (`check-claims.mjs`), not a dependency of the product. Kept on caret deliberately: pinning it exact would freeze a tokenizer that is only ever a proxy for the agent's own, and the honest guard is the review calendar, not the range.",
   },
   {
     id: '@biomejs/biome',

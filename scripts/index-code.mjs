@@ -76,6 +76,138 @@ export function parseImports(source, fromFile) {
 }
 
 /**
+ * Collapse a parameter list to something readable in one line of an index: whitespace squeezed,
+ * a destructured object shown as `{…}` and a default value dropped. `fill(selector, value)` is
+ * what a reader needs; the exact default of the third argument is what the file is for.
+ * @param {string} raw text between the parentheses of a declaration
+ * @returns {string}
+ */
+export function condenseParams(raw) {
+  // Inline type annotations (`/** @type {x} */ value`) are how this repository types a parameter
+  // it cannot annotate in the JSDoc block; in a signature they are noise that hides the name.
+  const text = raw.replace(/\/\*[\s\S]*?\*\//gu, ' ');
+  let depth = 0;
+  let out = '';
+  for (const ch of text) {
+    if (ch === '{' || ch === '[') {
+      if (depth === 0) out += ch === '{' ? '{…}' : '[…]';
+      depth++;
+      continue;
+    }
+    if (ch === '}' || ch === ']') {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth === 0) out += ch;
+  }
+  return out
+    .replace(/=[^,]*/gu, '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .join(', ');
+}
+
+/** How much of a return type earns its place in a one-line index entry before it stops helping. */
+const TYPE_CAP = 60;
+
+/**
+ * The `@returns {…}` type of a JSDoc block, with BALANCED braces: an object literal type nests
+ * them, and stopping at the first `}` printed half a type and called it a signature. Continuation
+ * markers (`\n * `) are folded away, and anything longer than the cap is cut with an ellipsis —
+ * the index says which function to open, the file says the rest.
+ * @param {string} block one JSDoc comment, `/**` to `*​/`
+ * @returns {string} the type, or an empty string when the block declares none
+ */
+export function returnType(block) {
+  const tag = /@returns?\s*\{/u.exec(block);
+  if (!tag) return '';
+  const open = tag.index + tag[0].length - 1;
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < block.length; i++) {
+    if (block[i] === '{') depth++;
+    else if (block[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        close = i;
+        break;
+      }
+    }
+  }
+  if (close === -1) return '';
+  const type = block
+    .slice(open + 1, close)
+    .replace(/^\s*\*\s?/gmu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+  return type.length > TYPE_CAP ? `${type.slice(0, TYPE_CAP - 1)}…` : type;
+}
+
+/**
+ * The INPUT and OUTPUT of every exported function: its parameter names, and the return type when
+ * the JSDoc block right above it declares one. This is the half of a symbol a reader actually
+ * needs before deciding whether to open the file — a bare name says a function exists, a signature
+ * says whether it is the one being looked for.
+ *
+ * Types come from JSDoc rather than from the code because that is where this repository keeps
+ * them (`tsc --checkJs`); a function without `@returns` simply has no arrow, which is honest.
+ * @param {string} source
+ * @returns {Map<string, string>} exported name → `name(a, b) → Type`
+ */
+export function parseSignatures(source) {
+  /** @type {Map<string, string>} */
+  const out = new Map();
+  const fn = /^export\s+(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/gmu;
+  const arrow = /^export\s+const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\(/gmu;
+  for (const pattern of [fn, arrow]) {
+    for (const match of source.matchAll(pattern)) {
+      const open = match.index + match[0].length - 1;
+      let depth = 0;
+      let close = open;
+      for (let i = open; i < source.length; i++) {
+        if (source[i] === '(') depth++;
+        else if (source[i] === ')') {
+          depth--;
+          if (depth === 0) {
+            close = i;
+            break;
+          }
+        }
+      }
+      const params = condenseParams(source.slice(open + 1, close));
+      // The NEAREST preceding JSDoc block, found by scanning backwards rather than with a regex:
+      // a non-greedy `/**…*/` anchored at the declaration matches from the FIRST block in the file
+      // and hands back the wrong `@returns` — measured, every symbol in recorder.mjs inherited the
+      // return type of the first function above it.
+      const before = source.slice(0, match.index).replace(/\s+$/u, '');
+      const start = before.endsWith('*/') ? before.lastIndexOf('/**') : -1;
+      const type = start === -1 ? '' : returnType(before.slice(start));
+      out.set(match[1], `${match[1]}(${params})${type === '' ? '' : ` → ${type}`}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * What the module SUBSCRIBES TO: `receiver.on('event')`, `.once`, `.addListener`. Event wiring is
+ * the part of this codebase that a dependency map otherwise hides — the recorder's whole contract
+ * with the page is a list of events, and `keeper.mjs` decides its own lifetime from process
+ * signals. Neither is visible in an import list, and both are the first thing a reader looks for.
+ * @param {string} source
+ * @returns {string[]} `receiver:event`, sorted and deduplicated
+ */
+export function parseSubscriptions(source) {
+  const out = new Set();
+  const pattern = /([A-Za-z_$][\w$.]*)\s*\.\s*(?:on|once|addListener)\s*\(\s*['"]([\w:.-]+)['"]/gu;
+  for (const match of source.matchAll(pattern)) {
+    const receiver = match[1].split('.').pop() ?? match[1];
+    out.add(`${receiver}:${match[2]}`);
+  }
+  return [...out].sort();
+}
+
+/**
  * Walk the source tree: every `.mjs` under `packages/<name>/{src,bin}`, `scripts` and `bench`;
  * tests (`*.test.mjs`, `*.spec.mjs`), fixtures, probes, node_modules and builds excluded.
  * @param {string} root absolute repository root
@@ -112,7 +244,7 @@ export function listSourceFiles(root) {
 
 /**
  * The whole index as one deterministic markdown string.
- * @param {{ path: string, exports: string[], imports: string[] }[]} files
+ * @param {{ path: string, exports: string[], imports: string[], signatures?: Map<string, string>, subscriptions?: string[] }[]} files
  * @returns {string}
  */
 export function buildIndex(files) {
@@ -131,18 +263,29 @@ export function buildIndex(files) {
     'Dependency map of this repository — generated, do not edit by hand.',
     'Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;',
     '`npm run verify` fails when this file is stale). One section per module:',
-    'what it **exports**, what it **imports** and **who imports it** — read this before grepping.',
+    'what it **exports** (with the inputs and output of every function), what it **subscribes to**,',
+    'what it **imports** and **who imports it** — read this before grepping.',
     '',
     `Modules: ${String(files.length)}.`,
     '',
   ];
   for (const file of files) {
     lines.push(`## ${file.path}`);
-    if (file.exports.length > 0) lines.push(`- exports: ${file.exports.map((n) => `\`${n}\``).join(', ')}`);
+    if (file.exports.length > 0) {
+      const spell = (/** @type {string} */ name) => `\`${file.signatures?.get(name) ?? name}\``;
+      lines.push(`- exports: ${file.exports.map(spell).join(', ')}`);
+    }
+    if (file.subscriptions && file.subscriptions.length > 0)
+      lines.push(`- subscribes: ${file.subscriptions.map((n) => `\`${n}\``).join(', ')}`);
     if (file.imports.length > 0) lines.push(`- imports: ${file.imports.map((n) => `\`${n}\``).join(', ')}`);
     const consumers = (importedBy.get(file.path) ?? []).sort();
     if (consumers.length > 0) lines.push(`- imported by: ${consumers.map((n) => `\`${n}\``).join(', ')}`);
-    if (file.exports.length === 0 && file.imports.length === 0 && consumers.length === 0)
+    if (
+      file.exports.length === 0 &&
+      file.imports.length === 0 &&
+      consumers.length === 0 &&
+      (file.subscriptions ?? []).length === 0
+    )
       lines.push('- (entrypoint — nothing exported, nothing imported, nothing imports it)');
     lines.push('');
   }
@@ -156,7 +299,13 @@ export function buildIndex(files) {
 export function generateIndex(root) {
   const files = listSourceFiles(root).map((rel) => {
     const source = readFileSync(path.join(root, rel), 'utf8');
-    return { path: rel, exports: parseExports(source), imports: parseImports(source, rel) };
+    return {
+      path: rel,
+      exports: parseExports(source),
+      imports: parseImports(source, rel),
+      signatures: parseSignatures(source),
+      subscriptions: parseSubscriptions(source),
+    };
   });
   return buildIndex(files);
 }

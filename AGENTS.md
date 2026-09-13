@@ -56,7 +56,7 @@ kontrakt `project-graph.json`, brak `docs`):
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
 | `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 200 tokenów na blok i 400 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; `--require-all` robi FAIL także z bloku brakującego w OBU plikach — bez tego skasowanie obu kopii przechodziłoby jako „pominięty” |
-| `node scripts/check-claims.mjs` | jedyna bramka, która URUCHAMIA obie binarki. Sprawdza zdania, które proza podaje jako fakty: jedna linia z prefiksem `ok`/`FAIL` na komendę, twardy limit 120 znaków, `exit 1 = FAIL` i `exit 2` dla błędu składni oraz błędu fatalnego, sesja bez keepera kończąca się nazwanym błędem, `Object.keys(RUNNERS) === Object.keys(STEPS)`. Każda asercja niesie plik, który daną obietnicę składa, więc FAIL mówi, które zdanie przestało być prawdą. Bez przeglądarki, bez sieci, bez keepera — to, co wymaga prawdziwej strony, jest **poza** jej zasięgiem i zostaje sprawą review |
+| `node scripts/check-claims.mjs` | jedyna bramka, która URUCHAMIA obie binarki. Sprawdza zdania, które proza podaje jako fakty: jedna linia z prefiksem `ok`/`FAIL` na komendę, twardy limit 120 znaków, `exit 1 = FAIL` i `exit 2` dla błędu składni oraz błędu fatalnego, sesja bez keepera kończąca się nazwanym błędem, `Object.keys(RUNNERS) === Object.keys(STEPS)`, rozmiar `CODE-INDEX.md` obiecany w prozie. Każda asercja niesie plik, który daną obietnicę składa, więc FAIL mówi, które zdanie przestało być prawdą. Bez przeglądarki, bez sieci, bez keepera — to, co wymaga prawdziwej strony, jest **poza** jej zasięgiem i zostaje sprawą review |
 
 **Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — pyta rejestr npm o `latest` dla
 każdego pinu i mierzy, od kiedy pin jest w tyle (zegar `firstSeenBehind` w commitowanym
@@ -103,6 +103,7 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Gdzie co jest
 
-Mapa importów całego repo (≈ 6 k tokenów — czytaj, gdy potrzebujesz jej całej, nie zamiast wyszukiwania):
-[CODE-INDEX.md](CODE-INDEX.md). Opis narzędzi i użycie: [README.md](README.md). Pliki Copilota i VS Code
+Mapa modułów całego repo — co każdy eksportuje (z wejściem i wyjściem funkcji), na jakie zdarzenia
+się zapisuje, co importuje i kto importuje jego (≈ 8,5 k tokenów — czytaj, gdy potrzebujesz jej
+całej, nie zamiast wyszukiwania): [CODE-INDEX.md](CODE-INDEX.md). Opis narzędzi i użycie: [README.md](README.md). Pliki Copilota i VS Code
 (`.github/`, `.vscode/`): sekcja „GitHub Copilot i VS Code" w README.

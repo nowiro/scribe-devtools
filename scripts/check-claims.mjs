@@ -19,10 +19,12 @@
 // step, `exit 0` on a failed step inside a batch, snapshot shape) is out of reach without Chrome,
 // and stays a matter for review.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { encode } from 'gpt-tokenizer/model/gpt-4o';
 
 import { RUNNERS } from '../packages/browser-inspector/src/steps.run.mjs';
 import { STEPS } from '../packages/browser-inspector/src/steps.schema.mjs';
@@ -171,6 +173,25 @@ const CLAIMS = [
     run(fail) {
       for (const [name, step] of Object.entries(STEPS)) {
         if (typeof step.help !== 'string' || step.help.trim() === '') fail(`krok "${name}" nie ma tekstu pomocy`);
+      }
+    },
+  },
+  {
+    // The size of CODE-INDEX.md is a NUMBER IN PROSE, which is the class of claim this repository
+    // already guards for dependency versions (`check-pins`, rule LAG). It went stale the first time
+    // the index grew: AGENTS.md still promised ~6 k while the file had become 8,5 k. A reader
+    // budgets on that number, so it is a promise like any other.
+    claim: 'Rozmiar CODE-INDEX.md podany w AGENTS.md zgadza się z plikiem (± 10 %)',
+    where: 'AGENTS.md (sekcja „Gdzie co jest")',
+    run(fail) {
+      const agents = readFileSync(path.join(REPO, 'AGENTS.md'), 'utf8');
+      const stated = /≈\s*([\d,.]+)\s*k tokenów/u.exec(agents);
+      if (!stated) return fail('AGENTS.md nie podaje już rozmiaru — usuń tę asercję albo przywróć zdanie');
+      const promised = Number.parseFloat(stated[1].replace(',', '.')) * 1000;
+      const actual = encode(readFileSync(path.join(REPO, 'CODE-INDEX.md'), 'utf8')).length;
+      const drift = Math.abs(actual - promised) / promised;
+      if (drift > 0.1) {
+        fail(`obiecane ${Math.round(promised)} tokenów, jest ${actual} (${Math.round(drift * 100)} % różnicy)`);
       }
     },
   },
