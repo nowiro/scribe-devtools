@@ -59,18 +59,37 @@
     "git diff": true,
     "git log": true
   },
-  // Odmowa obejmuje wszystko, co nieuważna edycja mogłaby zamienić w nieuważne wykonanie: skrypty
-  // hooków, skrypty bram, manifest definiujący komendy oraz pliki agentów (ustawiają uprawnienia).
+  // Odmowa dla wszystkiego, co auto-zatwierdzona komenda terminala WYKONUJE jako kod (konfiguracje
+  // ESLint/Vitest/Biome/commitlint, angular.json, tools/**) i dla plików, które definiują same kontrole
+  // (.vscode, .github, hooki, manifest, lockfile). Zasada: plik ładowany przez komendę z listy powyżej
+  // nigdy nie jest edytowany bez kliknięcia człowieka. Ryzyko rezydualne, zapisane świadomie: pliki
+  // `*.spec.ts` w apps/ i libs/ (tester musi je pisać) — `npm run test` je wykonuje.
   "chat.tools.edits.autoApprove": {
+    // Everything an auto-approved terminal command EXECUTES (ESLint, Vitest, Biome, commitlint and
+    // Angular read their configuration as code) and everything that DEFINES the controls themselves.
     "**/tools/hooks/**": false,
-    "**/.github/hooks/**": false,
     "**/tools/scripts/**": false,
-    "**/.github/agents/**": false,
-    "**/.github/models-registry.json": false,
-    "**/.vscode/mcp.json": false,
+    "**/tools/testing/**": false,
+    "**/.github/**": false,
     "**/.githooks/**": false,
+    "**/.vscode/**": false,
+    "AGENTS.md": false,
     "package.json": false,
-    ".gitlab-ci.yml": false
+    "package-lock.json": false,
+    ".npmrc": false,
+    ".nvmrc": false,
+    ".gitignore": false,
+    ".gitattributes": false,
+    ".gitlab-ci.yml": false,
+    "angular.json": false,
+    "biome.jsonc": false,
+    "commitlint.config.mjs": false,
+    "eslint.config.mjs": false,
+    "eslint.plugins.mjs": false,
+    "eslint.rules.mjs": false,
+    "tsconfig.json": false,
+    "tsconfig.tools.json": false,
+    "vitest.tools.config.mts": false
   },
 
   // ───────────────────────────── Indeks i wyszukiwanie: szum zostaje poza
@@ -146,6 +165,6 @@
     "*.mjs": "${capture}.spec.mjs",
     "package.json": "package-lock.json, .npmrc, .nvmrc",
     "tsconfig.json": "tsconfig.*.json",
-    "angular.json": "biome.jsonc, commitlint.config.mjs, eslint.config.mjs, eslint.plugins.mjs, eslint.rules.mjs, vitest.config.mts"
+    "angular.json": "biome.jsonc, commitlint.config.mjs, eslint.config.mjs, eslint.plugins.mjs, eslint.rules.mjs, vitest.tools.config.mts"
   }
 }

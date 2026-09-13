@@ -1,17 +1,22 @@
 # .gitlab-ci.yml — the same gates as `npm run verify`, split into jobs so a red lint does not hide
 # behind a long test run. Merge requests verify the AFFECTED projects; the default branch verifies
-# everything; the nightly schedule adds the online checks (`check:upstream`).
+# everything; the nightly schedule adds the online checks (`check:upstream`, `npm audit`).
 #
 # Principles:
 #   - npm is installed from cache (`.cache/npm`, keyed on package-lock.json); `.npmrc` already has
 #     ignore-scripts=true, so `npm ci` is fast and runs no third-party install scripts.
-#   - One tooling cache per branch with a fallback to the default branch: Angular CLI build cache,
-#     ESLint cache, tsc incremental state, Vite/Vitest cache and the task hashes of
-#     tools/scripts/affected.mjs. This is the whole "cache without Nx Cloud" story: every tool has a
-#     cache of its own, and GitLab carries one directory between runners.
+#   - Every job that runs a tool with a cache carries ITS OWN cache key (`tools-<job>-<branch>`) with a
+#     fallback to the default branch: GitLab keeps one archive per key and the last writer wins, so
+#     two jobs sharing a key with different paths would keep erasing each other's cache. This is the
+#     whole "cache without Nx Cloud" story: every tool has a cache of its own, GitLab carries it.
+#     Caches of protected branches are kept apart from unprotected ones by GitLab itself.
 #   - Build once; the e2e job consumes `dist/` as an artifact instead of rebuilding.
+#   - Every job runs the exact `npm run …` a contributor runs locally — both halves where a gate has
+#     a tooling half and a projects half (lint, typecheck, test).
 #   - No secrets are needed for build or test. No publish job — release is a manual, tagged step.
 #   - The image follows .nvmrc (Node 24). Bump both together; `doctor` reports the local mismatch.
+#     Tags are mutable; pin by digest (`image: node:24-bookworm-slim@sha256:…`) once the team has a
+#     registry mirror — docs/dev-setup.md says how.
 #
 # Self-hosted runners: add `tags: [<your-tag>]` in `default:` (or per job). Nothing here assumes a
 # specific runner beyond docker executor + outbound access to the npm registry (or a mirror set via
@@ -38,23 +43,12 @@ default:
         files: [package-lock.json]
       paths: [.cache/npm]
       policy: pull
-    - key: tools-$CI_COMMIT_REF_SLUG
-      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
-      paths:
-        - .angular/cache
-        - .cache/eslint
-        - .cache/tsc
-        - .cache/vite
-        - .cache/tasks
-        - .cache/node-compile
-      policy: pull
 
 variables:
   CI: 'true'
   NG_CLI_ANALYTICS: 'false'
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
   npm_config_cache: $CI_PROJECT_DIR/.cache/npm
-  NODE_COMPILE_CACHE: $CI_PROJECT_DIR/.cache/node-compile
   NODE_NO_WARNINGS: '1'
   # affected.mjs diffs against the merge base — a shallow clone has no base to diff against.
   GIT_DEPTH: '0'
@@ -74,7 +68,14 @@ stages: [install, verify, build, e2e, nightly]
         AFFECTED_FLAG: --base=$CI_MERGE_REQUEST_DIFF_BASE_SHA
     - when: on_success
 
-# Warms both caches once per pipeline; every other job pulls.
+# The npm cache, always pulled by every job.
+.npm-cache: &npm-cache
+  key:
+    files: [package-lock.json]
+  paths: [.cache/npm]
+  policy: pull
+
+# Warms the npm cache once per pipeline; every other job pulls.
 install:
   stage: install
   cache:
@@ -93,19 +94,19 @@ static:
   script:
     - npm run verify -- --static
 
+# Both halves of the lint gate: the repository's own tooling and configuration (`eslint .`), then
+# the workspace projects the change touches.
 lint:
   <<: *mr-affected
   stage: verify
   needs: [install]
   script:
+    - npm run lint
     - npm run affected -- lint $AFFECTED_FLAG
   cache:
-    - key:
-        files: [package-lock.json]
-      paths: [.cache/npm]
-      policy: pull
-    - key: tools-$CI_COMMIT_REF_SLUG
-      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+    - *npm-cache
+    - key: tools-lint-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-lint-$CI_DEFAULT_BRANCH]
       paths: [.cache/eslint, .cache/tasks]
       policy: pull-push
 
@@ -117,63 +118,80 @@ typecheck:
     - npm run typecheck
     - npm run affected -- typecheck $AFFECTED_FLAG
   cache:
-    - key:
-        files: [package-lock.json]
-      paths: [.cache/npm]
-      policy: pull
-    - key: tools-$CI_COMMIT_REF_SLUG
-      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+    - *npm-cache
+    - key: tools-typecheck-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-typecheck-$CI_DEFAULT_BRANCH]
       paths: [.cache/tsc, .cache/tasks]
       policy: pull-push
 
+# Unit tests of the tooling and the vendored scribe — one project, so the coverage badge below has one
+# deterministic number (the projects job reports per project through Cobertura instead).
 test:
-  <<: *mr-affected
   stage: verify
   needs: [install]
   script:
     - npm run test:cov -- --reporter=default --reporter=junit --outputFile=reports/junit-tools.xml
-    - npm run affected -- test $AFFECTED_FLAG
   coverage: '/Lines\s*:\s*([\d.]+)%/'
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths: [reports/, coverage/tools/]
+    reports:
+      junit: [reports/junit-tools.xml]
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/tools/cobertura-coverage.xml
+  cache:
+    - *npm-cache
+    - key: tools-test-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-test-$CI_DEFAULT_BRANCH]
+      paths: [.cache/vite]
+      policy: pull-push
+
+# Vitest of the Angular projects the change touches. affected.mjs sets CB_PROJECT per project, so the
+# shared runner config writes reports/junit-<project>.xml and the builder writes coverage/<project>/.
+test-projects:
+  <<: *mr-affected
+  stage: verify
+  needs: [install]
+  script:
+    - npm run affected -- test $AFFECTED_FLAG
   artifacts:
     when: always
     expire_in: 1 week
     paths: [reports/, coverage/]
     reports:
-      junit: [reports/*.xml]
+      junit: [reports/junit-*.xml]
       coverage_report:
         coverage_format: cobertura
-        path: coverage/tools/cobertura-coverage.xml
+        path: coverage/*/cobertura-coverage.xml
   cache:
-    - key:
-        files: [package-lock.json]
-      paths: [.cache/npm]
-      policy: pull
-    - key: tools-$CI_COMMIT_REF_SLUG
-      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
-      paths: [.cache/vite, .cache/tasks]
+    - *npm-cache
+    - key: tools-test-projects-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-test-projects-$CI_DEFAULT_BRANCH]
+      paths: [.cache/vite, .cache/tasks, .angular/cache]
       policy: pull-push
 
 build:
   <<: *mr-affected
   stage: build
-  needs: [static, lint, typecheck, test]
+  needs: [static, lint, typecheck, test, test-projects]
   script:
     - npm run affected -- build $AFFECTED_FLAG
   artifacts:
     expire_in: 1 day
     paths: [dist/]
   cache:
-    - key:
-        files: [package-lock.json]
-      paths: [.cache/npm]
-      policy: pull
-    - key: tools-$CI_COMMIT_REF_SLUG
-      fallback_keys: [tools-$CI_DEFAULT_BRANCH]
+    - *npm-cache
+    - key: tools-build-$CI_COMMIT_REF_SLUG
+      fallback_keys: [tools-build-$CI_DEFAULT_BRANCH]
       paths: [.angular/cache]
       policy: pull-push
 
-# Playwright runs on the official image whose browsers match the pinned @playwright/test (the tag
-# follows the version in package.json — bump both together; check:pins reports the lag).
+# Playwright runs on the official image whose browsers match the pinned @playwright/test. The tag
+# follows the version in package.json; `check:pins` compares the two (the `tags` rule of the pin), so
+# a bump of one without the other is red before this job ever runs. The generated Playwright configs
+# write their junit to reports/ and traces to test-results/ at the repository root.
 e2e:
   <<: *mr-affected
   stage: e2e
@@ -184,9 +202,9 @@ e2e:
   script:
     - npm run affected -- e2e $AFFECTED_FLAG
   artifacts:
-    when: on_failure
+    when: always
     expire_in: 3 days
-    paths: [playwright-report/, test-results/]
+    paths: [reports/, test-results/]
     reports:
       junit: [reports/junit-e2e-*.xml]
 
@@ -200,3 +218,13 @@ upstream:
   script:
     - npm run check:upstream
   allow_failure: true
+
+# Known vulnerabilities in the runtime dependency tree. `.npmrc` turns the audit off for every install
+# (offline, deterministic installs); this nightly job is where it runs — and it IS a gate.
+audit:
+  stage: nightly
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - npm audit --audit-level=high --omit=dev

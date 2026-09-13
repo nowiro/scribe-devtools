@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 86.
+Modules: 90.
 
 ## tools/browser-inspector/bin/browser-inspector.mjs
 - purpose: the entry the agent runs (DESIGN.md §2.1 / §3.1).
@@ -183,82 +183,110 @@ Modules: 86.
 - imported by: `tools/browser-inspector/src/auth.mjs`, `tools/browser-inspector/src/cli.mjs`, `tools/browser-inspector/src/config.mjs`, `tools/browser-inspector/src/flow.mjs`, `tools/browser-inspector/src/session-log.mjs`, `tools/browser-inspector/src/session.mjs`, `tools/browser-inspector/src/steps.ctx.mjs`, `tools/browser-inspector/src/steps.run.mjs`
 
 ## tools/hooks/deny-writes.mjs
-- subscribes: `stdin:data`, `stdin:end`
+- purpose: PreToolUse hook of the read-only agents (code-reviewer, code-reviewer-ui, doc-reviewer): whatever the agent's `tools:` list says, only tool…
+- exports: `READ_TOOLS`, `decide(tool) → string | null`
+- imports: `tools/hooks/lib/payload.mjs`
 
 ## tools/hooks/format-on-edit.mjs
-- subscribes: `stdin:data`, `stdin:end`
+- purpose: PostToolUse hook: runs Biome on the file an EDIT tool just wrote.
+- exports: `EDIT_TOOLS`, `formatTarget(tool, file, root) → string | null`
+- imports: `tools/hooks/lib/payload.mjs`
 
 ## tools/hooks/guard-commands.mjs
-- subscribes: `stdin:data`, `stdin:end`
+- purpose: PreToolUse hook: deny destructive shell commands before they run.
+- exports: `collectCommands(input) → string[]`, `decide(input) → string | null`, `gitReason(args) → string | null`, `inspect(line) → string | null`, `normalize(line) → string`, `segments(line) → string[]`, `tokenize(segment) → string[]`, `unwrap(argv) → { program: string, args: string[], encoded: boolean }`
+- imports: `tools/hooks/lib/payload.mjs`
 
 ## tools/hooks/handoff.mjs
+- purpose: PreCompact hook: before the client compacts the conversation, save a short resume artefact to tmp/handoff/<stamp>_<session>.md: branch, wor…
+- imports: `tools/hooks/lib/payload.mjs`, `tools/scripts/stamp.mjs`
+
+## tools/hooks/lib/payload.mjs
+- purpose: what every hook needs and none should re-implement: the repository root, the stdin payload parsed defensively, the entrypoint guard and the…
+- exports: `ALLOW`, `ROOT`, `denyDecision(reason) → string`, `isMain(metaUrl) → boolean`, `parsePayload(raw) → Record<string, any>`, `readStdin() → Promise<string>`, `toolCall(payload) → { tool: string, input: Record<string, any> }`
 - subscribes: `stdin:data`, `stdin:end`
-- imports: `tools/scripts/stamp.mjs`
+- imported by: `tools/hooks/deny-writes.mjs`, `tools/hooks/format-on-edit.mjs`, `tools/hooks/guard-commands.mjs`, `tools/hooks/handoff.mjs`, `tools/hooks/session-stop.mjs`
 
 ## tools/hooks/session-stop.mjs
-- subscribes: `stdin:end`
+- purpose: Stop hook: after an agent session ends, run the cheap gates and report.
+- imports: `tools/hooks/lib/payload.mjs`
 
 ## tools/scribe/integrations/browser-inspector/read-browser-inspector.ts
+- purpose: web pages through a real browser, as a script instead of the Playwright MCP server.
 - exports: `ReadConfig`, `Step`, `WebReport`, `describeStep(step: Step)`, `renderReportMarkdown(report: WebReport)`, `resolveFillValue(step: {…})`
 - subscribes: `page:console`, `page:pageerror`, `page:requestfailed`
 - imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 
 ## tools/scribe/integrations/confluence/read-confluence.ts
+- purpose: deterministic Confluence data pipeline.
 - exports: `ExtractedPage`, `ReadConfig`, `buildPageConcept(page: ExtractedPage, inSnapshot: ReadonlySet<string>)`, `pageWebUrl(links: {…} | undefined, fallbackBase?: string)`, `renderPageMarkdown(page: ExtractedPage)`
 - imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/confluence-cql.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 - imported by: `tools/scribe/integrations/confluence/write-confluence.ts`
 
 ## tools/scribe/integrations/confluence/write-confluence.ts
+- purpose: WRITE to Confluence: create a page or update a page's content.
 - exports: `WriteMeta`, `WriteMetaType`, `adfBodyValue(markdown: string)`, `buildCreatePayload(meta: WriteMetaType, spaceId: string, title: string, body: string)`, `buildUpdatePayload(id: string, title: string, bodyValue: string, nextVersion: number)`, `updateBodyValue(inputBody: string, currentValue: string | undefined)`
 - imports: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/markdown-to-adf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
 
 ## tools/scribe/integrations/figma/read-figma.ts
+- purpose: batch extraction from Figma into on-disk snapshots.
 - exports: `ReadConfig`, `paginateLibrary(http: HttpClient, path: string, field: 'components' | 'styles', maxItems: number)`, `processFileSummary(http: HttpClient, snapshot: z.infer<typeof FileSummarySnapshot>, dir: string)`, `processLibrary(http: HttpClient, snapshot: z.infer<typeof ComponentsSnapshot> | z.infer<typeof StylesSnapshot>, dir: string)`, `processTokens(http: HttpClient, snapshot: z.infer<typeof TokensSnapshot>, dir: string)`
 - imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/figma-node-tree.ts`, `tools/scribe/integrations/shared/figma-tokens.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 
 ## tools/scribe/integrations/gitlab/read-gitlab.ts
+- purpose: deterministic GitLab data pipeline.
 - exports: `ExtractedIssue`, `ExtractedMr`, `ExtractedPipeline`, `ReadConfig`, `listAll`, `renderIssueMarkdown(issue: ExtractedIssue)`, `renderMrMarkdown(mr: ExtractedMr)`, `renderPipelineMarkdown(pipeline: ExtractedPipeline)`
 - imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/gitlab-reshape.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 
 ## tools/scribe/integrations/gitlab/write-gitlab.ts
+- purpose: WRITE to GitLab: create/update an issue or a merge request, or add a note (comment) to either.
 - exports: `ResolvedWriteMeta`, `WriteMeta`, `WriteMetaType`, `buildCreatePayload(meta: WriteMetaType, title: string, body: string)`, `buildUpdatePayload(meta: WriteMetaType, title: string | undefined, body: string | undefined)`, `collectionPath(meta: ResolvedWriteMeta)`, `encodeProject`
 - imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/gitlab-reshape.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
 
 ## tools/scribe/integrations/jira/read-jira.ts
+- purpose: deterministic Jira data pipeline.
 - exports: `DEFAULT_OUTPUT_DIR`, `ExtractedIssue`, `MAX_SUBLIST_ITEMS`, `RawIssue`, `ReadConfig`, `buildExtractedIssue(raw: RawIssue, registry: FieldRegistry, snapshot: Snapshot)`, `buildIssueConcept(issue: ExtractedIssue, renderedMarkdown?: string)`, `fetchFullChangelog(http: HttpClient, key: string, raw: RawIssue, max)`, `fetchWorklogs(http: HttpClient, key: string, max)`, `renderIssueMarkdown(issue: ExtractedIssue)`
 - imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/field-registry.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 
 ## tools/scribe/integrations/jira/write-jira.ts
+- purpose: WRITE to Jira: create an issue, update an issue's content, or add a comment.
 - exports: `WriteMeta`, `WriteMetaType`, `buildCreatePayload(meta: WriteMetaType, title: string, description: AdfNode)`, `buildUpdatePayload(meta: WriteMetaType, title: string | undefined, description: AdfNode | undefined)`
 - imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/markdown-to-adf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
 
 ## tools/scribe/integrations/miro/read-miro.ts
+- purpose: batch extraction from Miro boards into on-disk snapshots.
 - exports: `BoardItem`, `ReadConfig`, `boardIdSchema`, `fetchBoardItems(http: HttpClient, boardId: string, maxItems: number)`, `fetchBoards(http: HttpClient, teamId: string | undefined, maxItems: number)`, `groupByType(items: readonly BoardItem[…])`, `renderBoardMarkdown(board: RawBoard, items: readonly BoardItem[…], truncated: boolean)`, `reshapeItem(raw: RawItem)`, `stripHtml(html: string)`
 - imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 - imported by: `tools/scribe/integrations/miro/write-miro.ts`
 
 ## tools/scribe/integrations/miro/write-miro.ts
+- purpose: WRITE to Miro: create sticky notes on a board, or update one note's text.
 - exports: `WriteMeta`, `WriteMetaType`, `buildNotePayload(meta: WriteMetaType, text: string, index: number)`, `notePosition(index: number)`, `splitNotes(body: string)`
 - imports: `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/line-diff.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
 
 ## tools/scribe/integrations/shared/adf.ts
+- purpose: ADF (Atlassian Document Format) → Markdown converter.
 - exports: `AdfMark`, `AdfNode`, `adfToMarkdown(input: AdfNode | string | null | undefined)`, `adfToMarkdownSafe(raw: unknown)`, `codeSpan(text: string)`, `fencedBlock(content: string, language)`, `flatLine(text: string)`, `longestBacktickRun(text: string)`
 - imported by: `tools/scribe/integrations/browser-inspector/read-browser-inspector.ts`, `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`, `tools/scribe/integrations/shared/markdown-to-adf.ts`, `tools/scribe/integrations/xray/read-xray.ts`
 
 ## tools/scribe/integrations/shared/auth.ts
+- purpose: Token loading.
 - exports: `AuthConfig`, `E_AUTH_MISSING`, `authHeaderFor(auth: AuthConfig)`, `defaultGitLabProject()`, `defaultJiraProject()`, `loadConfluenceAuth()`, `loadFigmaAuth()`, `loadGitLabAuth()`, `loadJiraAuth()`, `loadMiroAuth()`, `loadSonarAuth()`, `resetUserConfigCacheForTests()`
 - imports: `tools/scribe/integrations/shared/errors.ts`, `tools/scribe/integrations/shared/user-config.ts`
 - imported by: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/figma/read-figma.ts`, `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/sonar/read-sonar.ts`, `tools/scribe/integrations/xray/read-xray.ts`
 
 ## tools/scribe/integrations/shared/confluence-cql.ts
+- purpose: Pure helpers for assembling Confluence CQL (Confluence Query Language) search strings.
 - exports: `BuildLabelCqlInput`, `buildLabelSearchCql(input: BuildLabelCqlInput)`, `escapeCqlString(value: string)`
 - imported by: `tools/scribe/integrations/confluence/read-confluence.ts`
 
 ## tools/scribe/integrations/shared/errors.ts
+- purpose: Typed error hierarchy shared by every pipeline.
 - exports: `AuthError`, `ExtractError`, `NetworkError`, `NotFoundError`, `RateLimitError`, `SecurityError`, `UpstreamError`
 - imported by: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/xray/read-xray.ts`
 
 ## tools/scribe/integrations/shared/field-registry.ts
+- purpose: Field registry — discovers Jira's custom-field metadata and maps `customfield_10042` to a human-readable shape `{ id, name, type, value }`.
 - exports: `FieldMeta`, `FieldRegistry`, `ReshapedField`, `createJiraFieldRegistry(http: HttpClient, options: {…})`, `reshapeFieldValue(meta: FieldMeta | undefined, raw: unknown, // Required on purpose: the optional form fell back to 'unknown' — the exact
   // indistinguishable-field collapse the docblock above condemns, reachable by
   // any caller that simply forgot the argument.
@@ -267,85 +295,103 @@ Modules: 86.
 - imported by: `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`
 
 ## tools/scribe/integrations/shared/figma-node-tree.ts
+- purpose: Pure helpers for bounding a Figma document node tree before it reaches the consumer.
 - exports: `PrunedForest`, `countNodes(children: readonly unknown[…], depth)`, `pruneNodeTree(children: readonly unknown[…], maxNodes: number)`
 - imported by: `tools/scribe/integrations/figma/read-figma.ts`
 
 ## tools/scribe/integrations/shared/figma-tokens.ts
+- purpose: Pure emitters for Figma design tokens → CSS variables / SCSS variables / TS const.
 - exports: `FigmaResolvedType`, `RawFigmaColor`, `RawFigmaVariable`, `RawFigmaVariableCollection`, `RawVariablesResponse`, `Token`, `TokenKind`, `emitCss(tokens: readonly Token[…])`, `emitForFormat(tokens: readonly Token[…], format: 'css' | 'scss' | 'ts')`, `emitScss(tokens: readonly Token[…])`, `emitTs(tokens: readonly Token[…])`, `mapFigmaVariables(raw: RawVariablesResponse)`
 - imported by: `tools/scribe/integrations/figma/read-figma.ts`
 
 ## tools/scribe/integrations/shared/gitlab-reshape.ts
+- purpose: Reshape raw GitLab MR / Issue / Pipeline responses into a token-friendly canonical form.
 - exports: `CanonicalGitLabIssue`, `CanonicalMr`, `CanonicalPipeline`, `encodeProject(project: string)`, `reshapeGitLabIssue(raw: RawGitLabIssue)`, `reshapeGitLabMr(raw: RawMr)`, `reshapeGitLabPipeline(raw: RawPipeline)`
 - imported by: `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`
 
 ## tools/scribe/integrations/shared/http-client.ts
+- purpose: Tiny HTTP client over native fetch.
 - exports: `DEFAULT_TIMEOUT_MS`, `HttpClient`, `HttpClientOptions`, `HttpRequest`, `ResponseMeta`, `assertHostnameAllowed(url: string)`, `buildUrl(baseUrl: string, path: string, query?: HttpRequest[…])`, `createHttpClient(auth: AuthConfig, options: HttpClientOptions)`, `createNamedHttpClient(name: string, auth: AuthConfig)`
 - env: `EXTRACT_ALLOW_PRIVATE_HOSTS`, `EXTRACT_HTTP_CONCURRENCY`
 - imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/errors.ts`, `tools/scribe/integrations/shared/http-log.ts`, `tools/scribe/integrations/shared/lru-cache.ts`, `tools/scribe/integrations/shared/run-identity.ts`, `tools/scribe/integrations/shared/version.ts`
 - imported by: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/figma/read-figma.ts`, `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/field-registry.ts`, `tools/scribe/integrations/sonar/read-sonar.ts`, `tools/scribe/integrations/xray/read-xray.ts`
 
 ## tools/scribe/integrations/shared/http-log.ts
+- purpose: JSONL z KAŻDĄ próbą żądania HTTP i jej odpowiedzią, w osobnym pliku per przebieg.
 - exports: `HttpLogAttempt`, `HttpLogEntry`, `HttpLogger`, `createHttpLogger(scriptName: string, env: NodeJS.ProcessEnv)`, `httpLogEntry(attempt: HttpLogAttempt, now: Date)`
 - env: `EXTRACT_HTTP_LOG`, `EXTRACT_HTTP_LOG_DIR`
 - imported by: `tools/scribe/integrations/shared/http-client.ts`
 
 ## tools/scribe/integrations/shared/jira-reshape.ts
+- purpose: Reshape a raw Jira issue into a token-friendly canonical form.
 - exports: `CanonicalIssue`, `IssueRef`, `issueRefLine(ref: IssueRef)`, `reshapeJiraIssue(raw: RawIssue, registry: FieldRegistry)`
 - imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/field-registry.ts`
 - imported by: `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/xray/read-xray.ts`
 
 ## tools/scribe/integrations/shared/line-diff.ts
+- purpose: A minimal line diff for the `apply` pipelines' dry-run output.
 - exports: `diffLines(before: string, after: string)`
 - imported by: `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
 
 ## tools/scribe/integrations/shared/lru-cache.ts
+- purpose: Tiny TTL + LRU cache, dependency-free.
 - exports: `LruCache`
 - imported by: `tools/scribe/integrations/shared/http-client.ts`
 
 ## tools/scribe/integrations/shared/markdown-to-adf.ts
+- purpose: Markdown → ADF (Atlassian Document Format), the WRITE-side twin of `adf.ts`.
 - exports: `AdfDoc`, `markdownToAdf(markdown: string)`, `parseInline(source: string, inherited: readonly AdfMark[…])`
 - imports: `tools/scribe/integrations/shared/adf.ts`
 - imported by: `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/jira/write-jira.ts`
 
 ## tools/scribe/integrations/shared/okf.ts
+- purpose: OKF v0.1 bundle writer for the `extract-*` pipelines (render format `'okf'`).
 - exports: `OKF_BUNDLE_DIR`, `OkfConceptInput`, `OkfFmValue`, `OkfLogEntry`, `insertOkfLogEntry(entry: OkfLogEntry, priorLog?: string)`, `okfFrontmatter(entries: readonly (readonly […])[…])`, `okfLogDate(stampOrIso: string)`, `okfScalar(value: string)`, `renderOkfConcept(concept: OkfConceptInput, stamp: string)`, `renderOkfIndex(args: {…})`, `writeOkfBundle(args: {…})`
 - imports: `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/version.ts`
 - imported by: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/jira/read-jira.ts`
 
 ## tools/scribe/integrations/shared/read-runtime.ts
+- purpose: Shared helpers for `integrations/<source>/extract-<source>.ts`.
 - exports: `ManifestRun`, `OffsetPage`, `OffsetWalk`, `PIPELINE_CONCURRENCY`, `ReadArgs`, `ReadRun`, `RenderFormat`, `SIDECAR_DEFAULT_CHARS`, `STAMP_PATTERN`, `WrittenFile`, `assertSafeBasename(basename: string)`, `assertUniqueSnapshotNames(config: {…}, ctx: z.RefinementCtx)`, `buildManifest`, `createScriptLogger(scriptName: string)`, `defaultConfigPath(source: string)`, `defaultOutputDir(source: string)`, `escapeTableCell(value: string)`, `formatSchemaIssues(error: z.ZodError)`, `formatStamp(date: Date)`, `loadJsonConfig`, `mapWithConcurrency`, `mdTable(headers: readonly string[…], rows: readonly (readonly string[…])[…])`, `parseCursorFromLink(linkOrUndefined: string | undefined)`, `parseReadArgs(argv: readonly string[…], defaultConfigPath: string, env: Record<string, string | undefined>)`, `renderFormatsSchema`, `renderFormatsWithOkfSchema`, `runIfMain(scriptName: string, fileUrl: string, main: ())`, `snapshotNameSchema`, `startReadRun`, `walkOffsetPages`, `warnIfTruncated(log: (msg: string), truncated: boolean, detail: string)`, `writeManifest(dir: string, manifest: unknown)`, `writePipelineOutputs(args: {…})`
 - env: `EXTRACT_STAMP`
 - imports: `tools/scribe/integrations/shared/run-identity.ts`, `tools/scribe/integrations/shared/version.ts`
 - imported by: `tools/scribe/integrations/browser-inspector/read-browser-inspector.ts`, `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/figma/read-figma.ts`, `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/write-runtime.ts`, `tools/scribe/integrations/sonar/read-sonar.ts`, `tools/scribe/integrations/xray/read-xray.ts`
 
 ## tools/scribe/integrations/shared/run-identity.ts
+- purpose: Identity of ONE run, for outbound attribution.
 - exports: `getCorrelationId(env: Record<string, string | undefined>)`, `getRunUser()`, `resetCorrelationIdForTests()`, `sanitizeHeaderValue(value: string)`
 - env: `EXTRACT_CORRELATION_ID`, `USER`, `USERNAME`
 - imported by: `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 
 ## tools/scribe/integrations/shared/sonar-reshape.ts
+- purpose: Reshape raw Sonar issues / hotspots / measures into token-friendly canonical forms.
 - exports: `CanonicalHotspot`, `CanonicalSonarIssue`, `SonarImpact`, `reshapeHotspot(raw: RawHotspot)`, `reshapeSonarIssue(raw: RawSonarIssue)`
 - imported by: `tools/scribe/integrations/sonar/read-sonar.ts`
 
 ## tools/scribe/integrations/shared/user-config.ts
+- purpose: Cross-platform user-profile config loader for the upstream credentials.
 - exports: `UserConfig`, `UserConfigSchema`, `getUserConfigPath()`, `loadUserConfig()`
 - env: `EXTRACT_CONFIG_DIR`, `EXTRACT_CONFIG_PATH`, `XDG_CONFIG_HOME`
 - imported by: `tools/scribe/integrations/shared/auth.ts`
 
 ## tools/scribe/integrations/shared/version.ts
+- purpose: Version of the extract tooling.
 - exports: `getRepoVersion()`
 - imported by: `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
 
 ## tools/scribe/integrations/shared/write-runtime.ts
+- purpose: Shared runtime for the WRITE pipelines (`integrations/<source>/write-<source>.ts`).
 - exports: `DRY_RUN_FOOTER`, `MarkdownInput`, `ProvenanceAction`, `WriteArgs`, `WriteMode`, `assertWriteMode(declared: WriteMode | undefined, actual: WriteMode, describe: string)`, `loadMarkdownInput`, `logUpdatePreview(log: (msg: string), args: {…})`, `mapLinesOutsideFences(text: string, transform: (line: string))`, `parseMarkdownInput`, `parseWriteArgs(argv: readonly string[…])`, `prepareBodyWithLog(log: (msg: string), body: string, action: ProvenanceAction)`, `prepareCommentBodyWithLog(log: (msg: string), rawBody: string, labels: {…})`, `provenanceLine(action: ProvenanceAction)`, `stripTrailingProvenance(body: string)`, `updatedBodyOrUndefined(input: {…})`, `withProvenance(body: string, action: ProvenanceAction)`
 - imports: `tools/scribe/integrations/shared/line-diff.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/version.ts`
 - imported by: `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/write-miro.ts`
 
 ## tools/scribe/integrations/sonar/read-sonar.ts
+- purpose: deterministic SonarQube / SonarCloud data pipeline.
 - exports: `HotspotsSummary`, `IssuesSummary`, `MeasuresSummary`, `QualityGateSummary`, `ReadConfig`, `paginateSonar`, `renderHotspotsMarkdown(summary: HotspotsSummary)`, `renderIssuesMarkdown(summary: IssuesSummary)`, `renderMeasuresMarkdown(summary: MeasuresSummary)`, `renderQualityGateMarkdown(qg: QualityGateSummary)`
 - imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/sonar-reshape.ts`
 
 ## tools/scribe/integrations/xray/read-xray.ts
+- purpose: batch extraction from Xray for Jira (Server/DC, Xray as a Jira PLUGIN) into on-disk snapshots.
 - exports: `ReadConfig`, `chunkKeys(keys: readonly string[…], size: number)`, `renderExecutionsMarkdown(summary: ExecutionsSummary)`, `renderTestsMarkdown(summary: TestsSummary)`, `reshapeRun(raw: RawRun)`, `reshapeTest(raw: RawTest, envelope: Omit<IssueRef, 'type'>)`
 - imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/errors.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
 
@@ -361,29 +407,36 @@ Modules: 86.
 
 ## tools/scripts/affected.mjs
 - purpose: run one target for the projects a change touches: the `nx affected` this repository deliberately does not have, in one dependency-free scri…
-- exports: `REPO`, `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
+- exports: `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `mergeBaseFor(base, repo) → string | null`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
 - env: `CB_TASK_CACHE`
-- imports: `tools/scripts/display-command.mjs`
+- imports: `tools/scripts/display-command.mjs`, `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/check-glossary.mjs
 - purpose: GLOSSARY.md maps words to identifiers; this gate checks that every identifier it names still exists (part of `npm run verify`).
 - exports: `GLOSSARY_FILE`, `checkGlossary(repo) → { ok: boolean, code: number, problems: string[], checked: n…`, `parseMappings(markdown) → { term: string, ref: string }[]`, `resolveMapping(repo, {…}) → string | null`
+- imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/check-instruction-sync.mjs
 - purpose: The instruction block quoted in AGENTS.md IS the fixed cost of a tool's side of an agent session: one blockquote that tells the agent how t…
 - exports: `AGENTS_FILE`, `BLOCKS`, `BYTE_LIMIT`, `COPILOT_FILE`, `TOTAL_BYTE_LIMIT`, `checkInstructionSync(root, {…}) → Promise<{ ok: boolean, message: string }>`, `extractInstruction(markdown, name) → string | null`, `sizeInBytes(text) → number`
+- imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/check-pins.mjs
-- purpose: Offline, deterministic gate over tools/scripts/pins.config.mjs — the first step of `pnpm run verify`, next to `biome format .` (this reposi…
-- exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root)`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `walkText(root, frozen) → string[]`, `workspacePatterns(root) → string[]`
-- imports: `tools/scripts/pins.config.mjs`
+- purpose: Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of `npm run verify`, next to `biome format .`.
+- exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root)`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `tagProblems(pin, version, root) → string[]`, `walkText(root, frozen) → string[]`, `workspacePatterns(root) → string[]`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/pins.config.mjs`
 - types only: `tools/scripts/pins.config.mjs`
 - imported by: `tools/scripts/check-upstream.mjs`
+
+## tools/scripts/check-secrets.mjs
+- purpose: the pre-commit look at STAGED additions for anything that is a credential: Atlassian and GitLab tokens (this repository talks to both), Git…
+- exports: `PATTERNS`, `findSecrets(text, where) → string[]`, `stagedAdditions(repo) → Map<string, string>`
+- imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/check-upstream.mjs
 - purpose: the calendar half of the currency doctrine.
 - exports: `STATE_FILE`, `acknowledge(state, verdicts, id, nowMs) → { state: State, acknowledged: string[] }`, `checkUpstream({…}) → Promise<{ verdicts: Verdict[], nextState: State }>`, `daysBetween(earlierMs, laterMs) → number`, `evaluatePin(pin, {…}) → Verdict`, `fetchLatest(id) → Promise<string | null>`, `nextState(previous, {…}) → StateEntry | undefined`
-- imports: `tools/scripts/check-pins.mjs`, `tools/scripts/pins.config.mjs`
+- imports: `tools/scripts/check-pins.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/pins.config.mjs`
 - types only: `tools/scripts/pins.config.mjs`
 
 ## tools/scripts/display-command.mjs
@@ -394,19 +447,28 @@ Modules: 86.
 ## tools/scripts/doctor.mjs
 - purpose: environment diagnostics (0 credits, NOT part of `npm run verify`).
 - env: `BROWSER_INSPECTOR_BROWSER_PATH`, `EXTRACT_CONFIG_DIR`, `EXTRACT_CONFIG_PATH`, `LOCALAPPDATA`, `PLAYWRIGHT_BROWSERS_PATH`, `XDG_CONFIG_HOME`
+- imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/guard-forbidden.mjs
 - purpose: the things this repository has decided NOT to have (part of `npm run verify`).
 - exports: `FORBIDDEN_PACKAGES`, `FORBIDDEN_PATHS`, `guardForbidden(repo) → { ok: boolean, problems: string[] }`
+- imports: `tools/scripts/lib/repo.mjs`
+- imported by: `tools/scripts/validate-ai-config.mjs`
 
 ## tools/scripts/index-code.mjs
 - purpose: the repository's dependency index, for LLM-driven development.
-- exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `insideTemplateLiteral(code, index) → boolean`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
+- exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `insideStringLiteral(code, index) → boolean`, `insideTemplateLiteral(code, index) → boolean`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
+- imports: `tools/scripts/lib/repo.mjs`
+
+## tools/scripts/lib/repo.mjs
+- purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
+- exports: `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
+- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/new-project.mjs
 - purpose: the ONE way an application or a library is added to this workspace (0 credits).
-- exports: `LIB_TYPES`, `newApplication(name, {…}) → number`, `newLibrary(spec, {…}) → number`
-- imports: `tools/scripts/app/app`, `tools/scripts/app/app.config`
+- exports: `LIB_TYPES`, `allocatePort(name, taken, requested) → number`, `existingE2ePorts(repo)`, `newApplication(name, {…}) → number`, `newLibrary(spec, {…}) → number`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/workspace.config.mjs`
 
 ## tools/scripts/pins.config.mjs
 - purpose: the single declaration site for every dependency version in this repository.
@@ -416,38 +478,48 @@ Modules: 86.
 ## tools/scripts/setup-hooks.mjs
 - purpose: arms the committed git hooks: `git config core.hooksPath .githooks`.
 - exports: `setupHooks({…}) → { code: number, message: string }`
+- imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/stack.mjs
 - purpose: the tech-stack canon: one AUTOGEN block in docs/tech-stack.md regenerated from package.json, so that no version number is ever typed into p…
 - exports: `BEGIN`, `END`, `blockData(text) → string`, `renderBlock(pkg) → string`, `runStack(mode, repo) → { code: number, message: string }`
+- imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/stamp.mjs
+- purpose: reading the `YYYY-MM-DD_HH-MM` stamp out of an artifact name.
 - exports: `STAMP_TIMEZONE`, `nowStamp(now, timeZone) → string`, `stampToEpoch(year, month, day, hour, minute, timeZone) → number`
 - imported by: `tools/hooks/handoff.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/validate-ai-config.mjs
 - purpose: the gate over the GitHub Copilot configuration (0 credits; pre-commit, session-stop hook and `npm run verify`).
-- exports: `frontmatter(text) → Record<string, string> | null`, `mcpServers(repo) → string[]`, `parseList(value) → string[]`, `patternHeads(pattern) → string[]`, `validateAiConfig(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
+- exports: `mcpServerConfigs(repo) → Record<string, { type?: string, command?: string, args?: st…`, `mcpServers(repo) → string[]`, `parseList(value) → string[]`, `patternHeads(pattern) → string[]`, `validateAiConfig(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
+- imports: `tools/scripts/guard-forbidden.mjs`, `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/validate-sdd.mjs
 - purpose: the SDD hygiene gate (0 credits, part of `npm run verify`).
-- exports: `agentNames(cell) → string[]`, `firstTableHeader(text) → string[]`, `frontmatter(text) → Record<string, string> | null`, `tableColumn(text, column) → string[]`, `validateSdd(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
-- imports: `tools/scripts/stamp.mjs`
+- exports: `agentNames(cell) → string[]`, `firstTableHeader(text) → string[]`, `frontmatter(text)`, `tableColumn(text, column) → string[]`, `validateSdd(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/stamp.mjs`
 
 ## tools/scripts/verify.mjs
 - purpose: THE Definition of Done: every gate of the repository, in one order, first red stops.
 - exports: `CODE`, `STATIC`, `parseArgs(argv) → { static: boolean, affected: boolean, full: boolean, base?:…`, `projectSteps({…}) → Step[]`, `runSteps(steps) → number`
 - env: `FORCE_COLOR`
-- imports: `tools/scripts/display-command.mjs`
+- imports: `tools/scripts/display-command.mjs`, `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/workflow-specify.mjs
 - purpose: the deterministic "specify" step of the SDD ladder (0 credits).
 - exports: `VERBS`, `parseArgs(argv) → Record<string, string | true>`, `specify({…}) → { code: number, lines: string[], files: string[] }`
-- imports: `tools/scripts/stamp.mjs`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/stamp.mjs`
+
+## tools/scripts/workspace.config.mjs
+- purpose: the names a company changes when it adopts this template, in ONE place.
+- exports: `ALIAS_SCOPE`, `DEFAULT_BRANCH`, `PREFIX`
+- imported by: `tools/scripts/new-project.mjs`
 
 ## tools/testing/serve-static.mjs
 - purpose: a tiny static server with SPA fallback for end-to-end tests over a BUILT application (`dist/apps/<app>/browser`), so the e2e job serves the…
-- exports: `resolveFile(root, pathname) → string`
+- exports: `handler(root) → import('node:http').RequestListener`, `main(argv) → number`, `resolveRequest(root, pathname) → Resolution`
 
 ## tools/testing/vitest-angular.config.mts
 - purpose: the shared Vitest configuration of every Angular project, referenced from angular.json as `test.options.runnerConfig` (written there by `np…
+- env: `CB_PROJECT`

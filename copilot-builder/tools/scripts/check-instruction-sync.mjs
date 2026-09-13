@@ -12,9 +12,6 @@
 // this repository ships both tools, so `npm run verify` passes it — here a block missing from both
 // files is the gate quietly disarmed, and deleting both copies would otherwise print `ok`.
 //
-// A third source — a bench harness exporting `INSTRUCTION` as a live measurement — is optional per
-// block (`bench: null` when there is none) and not present in this repository.
-//
 // The block in AGENTS.md sits between the markers as a markdown blockquote (`> …` lines); the
 // comparison strips the `> ` prefixes and joins the lines with `\n`, so a wrapped quote equals its
 // single-line source.
@@ -25,13 +22,12 @@
 // thing a cap is for — an instruction block cannot grow unnoticed.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const AGENTS_FILE = 'AGENTS.md';
 export const COPILOT_FILE = '.github/copilot-instructions.md';
 
-/** Per-block cap in UTF-8 bytes (AC-6, restated in bytes — see the note at the top of the file). */
+/** Per-block cap in UTF-8 bytes (see the note at the top of the file). */
 export const BYTE_LIMIT = 600;
 
 /**
@@ -43,14 +39,13 @@ export const TOTAL_BYTE_LIMIT = 1300;
 /**
  * @typedef {object} Block
  * @property {string} name '' for the original, unnamed markers
- * @property {string | null} bench file exporting `INSTRUCTION`, or null when the tool has no bench harness yet
  * @property {number} limit
  */
 
 /** @type {readonly Block[]} */
 export const BLOCKS = Object.freeze([
-  { name: 'browser-inspector', bench: null, limit: BYTE_LIMIT },
-  { name: 'scribe', bench: null, limit: BYTE_LIMIT },
+  { name: 'browser-inspector', limit: BYTE_LIMIT },
+  { name: 'scribe', limit: BYTE_LIMIT },
 ]);
 
 /** How a block is referred to in messages. @param {string} name */
@@ -135,34 +130,7 @@ function missingBlock(block, name, ctx) {
 }
 
 /**
- * The bench module (when the repository has one) must export the very text measured.
- * @param {(typeof BLOCKS)[number]} block
- * @param {string} name
- * @param {string} text the block as found in both files
- * @param {number} bytes
- * @param {string} root
- * @returns {Promise<BlockResult>}
- */
-async function checkBench(block, name, text, bytes, root) {
-  if (block.bench === null) return { note: `${name} ≡ ${COPILOT_FILE} · ${bytes} B (no bench)`, bytes };
-  const benchPath = path.join(root, block.bench);
-  if (!existsSync(benchPath)) {
-    return { note: `${name} ≡ ${COPILOT_FILE} · ${bytes} B (${block.bench} not present yet)`, bytes };
-  }
-  const mod = await import(pathToFileURL(benchPath).href);
-  if (typeof mod.INSTRUCTION !== 'string') return { fail: `${block.bench} does not export INSTRUCTION`, bytes };
-  if (mod.INSTRUCTION !== text) {
-    return {
-      fail: `${name}: ${AGENTS_FILE} block ≠ INSTRUCTION in ${block.bench} (first difference at character ${firstDifference(text, mod.INSTRUCTION)}) — the measured fixed cost would lie`,
-      bytes,
-    };
-  }
-  return { note: `${name} ≡ ${block.bench} ≡ ${COPILOT_FILE} · ${bytes} B`, bytes };
-}
-
-/**
- * One block: present in both files (or in neither, when optional), byte-identical, within its cap,
- * and equal to the bench module's INSTRUCTION when that module exists.
+ * One block: present in both files (or in neither, when optional), byte-identical and within its cap.
  * @param {(typeof BLOCKS)[number]} block
  * @param {SyncContext} ctx
  * @returns {Promise<BlockResult>}
@@ -181,8 +149,8 @@ async function checkBlock(block, ctx) {
     };
   }
   const bytes = sizeInBytes(fromAgents);
-  if (bytes > block.limit) return { fail: `${name}: instruction is ${bytes} B, limit ${block.limit} B (AC-6)`, bytes };
-  return checkBench(block, name, fromAgents, bytes, ctx.root);
+  if (bytes > block.limit) return { fail: `${name}: instruction is ${bytes} B, limit ${block.limit} B`, bytes };
+  return { note: `${name} ≡ ${COPILOT_FILE} · ${bytes} B`, bytes };
 }
 
 /**
@@ -246,7 +214,7 @@ function firstDifference(expected, actual) {
   return index === -1 ? Math.min(a.length, b.length) : index;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { ok, message } = await checkInstructionSync(REPO, { requireAll: process.argv.includes('--require-all') });
   (ok ? process.stdout : process.stderr).write(`${ok ? 'ok' : 'FAIL'} instruction sync: ${message}\n`);
   process.exitCode = ok ? 0 : 1;

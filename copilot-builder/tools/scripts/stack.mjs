@@ -10,9 +10,8 @@
 // hand-realigned table column is not a false alarm.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const BEGIN = '<!-- AUTOGEN:STACK BEGIN -->';
 export const END = '<!-- AUTOGEN:STACK END -->';
 
@@ -98,7 +97,7 @@ export function runStack(mode, repo = REPO) {
   return { code: 0, message: 'ok stack:check · tech-stack canon matches package.json' };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const mode = process.argv[2];
   if (mode !== 'sync' && mode !== 'check') {
     process.stderr.write('usage: node tools/scripts/stack.mjs <sync|check>\n');

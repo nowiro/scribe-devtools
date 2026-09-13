@@ -1,5 +1,5 @@
 ---
-description: 'Wendorowane narzędzie scribe (ALM): snapshoty Jira/Confluence/GitLab/Sonar/Figma/Miro/Xray i zapis create/update — czytane, nie przepisywane'
+description: 'Wendorowane narzędzie scribe (ALM): snapshoty Jira (w tym Xray — plugin w Jirze)/Confluence/GitLab/Sonar/Figma/Miro i zapis create/update — czytane, nie przepisywane'
 applyTo: 'tools/scribe/**'
 ---
 

@@ -9,6 +9,8 @@
 //
 // Every `include` is a glob, never a list of names — an enumerating list is how a new module gets
 // zero tests without a warning.
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -18,7 +20,7 @@ export default defineConfig({
       {
         test: {
           name: 'tools',
-          include: ['tools/scripts/**/*.spec.mjs', 'tools/hooks/**/*.spec.mjs'],
+          include: ['tools/scripts/**/*.spec.mjs', 'tools/hooks/**/*.spec.mjs', 'tools/testing/**/*.spec.mjs'],
           environment: 'node',
         },
       },
@@ -35,6 +37,9 @@ export default defineConfig({
           include: ['tools/scribe/integrations/**/*.spec.ts'],
           exclude: ['**/node_modules/**', '**/dist/**'],
           environment: 'node',
+          // The vendored HTTP logger writes a JSONL per run; in tests that goes to the OS temp dir,
+          // not to .scribe/http-log/ in the working tree.
+          env: { EXTRACT_HTTP_LOG_DIR: join(tmpdir(), 'copilot-builder-http-log') },
         },
       },
     ],
@@ -47,6 +52,7 @@ export default defineConfig({
       include: [
         'tools/scripts/**/*.mjs',
         'tools/hooks/**/*.mjs',
+        'tools/testing/**/*.mjs',
         'tools/scribe/scripts/**/*.mjs',
         'tools/scribe/integrations/**/*.ts',
       ],

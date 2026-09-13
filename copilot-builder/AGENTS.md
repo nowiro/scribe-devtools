@@ -23,7 +23,7 @@ deterministycznie.
 | `npm run new:app -- <nazwa>`                           | nowa aplikacja `apps/<nazwa>` + `apps/<nazwa>-e2e` (Playwright)                        |
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka `libs/<zakres>/<typ>-<nazwa>`, alias `@cb/<zakres>/<typ>-<nazwa>`      |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                            |
-| `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira/Confluence/GitLab/Sonar/Figma/Miro/Xray/WWW do `.scribe/`                |
+| `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira (z Xray — pluginem testów w Jirze)/Confluence/GitLab/Sonar/Figma/Miro/WWW do `.scribe/`                |
 | `npm run alm:create\|alm:update -- <źródło> <plik.md>` | publikacja Markdownu z front matter (dry-run; `--yes` zapisuje)                         |
 | `npm run browser-inspector -- <config.json>` / `-- open <url>` | flow batch albo sesja interaktywna w systemowym Chrome/Edge                      |
 | `npm run code-index`                                   | regeneracja `CODE-INDEX.md`                                                             |
@@ -37,9 +37,9 @@ deterministycznie.
 | Krok                       | Co pilnuje                                                                                              |
 | -------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `format:check`             | Biome (TS/JS/JSON/CSS; 120 kolumn, LF, pojedyncze cudzysłowy). Markdown i szablony HTML — bez formatera |
-| `check:pins`               | `tools/scripts/pins.config.mjs` jedynym miejscem deklaracji wersji; każda zależność ma wiersz z `why`    |
+| `check:pins`               | `tools/scripts/pins.config.mjs` jedynym miejscem deklaracji wersji; każda zależność ma wiersz z `why`; reguła TAG: tag obrazu Playwrighta w CI = pin |
 | `guard:forbidden`          | brak plików innych asystentów, GitHub Actions, Nx, Prettiera, Husky, drugiego lockfile'a               |
-| `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway` |
+| `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna (A1–A17) |
 | `sdd:check`                | nazwy i wiersze INDEX artefaktów commitowanych; front matter spec/plan, `[?]`, agenci z rosteru         |
 | `stack:check`              | blok AUTOGEN w `docs/tech-stack.md` zgodny z `package.json`                                             |
 | `code-index --check`       | świeżość `CODE-INDEX.md`                                                                                |
@@ -47,7 +47,7 @@ deterministycznie.
 | `check:glossary`           | każdy odnośnik w `GLOSSARY.md` wskazuje żywą ścieżkę albo symbol                                        |
 | `typecheck`                | `tsc --checkJs` nad `tools/**` (JSDoc) i `tsc` nad `tools/scribe/integrations`                          |
 | `lint`                     | ESLint: angular-eslint, typescript-eslint (typed), granice modułów `@cb/*`, sonarjs, unicorn i spółka   |
-| `test`                     | Vitest: `tools/**` i `tools/scribe` (`vitest.tools.config.mts`)                                         |
+| `test`                     | Vitest: `tools/scripts`, `tools/hooks`, `tools/testing` i `tools/scribe` (`vitest.tools.config.mts`)    |
 | `affected typecheck/test/build` | projekty workspace przez `affected.mjs` (`--all` w `verify`, dotknięte w `verify:affected`)        |
 
 ## Artefakty GENEROWANE — nigdy nie edytuj ręcznie
@@ -65,7 +65,11 @@ deterministycznie.
 - roster w `.github/models-registry.json` ↔ pliki `.github/agents/*.agent.md` ↔ tabela rosteru niżej
   ↔ tabela routingu w `orchestrator-sdd`;
 - serwery w `.vscode/mcp.json` ↔ lista `tools:` agenta `mcp-gateway`;
-- wersja `@playwright/test` ↔ tag obrazu Playwrighta w `.gitlab-ci.yml` (komentarz przy tagu);
+- wersja `@playwright/test` ↔ tag obrazu Playwrighta w `.gitlab-ci.yml` (reguła TAG w `check:pins`);
+- `PREFIX`, `ALIAS_SCOPE`, `DEFAULT_BRANCH` w `tools/scripts/workspace.config.mjs` ↔ `angular.json` (`schematics.*.prefix`)
+  i `biome.jsonc` (`vcs.defaultBranch`) — dwa pliki, które nie importują JS-a;
+- ścieżki raportów w generowanym `playwright.config.ts` (`../../reports`, `../../test-results`) i `CB_PROJECT`
+  z `affected.mjs` (`reports/junit-<projekt>.xml`, `coverage/<projekt>/`) ↔ `artifacts` jobów w `.gitlab-ci.yml`;
 - `.nvmrc` ↔ `engines.node` ↔ obraz `node:` w `.gitlab-ci.yml` ↔ `@types/node`.
 
 ## Roster
@@ -108,7 +112,8 @@ się nazywa. Rozmiary podane po to, żebyś mógł zdecydować, czy czytasz w ca
 - [GLOSSARY.md](GLOSSARY.md) — ≈ 11 kB — słowa tego repo i ich nazwy w kodzie, w obie strony.
 
 Układ: `apps/` aplikacje (+ `apps/<app>-e2e`) · `libs/<zakres>/<typ>-<nazwa>` biblioteki ·
-`tools/scripts` bramy i scaffold · `tools/hooks` hooki Copilota · `tools/testing` runner Vitest i serwer
+`tools/scripts` bramy i scaffold (`lib/repo.mjs` — wspólne pomocniki, `workspace.config.mjs` — nazwy zmieniane
+przy adopcji) · `tools/hooks` hooki Copilota (`lib/payload.mjs`) · `tools/testing` runner Vitest i serwer
 e2e · `tools/scribe` ALM · `tools/browser-inspector` przeglądarka · `docs/` metodyka, decyzje, kanon
 wersji · `.github/` Copilot · `.gitlab/` szablony issue/MR · `.githooks/` hooki gita.
 
@@ -123,5 +128,5 @@ Równy co do znaku blokowi w `.github/copilot-instructions.md` (`npm run check:i
 ## Blok instrukcji `scribe` (ALM)
 
 <!-- INSTRUCTION:scribe:START -->
-> ALM (Jira, Confluence, GitLab, Sonar, Figma, Miro, Xray): `npm run alm:read -- <źródło> [config.json] [--stamp X]` pisze snapshot do `.scribe/<źródło>/<stamp>/<snapshot>/` (`_manifest.json` + `<zasób>.md|.json`); czytaj manifest, potem tylko potrzebne pliki. Zapis: `npm run alm:create|alm:update -- <źródło> <plik.md>` z front matter wg `tools/scribe/templates/` — bez `--yes` dry-run z diffem; `--yes` tylko na wyraźne polecenie człowieka; usuwania nie ma.
+> ALM (Jira i jej plugin Xray, Confluence, GitLab, Sonar, Figma, Miro): `npm run alm:read -- <źródło> [config.json] [--stamp X]` pisze snapshot do `.scribe/<źródło>/<stamp>/<snapshot>/` (`_manifest.json` + `<zasób>.md|.json`); czytaj manifest, potem tylko potrzebne pliki. Zapis: `npm run alm:create|alm:update -- <źródło> <plik.md>` z front matter wg `tools/scribe/templates/` — bez `--yes` dry-run z diffem; `--yes` tylko na wyraźne polecenie człowieka; usuwania nie ma.
 <!-- INSTRUCTION:scribe:END -->

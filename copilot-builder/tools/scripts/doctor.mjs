@@ -11,9 +11,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { REPO } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 /** @type {string[]} */
 const warnings = [];
 /** @type {string[]} */

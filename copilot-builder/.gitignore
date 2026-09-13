@@ -54,3 +54,11 @@ CLAUDE.md
 .cursor/
 .codex/
 .mcp.json
+
+# Secrets never live in the repository: environment or ~/.config only (tools/scripts/check-secrets.mjs
+# looks at every commit). Local .env files and key material stay out of git by name as well.
+.env
+.env.*
+!.env.example
+*.pem
+*.key

@@ -12,33 +12,32 @@
  * ui → (ui, util); data-access → (data-access, util); util → util. Applications may import anything
  * public. Nobody imports another project's `src/` — the public API is the alias.
  */
-import { CODE, TESTS } from './eslint.plugins.mjs';
+import { APP_CODE, CODE, HOOKS, NODE, TESTS } from './eslint.plugins.mjs';
+import { ALIAS_SCOPE } from './tools/scripts/workspace.config.mjs';
 
-const APP_CODE = ['apps/**/*.ts', 'libs/**/*.ts'];
-const NODE_CODE = ['tools/**/*.mjs', 'tools/**/*.mts', '*.mjs', '*.mts'];
-const HOOKS = ['tools/hooks/**/*.mjs'];
+const NODE_CODE = NODE;
 
 /** Deep imports into another project's sources bypass its public API and its boundary. */
 const DEEP_IMPORTS = {
-  group: ['@cb/*/*/src/*', '**/libs/*/*/src/**', '**/apps/*/src/**'],
-  message: 'Import the public API through its alias (@cb/<scope>/<type>-<name>), never a path into src/.',
+  group: [`${ALIAS_SCOPE}/*/*/src/*`, '**/libs/*/*/src/**', '**/apps/*/src/**'],
+  message: 'Import the public API through its alias (<alias scope>/<scope>/<type>-<name>), never a path into src/.',
 };
 /** Angular Material and the CDK are wrapped once, in libs/shared/ui — swapping or upgrading them is then work in one directory. */
 const MATERIAL = {
   group: ['@angular/material', '@angular/material/*', '@angular/cdk', '@angular/cdk/*'],
   message:
-    'Angular Material and CDK are imported only in libs/shared/ui. Use the wrapper component from @cb/shared/ui — and add it there when it is missing.',
+    'Angular Material and CDK are imported only in libs/shared/ui. Use the wrapper component from the shared ui library alias — and add it there when it is missing.',
 };
 const NO_FEATURE_OR_DATA = {
-  group: ['@cb/*/feature*', '@cb/*/data-access*'],
+  group: [`${ALIAS_SCOPE}/*/feature*`, `${ALIAS_SCOPE}/*/data-access*`],
   message: 'A ui library depends only on ui and util libraries — it must not know which screen or data source uses it.',
 };
 const UTIL_ONLY = {
-  group: ['@cb/*/feature*', '@cb/*/data-access*', '@cb/*/ui*'],
+  group: [`${ALIAS_SCOPE}/*/feature*`, `${ALIAS_SCOPE}/*/data-access*`, `${ALIAS_SCOPE}/*/ui*`],
   message: 'A util library depends only on other util libraries.',
 };
 const NO_FEATURE_OR_UI = {
-  group: ['@cb/*/feature*', '@cb/*/ui*'],
+  group: [`${ALIAS_SCOPE}/*/feature*`, `${ALIAS_SCOPE}/*/ui*`],
   message: 'A data-access library depends only on data-access and util libraries — presentation stays out of it.',
 };
 

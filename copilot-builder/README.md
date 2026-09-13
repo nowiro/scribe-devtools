@@ -39,10 +39,12 @@ npm run affected -- test                  # Vitest tylko dla dotkniętych projek
 node node_modules/@angular/cli/bin/ng.js serve portal
 ```
 
-Jak zbudować z tego nowe repozytorium firmy: skopiuj drzewo (bez `node_modules/`), `git init`, zmień prefiks
-`cb` w `angular.json` (schematics) i w `eslint.config.mjs` (`PREFIX`), alias `@cb` w `eslint.rules.mjs`
-i `tools/scripts/new-project.mjs`, ustaw `policy.enabled` i `tiers` w `.github/models-registry.json` pod
-plan Copilota organizacji, dopisz `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify`, pierwszy commit.
+Jak zbudować z tego nowe repozytorium firmy: skopiuj drzewo (bez `node_modules/`), `git init`, ustaw
+`PREFIX`, `ALIAS_SCOPE` i `DEFAULT_BRANCH` w `tools/scripts/workspace.config.mjs` (ESLint, generator i
+`affected` czytają stąd) oraz te same wartości w dwóch plikach, które nie importują JS-a: `angular.json`
+(`schematics.*.prefix`) i `biome.jsonc` (`vcs.defaultBranch`); `git grep -n "cb\b\|@cb/"` pokazuje resztę
+wystąpień w prozie i instrukcjach. Potem `policy.enabled` i `tiers` w `.github/models-registry.json` pod
+plan Copilota organizacji, `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify`, pierwszy commit.
 
 ## Komendy
 
@@ -56,7 +58,7 @@ plan Copilota organizacji, dopisz `tags:` runnerów w `.gitlab-ci.yml`, `npm run
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka (typ: `feature`, `ui`, `data-access`, `util`) z aliasem `@cb/*` |
 | `npm run lint` / `format` / `typecheck` / `test`       | bramy pojedynczo (narzędzia + scribe; projekty przez `affected`)               |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                   |
-| `npm run alm:read -- <źródło>`                         | snapshot ALM do `.scribe/` (Jira, Confluence, GitLab, Sonar, Figma, Miro, Xray, WWW) |
+| `npm run alm:read -- <źródło>`                         | snapshot ALM do `.scribe/` (Jira z pluginem Xray, Confluence, GitLab, Sonar, Figma, Miro, WWW) |
 | `npm run alm:create` / `alm:update -- <źródło> <plik>` | publikacja Markdownu (dry-run; `--yes` zapisuje)                               |
 | `npm run browser-inspector -- …`                       | flow z configu albo sesja interaktywna na refach `eN`                          |
 | `npm run code-index`                                   | regeneracja `CODE-INDEX.md` (hook pre-commit robi to sam)                      |
@@ -147,7 +149,7 @@ wydanie jest ręczne, po tagu. Konfiguracja projektu GitLab: [`docs/dev-setup.md
 ## Czego tu nie ma i dlaczego
 
 - **Nx** — [ADR](docs/decisions/2026-09-13_21-30_adr-angular-cli-workspace-without-nx.md): Nx Cloud zabroniony,
-  a to, co z Nx było używane, robi 200 linii skryptu na `angular.json`.
+  a to, co z Nx było używane, robi jeden skrypt nad `angular.json` (`tools/scripts/affected.mjs`).
 - **Prettier** — [ADR](docs/decisions/2026-09-13_21-31_adr-biome-instead-of-prettier.md).
 - **Husky, lint-staged, GitHub Actions** — [ADR](docs/decisions/2026-09-13_21-32_adr-native-git-hooks-and-gitlab-ci.md).
 - **Serwery MCP ALM i Playwright w sesji** — [ADR](docs/decisions/2026-09-13_21-33_adr-scripts-instead-of-mcp-servers.md).

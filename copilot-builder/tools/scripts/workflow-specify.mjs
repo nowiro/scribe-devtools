@@ -18,10 +18,9 @@
 // `sdd:check` rejects artefacts dated in the future.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { nowStamp } from './stamp.mjs';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const VERBS = Object.freeze(['feature', 'fix', 'refactor', 'deps', 'chore', 'security', 'docs']);
 const USAGE = 'usage: npm run workflow:specify -- --verb=<verb> --slug=<kebab-slug> [--title="Human title"]';
 
@@ -98,7 +97,7 @@ export function specify({ verb, slug, title, repo = REPO, stamp = nowStamp() }) 
   return { code: 0, lines, files };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const args = parseArgs(process.argv.slice(2));
   const verb = typeof args.verb === 'string' ? args.verb : '';
   const slug = typeof args.slug === 'string' ? args.slug : '';

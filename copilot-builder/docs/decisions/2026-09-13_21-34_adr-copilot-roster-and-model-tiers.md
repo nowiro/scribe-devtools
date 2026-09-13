@@ -33,7 +33,7 @@ zapisu, który miał tylko czytać, unieważnia review. Potrzebny był kształt,
 5. **Routing po ścieżce pliku**: tabela w `orchestrator-sdd` mówi, kto dotyka czego; zadanie dotykające
    trzech obszarów to trzy zlecenia.
 
-Wszystko powyżej sprawdza `npm run ai:validate` (A1–A12), także w hooku pre-commit i po zakończeniu sesji.
+Wszystko powyżej sprawdza `npm run ai:validate` (A1–A17), także w hooku pre-commit i po zakończeniu sesji.
 
 ## Odrzucone alternatywy
 

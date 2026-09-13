@@ -20,7 +20,18 @@
 //   staleDays    after this many days behind `latest`, `check-upstream` WARNs (calendar, not gate).
 //   why          what breaks, in one sentence — this is what the reviewer of a bump needs.
 
-/** @typedef {{ id: string, owner: string, mirrors?: string[], argv?: string[], policy: 'exact' | 'caret', minSupported?: string, prose?: string[], frozen?: string[], regenerate?: string[], staleDays: number, why: string, links?: string[] }} Pin */
+/**
+ * @typedef {object} Pin
+ * @property {string} id package name
+ * @property {string} owner `<manifest>#<section>` that declares the version
+ * @property {'exact' | 'caret'} policy the spec shape the owner must use
+ * @property {string} [minSupported] a floor the pin may never go below
+ * @property {string[]} [prose] files/dirs whose prose is checked for a stale version (LAG)
+ * @property {string[]} [frozen] dirs never walked by LAG for this row
+ * @property {{ file: string, pattern: string }[]} [tags] files that embed the version in another shape; `{version}` marks it (TAG)
+ * @property {number} staleDays how long the pin may trail `latest` before check:upstream calls it stale
+ * @property {string} why the reason for the pin, read by humans and quoted in messages
+ */
 
 /** Text that is history, not declaration — never rewritten by a bump. */
 export const FROZEN_ALWAYS = ['CHANGELOG.md', 'docs/decisions/'];
@@ -121,8 +132,9 @@ export const PINS = [
     owner: DEV,
     policy: 'exact',
     prose: ['.gitlab-ci.yml', 'README.md', 'docs/dev-setup.md'],
+    tags: [{ file: '.gitlab-ci.yml', pattern: 'mcr.microsoft.com/playwright:v{version}-' }],
     staleDays: 45,
-    why: 'E2E runner. The GitLab job image `mcr.microsoft.com/playwright:v<version>-noble` must carry the same version (the comment next to the image tag quotes it, so this gate catches the lag); playwright-core must be pinned identically.',
+    why: 'E2E runner. The GitLab e2e job image `mcr.microsoft.com/playwright:v<version>-noble` must carry the same version — the TAG rule compares the two; playwright-core must be pinned identically.',
   },
   {
     id: 'vitest',

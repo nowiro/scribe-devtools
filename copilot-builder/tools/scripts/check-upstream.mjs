@@ -1,12 +1,12 @@
 // check-upstream.mjs — the calendar half of the currency doctrine.
 //
 // `check-pins.mjs` is offline and deterministic: it answers "does the repository agree with
-// itself" and is the first step of `pnpm run verify`. This script answers a different question —
+// itself" and is one of the first steps of `npm run verify`. This script answers a different question —
 // "is what we declared still what upstream calls `latest`, and for how long has it not been" — and
 // that question needs the network. It is therefore NOT part of `verify`: a gate that depends on
 // npm's registry being reachable is a gate that goes red on a train. Run it by hand, or with
 // `--strict` at release time, where a stale pin should actually block; the GitLab CI schedule runs it
-// weekly as a WARN-only job.
+// nightly as a WARN-only job.
 //
 //   node tools/scripts/check-upstream.mjs                report only, exit 0 regardless
 //   node tools/scripts/check-upstream.mjs --strict        exit 1 if any pin is stale past its staleDays
@@ -25,11 +25,10 @@
 // bump, it is a decision, and the state file is where that decision is committed.
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { bareVersion, compareVersions, discoverManifests, readDeclarations } from './check-pins.mjs';
 import { PINS } from './pins.config.mjs';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const STATE_FILE = path.join(REPO, 'tools', 'scripts', 'upstream-state.json');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REGISTRY_TIMEOUT_MS = 8000;
@@ -258,7 +257,7 @@ function reportLine(verdict) {
   return `  ${mark} ${verdict.id}: ${verdict.current} → ${verdict.latest} dostępne, za latest od ${String(days)} dni (próg ${String(verdict.staleDays)})`;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const strict = args.includes('--strict');
   const ackIndex = args.indexOf('--ack');

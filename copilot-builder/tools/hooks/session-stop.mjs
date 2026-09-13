@@ -10,10 +10,8 @@
  * of a session takes away the chance to save work in progress and teaches people to work around it.
  */
 import { execFileSync } from 'node:child_process';
-import path from 'node:path';
 import process from 'node:process';
-
-const ROOT = path.resolve(process.cwd());
+import { ROOT, isMain, readStdin } from './lib/payload.mjs';
 /** @type {readonly [string, string[]][]} */
 const GATES = [
   ['ai:validate', ['tools/scripts/validate-ai-config.mjs']],
@@ -43,15 +41,15 @@ function runGate(name, args) {
   }
 }
 
-// The payload is irrelevant here; stdin is drained so the client does not wait on a full pipe.
-process.stdin.resume();
-process.stdin.on('end', () => {
+if (isMain(import.meta.url)) {
+  // The payload is irrelevant here; stdin is drained so the client does not wait on a full pipe.
+  await readStdin();
   const failures = GATES.map(([name, args]) => runGate(name, args)).filter((line) => line !== null);
-  if (failures.length === 0) process.exit(0);
-  process.stdout.write(
-    JSON.stringify({
-      systemMessage: `session-stop — cheap gates are red:\n${failures.map((line) => `  · ${line}`).join('\n')}\nFull gate: npm run verify`,
-    }),
-  );
-  process.exit(0);
-});
+  if (failures.length > 0) {
+    process.stdout.write(
+      JSON.stringify({
+        systemMessage: `session-stop — cheap gates are red:\n${failures.map((line) => `  · ${line}`).join('\n')}\nFull gate: npm run verify`,
+      }),
+    );
+  }
+}

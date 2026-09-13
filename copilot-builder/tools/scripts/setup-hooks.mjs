@@ -14,9 +14,8 @@
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const HOOKS_DIR = path.join(REPO, '.githooks');
 
 /**
@@ -41,7 +40,7 @@ export function setupHooks({ repo = REPO, env = process.env } = {}) {
   return { code: 0, message: 'ok hooks: core.hooksPath = .githooks (pre-commit, commit-msg, pre-push)' };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { code, message } = setupHooks();
   (code === 0 ? process.stdout : process.stderr).write(`${message}\n`);
   process.exitCode = code;

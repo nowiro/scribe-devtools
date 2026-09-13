@@ -13,7 +13,8 @@
     "angular-cli": {
       "type": "stdio",
       "command": "node",
-      "args": ["node_modules/@angular/cli/bin/ng.js", "mcp"]
+      // --read-only: the gateway answers questions; migrations and generators run through the scripts.
+      "args": ["node_modules/@angular/cli/bin/ng.js", "mcp", "--read-only"]
     }
   }
 }

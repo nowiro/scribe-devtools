@@ -34,7 +34,7 @@ agent czyta wybiórczo (manifest, potem trzy pliki).
 1. **ALM przez skrypty** — wendorowane narzędzie **scribe** (`tools/scribe/`): `npm run alm:read -- <źródło>`
    pisze snapshot do `.scribe/`, `npm run alm:create|alm:update` publikuje Markdown z front matter
    (dry-run domyślny, `--yes` jawne, usuwania nie ma). Osiem źródeł: Jira, Confluence, GitLab, Sonar,
-   Figma, Miro, Xray, strona WWW.
+   Figma, Miro, Xray (plugin w Jirze, osobne źródło `xray`), strona WWW.
 2. **Przeglądarka przez skrypt** — wendorowany **browser-inspector** (`tools/browser-inspector/`): flow
    batch z configu JSON i sesja interaktywna na refach `eN`, jedna linia na komendę, wynik na dysku,
    systemowy Chrome/Edge (bez pobierania przeglądarek).

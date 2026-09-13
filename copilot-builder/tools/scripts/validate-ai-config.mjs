@@ -20,24 +20,22 @@
 //   A10 instructions have `applyTo` pointing at an existing top-level path; prompts have a description
 //   A11 hook files reference existing scripts
 //   A12 AGENTS.md mentions every roster agent (the human-readable roster does not drift)
+//   A13 a role that forbids `edit` AND `execute` carries the deny-writes PreToolUse hook — enforcement, not a request
+//   A14 every hook command (agent files and .github/hooks) is `node tools/hooks/<name>.mjs`, nothing else
+//   A15 no agent lists a tool set the registry forbids for everyone (`web`: data comes in through scripts)
+//   A16 every MCP server starts a pinned local binary (`node node_modules/…`), never `npx` or a moving tag
+//   A17 the orchestrator's routing table names every other roster agent (no agent is unreachable)
 //
 // Exit codes: 0 pass · 1 violation · 2 environment error.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { FORBIDDEN_PATHS } from './guard-forbidden.mjs';
+import { REPO, frontmatter, isMain, readJsonc, unquote } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const FORBIDDEN = [
-  'CLAUDE.md',
-  'GEMINI.md',
-  '.claude',
-  '.cursor',
-  '.codex',
-  '.opencode',
-  '.gemini',
-  '.ai',
-  '.mcp.json',
-];
+/** Files of other assistants — the same list guard:forbidden enforces, read once. */
+const FORBIDDEN = FORBIDDEN_PATHS.map(([file]) => file).filter(
+  (file) => !file.includes('/') && !/^(?:nx|\.nx|\.husky|pnpm|yarn|\.prettier|prettier)/u.test(file),
+);
 
 /**
  * @typedef {object} Registry
@@ -47,29 +45,11 @@ const FORBIDDEN = [
  * @property {Record<string, { role: string, tier: string, visible?: boolean }>} roster
  * @property {Record<string, { requires?: string[], forbids?: string[], mcp?: boolean }>} roles
  * @property {Set<string>} toolSets
+ * @property {Set<string>} forbiddenToolSets
  * @property {RegExp} namePattern
  * @property {number} maxVisible
  * @property {string} mcpOwner
  */
-
-/**
- * Flat front matter reader: `key: value`, `key: ['a', 'b']`; the `hooks:` block is detected by key
- * presence only. A gate, not an editor — the agent files keep it flat on purpose.
- * @param {string} text
- * @returns {Record<string, string> | null}
- */
-export function frontmatter(text) {
-  if (!text.startsWith('---')) return null;
-  const end = text.indexOf('\n---', 3);
-  if (end === -1) return null;
-  /** @type {Record<string, string>} */
-  const out = {};
-  for (const line of text.slice(3, end).split('\n')) {
-    const match = /^([A-Za-z_-]+):(.*)$/u.exec(line);
-    if (match) out[match[1]] = match[2].trim();
-  }
-  return out;
-}
 
 /**
  * `['read', 'edit']` → ['read', 'edit']; a bare scalar → [scalar].
@@ -89,18 +69,39 @@ export function parseList(value) {
  * @returns {string[]}
  */
 export function mcpServers(repo) {
-  const file = path.join(repo, '.vscode', 'mcp.json');
-  if (!existsSync(file)) return [];
-  const text = readFileSync(file, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//gu, '')
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('//'))
-    .join('\n');
-  return Object.keys(JSON.parse(text).servers ?? {});
+  return Object.keys(mcpServerConfigs(repo));
 }
 
-/** @param {string} value */
-const unquote = (value) => value.replace(/^['"]|['"]$/gu, '');
+/**
+ * The server entries of .vscode/mcp.json (JSONC: comments stripped before parsing).
+ * @param {string} repo
+ * @returns {Record<string, { type?: string, command?: string, args?: string[] }>}
+ */
+export function mcpServerConfigs(repo) {
+  const file = path.join(repo, '.vscode', 'mcp.json');
+  if (!existsSync(file)) return {};
+  return readJsonc(file).servers ?? {};
+}
+
+/**
+ * A16 — a server is a pinned local binary: `node node_modules/<pkg>/…` over stdio. `npx`, a package
+ * name with a tag or anything downloaded at start would run code the lockfile never saw.
+ * @param {string} repo @param {Fail} fail
+ */
+function checkMcpConfig(repo, fail) {
+  for (const [name, server] of Object.entries(mcpServerConfigs(repo))) {
+    const where = `.vscode/mcp.json → ${name}`;
+    if ((server.type ?? 'stdio') !== 'stdio')
+      fail('A16', `${where}: type must be stdio (a remote server is a network dependency of every session)`);
+    if (server.command !== 'node')
+      fail('A16', `${where}: command must be "node" (got "${server.command}") — no npx, no global binaries`);
+    const entry = server.args?.[0] ?? '';
+    if (!/^node_modules\/\S+\.(?:m?js|cjs)$/u.test(entry))
+      fail('A16', `${where}: the first argument must be a script under node_modules/ (got "${entry}")`);
+    if ((server.args ?? []).some((arg) => /@(?:latest|next)\b/u.test(arg)))
+      fail('A16', `${where}: a moving tag (@latest/@next) in the arguments`);
+  }
+}
 
 /**
  * @param {string} repo
@@ -116,6 +117,7 @@ function readRegistry(repo) {
     roster: agents.roster ?? {},
     roles: agents.roles ?? {},
     toolSets: new Set(agents.toolSets ?? []),
+    forbiddenToolSets: new Set(agents.forbiddenToolSets ?? []),
     namePattern: new RegExp(agents.namePattern ?? '^[a-z0-9-]+$', 'u'),
     maxVisible: agents.maxVisible ?? 1,
     mcpOwner: registry.mcp?.owner ?? '',
@@ -183,6 +185,13 @@ function checkTools(name, front, registry, servers, fail) {
   }
   for (const forbidden of role.forbids ?? []) {
     if (tools.includes(forbidden)) fail('A6', `${where}: role ${entry.role} forbids the tool set "${forbidden}"`);
+  }
+  for (const banned of registry.forbiddenToolSets) {
+    if (tools.includes(banned))
+      fail(
+        'A15',
+        `${where}: the tool set "${banned}" is forbidden for every agent (registry agents.forbiddenToolSets)`,
+      );
   }
   // Anything that is not a built-in set is an MCP reference (`server` or `server/tool`).
   const mcpRefs = tools.filter((tool) => !registry.toolSets.has(tool));
@@ -271,30 +280,88 @@ export function patternHeads(pattern) {
     .filter((head) => head !== '' && head !== '.' && !head.startsWith('*'));
 }
 
+/** The only shape a hook command may have: this repository's own script, run by node. */
+const HOOK_COMMAND = /^node tools\/hooks\/[a-z0-9-]+\.mjs$/u;
+
 /**
- * A11 — hooks, in .github/hooks and inside agent files.
- * @param {string} repo @param {Map<string, Record<string, string>>} fronts @param {Fail} fail
+ * A11 + A14 for one command: the shape and the script's existence.
+ * @param {string} repo @param {string} where @param {string} command @param {Fail} fail
  */
-function checkHooks(repo, fronts, fail) {
+function checkHookCommand(repo, where, command, fail) {
+  if (!HOOK_COMMAND.test(command)) {
+    fail('A14', `${where}: hook command "${command}" is not \`node tools/hooks/<name>.mjs\``);
+    return;
+  }
+  const script = command.replace(/^node\s+/u, '');
+  if (!existsSync(path.join(repo, script))) fail('A11', `${where}: hook script ${script} does not exist`);
+}
+
+/**
+ * The raw front matter of an agent file (between the `---` fences), for the checks the flat reader
+ * cannot express — the hooks block is nested.
+ * @param {string} text
+ * @returns {string}
+ */
+function frontMatterText(text) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(text);
+  return match ? match[1] : '';
+}
+
+/**
+ * A11 + A13 + A14 — hooks in .github/hooks and inside agent files.
+ * @param {string} repo @param {Map<string, Record<string, string>>} fronts @param {Registry} registry @param {Fail} fail
+ */
+function checkHooks(repo, fronts, registry, fail) {
   const hooksDir = path.join(repo, '.github', 'hooks');
   if (existsSync(hooksDir)) {
     for (const file of readdirSync(hooksDir).filter((entry) => entry.endsWith('.json'))) {
       const config = JSON.parse(readFileSync(path.join(hooksDir, file), 'utf8'));
       for (const entries of Object.values(config.hooks ?? {})) {
-        for (const entry of /** @type {any[]} */ (entries)) {
-          const script = String(entry.command ?? '').replace(/^node\s+/u, '');
-          if (script && !existsSync(path.join(repo, script)))
-            fail('A11', `.github/hooks/${file}: script ${script} does not exist`);
-        }
+        for (const entry of /** @type {any[]} */ (entries))
+          checkHookCommand(repo, `.github/hooks/${file}`, String(entry.command ?? ''), fail);
       }
     }
   }
   for (const [name, front] of fronts) {
-    if (front.hooks === undefined) continue;
-    const text = readFileSync(path.join(repo, '.github', 'agents', `${name}.agent.md`), 'utf8');
-    for (const match of text.matchAll(/command:\s*node\s+(\S+)/gu)) {
-      if (!existsSync(path.join(repo, match[1])))
-        fail('A11', `.github/agents/${name}.agent.md: hook script ${match[1]} does not exist`);
+    const where = `.github/agents/${name}.agent.md`;
+    const text = frontMatterText(readFileSync(path.join(repo, '.github', 'agents', `${name}.agent.md`), 'utf8'));
+    for (const match of text.matchAll(/^\s*command:\s*(.+?)\s*$/gmu)) checkHookCommand(repo, where, match[1], fail);
+    const forbids = registry.roles[registry.roster[name]?.role]?.forbids ?? [];
+    // Pure readers only: the integration role forbids edits too, but its MCP tools are "execute" by
+    // name and would trip the allowlist — its guard is A8 (one owner) plus the server's own --read-only.
+    const readOnly = forbids.includes('edit') && forbids.includes('execute');
+    const denies = /PreToolUse:[\s\S]*?command:\s*node tools\/hooks\/deny-writes\.mjs/u.test(text);
+    if (readOnly && !denies)
+      fail(
+        'A13',
+        `${where}: a read-only role must carry the PreToolUse hook \`node tools/hooks/deny-writes.mjs\` — the tools list is a request, the hook is the enforcement`,
+      );
+    if (!readOnly && denies)
+      fail('A13', `${where}: carries deny-writes but its role may edit — one of the two is wrong`);
+    if (front.hooks === undefined && denies)
+      fail('A13', `${where}: hooks block not detected by the front matter reader`);
+  }
+}
+
+/**
+ * A17 — the orchestrator's routing table (the first markdown table of its file) names every other
+ * roster agent in its last column; an agent without a row is one the orchestrator will never call.
+ * @param {string} repo @param {Registry} registry @param {Fail} fail
+ */
+function checkRouting(repo, registry, fail) {
+  const orchestrators = Object.entries(registry.roster)
+    .filter(([, entry]) => entry.role === 'orchestrator')
+    .map(([name]) => name);
+  for (const orchestrator of orchestrators) {
+    const file = path.join(repo, '.github', 'agents', `${orchestrator}.agent.md`);
+    if (!existsSync(file)) continue;
+    const rows = readFileSync(file, 'utf8')
+      .split('\n')
+      .filter((line) => line.trim().startsWith('|'));
+    const named = new Set(rows.flatMap((row) => [...row.matchAll(/`([a-z0-9-]+)`/gu)].map((match) => match[1])));
+    for (const name of Object.keys(registry.roster)) {
+      if (name !== orchestrator && !named.has(name))
+        fail('A17', `.github/agents/${orchestrator}.agent.md: routing table has no row naming \`${name}\``);
     }
   }
 }
@@ -346,7 +413,9 @@ export function validateAiConfig(repo = REPO) {
   if (files.length > 0 && visible === 0) fail('A7', 'no agent is user-invocable — a human has nothing to start from');
   checkDelegation(fronts, registry, fail);
   checkInstructionsAndPrompts(repo, fail);
-  checkHooks(repo, fronts, fail);
+  checkHooks(repo, fronts, registry, fail);
+  checkMcpConfig(repo, fail);
+  checkRouting(repo, registry, fail);
 
   // A12 — the human-readable roster.
   const agentsMd = path.join(repo, 'AGENTS.md');
@@ -364,7 +433,7 @@ export function validateAiConfig(repo = REPO) {
   return { ok: problems.length === 0, code: problems.length === 0 ? 0 : 1, problems, summary };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { ok, code, problems, summary } = validateAiConfig();
   if (ok) process.stdout.write(`ok ai:validate · ${summary}\n`);
   else process.stderr.write(`FAIL ai:validate\n${problems.map((p) => `  · ${p}`).join('\n')}\n`);

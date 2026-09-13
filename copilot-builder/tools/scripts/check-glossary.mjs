@@ -11,9 +11,8 @@
 // Exit codes: 0 pass · 1 a mapping points at nothing · 2 the glossary or its table is missing.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const GLOSSARY_FILE = 'GLOSSARY.md';
 
 /**
@@ -85,7 +84,7 @@ export function checkGlossary(repo = REPO) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { ok, code, problems, checked } = checkGlossary();
   if (ok) process.stdout.write(`ok glossary · ${checked} mappings resolve to a live path or symbol\n`);
   else process.stderr.write(`FAIL glossary\n${problems.map((p) => `  · ${p}`).join('\n')}\n`);

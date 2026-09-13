@@ -14,10 +14,9 @@
 // Exit codes: 0 all green · 1 the first red gate (its command is printed) · 2 usage error.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { displayCommand } from './display-command.mjs';
+import { REPO, isMain } from './lib/repo.mjs';
 
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const node = process.execPath;
 const bin = (/** @type {string} */ rel) => path.join(REPO, 'node_modules', rel);
 
@@ -73,7 +72,8 @@ export function projectSteps({ affected, full, base }) {
     command: [node, 'tools/scripts/affected.mjs', target, ...scope],
   });
   const steps = [run('typecheck'), run('test')];
-  if (!affected) steps.push(run('build'));
+  // e2e runs over dist/, so --full builds even in affected mode; the default branch builds anyway.
+  if (!affected || full) steps.push(run('build'));
   if (full) steps.push(run('e2e'));
   return steps;
 }
@@ -121,7 +121,7 @@ export function runSteps(steps) {
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const args = parseArgs(process.argv.slice(2));
   const steps = args.static ? STATIC : [...STATIC, ...CODE, ...projectSteps(args)];
   process.exitCode = runSteps(steps);

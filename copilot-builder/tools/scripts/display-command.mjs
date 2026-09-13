@@ -22,5 +22,8 @@ export function displayPart(part, repo) {
  * @returns {string}
  */
 export function displayCommand(command, repo) {
-  return command.map((part) => displayPart(part, repo)).join(' ');
+  return command
+    .map((part) => displayPart(part, repo))
+    .map((part) => (/\s/u.test(part) ? `'${part.replaceAll("'", String.raw`'\''`)}'` : part))
+    .join(' ');
 }

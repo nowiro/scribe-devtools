@@ -1,12 +1,12 @@
-// Offline, deterministic gate over tools/scripts/pins.config.mjs — the first step of `pnpm run verify`,
-// next to `biome format .` (this repository: `npm run verify`). It answers four questions a green test suite does not:
+// Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of
+// `npm run verify`, next to `biome format .`. It answers four questions a green test suite does not:
 //
 //   1. META  — does every dependency in every manifest have a row? A check that does not know
 //              what it is not checking reads as coverage while covering nothing, so a package
 //              added without a row is a failure, not a silence.
 //   2. SHAPE — does the declared spec match the row's `policy`? `exact` means a bare version, which is what this
 //              repository pins everywhere — two machines resolve the same lockfile the same way.
-//   3. SYNC  — do the mirrors and the command lines repeat the owner character for character?
+//   3. TAG   — does every file that embeds the version in another shape (a CI image tag) carry the pinned one?
 //   4. LAG   — does any prose still quote a different version of the package than the pin?
 //
 // What it deliberately does NOT do: touch the network (that is check-upstream.mjs, WARN, run at
@@ -18,13 +18,11 @@
 // an old version on purpose.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { FROZEN_ALWAYS, PINS } from './pins.config.mjs';
+import { REPO, isMain } from './lib/repo.mjs';
 
 /** @typedef {import('./pins.config.mjs').Pin} Pin */
 /** @typedef {Map<string, {spec: string, where: string}[]>} Declarations */
-
-const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
 /** Never walked: generated, installed, or not this repository's text. */
 const SKIP_DIRS = new Set([
@@ -55,40 +53,14 @@ const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.mts', '.ts', '.json', '.yml', 
  * @returns {string[]} repo-relative paths, POSIX separators
  */
 /**
- * Where the workspace members are declared, asked of BOTH conventions: npm and Yarn put a
- * `workspaces` array in package.json, pnpm reads `pnpm-workspace.yaml` and ignores that field
- * entirely. This gate has no business knowing which package manager the repository uses — it
- * knows which packages exist — and when the repository moved from one to the other, a discovery
- * that read only the manifest field found ONE manifest and reported every pin as orphaned.
- *
- * The YAML is parsed by hand, on purpose and within a stated limit: this file's `packages:` list
- * is a flat sequence of scalars, that shape is a few lines of regex, and a YAML parser would be a
- * dependency taken on for six lines of configuration. A nested or anchored file would be read as
- * empty — a missing manifest, which the META rule then reports loudly rather than skipping.
+ * Workspace member patterns from the `workspaces` array of the root manifest (npm), or none.
  * @param {string} root
  * @returns {string[]} glob-ish patterns, exactly as declared
  */
 export function workspacePatterns(root) {
   /** @type {{workspaces?: string[]}} */
   const rootPkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  if (rootPkg.workspaces && rootPkg.workspaces.length > 0) return rootPkg.workspaces;
-  const yaml = path.join(root, 'pnpm-workspace.yaml');
-  if (!existsSync(yaml)) return [];
-  /** @type {string[]} */
-  const patterns = [];
-  let inPackages = false;
-  for (const raw of readFileSync(yaml, 'utf8').split('\n')) {
-    const line = raw.replace(/#.*$/u, '').trimEnd();
-    if (/^packages:\s*$/u.test(line)) {
-      inPackages = true;
-      continue;
-    }
-    if (!inPackages) continue;
-    const item = /^\s+-\s+(.+)$/u.exec(line);
-    if (!item) break;
-    patterns.push(item[1].trim().replace(/^['"]|['"]$/gu, ''));
-  }
-  return patterns;
+  return rootPkg.workspaces ?? [];
 }
 
 export function discoverManifests(root) {
@@ -132,7 +104,7 @@ export function readDeclarations(root, manifests) {
 }
 
 /**
- * The spec at an `owner`/`mirrors` coordinate, or null when the coordinate names nothing.
+ * The spec at the `owner` coordinate, or null when the coordinate names nothing.
  * @param {Map<string, {spec: string, where: string}[]>} byId
  * @param {string} id
  * @param {string} coordinate
@@ -254,32 +226,32 @@ function shapeProblems(pin, ownerSpec, version) {
 }
 
 /**
- * SYNC — mirrors repeat the owner's spec verbatim; command lines spawn exactly the pinned version.
+ * TAG — a file that embeds the version in another shape (`mcr.microsoft.com/playwright:v1.62.1-noble`)
+ * must carry the pinned version and no other. `{version}` in the pattern stands for the version.
  * @param {Pin} pin
- * @param {string} ownerSpec
  * @param {string} version
- * @param {Declarations} byId
  * @param {string} root
  * @returns {string[]}
  */
-function syncProblems(pin, ownerSpec, version, byId, root) {
+export function tagProblems(pin, version, root) {
   const problems = [];
-  for (const mirror of pin.mirrors ?? []) {
-    const mirrorSpec = specAt(byId, pin.id, mirror);
-    if (mirrorSpec === null) problems.push(`SYNC ${pin.id}: mirror "${mirror}" declares nothing`);
-    else if (mirrorSpec !== ownerSpec)
-      problems.push(`SYNC ${pin.id}: ${mirror} says "${mirrorSpec}", owner ${pin.owner} says "${ownerSpec}"`);
-  }
-  for (const file of pin.argv ?? []) {
-    const abs = path.join(root, file);
+  for (const tag of pin.tags ?? []) {
+    const abs = path.join(root, tag.file);
     if (!existsSync(abs)) {
-      problems.push(`SYNC ${pin.id}: argv file ${file} is missing`);
+      problems.push(`TAG ${pin.id}: ${tag.file} is missing`);
       continue;
     }
-    if (!readFileSync(abs, 'utf8').includes(`${pin.id}@${version}`)) {
-      problems.push(
-        `SYNC ${pin.id}: ${file} does not spawn ${pin.id}@${version} — the server measured is not the server pinned`,
-      );
+    const escaped = tag.pattern
+      .replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)
+      .replace(String.raw`\{version\}`, '(\\d+\\.\\d+\\.\\d+(?:[-+][\\w.-]+)?)');
+    const found = [...readFileSync(abs, 'utf8').matchAll(new RegExp(escaped, 'gu'))].map((match) => match[1]);
+    if (found.length === 0) {
+      problems.push(`TAG ${pin.id}: ${tag.file} does not contain "${tag.pattern.replace('{version}', version)}"`);
+      continue;
+    }
+    for (const seen of found) {
+      if (seen !== version)
+        problems.push(`TAG ${pin.id}: ${tag.file} carries ${seen}, pinned is ${version} — bump both in one commit`);
     }
   }
   return problems;
@@ -311,7 +283,7 @@ function lagProblems(pin, version, root) {
 }
 
 /**
- * Every rule for one row: META (owner declares it), then SHAPE/FLOOR, SYNC and LAG.
+ * Every rule for one row: META (owner declares it), then SHAPE/FLOOR, TAG and LAG.
  * @param {Pin} pin
  * @param {Declarations} byId
  * @param {string} root
@@ -333,7 +305,7 @@ function checkPin(pin, byId, root) {
   if (version === null) return [`SHAPE ${pin.id}: owner spec "${ownerSpec}" carries no version`];
   return [
     ...shapeProblems(pin, ownerSpec, version),
-    ...syncProblems(pin, ownerSpec, version, byId, root),
+    ...tagProblems(pin, version, root),
     ...lagProblems(pin, version, root),
   ];
 }
@@ -364,12 +336,12 @@ export function checkPins(root) {
     problems,
     message:
       problems.length === 0
-        ? `${byId.size} dependencies in ${manifests.length} manifests, ${PINS.length} rows, every one owned · mirrors and command lines in sync · no prose quoting a stale version`
+        ? `${byId.size} dependencies in ${manifests.length} manifests, ${PINS.length} rows, every one owned · image tags in sync · no prose quoting a stale version`
         : `${problems.length} problem(s) across ${byId.size} dependencies in ${manifests.length} manifests`,
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const { ok, message, problems } = checkPins(REPO);
   const stream = ok ? process.stdout : process.stderr;
   stream.write(`${ok ? 'ok' : 'FAIL'} pins: ${message}\n`);

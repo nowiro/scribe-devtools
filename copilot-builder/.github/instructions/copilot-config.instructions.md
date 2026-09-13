@@ -6,7 +6,7 @@ applyTo: '.github/**'
 # Konfiguracja Copilota (`.github/`)
 
 Właściciel: `code-tooling` (mechanika) i `doc-spec` (treść prompta / agenta). Brama: `npm run ai:validate`
-(reguły A1–A12 w `tools/scripts/validate-ai-config.mjs`). Po zmianie agentów: **Reload Window** w VS Code.
+(reguły A1–A17 w `tools/scripts/validate-ai-config.mjs`). Po zmianie agentów: **Reload Window** w VS Code.
 
 - Roster żyje w `.github/models-registry.json` (`agents.roster`: rola, tier, widoczność) — plik agenta bez
   wpisu w rosterze i wpis bez pliku są usterką. Nazwy `<domena>-<przedmiot>`: `orchestrator-*`, `code-*`,
