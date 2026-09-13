@@ -11,6 +11,7 @@
       "problemMatcher": []
     },
     { "label": "portable (zip do download/)", "type": "npm", "script": "portable", "problemMatcher": [] },
+    { "label": "claims", "type": "npm", "script": "claims", "problemMatcher": [] },
     { "label": "code-index", "type": "npm", "script": "code-index", "problemMatcher": [] },
     {
       "label": "browser-inspector: doctor",
