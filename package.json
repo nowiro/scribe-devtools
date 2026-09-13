@@ -12,8 +12,9 @@
     "packages/*"
   ],
   "scripts": {
-    "verify": "biome format . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all",
+    "verify": "biome format . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all && node scripts/check-claims.mjs",
     "typecheck": "tsc --noEmit",
+    "claims": "node scripts/check-claims.mjs",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "code-index": "node scripts/index-code.mjs",

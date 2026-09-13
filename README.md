@@ -26,7 +26,7 @@ git clone <repo> scribe-devtools
 cd scribe-devtools
 npm ci            # .npmrc: ignore-scripts=true, engine-strict=true
 npm run prepare   # uzbraja hook pre-commit (npm install go NIE uruchamia — ignore-scripts)
-npm run verify    # bramki: biome format, check-pins, tsc, CODE-INDEX, sync bloku instrukcji
+npm run verify    # bramki: biome format, check-pins, tsc, CODE-INDEX, sync instrukcji, claims
 ```
 
 Bez binarek na PATH: `node packages/browser-inspector/bin/browser-inspector.mjs …` /
@@ -110,6 +110,7 @@ Instrukcje dla agentów pracujących w tym repo: [AGENTS.md](AGENTS.md).
 | --- | --- |
 | `npm run verify` | wszystkie bramki (patrz AGENTS.md) |
 | `npm run typecheck` | `tsc --noEmit` z `checkJs` |
+| `npm run claims` | uruchamia obie binarki i sprawdza obietnice z prozy (jedna linia, limit 120 znaków, kody wyjścia) |
 | `npm run code-index` | regeneracja `CODE-INDEX.md` |
 | `npm run portable` | zip portable obu narzędzi |
 | `npm run browser-inspector -- <args>` / `npm run nx-angular-inspector -- <args>` | narzędzie bez PATH |

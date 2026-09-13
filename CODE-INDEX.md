@@ -5,7 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 51.
+Modules: 52.
 
 ## packages/browser-inspector/bin/browser-inspector.mjs
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/client.mjs`
@@ -122,12 +122,12 @@ Modules: 51.
 ## packages/browser-inspector/src/steps.run.mjs
 - exports: `BODY_LINES_MAX`, `NET_LIST_MAX`, `RUNNERS`, `SNAP_MAX_DEFAULT`, `durableSelector`, `fileContent`, `frameFor`, `globToRegExp`
 - imports: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/types.js`
-- imported by: `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`
+- imported by: `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `scripts/check-claims.mjs`
 
 ## packages/browser-inspector/src/steps.schema.mjs
 - exports: `ALL_SPELLINGS`, `ARTIFACT_NAME`, `FIELD_TYPES`, `MODIFIERS`, `REF_PATTERN`, `STEPS`, `STEP_NAMES`, `WAIT_UNTIL`, `checkField`, `describeStep`, `helpFor`, `isRef`, `parseFieldType`, `refFieldsOf`, `resolveStepName`, `splitPoint`, `stepNames`, `validateStep`, `validateSteps`, `valueArg`
 - imports: `packages/browser-inspector/src/types.js`
-- imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
+- imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `scripts/check-claims.mjs`
 
 ## packages/nx-angular-inspector/bin/nx-angular-inspector.mjs
 - imports: `packages/nx-angular-inspector/src/main.mjs`
@@ -212,6 +212,9 @@ Modules: 51.
 - exports: `loadModel`, `readJsonOrNull`
 - imports: `packages/nx-angular-inspector/src/detect.mjs`, `packages/nx-angular-inspector/src/graph.mjs`, `packages/nx-angular-inspector/src/nxcli.mjs`, `packages/nx-angular-inspector/src/paths.mjs`, `packages/nx-angular-inspector/src/stamp.mjs`
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
+
+## scripts/check-claims.mjs
+- imports: `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`
 
 ## scripts/check-instruction-sync.mjs
 - exports: `AGENTS_FILE`, `BLOCKS`, `COPILOT_FILE`, `TOKEN_LIMIT`, `TOTAL_TOKEN_LIMIT`, `checkInstructionSync`, `countTokens`, `extractInstruction`

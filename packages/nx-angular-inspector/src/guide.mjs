@@ -8,7 +8,7 @@
 // Cost is reported in bytes, not tokens. A token count would need a tokenizer, this package has
 // zero runtime dependencies on purpose, and a guessed token number in a repository that measures
 // tokens for a living would be worse than no number at all.
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -41,6 +41,68 @@ const WORKSPACE = Object.freeze([
 ]);
 
 /**
+ * Guidance that comes as MANY files of one kind rather than one named file: per-area rules, ready
+ * prompts, custom agents. Matched by SUFFIX under `.github/`, deliberately not by directory: VS
+ * Code points at `.github/instructions` and `.github/prompts` through settings a workspace may
+ * move (`chat.instructionsFilesLocations`, `chat.promptFilesLocations`), and an agent plugin keeps
+ * its own tree. A hardcoded directory would then report nothing about a workspace that is set up
+ * correctly, which is the failure mode this command exists to prevent.
+ */
+const SUFFIXED = Object.freeze([
+  { suffix: '.instructions.md', what: 'reguły per obszar plików (applyTo)' },
+  { suffix: '.prompt.md', what: 'gotowy przepływ (/nazwa)' },
+  { suffix: '.agent.md', what: 'własny agent tego workspace' },
+]);
+
+/**
+ * An agent plugin's manifest. Three locations because the format allows a plugin to sit at the
+ * repository root or tucked inside `.github/`, and a workspace picks one. The row says only that
+ * the plugin is there and how big its manifest is — what it declares is behind the same rule as
+ * every other row: paths and cost, never content.
+ */
+const PLUGIN_MANIFESTS = Object.freeze(['plugin.json', '.github/plugin.json', '.github/plugin/plugin.json']);
+
+/** A runaway guard: `.github/` is small in every healthy repository, and this is not a file finder. */
+const GITHUB_SCAN_DEPTH = 3;
+const GITHUB_SCAN_LIMIT = 200;
+
+/**
+ * Every file under `.github/`, breadth-first, capped. Sorted at each level so two runs on the same
+ * tree print the same order — the output is a document a human diffs.
+ * @param {string} root
+ * @returns {string[]} absolute paths
+ */
+function githubFiles(root) {
+  /** @type {string[]} */
+  const out = [];
+  /** @type {{ dir: string, depth: number }[]} */
+  let level = [{ dir: path.join(root, '.github'), depth: 0 }];
+  while (level.length > 0 && out.length < GITHUB_SCAN_LIMIT) {
+    /** @type {{ dir: string, depth: number }[]} */
+    const next = [];
+    for (const { dir, depth } of level) {
+      /** @type {import('node:fs').Dirent[]} */
+      let entries;
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (depth + 1 <= GITHUB_SCAN_DEPTH) next.push({ dir: full, depth: depth + 1 });
+        } else if (out.length < GITHUB_SCAN_LIMIT) {
+          out.push(full);
+        }
+      }
+    }
+    level = next;
+  }
+  return out;
+}
+
+/**
  * Every guidance document that actually exists, workspace-owned first — the caller's own rules
  * outrank a framework's defaults, and the order of the list is the order to read them in.
  * @param {string} root
@@ -52,6 +114,16 @@ export function findGuides(root) {
   for (const { rel, what } of WORKSPACE) {
     const file = path.join(root, rel);
     if (existsSync(file)) docs.push({ file, bytes: sizeOf(file), origin: 'workspace', what });
+  }
+  const inGithub = githubFiles(root);
+  for (const { suffix, what } of SUFFIXED) {
+    for (const file of inGithub) {
+      if (file.endsWith(suffix)) docs.push({ file, bytes: sizeOf(file), origin: 'workspace', what });
+    }
+  }
+  for (const rel of PLUGIN_MANIFESTS) {
+    const file = path.join(root, ...rel.split('/'));
+    if (existsSync(file)) docs.push({ file, bytes: sizeOf(file), origin: 'workspace', what: 'wtyczka agenta' });
   }
   /** @type {Set<string>} */
   const seenOrigins = new Set();
