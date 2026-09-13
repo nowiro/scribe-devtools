@@ -42,42 +42,53 @@ const WORKSPACE = Object.freeze([
 
 /**
  * Guidance that comes as MANY files of one kind rather than one named file: per-area rules, ready
- * prompts, custom agents. Matched by SUFFIX under `.github/`, deliberately not by directory: VS
- * Code points at `.github/instructions` and `.github/prompts` through settings a workspace may
- * move (`chat.instructionsFilesLocations`, `chat.promptFilesLocations`), and an agent plugin keeps
- * its own tree. A hardcoded directory would then report nothing about a workspace that is set up
- * correctly, which is the failure mode this command exists to prevent.
+ * prompts, custom agents, skills. Matched by NAME PATTERN inside a fixed set of roots, because
+ * that is how the hosts themselves discover them — see the loading order in GitHub's CLI plugin
+ * reference: custom agents from `<project>/.github/agents/` then `<project>/.claude/agents/`,
+ * skills from `<project>/.github/skills/`, `<project>/.agents/skills/`, `<project>/.claude/skills/`.
+ * Matching the pattern rather than the exact directory keeps the answer right when a workspace
+ * nests them one level deeper, which VS Code allows through `chat.promptFilesLocations` and
+ * `chat.instructionsFilesLocations`.
  */
 const SUFFIXED = Object.freeze([
-  { suffix: '.instructions.md', what: 'reguły per obszar plików (applyTo)' },
-  { suffix: '.prompt.md', what: 'gotowy przepływ (/nazwa)' },
-  { suffix: '.agent.md', what: 'własny agent tego workspace' },
+  { match: (/** @type {string} */ n) => n.endsWith('.instructions.md'), what: 'reguły per obszar plików (applyTo)' },
+  { match: (/** @type {string} */ n) => n.endsWith('.prompt.md'), what: 'gotowy przepływ (/nazwa)' },
+  { match: (/** @type {string} */ n) => n.endsWith('.agent.md'), what: 'własny agent tego workspace' },
+  { match: (/** @type {string} */ n) => n === 'SKILL.md', what: 'skill — nazwana umiejętność agenta' },
 ]);
 
+/** The roots the hosts read project-level guidance from. Each is optional; a missing one is a missing row. */
+const AGENT_ROOTS = Object.freeze(['.github', '.claude', '.agents']);
+
 /**
- * An agent plugin's manifest. Three locations because the format allows a plugin to sit at the
- * repository root or tucked inside `.github/`, and a workspace picks one. The row says only that
- * the plugin is there and how big its manifest is — what it declares is behind the same rule as
- * every other row: paths and cost, never content.
+ * An agent plugin's manifest, in the order the CLI checks it: Agent Plugins 1.0 requires it at the
+ * plugin root, legacy plugins accept three more places. The row says only that a plugin is there
+ * and how big its manifest is — what it declares is behind the same rule as every other row: paths
+ * and cost, never content.
  */
-const PLUGIN_MANIFESTS = Object.freeze(['plugin.json', '.github/plugin.json', '.github/plugin/plugin.json']);
+const PLUGIN_MANIFESTS = Object.freeze([
+  'plugin.json',
+  '.plugin/plugin.json',
+  '.github/plugin/plugin.json',
+  '.claude-plugin/plugin.json',
+]);
 
-/** A runaway guard: `.github/` is small in every healthy repository, and this is not a file finder. */
-const GITHUB_SCAN_DEPTH = 3;
-const GITHUB_SCAN_LIMIT = 200;
+/** A runaway guard: these roots are small in every healthy repository, and this is not a file finder. */
+const SCAN_DEPTH = 3;
+const SCAN_LIMIT = 400;
 
 /**
- * Every file under `.github/`, breadth-first, capped. Sorted at each level so two runs on the same
- * tree print the same order — the output is a document a human diffs.
+ * Every file under the agent roots, breadth-first, capped. Sorted at each level so two runs on the
+ * same tree print the same order — the output is a document a human diffs.
  * @param {string} root
  * @returns {string[]} absolute paths
  */
-function githubFiles(root) {
+function agentFiles(root) {
   /** @type {string[]} */
   const out = [];
   /** @type {{ dir: string, depth: number }[]} */
-  let level = [{ dir: path.join(root, '.github'), depth: 0 }];
-  while (level.length > 0 && out.length < GITHUB_SCAN_LIMIT) {
+  let level = AGENT_ROOTS.map((rel) => ({ dir: path.join(root, rel), depth: 0 }));
+  while (level.length > 0 && out.length < SCAN_LIMIT) {
     /** @type {{ dir: string, depth: number }[]} */
     const next = [];
     for (const { dir, depth } of level) {
@@ -91,8 +102,8 @@ function githubFiles(root) {
       for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) {
-          if (depth + 1 <= GITHUB_SCAN_DEPTH) next.push({ dir: full, depth: depth + 1 });
-        } else if (out.length < GITHUB_SCAN_LIMIT) {
+          if (depth + 1 <= SCAN_DEPTH) next.push({ dir: full, depth: depth + 1 });
+        } else if (out.length < SCAN_LIMIT) {
           out.push(full);
         }
       }
@@ -115,10 +126,10 @@ export function findGuides(root) {
     const file = path.join(root, rel);
     if (existsSync(file)) docs.push({ file, bytes: sizeOf(file), origin: 'workspace', what });
   }
-  const inGithub = githubFiles(root);
-  for (const { suffix, what } of SUFFIXED) {
-    for (const file of inGithub) {
-      if (file.endsWith(suffix)) docs.push({ file, bytes: sizeOf(file), origin: 'workspace', what });
+  const found = agentFiles(root);
+  for (const { match, what } of SUFFIXED) {
+    for (const file of found) {
+      if (match(path.basename(file))) docs.push({ file, bytes: sizeOf(file), origin: 'workspace', what });
     }
   }
   for (const rel of PLUGIN_MANIFESTS) {
