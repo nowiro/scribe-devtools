@@ -17,6 +17,9 @@ importers:
       gpt-tokenizer:
         specifier: ^4.0.0
         version: 4.0.0
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -219,6 +222,11 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+    engines: {node: '>=14'}
+    hasBin: true
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -331,6 +339,8 @@ snapshots:
   gpt-tokenizer@4.0.0: {}
 
   playwright-core@1.62.1: {}
+
+  prettier@3.9.6: {}
 
   typescript@7.0.2:
     optionalDependencies:

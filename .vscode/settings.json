@@ -1,6 +1,6 @@
 {
-  // Formatowanie: jedna konfiguracja dla całego repo (biome.jsonc, 120 kolumn, LF). Markdown
-  // zostaje bez formatera — Biome go nie obsługuje — więc dla .md nie ustawiamy żadnego.
+  // Formatowanie: kod i JSON pilnuje Biome (biome.jsonc), prozę prettier (prettier.config.mjs) —
+  // dwa formatery nad rozłącznymi zbiorami plików, bo Biome nie ma formatera Markdownu.
   "editor.defaultFormatter": "biomejs.biome",
 
   // Zadania typu `npm` w tasks.json mają jechać pnpm — inaczej Run Task wołałby npm w repo,
@@ -10,9 +10,10 @@
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
-  // Markdown zostaje bez formatera (Biome go nie obsługuje), a "dwie spacje na końcu = łamanie
-  // linii" jest w review niewidoczne i nie przeżywa przycinania.
-  "[markdown]": { "editor.defaultFormatter": null, "files.trimTrailingWhitespace": false },
+  // Markdown idzie przez prettiera — tego samego, którym bramka robi `prettier --check "**/*.md"`,
+  // żeby zapis w edytorze i bramka dawały ten sam plik. Przycinanie spacji zostaje wyłączone: "dwie
+  // spacje na końcu = łamanie linii" jest w review niewidoczne i nie przeżywa przycinania.
+  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "files.trimTrailingWhitespace": false },
 
   // Wyniki przebiegów narzędzi to dane cudzej aplikacji/workspace'a — nie indeksuj ich i nie
   // pokazuj w wyszukiwaniu.

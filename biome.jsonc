@@ -7,10 +7,12 @@
   // the version in its path, which would be a SECOND place where the Biome version is declared —
   // and scripts/pins.config.mjs exists precisely so that there is only one.
   //
-  // What Biome does NOT do here: it has no Markdown formatter (the 2.x configuration schema knows
-  // css, graphql, grit, html, javascript and json — there is no markdown section), so the nine
-  // Markdown files that prettier used to format (.github/**/*.md and templates/flow.md) are now
-  // checked by review only. Named, not hidden; AGENTS.md says the same in the gate table.
+  // What Biome does NOT do here: Markdown. The 2.x configuration schema knows css, graphql, grit,
+  // html, javascript and json — there is no markdown section, and a plugin cannot add one, because
+  // plugins are GritQL patterns matched against a tree Biome itself parsed and `.md` never reaches
+  // that parser (`biome check x.md` answers "these paths were provided but ignored"). So prose is
+  // formatted by prettier instead — see prettier.config.mjs — over a disjoint set of files: every
+  // `.md` there, everything else here. AGENTS.md says the same in the gate table.
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": false },
   "formatter": {
@@ -38,8 +40,8 @@
   // a project decision, not a side effect of changing formatter.
   "linter": { "enabled": false },
   "assist": { "enabled": false },
-  // Twin of .prettierignore: what a human maintains by hand and what a generator writes.
-  // The Markdown entries from that file are gone because Biome never looks at Markdown anyway.
+  // Twin of the top of .prettierignore: what a human maintains by hand and what a generator writes.
+  // The Markdown entries of that file have no counterpart here — Biome never looks at Markdown.
   "files": {
     "includes": [
       "**",

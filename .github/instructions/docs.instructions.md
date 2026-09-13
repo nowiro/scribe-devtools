@@ -11,7 +11,10 @@ applyTo: '**/*.md'
   w AGENTS.md).
 - Bloki `INSTRUCTION…START/END` w AGENTS.md ≡ ich kopie w `.github/copilot-instructions.md`
   (`node scripts/check-instruction-sync.mjs --require-all`).
-- Plików `.md` **nie formatuje żadna bramka**: repozytorium formatuje Biome, a ten nie ma
-  formatera Markdownu (schemat 2.x zna css, graphql, grit, html, javascript, json). README.md
-  i AGENTS.md były ręcznie zawijane i poza formaterem także wcześniej; reszta prozy jest teraz
-  na review — 120 kolumn i jedno zdanie na linię trzymaj ręcznie.
+- Pliki `.md` formatuje **prettier**, nie Biome: Biome nie ma formatera Markdownu (schemat 2.x zna
+  css, graphql, grit, html, javascript, json). Bramka to `prettier --check "**/*.md"`, naprawa to
+  `pnpm run format`. `proseWrap: 'preserve'` znaczy, że zawijania prettier NIE ruszy — 120 kolumn
+  i jedno zdanie na linię nadal trzymasz ręcznie; prettier pilnuje tabel, list i nagłówków.
+- Poza formaterem (`.prettierignore`): `README.md` i `AGENTS.md` — tabele zawężone ręcznie, prettier
+  rozepchałby każdy wiersz do jednej długiej linii — oraz generowany `CODE-INDEX.md`. Tam szerokość
+  jest w całości Twoja.

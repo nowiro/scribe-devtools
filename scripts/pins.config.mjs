@@ -60,7 +60,15 @@ export const PINS = [
     policy: 'caret',
     prose: [],
     staleDays: 180,
-    why: '`biome format .` is the first step of `pnpm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. It replaced prettier: on this tree the two disagree about exactly ONE line out of 62 files (a space before `)` in an empty `for` update clause), so the switch was a change of tool, not of style. What it does NOT carry over is Markdown: the 2.x configuration schema has no markdown section, so the nine prose files prettier used to format are on review now. A major that adds one would be worth taking; that is what this row is for.',
+    why: '`biome format .` is the first step of `pnpm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. It replaced prettier on code: on this tree the two disagree about exactly ONE line out of 62 files (a space before `)` in an empty `for` update clause), so the switch was a change of tool, not of style. What it does NOT carry over is Markdown: the 2.x configuration schema has no markdown section, and a plugin cannot add one (plugins are GritQL patterns over a tree Biome parsed, and `.md` never reaches the parser), which is why the `prettier` row below still exists. A major that adds a markdown formatter would let this repository drop that second tool — that is what this row is for.',
+  },
+  {
+    id: 'prettier',
+    owner: 'package.json#devDependencies',
+    policy: 'caret',
+    prose: [],
+    staleDays: 180,
+    why: 'Formats Markdown and nothing else — the one thing Biome cannot do (see the row above). Runs as the second step of `pnpm run verify`, so a formatting change is visible before any slower gate; caret is fine for the same reason it is fine for Biome. `prettier.config.mjs` deliberately sets `proseWrap: "preserve"`: prettier owns tables, lists and headings here, the line wrapping stays a human decision, and a release that changed that default would show up as a diff across every prose file rather than silently.',
   },
   {
     id: 'typescript',
