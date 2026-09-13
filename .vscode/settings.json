@@ -1,23 +1,20 @@
 {
-  // Formatowanie: jedna konfiguracja dla całego repo (prettier.config.mjs, 120 kolumn, LF).
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // Formatowanie: jedna konfiguracja dla całego repo (biome.jsonc, 120 kolumn, LF). Markdown
+  // zostaje bez formatera — Biome go nie obsługuje — więc dla .md nie ustawiamy żadnego.
+  "editor.defaultFormatter": "biomejs.biome",
   "editor.formatOnSave": true,
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
-  "[markdown]": { "files.trimTrailingWhitespace": false },
+  // Markdown zostaje bez formatera (Biome go nie obsługuje), a "dwie spacje na końcu = łamanie
+  // linii" jest w review niewidoczne i nie przeżywa przycinania.
+  "[markdown]": { "editor.defaultFormatter": null, "files.trimTrailingWhitespace": false },
 
-  // Wyniki przebiegów narzędzi (browser-inspector: .scribe-devtools, nx-angular-inspector: .ws) i benchu to
-  // dane cudzej aplikacji/workspace'a — nie indeksuj ich i nie pokazuj w wyszukiwaniu.
-  "files.exclude": { "**/.scribe-devtools": true, "**/.ws": true, "**/bench/out": true },
-  "search.exclude": {
-    "**/.scribe-devtools": true,
-    "**/.ws": true,
-    "**/bench/out": true,
-    "**/download": true,
-    "**/node_modules": true
-  },
-  "files.watcherExclude": { "**/.scribe-devtools/**": true, "**/.ws/**": true, "**/bench/out/**": true },
+  // Wyniki przebiegów narzędzi to dane cudzej aplikacji/workspace'a — nie indeksuj ich i nie
+  // pokazuj w wyszukiwaniu.
+  "files.exclude": { "**/.scribe-devtools": true, "**/.ws": true },
+  "search.exclude": { "**/.scribe-devtools": true, "**/.ws": true, "**/download": true, "**/node_modules": true },
+  "files.watcherExclude": { "**/.scribe-devtools/**": true, "**/.ws/**": true },
 
   // GitHub Copilot: instrukcje repo (.github/copilot-instructions.md, .github/instructions/*.instructions.md),
   // prompt files (.github/prompts/*.prompt.md → /migrate-from-mcp-playwright, /browser-session) i AGENTS.md.
@@ -25,9 +22,6 @@
   "chat.promptFilesLocations": { ".github/prompts": true },
   "chat.instructionsFilesLocations": { ".github/instructions": true },
   "chat.useAgentsMdFile": true,
-
-  // Vitest: projekty unit/scripts/bench/smoke/compat z vitest.config.mts; smoke i compat wymagają Chrome/Edge.
-  "vitest.rootConfig": "vitest.config.mts",
 
   // Typy z JSDoc sprawdza tsc --checkJs (tsconfig.json) — edytor ma pokazywać to samo, co bramka.
   "js/ts.implicitProjectConfig.checkJs": true,

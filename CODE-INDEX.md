@@ -5,55 +5,7 @@ Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
 `npm run verify` fails when this file is stale). One section per module:
 what it **exports**, what it **imports** and **who imports it** — read this before grepping.
 
-Modules: 63.
-
-## bench/bench.mjs
-- exports: `SESSIONS_PER_DAY`, `WORKDAYS`
-- imports: `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/mcp-run.mjs`, `bench/raport.mjs`, `bench/serve.mjs`, `bench/task.mjs`, `bench/time-run.mjs`, `bench/tokens.mjs`
-
-## bench/browser-inspector-run.mjs
-- exports: `APP_FACTORY_APPS`, `CI_VARS`, `COMMAND`, `COMMAND_PNPM`, `INSTRUCTION`, `appFactoryDir`, `appFactoryFixture`, `batchTokens`, `benchEnv`, `chromeDescendants`, `chromeProcesses`, `findingsFromReport`, `isAlive`, `keeperSurvivesShell`, `parseRefs`, `pipeNameFor`, `prepareAppFactoryConfig`, `prepareBatchConfig`, `readKeeperInfo`, `refOf`, `runAppFactory`, `runBatch`, `runInteractive`, `stopKeeper`, `timeCold`, `timeFirst`, `timeWarm`
-- imports: `bench/task.mjs`, `bench/time-run.mjs`, `bench/tokens.mjs`
-- imported by: `bench/bench.mjs`
-
-## bench/budget.mjs
-- exports: `COLUMNS`, `DESIGN_BUDGET`, `compareWithDesign`, `phaseRow`, `rangeVerdict`, `renderBudget`, `verdict`
-- imports: `bench/time-run.mjs`, `bench/tokens.mjs`
-- imported by: `bench/bench.mjs`
-
-## bench/mcp-client.mjs
-- exports: `initialize`, `startMcp`, `textOf`
-- imported by: `bench/mcp-run.mjs`
-
-## bench/mcp-run.mjs
-- exports: `VARIANTS`, `mcpArgs`, `mcpCli`, `mcpVersion`, `performLean`, `performNaive`, `readDefinition`, `refFor`, `runVariant`, `timeVariant`
-- imports: `bench/mcp-client.mjs`, `bench/task.mjs`, `bench/time-run.mjs`
-- imported by: `bench/bench.mjs`
-
-## bench/nx-angular-inspector-run.mjs
-- exports: `BIN`, `CI_VARS`, `COMMANDS`, `FIXTURES`, `INSTRUCTION`, `benchEnv`, `cacheModes`, `makeFixture`, `median`, `runOnce`, `runScenario`, `scenarioTokens`, `timeVerb`
-- imports: `bench/tokens.mjs`
-
-## bench/raport.mjs
-- exports: `barChart`, `paritySummary`, `renderRaport`, `renderReadmeBlock`, `renderWyniki`
-- imports: `bench/tokens.mjs`
-- imported by: `bench/bench.mjs`
-
-## bench/serve.mjs
-- exports: `APP_PORT`, `APP_ROOT`, `safePath`, `serveStatic`, `startServer`
-- imported by: `bench/bench.mjs`
-
-## bench/task.mjs
-- exports: `APP_URL`, `EXPECTED`, `FLOW_STEPS`, `INPUT`, `SNAPSHOT_NAME`, `browserInspectorConfig`, `checkFindings`
-- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/mcp-run.mjs`
-
-## bench/time-run.mjs
-- exports: `BIN`, `REPO`, `chromeDescendants`, `chromeProcesses`, `isAlive`, `makeStamp`, `readJson`, `sleep`, `spawnBrowserInspector`, `stats`, `waitForChromeGone`
-- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/mcp-run.mjs`
-
-## bench/tokens.mjs
-- exports: `bytesOf`, `countTokens`, `fmt`, `measure`, `total`
-- imported by: `bench/bench.mjs`, `bench/browser-inspector-run.mjs`, `bench/budget.mjs`, `bench/nx-angular-inspector-run.mjs`, `bench/raport.mjs`
+Modules: 51.
 
 ## packages/browser-inspector/bin/browser-inspector.mjs
 - imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/client.mjs`
@@ -272,9 +224,6 @@ Modules: 63.
 ## scripts/check-upstream.mjs
 - exports: `STATE_FILE`, `acknowledge`, `checkUpstream`, `daysBetween`, `evaluatePin`, `fetchLatest`, `nextState`
 - imports: `scripts/check-pins.mjs`, `scripts/pins.config.mjs`
-
-## scripts/gen-steps-doc.mjs
-- exports: `DOC_FILE`, `SCHEMA_FILE`, `renderFromRepo`, `renderStepsDoc`
 
 ## scripts/index-code.mjs
 - exports: `INDEX_FILE`, `buildIndex`, `generateIndex`, `listSourceFiles`, `parseExports`, `parseImports`, `renderIndex`

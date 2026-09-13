@@ -10,33 +10,8 @@
       "group": { "kind": "test", "isDefault": true },
       "problemMatcher": []
     },
-    {
-      "label": "test (vitest, bez przeglądarki)",
-      "type": "npm",
-      "script": "test",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "smoke (prawdziwy Chrome/Edge)",
-      "type": "npm",
-      "script": "smoke",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "bench (browser-inspector vs @playwright/mcp — długie)",
-      "type": "npm",
-      "script": "bench",
-      "problemMatcher": []
-    },
     { "label": "portable (zip do download/)", "type": "npm", "script": "portable", "problemMatcher": [] },
-    {
-      "label": "docs (STEPS.md) + code-index",
-      "type": "shell",
-      "command": "npm run docs && npm run code-index",
-      "problemMatcher": []
-    },
+    { "label": "code-index", "type": "npm", "script": "code-index", "problemMatcher": [] },
     {
       "label": "browser-inspector: doctor",
       "type": "shell",
@@ -59,12 +34,6 @@
       "label": "nx-angular-inspector: help",
       "type": "shell",
       "command": "node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs help",
-      "problemMatcher": []
-    },
-    {
-      "label": "browser-inspector: batch z fixture (--no-daemon)",
-      "type": "shell",
-      "command": "node packages/browser-inspector/bin/browser-inspector.mjs packages/browser-inspector/fixtures/app-factory.config.json --no-daemon",
       "problemMatcher": []
     }
   ]

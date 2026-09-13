@@ -33,8 +33,6 @@
     "skipLibCheck": true,
     "maxNodeModuleJsDepth": 0
   },
-  "include": ["packages/**/*.mjs", "packages/**/*.d.ts", "scripts/**/*.mjs", "bench/**/*.mjs"],
-  // Fixtures are pages under test and probes are throwaway measurement scripts — neither is code
-  // this repository maintains at the level of the typecheck. `bench/app` is a committed build.
-  "exclude": ["**/node_modules/**", "**/dist/**", "**/fixtures/**", "bench/app/**", "bench/out/**", "bench/probes/**"]
+  "include": ["packages/**/*.mjs", "packages/**/*.d.ts", "scripts/**/*.mjs"],
+  "exclude": ["**/node_modules/**", "**/dist/**"]
 }

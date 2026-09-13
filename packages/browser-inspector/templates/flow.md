@@ -1,7 +1,7 @@
 # Szablon flow dla `browser-inspector`
 
 `browser-inspector` patrzy na aplikację webową przez prawdziwy Chrome/Edge i **cały wynik zostawia w plikach**.
-Dwa wejścia do jednej tabeli kroków ([docs/STEPS.md](../../../docs/STEPS.md)):
+Dwa wejścia do jednej tabeli kroków (`browser-inspector help <krok>`):
 
 - **batch** — `browser-inspector flow.json [--stamp X]`: flow z configu, wynik w
   `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko
@@ -55,8 +55,8 @@ i `page.png`. Stary config (skryba, `networkidle`, `wait ms`) parsuje się bez z
 
 ## Kroki, po które sięga się najczęściej
 
-Pełna lista z polami i flagami sesji: [docs/STEPS.md](../../../docs/STEPS.md) (`browser-inspector help <krok>`
-drukuje ten sam wiersz). Te same nazwy w configu (`steps[].do`) i w sesji (`browser-inspector <krok> …`).
+Pełna lista z polami i flagami sesji: `browser-inspector help` (spis) i `browser-inspector help <krok>`
+(pola i flagi jednego kroku). Te same nazwy w configu (`steps[].do`) i w sesji (`browser-inspector <krok> …`).
 
 | krok                                                                                     | do czego                                                                                                                    |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |

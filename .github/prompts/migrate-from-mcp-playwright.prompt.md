@@ -25,8 +25,9 @@ i lista plików z konfiguracją MCP. Pokaż ją i czekaj na „dalej".
 ## 1. Narzędzie obok repo
 
 - Klon: `git clone <url scribe-devtools> ../scribe-devtools && cd ../scribe-devtools && npm ci && npm run prepare`
-  (`.npmrc` ma `ignore-scripts=true` — to celowe). Alternatywnie rozpakuj zip portable
-  (`node packages/browser-inspector/bin/browser-inspector.mjs help` działa bez npm).
+  (`.npmrc` ma `ignore-scripts=true` — to celowe). Alternatywnie zbuduj zip portable
+  (`npm run portable` → `download/`, `node packages/browser-inspector/bin/browser-inspector.mjs help`
+  działa z rozpakowanego zipa bez npm).
 - W `package.json` aplikacji dodaj skrypt:
   `"browser-inspector": "node ../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs"`
   i od tej pory wołaj **`pnpm browser-inspector …`** (npm: `npm run browser-inspector -- …`).
@@ -101,8 +102,8 @@ buildach (`pnpm nx run-many -t build --configuration=production`). Uruchom lokal
 
 - Do `.github/copilot-instructions.md` (i `AGENTS.md`, jeśli jest) wklej **dokładnie** blok
   instrukcji z `../scribe-devtools/.github/copilot-instructions.md` (między `INSTRUCTION:START/END`) — to cały koszt
-  stały narzędzia w każdej sesji (mierzony w benchu; nie dopisuj do niego własnych zdań, dopisz
-  osobny akapit o `pnpm smoke:browser`).
+  stały narzędzia w każdej sesji; nie dopisuj do niego własnych zdań, dopisz osobny akapit
+  o `pnpm smoke:browser`.
 - Skopiuj `../scribe-devtools/.github/prompts/browser-session.prompt.md` do `.github/prompts/`
   (pętla „spójrz, potem kliknij" jako `/browser-session`).
 - Usuń wpis `playwright` z `.vscode/mcp.json` / `.mcp.json` i wzmianki `@playwright/mcp`
@@ -141,4 +142,3 @@ Wyeksportowany flow dopisz do configu z kroku 2.
 - Nie wpisuj haseł ani tokenów do configu, promptów ani instrukcji.
 - Nie uruchamiaj `browser-inspector run --file` (RCE-równoważne) bez jawnej decyzji operatora
   i `BROWSER_INSPECTOR_UNSAFE=1`.
-- Nie przepisuj liczb z benchu do README aplikacji — linkuj `../scribe-devtools/bench/RAPORT.md`.

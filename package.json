@@ -3,35 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Developer tools in the scribe spirit: scripts instead of MCP servers, results on disk. Home of browser-inspector 2 — batch flows and an interactive session on one step table over playwright-core — and of its benchmark against @playwright/mcp.",
+  "description": "Developer tools in the scribe spirit: scripts instead of MCP servers, results on disk. browser-inspector (batch flows and an interactive session over playwright-core) and nx-angular-inspector (Nx project graph and Angular/Nx generators, no MCP server).",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=22"
   },
   "workspaces": [
-    "packages/*",
-    "bench"
+    "packages/*"
   ],
   "scripts": {
-    "verify": "prettier --check . && node scripts/check-pins.mjs && vitest run --project !smoke && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/gen-steps-doc.mjs --check && node scripts/check-instruction-sync.mjs --require-all && npm run smoke",
-    "test": "vitest run",
-    "smoke": "vitest run --project smoke",
+    "verify": "biome format . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "docs": "node scripts/gen-steps-doc.mjs",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "code-index": "node scripts/index-code.mjs",
     "portable": "node scripts/portable-zip.mjs",
-    "bench": "npm run bench --workspace bench",
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "browser-inspector": "node packages/browser-inspector/bin/browser-inspector.mjs",
     "nx-angular-inspector": "node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
+    "@biomejs/biome": "^2.5.13",
+    "@types/node": "^22.20.2",
     "gpt-tokenizer": "^4.0.0",
-    "prettier": "^3.9.6",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "typescript": "^7.0.2"
   }
 }
