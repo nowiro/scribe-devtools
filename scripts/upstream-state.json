@@ -1,14 +1,14 @@
 {
   "@types/node": {
     "firstSeenBehind": "2026-09-03",
-    "lastChecked": "2026-09-03",
-    "atCheck": "22.20.1",
-    "latestAtCheck": "26.4.1"
+    "lastChecked": "2026-09-13",
+    "atCheck": "22.20.2",
+    "latestAtCheck": "26.5.1"
   },
-  "vitest": {
-    "firstSeenBehind": "2026-09-03",
-    "lastChecked": "2026-09-03",
-    "atCheck": "4.1.11",
-    "latestAtCheck": "5.0.0"
+  "playwright-core": {
+    "firstSeenBehind": "2026-09-13",
+    "lastChecked": "2026-09-13",
+    "atCheck": "1.62.1",
+    "latestAtCheck": "1.63.0"
   }
 }
