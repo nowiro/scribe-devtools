@@ -55,6 +55,101 @@ export function parseExports(source) {
 }
 
 /**
+ * The source with block comments blanked out, newlines kept so nothing shifts line-wise. Parsing
+ * imports and environment reads out of a file that documents both in its own comments otherwise
+ * reports the documentation as code — `@typedef {import('./types.js').X}` is a TYPE edge, and
+ * a `BROWSER_INSPECTOR_*` name quoted in an error message is not a read.
+ * @param {string} source
+ * @returns {string}
+ */
+export function stripBlockComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//gu, (block) => block.replace(/[^\n]/gu, ' '));
+}
+
+/**
+ * What the module is FOR, in the author's own words: the first comment line of the file, minus the
+ * `name.mjs — ` prefix that the section heading already carries. Written by a human and already
+ * present in 46 of 52 modules here, so this costs nothing to author and answers the question that
+ * decides everything else — open this file or not.
+ * @param {string} source
+ * @returns {string} empty when the file opens without a comment
+ */
+export function parsePurpose(source) {
+  /** @type {string[]} */
+  const paragraph = [];
+  let started = false;
+  for (const raw of source.split('\n')) {
+    const line = raw.trim();
+    if (!started && (line === '' || line.startsWith('#!'))) continue;
+    /** @type {string | null} */
+    let text = null;
+    if (line.startsWith('//')) text = line.slice(2).trim();
+    else if (line.startsWith('/**')) text = line.slice(3).replace(/\*\/$/u, '').trim();
+    else if (line.startsWith('/*')) text = line.slice(2).replace(/\*\/$/u, '').trim();
+    else if (started && line.startsWith('*')) text = line.slice(1).replace(/\*\/$/u, '').trim();
+    if (text === null) break;
+    // The header's first PARAGRAPH: an empty comment line ends it. Taking one physical line instead
+    // cut every wrapped header mid-sentence, which reads as a truncation bug rather than a summary.
+    if (text === '' && started) break;
+    if (text !== '') {
+      paragraph.push(text);
+      started = true;
+    }
+  }
+  if (paragraph.length === 0) return '';
+  const joined = paragraph.join(' ').replace(/\s+/gu, ' ').trim();
+  const dash = /^\S+\s+—\s+(.*)$/u.exec(joined);
+  const body = (dash ? dash[1] : joined).trim();
+  // Cut on ". " rather than on "." so `types.d.ts` and `§2.2` do not end the sentence early.
+  const stop = body.indexOf('. ');
+  const sentence = stop === -1 ? body : body.slice(0, stop + 1);
+  return sentence.length > PURPOSE_CAP ? `${sentence.slice(0, PURPOSE_CAP - 1)}…` : sentence;
+}
+
+/**
+ * Environment variables the module READS, in the three shapes this tree uses: `env.NAME`,
+ * `env['NAME']` and a helper that takes the env object and the name (`intEnv(env, 'NAME', …)`).
+ * A knob is a contract exactly like an event subscription and is just as invisible in an import
+ * list. A name read some fourth way is a missing row, never a wrong one — the same bargain the
+ * rest of this file makes by being a regex.
+ * @param {string} source
+ * @returns {string[]} sorted, deduplicated
+ */
+export function parseEnvKnobs(source) {
+  const code = stripBlockComments(source);
+  const out = new Set();
+  const patterns = [
+    /(?:process\.)?env\.([A-Z][A-Z0-9_]{2,})\b/gu,
+    /(?:process\.)?env\[\s*['"]([A-Z][A-Z0-9_]{2,})['"]\s*\]/gu,
+    /\(\s*env\s*,\s*['"]([A-Z][A-Z0-9_]{2,})['"]/gu,
+  ];
+  for (const pattern of patterns) {
+    for (const match of code.matchAll(pattern)) out.add(match[1]);
+  }
+  return [...out].sort();
+}
+
+/**
+ * TYPE-ONLY dependencies: `import('./x.js')` written inside a JSDoc comment. They used to be
+ * reported as ordinary imports, which was wrong twice over — the edge does not exist at runtime,
+ * and the specifier `./types.js` names a file that is not on disk (the declarations live in
+ * `types.d.ts`, which TypeScript resolves on its own). An agent following that edge opened
+ * nothing. Reported separately and resolved to the file that EXISTS by the caller.
+ * @param {string} source
+ * @param {string} fromFile repository-relative POSIX path of the importing file
+ * @returns {string[]}
+ */
+export function parseTypeImports(source, fromFile) {
+  const out = new Set();
+  for (const block of source.matchAll(/\/\*[\s\S]*?\*\//gu)) {
+    for (const match of block[0].matchAll(/\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gu)) {
+      out.add(path.posix.join(path.posix.dirname(fromFile), match[1]));
+    }
+  }
+  return [...out].sort();
+}
+
+/**
  * LOCAL import specifiers (`./x.mjs`, `../shared/x.mjs`) from static `import … from` and dynamic
  * `import('…')`, resolved against the importing file into repository-relative POSIX paths.
  * Dynamic imports matter here: the keeper loads the engine lazily so the client never pays for it,
@@ -66,9 +161,10 @@ export function parseExports(source) {
  */
 export function parseImports(source, fromFile) {
   const out = new Set();
+  const code = stripBlockComments(source);
   const patterns = [/\bfrom\s+['"](\.[^'"]+)['"]/gu, /\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gu];
   for (const pattern of patterns) {
-    for (const match of source.matchAll(pattern)) {
+    for (const match of code.matchAll(pattern)) {
       out.add(path.posix.join(path.posix.dirname(fromFile), match[1]));
     }
   }
@@ -110,6 +206,9 @@ export function condenseParams(raw) {
 
 /** How much of a return type earns its place in a one-line index entry before it stops helping. */
 const TYPE_CAP = 60;
+
+/** Same idea for the module's one-line purpose: a sentence, not the paragraph the file opens with. */
+const PURPOSE_CAP = 140;
 
 /**
  * The `@returns {…}` type of a JSDoc block, with BALANCED braces: an object literal type nests
@@ -244,7 +343,7 @@ export function listSourceFiles(root) {
 
 /**
  * The whole index as one deterministic markdown string.
- * @param {{ path: string, exports: string[], imports: string[], signatures?: Map<string, string>, subscriptions?: string[] }[]} files
+ * @param {{ path: string, purpose?: string, exports: string[], imports: string[], typeImports?: string[], env?: string[], signatures?: Map<string, string>, subscriptions?: string[] }[]} files
  * @returns {string}
  */
 export function buildIndex(files) {
@@ -263,33 +362,57 @@ export function buildIndex(files) {
     'Dependency map of this repository — generated, do not edit by hand.',
     'Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;',
     '`npm run verify` fails when this file is stale). One section per module:',
-    'what it **exports** (with the inputs and output of every function), what it **subscribes to**,',
-    'what it **imports** and **who imports it** — read this before grepping.',
+    'what it is **for**, what it **exports** (with the inputs and output of every function), what it',
+    '**subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and',
+    'type-only edges apart) and **who imports it** — read this before grepping.',
     '',
     `Modules: ${String(files.length)}.`,
     '',
   ];
   for (const file of files) {
     lines.push(`## ${file.path}`);
+    if (file.purpose) lines.push(`- purpose: ${file.purpose}`);
     if (file.exports.length > 0) {
       const spell = (/** @type {string} */ name) => `\`${file.signatures?.get(name) ?? name}\``;
       lines.push(`- exports: ${file.exports.map(spell).join(', ')}`);
     }
     if (file.subscriptions && file.subscriptions.length > 0)
       lines.push(`- subscribes: ${file.subscriptions.map((n) => `\`${n}\``).join(', ')}`);
+    if (file.env && file.env.length > 0) lines.push(`- env: ${file.env.map((n) => `\`${n}\``).join(', ')}`);
     if (file.imports.length > 0) lines.push(`- imports: ${file.imports.map((n) => `\`${n}\``).join(', ')}`);
+    if (file.typeImports && file.typeImports.length > 0)
+      lines.push(`- types only: ${file.typeImports.map((n) => `\`${n}\``).join(', ')}`);
     const consumers = (importedBy.get(file.path) ?? []).sort();
     if (consumers.length > 0) lines.push(`- imported by: ${consumers.map((n) => `\`${n}\``).join(', ')}`);
     if (
+      !file.purpose &&
       file.exports.length === 0 &&
       file.imports.length === 0 &&
       consumers.length === 0 &&
-      (file.subscriptions ?? []).length === 0
+      (file.subscriptions ?? []).length === 0 &&
+      (file.env ?? []).length === 0
     )
       lines.push('- (entrypoint — nothing exported, nothing imported, nothing imports it)');
     lines.push('');
   }
   return lines.join('\n');
+}
+
+/**
+ * A JSDoc `import('./x.js')` names the specifier TypeScript resolves, not the file on disk: this
+ * tree writes `./types.js` and ships `types.d.ts`. Resolve to what exists, and when nothing does,
+ * say so in the row rather than printing a path that opens nothing — the failure that made this
+ * function necessary.
+ * @param {string} root absolute repository root
+ * @param {string} spec repository-relative POSIX path from the specifier
+ * @returns {string}
+ */
+export function resolveTypeImport(root, spec) {
+  const candidates = [spec, spec.replace(/\.js$/u, '.d.ts'), spec.replace(/\.js$/u, '.ts'), `${spec}.d.ts`];
+  for (const candidate of candidates) {
+    if (existsSync(path.join(root, candidate))) return candidate;
+  }
+  return `${spec} (nierozwiązane)`;
 }
 
 /**
@@ -301,8 +424,11 @@ export function generateIndex(root) {
     const source = readFileSync(path.join(root, rel), 'utf8');
     return {
       path: rel,
+      purpose: parsePurpose(source),
       exports: parseExports(source),
       imports: parseImports(source, rel),
+      typeImports: parseTypeImports(source, rel).map((spec) => resolveTypeImport(root, spec)),
+      env: parseEnvKnobs(source),
       signatures: parseSignatures(source),
       subscriptions: parseSubscriptions(source),
     };

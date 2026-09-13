@@ -106,8 +106,9 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 **Zacznij od tych dwóch, zanim zaczniesz szukać w drzewie.** Indeks mówi, GDZIE coś jest; słownik
 mówi, JAK to się nazywa. Rozmiary są podane po to, żebyś mógł zdecydować, czy czytasz w całości:
 
-- [CODE-INDEX.md](CODE-INDEX.md) — ≈ 8,5 k tokenów — mapa modułów: co każdy eksportuje (z wejściem
-  i wyjściem funkcji), na jakie zdarzenia się zapisuje, co importuje i kto importuje jego.
+- [CODE-INDEX.md](CODE-INDEX.md) — ≈ 10,4 k tokenów — mapa modułów: po co każdy jest, co eksportuje
+  (z wejściem i wyjściem funkcji), na jakie zdarzenia się zapisuje, które zmienne środowiskowe
+  czyta, co importuje w runtime, a co tylko jako typ, i kto importuje jego.
 - [GLOSSARY.md](GLOSSARY.md) — ≈ 1,5 k tokenów — słowa tego repo i ich nazwy w kodzie, w obie
   strony; proza jest po polsku, identyfikatory po angielsku, więc szukanie słowa wprost często nic
   nie daje.
