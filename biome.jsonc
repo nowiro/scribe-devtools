@@ -51,7 +51,9 @@
       "!pnpm-lock.yaml",
       "!.scribe-devtools/**",
       "!.ws/**",
-      "!download/**"
+      "!download/**",
+      // `!!` = do not even crawl: the folder is a self-contained template with its own root biome.jsonc.
+      "!!copilot-builder"
     ]
   }
 }

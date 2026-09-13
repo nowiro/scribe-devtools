@@ -1,0 +1,9 @@
+#!/bin/sh
+# pre-push — the local gate on what is about to leave the machine: the static gates plus lint,
+# typecheck and tests of the AFFECTED projects (tools/scripts/affected.mjs against the merge base
+# with the default branch). The full gate with every project and the build is `npm run verify`,
+# which CI runs on the default branch; here the point is a fast, honest answer before the push.
+#
+# Emergency bypass: `git push --no-verify` — say so in the merge request.
+set -e
+npm run verify:affected

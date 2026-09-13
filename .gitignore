@@ -28,3 +28,7 @@ read.config.*.json
 # comparison must not be committed either (twin of the rule on `main`).
 .mcp.json
 .vscode/mcp.json
+
+# copilot-builder/ is a TEMPLATE tree: its .vscode/mcp.json is content, not a live client config
+# (one stdio server, `ng mcp`, owned by a single hidden subagent) — the rule above is for this root.
+!copilot-builder/.vscode/mcp.json

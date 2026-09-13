@@ -1,0 +1,62 @@
+{
+  "$comment": "The ONLY place where a tier becomes a model name, and the only source of truth about the roster: which agents exist, what role each one plays, which tier it runs on and whether a human can pick it in the agent list. Every other file (AGENTS.md, .github/agents/*.agent.md, docs) refers to tiers and roles and is checked against this file by `npm run ai:validate`. A model name written anywhere else is a defect. Prices are deliberately absent: they are read from the pricing page when a decision needs them, because a copied number rots silently.",
+  "observedAt": "2026-09-13",
+  "models": {
+    "GPT-5.6 Luna": { "family": "openai" },
+    "GPT-5 mini": { "family": "openai", "vision": true },
+    "Claude Sonnet 5": { "family": "anthropic" },
+    "Claude Opus 5": { "family": "anthropic" },
+    "GPT-5.3-Codex": { "family": "openai" }
+  },
+  "policy": {
+    "$comment": "What the organisation's Copilot plan actually exposes in the model picker. Adjust this list first; then `tiers` — never the agent files.",
+    "enabled": ["GPT-5.6 Luna", "GPT-5 mini", "Claude Sonnet 5", "Claude Opus 5", "GPT-5.3-Codex"]
+  },
+  "tiers": {
+    "$comment": "T1 — cheap mechanics (classification, tooling, unit tests, gates). T2 — code and specs. T3 — architecture and security review, the most expensive seat, used rarely. vision — a model that reads screenshots.",
+    "T1": "GPT-5.6 Luna",
+    "T2": "Claude Sonnet 5",
+    "T3": "Claude Opus 5",
+    "vision": "GPT-5 mini"
+  },
+  "agents": {
+    "$comment": "Names are `<domain>-<subject>`: `orchestrator-*` coordinates, `code-*` touches code, `doc-*` touches prose, `mcp-*` talks to MCP servers. The role carries the permissions ai:validate enforces on the `tools:` list of each agent file. Exactly one agent is visible to a human — the orchestrator; everything else is reached through delegation.",
+    "namePattern": "^(orchestrator|code|doc|mcp)-[a-z0-9-]+$",
+    "maxVisible": 1,
+    "toolSets": ["read", "search", "edit", "execute", "agent", "web", "todo"],
+    "roles": {
+      "orchestrator": { "requires": ["agent", "edit"], "forbids": [], "mcp": false },
+      "writer": { "requires": ["edit"], "forbids": ["agent"], "mcp": false },
+      "tester": { "requires": ["edit", "execute"], "forbids": ["agent"], "mcp": false },
+      "verifier": { "requires": ["execute"], "forbids": ["agent"], "mcp": false },
+      "reviewer": { "requires": ["read"], "forbids": ["edit", "execute", "agent"], "mcp": false },
+      "triager": { "requires": ["read"], "forbids": ["edit", "execute", "agent"], "mcp": false },
+      "integration": { "requires": ["execute"], "forbids": ["edit", "agent"], "mcp": true }
+    },
+    "roster": {
+      "orchestrator-sdd": { "role": "orchestrator", "tier": "T2", "visible": true },
+      "code-angular": { "role": "writer", "tier": "T2", "visible": false },
+      "code-tooling": { "role": "writer", "tier": "T1", "visible": false },
+      "code-tester-unit": { "role": "tester", "tier": "T1", "visible": false },
+      "code-tester-e2e": { "role": "tester", "tier": "T2", "visible": false },
+      "code-verifier": { "role": "verifier", "tier": "T1", "visible": false },
+      "code-reviewer": { "role": "reviewer", "tier": "T3", "visible": false },
+      "code-reviewer-ui": { "role": "reviewer", "tier": "vision", "visible": false },
+      "doc-intake": { "role": "triager", "tier": "T1", "visible": false },
+      "doc-spec": { "role": "writer", "tier": "T2", "visible": false },
+      "doc-reviewer": { "role": "reviewer", "tier": "T2", "visible": false },
+      "mcp-gateway": { "role": "integration", "tier": "T1", "visible": false }
+    }
+  },
+  "mcp": {
+    "$comment": "Every MCP server declared in .vscode/mcp.json has exactly one owner — the integration subagent — and no other agent may name a server or one of its tools in `tools:`. The main session therefore never carries MCP tool schemas; the owner returns an artefact path plus a summary within the token budget.",
+    "owner": "mcp-gateway",
+    "summaryBudgetTokens": 400,
+    "artifactDir": ".mcp-artifacts"
+  },
+  "ui": {
+    "$comment": "UI conventions as data. Mobile-first means: only min-width media queries, and every screen checked at all listed widths.",
+    "approach": "mobile-first",
+    "viewports": [360, 768, 1024, 1440, 1920]
+  }
+}

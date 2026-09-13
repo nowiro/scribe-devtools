@@ -1,0 +1,55 @@
+{
+  // tsconfig.json — BUILD configuration for the `integrations` domain.
+  //
+  // Why TypeScript sits here and not at the root: the root scripts (`scripts/**`) are
+  // `.mjs` with no build step, because the gates must run in a fresh clone without compiling.
+  // The domain is on the other side of the boundary — it is a port of 12 kLOC of code whose
+  // types are the only documentation of Jira response shapes. Compilation reads
+  // `integrations/**` only; the artifact lands in `dist/` at the repository root, next to
+  // the other top-level directories, where both dispatchers discover it.
+  //
+  // Why `NodeNext` and not `bundler` as in the source: there is no bundler here. `dist/` is
+  // run directly by `node`, so module resolution must be the same one Node performs —
+  // otherwise the `.js` extensions in the imports would be a fiction of the typecheck.
+  //
+  // Specs (`*.spec.ts`) are excluded here on purpose: `dist/` is the runtime artifact from
+  // which `read.mjs` and `write.mjs` discover the pipelines — tests have no right to land in it.
+  // `tsconfig.test.json` (`noEmit`) typechecks them, so type coverage is not lost.
+  //
+  // Why `DOM` in `lib` in a server-side project: two fetch types have no Node
+  // equivalent in scope. `shared/http-client.ts` returns `BodyInit` from
+  // `serializeBody`, and `http-client.spec.ts` types its fetch stub's first
+  // parameter as `RequestInfo`. Dropping `DOM` fails the typecheck on exactly
+  // those two names — verified, not assumed. This is a choice about types, not a
+  // declaration that the code runs in a browser.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "../dist",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "sourceMap": true
+  },
+  // A glob, not a list of names: an integration is a directory, and a new one must not
+  // require an entry here to be compiled.
+  "include": ["*/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}

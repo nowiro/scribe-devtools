@@ -1,0 +1,14 @@
+{
+  "name": "browser-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "browser-inspector: batch flows from a JSON config and an interactive session on aria refs, one step table, one engine on playwright-core with the system Chrome/Edge, warm browser kept by a local keeper process. Vendored tool of this repository; its only runtime dependency (playwright-core) is declared in the root package.json.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "browser-inspector": "bin/browser-inspector.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

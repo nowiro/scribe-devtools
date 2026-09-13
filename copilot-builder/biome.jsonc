@@ -1,0 +1,76 @@
+{
+  // biome.jsonc — THE formatting configuration of this repository, and the only one.
+  //
+  // 120 columns, LF, single quotes, trailing commas everywhere: the same numbers Prettier would have
+  // used, so a team coming from Prettier sees the same shape. Prettier itself is absent on purpose:
+  // one formatter, one config, one editor extension, and a binary that formats the whole tree in a
+  // fraction of a second, so `format:check` can be the first step of `npm run verify`.
+  //
+  // `$schema` points at the copy inside node_modules on purpose: the published schema URL carries the
+  // version in its path, which would be a SECOND place where the Biome version is declared — and
+  // tools/scripts/pins.config.mjs exists precisely so that there is only one.
+  //
+  // What Biome does NOT format here, and why nobody else does either:
+  //   - Markdown: the 2.x configuration schema has no markdown section and a plugin cannot add one.
+  //     Prose is kept by review and by .editorconfig (LF, spaces, final newline).
+  //   - HTML (Angular templates): the HTML formatter is experimental and does not understand the
+  //     control-flow blocks `@if` / `@for` / `@switch` / `@defer`; a formatter that flattens them is
+  //     worse than none. angular-eslint template rules cover correctness and accessibility.
+  //   Both decisions are recorded in docs/decisions/ (ADR "Biome instead of Prettier").
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  // `--staged` (pre-commit hook) and `--changed --since=main` need VCS integration; the ignore file
+  // keeps node_modules, dist, caches and tool output out of every run without repeating the list.
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all"
+    }
+  },
+  // `.vscode/*.json`, `tsconfig*.json` and this file are JSONC — without allowComments the
+  // formatter would refuse them as malformed JSON.
+  "json": {
+    "parser": { "allowComments": true },
+    "formatter": { "enabled": true }
+  },
+  "css": {
+    "formatter": { "enabled": true }
+  },
+  "html": {
+    "formatter": { "enabled": false }
+  },
+  // Biome ships a linter and an import sorter. Neither is used: ESLint (angular-eslint,
+  // typescript-eslint and the plugins in eslint.plugins.mjs) is the linter of this repository,
+  // and a second linter with overlapping rules would produce two opinions per line.
+  "linter": { "enabled": false },
+  "assist": { "enabled": false },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/coverage/**",
+      "!**/.angular/**",
+      "!**/.cache/**",
+      "!**/.scribe/**",
+      "!**/.scribe-devtools/**",
+      "!**/.mcp-artifacts/**",
+      "!**/tmp/**",
+      "!**/playwright-report/**",
+      "!**/test-results/**",
+      "!package-lock.json"
+    ]
+  }
+}

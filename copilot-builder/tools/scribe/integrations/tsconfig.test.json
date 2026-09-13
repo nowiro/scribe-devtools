@@ -1,0 +1,16 @@
+{
+  // tsconfig.test.json — typecheck of the TESTS, with no emit.
+  //
+  // The port brought ~5.9 kLOC of tests and they are the most valuable part of it. Were they
+  // outside any `tsc`, vitest would run them through esbuild, which does not check types — and
+  // a signature drift after a `shared/**` refactor would surface only as a red assert,
+  // instead of as a compile error. Hence the second configuration: the same rules,
+  // `noEmit: true`, a wider `include`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["*/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "type": "command",
+        "command": "node tools/hooks/handoff.mjs",
+        "timeout": 20
+      }
+    ]
+  }
+}

@@ -1,0 +1,151 @@
+{
+  // ───────────────────────────── Kontekst always-on: co dokleja się do każdego żądania
+  // AGENTS.md jest świadomie always-on (komendy, roster, granice). Zagnieżdżone AGENTS.md wyłączone —
+  // jeden plik w korzeniu, jedno miejsce do przeglądu. CLAUDE.md wyłączony: repozytorium wspiera
+  // wyłącznie Copilota, a repo z dwoma plikami płaci dwa razy.
+  "chat.useAgentsMdFile": true,
+  "chat.useClaudeMdFile": false,
+  "chat.useNestedAgentsMdFiles": false,
+  "chat.includeApplyingInstructions": true,
+  "chat.includeReferencedInstructions": false,
+  "chat.useCustomizationsInParentRepositories": false,
+
+  // ───────────────────────────── Miejsca wykrywania: jawnie, jeden katalog na rodzaj
+  // Przypięcie lokalizacji powstrzymuje VS Code przed ładowaniem kopii z profilu użytkownika — to,
+  // co waliduje brama `npm run ai:validate`, jest tym, co się uruchamia.
+  "chat.instructionsFilesLocations": { ".github/instructions": true },
+  "chat.promptFilesLocations": { ".github/prompts": true },
+  "chat.agentFilesLocations": { ".github/agents": true },
+  "chat.agentSkillsLocations": { ".github/skills": true },
+  "chat.hookFilesLocations": { ".github/hooks": true },
+  "chat.promptFilesRecommendations": [],
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+
+  // ───────────────────────────── Pętla agenta i punkty kontrolne
+  // Roster jest płaski: `orchestrator-sdd` deleguje jeden poziom w dół i nikt nie deleguje dalej.
+  "chat.agent.maxRequests": 25,
+  "chat.subagents.allowInvocationsFromSubagents": false,
+  "chat.checkpoints.enabled": true,
+  "chat.checkpoints.showFileChanges": true,
+  "chat.useCustomAgentHooks": true,
+
+  // ───────────────────────────── MCP: zero automatycznego wykrywania.
+  // Serwery są zadeklarowane wyłącznie w .vscode/mcp.json tego repozytorium i używa ich jeden
+  // ukryty subagent (`mcp-gateway`); żaden inny agent nie ma ich na liście `tools:`, więc schematy
+  // narzędzi nie wchodzą do sesji głównej. Do ALM (Jira, GitLab, Confluence) i przeglądarki służą
+  // skrypty (`npm run alm:read`, `npm run browser-inspector`), nie serwery.
+  "chat.mcp.discovery.enabled": {
+    "claude-desktop": false,
+    "windsurf": false,
+    "cursor-global": false,
+    "cursor-workspace": false
+  },
+
+  // ───────────────────────────── Zatwierdzanie narzędzi: bramy i odczyt gita bez kliknięcia
+  "chat.tools.global.autoApprove": false,
+  "chat.tools.terminal.autoApprove": {
+    "npm run verify": true,
+    "npm run verify:affected": true,
+    "npm run lint": true,
+    "npm run test": true,
+    "npm run typecheck": true,
+    "npm run build": true,
+    "npm run format:check": true,
+    "npm run ai:validate": true,
+    "npm run sdd:check": true,
+    "npm run code-index": true,
+    "npm run affected": true,
+    "git status": true,
+    "git diff": true,
+    "git log": true
+  },
+  // Odmowa obejmuje wszystko, co nieuważna edycja mogłaby zamienić w nieuważne wykonanie: skrypty
+  // hooków, skrypty bram, manifest definiujący komendy oraz pliki agentów (ustawiają uprawnienia).
+  "chat.tools.edits.autoApprove": {
+    "**/tools/hooks/**": false,
+    "**/.github/hooks/**": false,
+    "**/tools/scripts/**": false,
+    "**/.github/agents/**": false,
+    "**/.github/models-registry.json": false,
+    "**/.vscode/mcp.json": false,
+    "**/.githooks/**": false,
+    "package.json": false,
+    ".gitlab-ci.yml": false
+  },
+
+  // ───────────────────────────── Indeks i wyszukiwanie: szum zostaje poza
+  "github.copilot.chat.codesearch.enabled": false,
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.angular": true,
+    "**/.cache": true,
+    "**/.scribe": true,
+    "**/.scribe-devtools": true,
+    "**/.mcp-artifacts": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.angular": true,
+    "**/.cache": true,
+    "**/.scribe": true,
+    "**/.scribe-devtools": true,
+    "**/.mcp-artifacts": true,
+    "**/playwright-report": true,
+    "**/test-results": true,
+    "package-lock.json": true,
+    "CODE-INDEX.md": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/coverage/**": true,
+    "**/.angular/**": true,
+    "**/.cache/**": true,
+    "**/.scribe/**": true,
+    "**/.scribe-devtools/**": true
+  },
+  "npm.autoDetect": "off",
+  "typescript.tsc.autoDetect": "off",
+
+  // ───────────────────────────── Higiena edytora: sformatowany plik nie wywraca bramy
+  // Biome formatuje TS/JS/JSON/CSS. Markdown i szablony HTML zostają bez formatera (biome.jsonc
+  // mówi dlaczego) — dla nich obowiązuje tylko EditorConfig: LF, spacje, finalna nowa linia.
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome",
+  "[markdown]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false,
+    "files.trimTrailingWhitespace": false
+  },
+  "[html]": { "editor.defaultFormatter": null, "editor.formatOnSave": false },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.trimFinalNewlines": true,
+
+  // ───────────────────────────── TypeScript i ESLint z repozytorium, nie z edytora
+  // Angular 22 wymaga TypeScript 6.0.x; edytor ma pokazywać to samo, co bramka `tsc`.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "js/ts.implicitProjectConfig.checkJs": true,
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript", "typescript", "html"],
+  "eslint.options": { "cache": true, "cacheLocation": ".cache/eslint/" },
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+
+  // ───────────────────────────── Testy siedzą obok modułów — zagnieżdżaj je w eksploratorze
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.spec.ts, ${capture}.html, ${capture}.css",
+    "*.mjs": "${capture}.spec.mjs",
+    "package.json": "package-lock.json, .npmrc, .nvmrc",
+    "tsconfig.json": "tsconfig.*.json",
+    "angular.json": "biome.jsonc, commitlint.config.mjs, eslint.config.mjs, eslint.plugins.mjs, eslint.rules.mjs, vitest.config.mts"
+  }
+}

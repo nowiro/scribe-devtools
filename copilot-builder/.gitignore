@@ -1,0 +1,56 @@
+# Dependencies and build output
+node_modules/
+dist/
+out-tsc/
+coverage/
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+
+# Caches — the whole point of `.cache/` is to be one directory GitLab CI can restore
+# (Angular CLI build cache, ESLint cache, tsc incremental state, Vite/Vitest cache, task hashes).
+.angular/
+.cache/
+.eslintcache
+.vitest/
+
+# Test artefacts (Playwright reports, traces, screenshots of failed runs)
+playwright-report/
+test-results/
+reports/
+blob-report/
+
+# Output of every `npm run alm:read` and `npm run browser-inspector` run: what lands there is
+# upstream customer data (issue descriptions, comments, page bodies) or somebody's application
+# under inspection. Reproducible with one command, so it earns no place in history — and git does
+# not forget, so getting it back out would mean rewriting every clone.
+.scribe/
+.scribe-devtools/
+# Artefacts handed back by the MCP integration subagent — same rule, same reason.
+.mcp-artifacts/
+
+# A read config carries YOUR JQL, project keys, page ids and browser flows — the committed
+# examples in tools/scribe/examples/ name a placeholder project and pull nothing.
+read.config.*.json
+!tools/scribe/examples/read.config.*.json
+
+# SDD artefacts are local-only by policy (docs/sdd/methodology.md): specs, plans and run-logs are
+# working material of one task, not documentation of the project. Only the directory markers stay.
+docs/specs/*
+!docs/specs/.gitkeep
+docs/plans/*
+!docs/plans/.gitkeep
+docs/runs/*
+!docs/runs/.gitkeep
+
+# Scratch space of hooks and agents (handoff notes, ledgers)
+tmp/
+
+# Other assistants' configuration: this repository supports GitHub Copilot only (guard:forbidden
+# fails on any of these, the ignore just keeps a local experiment out of `git add .`).
+CLAUDE.md
+.claude/
+.cursor/
+.codex/
+.mcp.json
