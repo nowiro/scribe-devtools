@@ -55,12 +55,12 @@ export const PINS = [
     why: "The measuring instrument behind the 200-token limit on the AGENTS.md instruction block (`check-instruction-sync.mjs`), not a dependency of the product. Kept on caret deliberately: pinning it exact would freeze a tokenizer that is only ever a proxy for the agent's own, and the honest guard is the review calendar, not the range.",
   },
   {
-    id: 'prettier',
+    id: '@biomejs/biome',
     owner: 'package.json#devDependencies',
     policy: 'caret',
     prose: [],
     staleDays: 180,
-    why: '`prettier --check .` is the first step of `npm run verify`, so a formatting change turns the whole gate red before anything else runs. Loud and immediate — the cheapest failure mode in the repository, which is why caret is fine.',
+    why: '`biome format .` is the first step of `npm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. It replaced prettier: on this tree the two disagree about exactly ONE line out of 62 files (a space before `)` in an empty `for` update clause), so the switch was a change of tool, not of style. What it does NOT carry over is Markdown: the 2.x configuration schema has no markdown section, so the nine prose files prettier used to format are on review now. A major that adds one would be worth taking; that is what this row is for.',
   },
   {
     id: 'typescript',

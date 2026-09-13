@@ -1,11 +1,14 @@
 {
-  // Formatowanie: jedna konfiguracja dla całego repo (prettier.config.mjs, 120 kolumn, LF).
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // Formatowanie: jedna konfiguracja dla całego repo (biome.jsonc, 120 kolumn, LF). Markdown
+  // zostaje bez formatera — Biome go nie obsługuje — więc dla .md nie ustawiamy żadnego.
+  "editor.defaultFormatter": "biomejs.biome",
   "editor.formatOnSave": true,
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
-  "[markdown]": { "files.trimTrailingWhitespace": false },
+  // Markdown zostaje bez formatera (Biome go nie obsługuje), a "dwie spacje na końcu = łamanie
+  // linii" jest w review niewidoczne i nie przeżywa przycinania.
+  "[markdown]": { "editor.defaultFormatter": null, "files.trimTrailingWhitespace": false },
 
   // Wyniki przebiegów narzędzi to dane cudzej aplikacji/workspace'a — nie indeksuj ich i nie
   // pokazuj w wyszukiwaniu.

@@ -25,7 +25,7 @@ git clone <repo> scribe-devtools
 cd scribe-devtools
 npm ci            # .npmrc: ignore-scripts=true, engine-strict=true
 npm run prepare   # uzbraja hook pre-commit (npm install go NIE uruchamia — ignore-scripts)
-npm run verify    # bramki: prettier, check-pins, tsc, CODE-INDEX, sync bloku instrukcji
+npm run verify    # bramki: biome format, check-pins, tsc, CODE-INDEX, sync bloku instrukcji
 ```
 
 Bez binarek na PATH: `node packages/browser-inspector/bin/browser-inspector.mjs …` /
@@ -98,8 +98,8 @@ Bez npm, bez builda: `npm run portable` pakuje oba narzędzia do
   (Nx monorepo) z serwera MCP Playwrighta na `browser-inspector`; `/browser-session` to pętla
   „spójrz, potem kliknij" dla sesji interaktywnej.
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
-  `.vscode/settings.json` włącza prettier, prompt files, instrukcje i `AGENTS.md`;
-  `.vscode/extensions.json` poleca prettier i Copilot Chat.
+  `.vscode/settings.json` włącza Biome jako formater, prompt files, instrukcje i `AGENTS.md`;
+  `.vscode/extensions.json` poleca Biome i Copilot Chat.
 
 Instrukcje dla agentów pracujących w tym repo: [AGENTS.md](AGENTS.md).
 

@@ -11,5 +11,7 @@ applyTo: '**/*.md'
   w AGENTS.md).
 - Bloki `INSTRUCTION…START/END` w AGENTS.md ≡ ich kopie w `.github/copilot-instructions.md`
   (`node scripts/check-instruction-sync.mjs --require-all`).
-- README.md i AGENTS.md są poza prettierem (ręcznie zawijane); pozostałe pliki `.md` formatuje
-  prettier (120 kolumn) — `npm run verify` sprawdza.
+- Plików `.md` **nie formatuje żadna bramka**: repozytorium formatuje Biome, a ten nie ma
+  formatera Markdownu (schemat 2.x zna css, graphql, grit, html, javascript, json). README.md
+  i AGENTS.md były ręcznie zawijane i poza formaterem także wcześniej; reszta prozy jest teraz
+  na review — 120 kolumn i jedno zdanie na linię trzymaj ręcznie.

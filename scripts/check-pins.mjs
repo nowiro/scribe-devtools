@@ -1,5 +1,5 @@
 // Offline, deterministic gate over scripts/pins.config.mjs — the first step of `npm run verify`,
-// next to `prettier --check`. It answers four questions a green test suite does not:
+// next to `biome format .`. It answers four questions a green test suite does not:
 //
 //   1. META  — does every dependency in every manifest have a row? A check that does not know
 //              what it is not checking reads as coverage while covering nothing, so a package

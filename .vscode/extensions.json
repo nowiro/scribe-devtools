@@ -1,5 +1,6 @@
 {
-  // Minimum, które odtwarza bramki repo w edytorze: formatter z prettier.config.mjs, Copilot Chat
-  // z prompt files (.github/prompts) i instrukcjami (.github/instructions).
-  "recommendations": ["esbenp.prettier-vscode", "GitHub.copilot", "GitHub.copilot-chat", "EditorConfig.EditorConfig"]
+  // Minimum, które odtwarza bramki repo w edytorze: formatter z biome.jsonc, Copilot Chat
+  // z prompt files (.github/prompts) i instrukcjami (.github/instructions). Biome nie formatuje
+  // Markdownu — EditorConfig pilnuje w nim przynajmniej LF, spacji i finalnej nowej linii.
+  "recommendations": ["biomejs.biome", "GitHub.copilot", "GitHub.copilot-chat", "EditorConfig.EditorConfig"]
 }

@@ -12,10 +12,10 @@
     "packages/*"
   ],
   "scripts": {
-    "verify": "prettier --check . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all",
+    "verify": "biome format . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "code-index": "node scripts/index-code.mjs",
     "portable": "node scripts/portable-zip.mjs",
     "prepare": "git config core.hooksPath .githooks || exit 0",
@@ -23,9 +23,9 @@
     "nx-angular-inspector": "node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
+    "@biomejs/biome": "^2.5.13",
+    "@types/node": "^22.20.2",
     "gpt-tokenizer": "^4.0.0",
-    "prettier": "^3.9.6",
     "typescript": "^7.0.2"
   }
 }
