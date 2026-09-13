@@ -9,8 +9,8 @@
   //
   // What Biome does NOT do here: it has no Markdown formatter (the 2.x configuration schema knows
   // css, graphql, grit, html, javascript and json — there is no markdown section), so the nine
-  // Markdown files that prettier used to format are now checked by review only. Named, not hidden;
-  // AGENTS.md says the same in the gate table.
+  // Markdown files that prettier used to format (.github/**/*.md and templates/flow.md) are now
+  // checked by review only. Named, not hidden; AGENTS.md says the same in the gate table.
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": false },
   "formatter": {
