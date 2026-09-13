@@ -56,7 +56,7 @@ kontrakt `project-graph.json`, brak `docs`):
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**` |
 | `node scripts/index-code.mjs --check` | świeżość `CODE-INDEX.md` |
 | `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 200 tokenów na blok i 400 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; `--require-all` robi FAIL także z bloku brakującego w OBU plikach — bez tego skasowanie obu kopii przechodziłoby jako „pominięty” |
-| `node scripts/check-claims.mjs` | jedyna bramka, która URUCHAMIA obie binarki. Sprawdza zdania, które proza podaje jako fakty: jedna linia z prefiksem `ok`/`FAIL` na komendę, twardy limit 120 znaków, `exit 1 = FAIL` i `exit 2` dla błędu składni oraz błędu fatalnego, sesja bez keepera kończąca się nazwanym błędem, `Object.keys(RUNNERS) === Object.keys(STEPS)`, rozmiar `CODE-INDEX.md` obiecany w prozie. Każda asercja niesie plik, który daną obietnicę składa, więc FAIL mówi, które zdanie przestało być prawdą. Bez przeglądarki, bez sieci, bez keepera — to, co wymaga prawdziwej strony, jest **poza** jej zasięgiem i zostaje sprawą review |
+| `node scripts/check-claims.mjs` | jedyna bramka, która URUCHAMIA obie binarki. Sprawdza zdania, które proza podaje jako fakty: jedna linia z prefiksem `ok`/`FAIL` na komendę, twardy limit 120 znaków, `exit 1 = FAIL` i `exit 2` dla błędu składni oraz błędu fatalnego, sesja bez keepera kończąca się nazwanym błędem, `Object.keys(RUNNERS) === Object.keys(STEPS)`, rozmiary `CODE-INDEX.md` i `GLOSSARY.md` obiecane w prozie oraz to, że każde mapowanie ze słownika wskazuje na żywą ścieżkę albo żywy symbol. Każda asercja niesie plik, który daną obietnicę składa, więc FAIL mówi, które zdanie przestało być prawdą. Bez przeglądarki, bez sieci, bez keepera — to, co wymaga prawdziwej strony, jest **poza** jej zasięgiem i zostaje sprawą review |
 
 **Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — pyta rejestr npm o `latest` dla
 każdego pinu i mierzy, od kiedy pin jest w tyle (zegar `firstSeenBehind` w commitowanym
@@ -103,7 +103,17 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
 
 ## Gdzie co jest
 
-Mapa modułów całego repo — co każdy eksportuje (z wejściem i wyjściem funkcji), na jakie zdarzenia
-się zapisuje, co importuje i kto importuje jego (≈ 8,5 k tokenów — czytaj, gdy potrzebujesz jej
-całej, nie zamiast wyszukiwania): [CODE-INDEX.md](CODE-INDEX.md). Opis narzędzi i użycie: [README.md](README.md). Pliki Copilota i VS Code
+**Zacznij od tych dwóch, zanim zaczniesz szukać w drzewie.** Indeks mówi, GDZIE coś jest; słownik
+mówi, JAK to się nazywa. Rozmiary są podane po to, żebyś mógł zdecydować, czy czytasz w całości:
+
+- [CODE-INDEX.md](CODE-INDEX.md) — ≈ 8,5 k tokenów — mapa modułów: co każdy eksportuje (z wejściem
+  i wyjściem funkcji), na jakie zdarzenia się zapisuje, co importuje i kto importuje jego.
+- [GLOSSARY.md](GLOSSARY.md) — ≈ 1,5 k tokenów — słowa tego repo i ich nazwy w kodzie, w obie
+  strony; proza jest po polsku, identyfikatory po angielsku, więc szukanie słowa wprost często nic
+  nie daje.
+
+Otwieraj tylko to, co któryś z nich nazwie. Gdy nie odpowiadają, wróć do wyszukiwania — one mają
+oszczędzić przeszukiwanie drzewa, nie zastąpić je, gdy wiesz, czego szukasz.
+
+Opis narzędzi i użycie: [README.md](README.md). Pliki Copilota i VS Code
 (`.github/`, `.vscode/`): sekcja „GitHub Copilot i VS Code" w README.

@@ -19,12 +19,14 @@
 // step, `exit 0` on a failed step inside a batch, snapshot shape) is out of reach without Chrome,
 // and stays a matter for review.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { encode } from 'gpt-tokenizer/model/gpt-4o';
+
+import { listSourceFiles } from './index-code.mjs';
 
 import { RUNNERS } from '../packages/browser-inspector/src/steps.run.mjs';
 import { STEPS } from '../packages/browser-inspector/src/steps.schema.mjs';
@@ -181,18 +183,60 @@ const CLAIMS = [
     // already guards for dependency versions (`check-pins`, rule LAG). It went stale the first time
     // the index grew: AGENTS.md still promised ~6 k while the file had become 8,5 k. A reader
     // budgets on that number, so it is a promise like any other.
-    claim: 'Rozmiar CODE-INDEX.md podany w AGENTS.md zgadza się z plikiem (± 10 %)',
+    claim: 'Rozmiary plików czytanych na starcie sesji, podane w AGENTS.md, zgadzają się z nimi (± 10 %)',
     where: 'AGENTS.md (sekcja „Gdzie co jest")',
     run(fail) {
       const agents = readFileSync(path.join(REPO, 'AGENTS.md'), 'utf8');
-      const stated = /≈\s*([\d,.]+)\s*k tokenów/u.exec(agents);
-      if (!stated) return fail('AGENTS.md nie podaje już rozmiaru — usuń tę asercję albo przywróć zdanie');
-      const promised = Number.parseFloat(stated[1].replace(',', '.')) * 1000;
-      const actual = encode(readFileSync(path.join(REPO, 'CODE-INDEX.md'), 'utf8')).length;
-      const drift = Math.abs(actual - promised) / promised;
-      if (drift > 0.1) {
-        fail(`obiecane ${Math.round(promised)} tokenów, jest ${actual} (${Math.round(drift * 100)} % różnicy)`);
+      for (const name of ['CODE-INDEX.md', 'GLOSSARY.md']) {
+        // The figure must sit on the SAME line as the link: two files with two budgets share this
+        // section, and a regex that scanned the whole document would compare one file's size with
+        // the other's number and pass while lying.
+        const line = agents.split('\n').find((l) => l.includes(`(${name})`) && l.includes('k tokenów'));
+        if (!line) {
+          fail(`${name}: AGENTS.md nie podaje już rozmiaru w linii z odnośnikiem`);
+          continue;
+        }
+        const stated = /≈\s*([\d,.]+)\s*k tokenów/u.exec(line);
+        if (!stated) {
+          fail(`${name}: nie umiem odczytać liczby z linii „${line.trim()}"`);
+          continue;
+        }
+        const promised = Number.parseFloat(stated[1].replace(',', '.')) * 1000;
+        const actual = encode(readFileSync(path.join(REPO, name), 'utf8')).length;
+        const drift = Math.abs(actual - promised) / promised;
+        if (drift > 0.1) {
+          fail(`${name}: obiecane ${Math.round(promised)}, jest ${actual} (${Math.round(drift * 100)} % różnicy)`);
+        }
       }
+    },
+  },
+  {
+    // The glossary's MEANINGS are written by a human and cannot be checked. Its MAPPINGS can: every
+    // path must exist and every symbol must still be somewhere in the tree. That is what turns the
+    // file from documentation, which rots in silence, into a claim that goes red on a rename.
+    claim: 'Każde mapowanie w GLOSSARY.md wskazuje na istniejącą ścieżkę albo żywy symbol',
+    where: 'GLOSSARY.md (kolumna „w kodzie")',
+    run(fail) {
+      const glossary = readFileSync(path.join(REPO, 'GLOSSARY.md'), 'utf8');
+      const haystack = listSourceFiles(REPO)
+        .map((rel) => readFileSync(path.join(REPO, rel), 'utf8'))
+        .join('\n');
+      let rows = 0;
+      for (const line of glossary.split('\n')) {
+        const cells = line.split('|');
+        // A data row is `| termin | znaczenie | w kodzie | nie mów |`: six pieces around four cells.
+        if (cells.length !== 6 || /^\s*-+\s*$/u.test(cells[1]) || cells[3].trim() === 'w kodzie') continue;
+        rows++;
+        for (const token of cells[3].matchAll(/`([^`]+)`/gu)) {
+          const value = token[1];
+          if (value.includes('/')) {
+            if (!existsSync(path.join(REPO, value))) fail(`ścieżka nie istnieje: ${value}`);
+          } else if (!new RegExp(`\\b${value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}\\b`, 'u').test(haystack)) {
+            fail(`symbol nie występuje w kodzie: ${value}`);
+          }
+        }
+      }
+      if (rows === 0) fail('nie znaleziono ani jednego wiersza — format tabeli się zmienił, asercja jest ślepa');
     },
   },
 ];

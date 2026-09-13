@@ -220,7 +220,7 @@ Modules: 52.
 - imported by: `packages/nx-angular-inspector/src/verbs.run.mjs`
 
 ## scripts/check-claims.mjs
-- imports: `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`
+- imports: `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `scripts/index-code.mjs`
 
 ## scripts/check-instruction-sync.mjs
 - exports: `AGENTS_FILE`, `BLOCKS`, `COPILOT_FILE`, `TOKEN_LIMIT`, `TOTAL_TOKEN_LIMIT`, `checkInstructionSync(root, {…}) → Promise<{ ok: boolean, message: string }>`, `countTokens(text) → Promise<number | null>`, `extractInstruction(markdown, name) → string | null`
@@ -237,6 +237,7 @@ Modules: 52.
 ## scripts/index-code.mjs
 - exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `listSourceFiles(root) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `returnType(block) → string`
 - subscribes: `receiver:event`
+- imported by: `scripts/check-claims.mjs`
 
 ## scripts/pins.config.mjs
 - exports: `FROZEN_ALWAYS`, `PINS`

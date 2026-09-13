@@ -13,6 +13,8 @@ runtime, tylko nx >= 23 i angular >= 22). Repozytorium jest minimalne: kod narz�
 ustawienia Copilota — bez testów, benchmarku i dokumentacji projektowej.
 
 - Pełne nazwy narzędzi wszędzie (binarki, skrypty, zmienne środowiskowe, pipe, teksty) — skróty są zakazane.
+- Zanim zaczniesz szukać w drzewie, przeczytaj [CODE-INDEX.md](../CODE-INDEX.md) (gdzie co jest) i
+  [GLOSSARY.md](../GLOSSARY.md) (jak to się nazywa); otwieraj tylko to, co nazwą.
 
 ## Blok instrukcji `browser-inspector`
 

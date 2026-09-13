@@ -97,12 +97,16 @@ Bez npm, bez builda: `npm run portable` pakuje oba narzędzia do
   `docs`, `nx-angular-inspector`), dołączane automatycznie według `applyTo`.
 - `.github/prompts/`: `/migrate-from-mcp-playwright` prowadzi migrację repozytorium aplikacji
   (Nx monorepo) z serwera MCP Playwrighta na `browser-inspector`; `/browser-session` to pętla
-  „spójrz, potem kliknij" dla sesji interaktywnej.
+  „spójrz, potem kliknij" dla sesji interaktywnej; `/perf-optimize` to runbook wydajności i DX dla
+  repozytorium aplikacji — indeks kodu i słownik pojęć pod ograniczanie kontekstu, cache Nx bez Nx
+  Cloud, `affected`, natywne hooki, pipeline GitLab CI.
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
   `.vscode/settings.json` włącza Biome jako formater, prompt files, instrukcje i `AGENTS.md`;
   `.vscode/extensions.json` poleca Biome i Copilot Chat.
 
-Instrukcje dla agentów pracujących w tym repo: [AGENTS.md](AGENTS.md).
+Instrukcje dla agentów pracujących w tym repo: [AGENTS.md](AGENTS.md). Agent zaczyna sesję od
+dwóch plików: [CODE-INDEX.md](CODE-INDEX.md) mówi, gdzie co jest, a [GLOSSARY.md](GLOSSARY.md),
+jak to się nazywa — proza jest po polsku, identyfikatory po angielsku.
 
 ## Skrypty
 
@@ -120,6 +124,8 @@ Instrukcje dla agentów pracujących w tym repo: [AGENTS.md](AGENTS.md).
 ```
 packages/browser-inspector/      # bin/browser-inspector.mjs, src/, templates/
 packages/nx-angular-inspector/   # bin/nx-angular-inspector.mjs, src/
-scripts/                         # index-code, check-instruction-sync, check-pins, check-upstream, portable-zip
+scripts/                         # index-code, check-claims, check-instruction-sync, check-pins, check-upstream, portable-zip
 .github/                         # copilot-instructions.md, instructions/, prompts/
+CODE-INDEX.md                    # generowana mapa modułów — czytaj na starcie sesji
+GLOSSARY.md                      # słownik pojęć i nazw — czytaj na starcie sesji
 ```
