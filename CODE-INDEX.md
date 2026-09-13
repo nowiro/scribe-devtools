@@ -1,8 +1,8 @@
 # CODE-INDEX
 
 Dependency map of this repository — generated, do not edit by hand.
-Regenerate: `npm run code-index` (the pre-commit hook does it on every commit;
-`npm run verify` fails when this file is stale). One section per module:
+Regenerate: `pnpm run code-index` (the pre-commit hook does it on every commit;
+`pnpm run verify` fails when this file is stale). One section per module:
 what it is **for**, what it **exports** (with the inputs and output of every function), what it
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
@@ -299,8 +299,8 @@ Modules: 52.
 - exports: `AGENTS_FILE`, `BLOCKS`, `COPILOT_FILE`, `TOKEN_LIMIT`, `TOTAL_TOKEN_LIMIT`, `checkInstructionSync(root, {…}) → Promise<{ ok: boolean, message: string }>`, `countTokens(text) → Promise<number | null>`, `extractInstruction(markdown, name) → string | null`
 
 ## scripts/check-pins.mjs
-- purpose: Offline, deterministic gate over scripts/pins.config.mjs — the first step of `npm run verify`, next to `biome format .`.
-- exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root) → string[]`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `walkText(root, frozen) → string[]`
+- purpose: Offline, deterministic gate over scripts/pins.config.mjs — the first step of `pnpm run verify`, next to `biome format .`.
+- exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root)`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `walkText(root, frozen) → string[]`, `workspacePatterns(root) → string[]`
 - imports: `scripts/pins.config.mjs`
 - imported by: `scripts/check-upstream.mjs`
 
@@ -324,4 +324,4 @@ Modules: 52.
 
 ## scripts/portable-zip.mjs
 - purpose: Builds the PORTABLE zip: unpack, run either tool with Node ≥ 22 (browser-inspector also wants the system Chrome/Edge) — no npm, no build (t…
-- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable(root, outDir) → { version: string, playwrightVersion: string, zipPath: stri…`, `crc32(data) → number`, `gitTags(root) → string[]`, `isFrozen(version, tags, zipExists)`, `isTracked(root, file)`, `listFiles(dir) → string[]`, `readVersion(root) → string`, `sha256(file) → string`, `stagePortable(root, staging) → { version: string, playwrightVersion: string }`, `zipDirectory(staging, zipPath)`, `zipName(version)`
+- exports: `DOWNLOAD_DIR`, `FIXED_MTIME`, `PACKAGES`, `PORTABLE_MARKER`, `buildPortable(root, outDir) → { version: string, playwrightVersion: string, zipPath: stri…`, `crc32(data) → number`, `gitTags(root) → string[]`, `isFrozen(version, tags, zipExists)`, `isTracked(root, file)`, `listFiles(dir) → string[]`, `readVersion(root) → string`, `resolvePlaywrightCore(root) → string`, `sha256(file) → string`, `stagePortable(root, staging) → { version: string, playwrightVersion: string }`, `zipDirectory(staging, zipPath)`, `zipName(version)`

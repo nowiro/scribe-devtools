@@ -1,4 +1,4 @@
-// Offline, deterministic gate over scripts/pins.config.mjs — the first step of `npm run verify`,
+// Offline, deterministic gate over scripts/pins.config.mjs — the first step of `pnpm run verify`,
 // next to `biome format .`. It answers four questions a green test suite does not:
 //
 //   1. META  — does every dependency in every manifest have a row? A check that does not know
@@ -36,7 +36,7 @@ const SKIP_DIRS = new Set([
   '.vitest',
   '.ws',
 ]);
-const SKIP_FILES = new Set(['package-lock.json']);
+const SKIP_FILES = new Set(['pnpm-lock.yaml']);
 const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.mts', '.ts', '.json', '.yml', '.yaml', '.txt']);
 
 /**
@@ -46,11 +46,46 @@ const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.mts', '.ts', '.json', '.yml', 
  * @param {string} root
  * @returns {string[]} repo-relative paths, POSIX separators
  */
-export function discoverManifests(root) {
-  const found = ['package.json'];
+/**
+ * Where the workspace members are declared, asked of BOTH conventions: npm and Yarn put a
+ * `workspaces` array in package.json, pnpm reads `pnpm-workspace.yaml` and ignores that field
+ * entirely. This gate has no business knowing which package manager the repository uses — it
+ * knows which packages exist — and when the repository moved from one to the other, a discovery
+ * that read only the manifest field found ONE manifest and reported every pin as orphaned.
+ *
+ * The YAML is parsed by hand, on purpose and within a stated limit: this file's `packages:` list
+ * is a flat sequence of scalars, that shape is a few lines of regex, and a YAML parser would be a
+ * dependency taken on for six lines of configuration. A nested or anchored file would be read as
+ * empty — a missing manifest, which the META rule then reports loudly rather than skipping.
+ * @param {string} root
+ * @returns {string[]} glob-ish patterns, exactly as declared
+ */
+export function workspacePatterns(root) {
   /** @type {{workspaces?: string[]}} */
   const rootPkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  for (const pattern of rootPkg.workspaces ?? []) {
+  if (rootPkg.workspaces && rootPkg.workspaces.length > 0) return rootPkg.workspaces;
+  const yaml = path.join(root, 'pnpm-workspace.yaml');
+  if (!existsSync(yaml)) return [];
+  /** @type {string[]} */
+  const patterns = [];
+  let inPackages = false;
+  for (const raw of readFileSync(yaml, 'utf8').split('\n')) {
+    const line = raw.replace(/#.*$/u, '').trimEnd();
+    if (/^packages:\s*$/u.test(line)) {
+      inPackages = true;
+      continue;
+    }
+    if (!inPackages) continue;
+    const item = /^\s+-\s+(.+)$/u.exec(line);
+    if (!item) break;
+    patterns.push(item[1].trim().replace(/^['"]|['"]$/gu, ''));
+  }
+  return patterns;
+}
+
+export function discoverManifests(root) {
+  const found = ['package.json'];
+  for (const pattern of workspacePatterns(root)) {
     const star = pattern.indexOf('*');
     if (star === -1) {
       if (existsSync(path.join(root, pattern, 'package.json'))) found.push(`${pattern}/package.json`);

@@ -19,7 +19,7 @@ ustawienia Copilota — bez testów, benchmarku i dokumentacji projektowej.
 
 ## Blok instrukcji `browser-inspector`
 
-Co do znaku równy blokowi w `AGENTS.md` (`scripts/check-instruction-sync.mjs` w `npm run verify`; limit 200 tokenów
+Co do znaku równy blokowi w `AGENTS.md` (`scripts/check-instruction-sync.mjs` w `pnpm run verify`; limit 200 tokenów
 o200k). Repozytorium aplikacji kopiuje go STĄD bez zmian — każde dopisane zdanie to koszt w każdej sesji.
 
 <!-- INSTRUCTION:START -->

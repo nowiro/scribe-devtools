@@ -2,6 +2,10 @@
   // Formatowanie: jedna konfiguracja dla całego repo (biome.jsonc, 120 kolumn, LF). Markdown
   // zostaje bez formatera — Biome go nie obsługuje — więc dla .md nie ustawiamy żadnego.
   "editor.defaultFormatter": "biomejs.biome",
+
+  // Zadania typu `npm` w tasks.json mają jechać pnpm — inaczej Run Task wołałby npm w repo,
+  // które npm-locka już nie ma.
+  "npm.packageManager": "pnpm",
   "editor.formatOnSave": true,
   "files.eol": "\n",
   "files.insertFinalNewline": true,

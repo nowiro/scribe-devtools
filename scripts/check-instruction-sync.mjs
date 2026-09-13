@@ -4,7 +4,7 @@
 // application, so the block cannot go back to the old 150). A second copy lives in
 // `.github/copilot-instructions.md`: VS Code Copilot reads that file instead of AGENTS.md in some
 // modes, and an application repository migrating from MCP Playwright copies the block from there —
-// so it is compared too, and it is required, not optional. `npm run verify` compares the two
+// so it is compared too, and it is required, not optional. `pnpm run verify` compares the two
 // character for character; a drift there is the agent reading one instruction and being measured
 // against another.
 //
@@ -15,7 +15,7 @@
 //
 // A block absent from BOTH files is skipped rather than failed: that is a checkout of this tooling
 // in a repository that does not use that tool. Present in one and missing from the other is a FAIL —
-// that is drift, and it is the whole point. THIS repository ships both tools, so `npm run verify`
+// that is drift, and it is the whole point. THIS repository ships both tools, so `pnpm run verify`
 // passes `--require-all`: here a block missing from both files is not a foreign checkout, it is
 // the gate quietly disarmed — deleting both copies would otherwise print `ok`.
 //

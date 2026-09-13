@@ -35,13 +35,24 @@
 // history. Where `download/` is ignored instead, the zip is an on-demand scratch build and the
 // "frozen after the tag" rule below does not apply to it (`isTracked`).
 //
-// Usage: npm run portable                                (zip + .sha256 land in download/)
+// Usage: pnpm run portable                                (zip + .sha256 land in download/)
 //        node scripts/portable-zip.mjs [--out <dir>] [--stage <dir>]   (--stage: copy only, no zip — for tests)
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
@@ -117,26 +128,43 @@ export function readVersion(root) {
 export const zipName = (version) => `scribe-devtools-portable-${version}.zip`;
 
 /**
+ * The directory playwright-core actually lives in, asked of the module resolver from the package
+ * that depends on it. Returns the REAL path, so a pnpm symlink is followed to the store before
+ * anything is copied out of it.
+ * @param {string} root repository root
+ * @returns {string} absolute directory
+ */
+export function resolvePlaywrightCore(root) {
+  const from = createRequire(join(root, 'packages/browser-inspector/package.json'));
+  return realpathSync(dirname(from.resolve('playwright-core/package.json')));
+}
+
+/**
  * Copy everything the unpacked zip needs into `staging` and write the markers + shims.
  * Pure file operations, no zip — the unpack test asserts on this directory directly.
- * @param {string} root repository root (must have been `npm install`-ed)
+ * @param {string} root repository root (dependencies must be installed)
  * @param {string} staging empty directory
  * @returns {{ version: string, playwrightVersion: string }}
  */
 export function stagePortable(root, staging) {
   const version = readVersion(root);
   const biPkg = JSON.parse(readFileSync(join(root, 'packages/browser-inspector/package.json'), 'utf8'));
-  const pwPath = join(root, 'node_modules', 'playwright-core');
+  // RESOLVED from the package that declares it, never assembled as `<root>/node_modules/…`: npm
+  // hoists playwright-core to the root, pnpm does not — it puts a symlink in
+  // `packages/browser-inspector/node_modules` pointing into `.pnpm`. The hardcoded root path was
+  // correct under one package manager and silently wrong under the other. `require.resolve` asks
+  // the runtime the same question node will ask at runtime, so it is right under both.
+  const pwPath = resolvePlaywrightCore(root);
   let playwrightVersion;
   try {
     playwrightVersion = JSON.parse(readFileSync(join(pwPath, 'package.json'), 'utf8')).version;
   } catch {
-    throw new Error('brak node_modules/playwright-core — uruchom npm ci przed budowaniem zipa (także przed commitem)');
+    throw new Error('brak playwright-core — zainstaluj zależności przed budowaniem zipa (także przed commitem)');
   }
   const pinned = biPkg.dependencies?.['playwright-core'];
   if (pinned !== playwrightVersion) {
     throw new Error(
-      `playwright-core in node_modules is ${playwrightVersion}, package.json pins ${pinned} — run npm ci first`,
+      `playwright-core installed is ${playwrightVersion}, package.json pins ${pinned} — reinstall dependencies first`,
     );
   }
 
@@ -167,7 +195,10 @@ export function stagePortable(root, staging) {
   // Only browser-inspector has a runtime dependency: playwright-core, itself dependency-free, so the
   // whole extra tree is one directory. nx-angular-inspector needs nothing copied here — zero
   // runtime dependencies is the point of it.
-  cpSync(pwPath, join(staging, 'node_modules', 'playwright-core'), { recursive: true, filter });
+  // `dereference` because under pnpm the resolved directory is reached through a symlink into the
+  // store: copying the link would put a pointer to a path that does not exist on the machine that
+  // unpacks the zip. The portable build must carry bytes, not references.
+  cpSync(pwPath, join(staging, 'node_modules', 'playwright-core'), { recursive: true, dereference: true, filter });
 
   // Shims: `<bin> …` from the zip root on both shells; `%~dp0` / `$(dirname "$0")` make them
   // cwd-independent. One pair per package.
@@ -185,7 +216,7 @@ export function stagePortable(root, staging) {
     [
       `# scribe-devtools ${version} — portable`,
       '',
-      'Wymagania: Node >= 22. Bez `npm install`, bez builda. Dwa narzędzia w jednym zipie, jedna wersja.',
+      'Wymagania: Node >= 22. Bez `pnpm install`, bez builda. Dwa narzędzia w jednym zipie, jedna wersja.',
       '',
       '## browser-inspector',
       '',
@@ -348,7 +379,7 @@ export const isFrozen = (version, tags, zipExists) => zipExists && tags.includes
 
 /**
  * Whether git tracks `file` (repo-relative). Only a tracked zip is a release asset worth freezing:
- * an ignored one is a scratch build, and freezing it meant the second `npm run portable` under a
+ * an ignored one is a scratch build, and freezing it meant the second `pnpm run portable` under a
  * tagged version silently handed back the first build, whatever changed in between.
  * @param {string} root
  * @param {string} file

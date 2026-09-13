@@ -23,7 +23,7 @@ przez JSDoc, sprawdzane `tsc --checkJs`. Tylko wbudowane moduły Node i (dla bro
 
 Ten blok jest cytowany co do znaku przez `INSTRUCTION` w `.github/copilot-instructions.md`
 (kopia dla Copilota i dla repozytoriów aplikacji). Zmieniasz go tu → zmieniasz tam;
-`scripts/check-instruction-sync.mjs` w `npm run verify` pilnuje równości i limitu 200 tokenów o200k.
+`scripts/check-instruction-sync.mjs` w `pnpm run verify` pilnuje równości i limitu 200 tokenów o200k.
 
 <!-- INSTRUCTION:START -->
 > Przeglądarka: `browser-inspector <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (nagłówek, `## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `browser-inspector open <url>`, `browser-inspector find <tekst>` / `browser-inspector snap` dają refy `eN`; `browser-inspector click|fill|form|press|select|wait|shot|eval|console|net …` drukują jedną linię (exit 1 = FAIL); `browser-inspector export flow.json` zapisuje sesję jako config.
@@ -50,7 +50,7 @@ kontrakt `project-graph.json`, brak `docs`):
 
 | komenda | co pilnuje |
 | --- | --- |
-| `npm run verify` | wszystko poniżej, w tej kolejności |
+| `pnpm run verify` | wszystko poniżej, w tej kolejności |
 | `biome format .` | format: 120 kolumn, LF, pojedyncze cudzysłowy, przecinki końcowe wszędzie (`biome.jsonc`; wykluczenia — bliźniak dawnego `.prettierignore` — w `files.includes`). Zastąpił prettiera: te same liczby, ten sam styl, na tym drzewie różnica wyszła w JEDNEJ linii na 62 plikach. **Markdownu Biome nie formatuje** — schemat konfiguracji 2.x zna `css`, `graphql`, `grit`, `html`, `javascript` i `json`, sekcji `markdown` nie ma. Dziewięć plików prozy (`.github/**/*.md`, `templates/flow.md`), które wcześniej pilnowała bramka, pilnuje teraz review; `README.md` i `AGENTS.md` były poza formaterem i wcześniej |
 | `node scripts/check-pins.mjs` | `scripts/pins.config.mjs` to jedyne miejsce, gdzie wersja zależności jest **deklarowana**. Bramka jest offline i deterministyczna: META — każda zależność w każdym manifeście ma wiersz, i odwrotnie; SHAPE — `exact` znaczy goły numer, `caret` znaczy `^`; FLOOR — `minSupported` jako podłoga (`playwright-core >= 1.62.1`), która **nie** rozluźnia `exact`; LAG — proza cytująca inną wersję niż pin. Bramka **wskazuje, nie przepisuje**: świadomy cytat starej wersji zwalnia `pins:ignore` w linii |
 | `tsc --noEmit` | typy z JSDoc (`checkJs`) w `packages/**`, `scripts/**` |
@@ -58,7 +58,7 @@ kontrakt `project-graph.json`, brak `docs`):
 | `node scripts/check-instruction-sync.mjs --require-all` | każdy blok instrukcji ≡ jego kopia w `.github/copilot-instructions.md`; limit 200 tokenów na blok i 400 na wszystkie razem. Obecny w jednym i brakujący w drugim to FAIL; `--require-all` robi FAIL także z bloku brakującego w OBU plikach — bez tego skasowanie obu kopii przechodziłoby jako „pominięty” |
 | `node scripts/check-claims.mjs` | jedyna bramka, która URUCHAMIA obie binarki. Sprawdza zdania, które proza podaje jako fakty: jedna linia z prefiksem `ok`/`FAIL` na komendę, twardy limit 120 znaków, `exit 1 = FAIL` i `exit 2` dla błędu składni oraz błędu fatalnego, sesja bez keepera kończąca się nazwanym błędem, `Object.keys(RUNNERS) === Object.keys(STEPS)`, rozmiary `CODE-INDEX.md` i `GLOSSARY.md` obiecane w prozie oraz to, że każde mapowanie ze słownika wskazuje na żywą ścieżkę albo żywy symbol. Każda asercja niesie plik, który daną obietnicę składa, więc FAIL mówi, które zdanie przestało być prawdą. Bez przeglądarki, bez sieci, bez keepera — to, co wymaga prawdziwej strony, jest **poza** jej zasięgiem i zostaje sprawą review |
 
-**Poza `npm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — pyta rejestr npm o `latest` dla
+**Poza `pnpm run verify`, bo dotyka sieci:** `node scripts/check-upstream.mjs` — pyta rejestr npm o `latest` dla
 każdego pinu i mierzy, od kiedy pin jest w tyle (zegar `firstSeenBehind` w commitowanym
 `scripts/upstream-state.json`, nie data wydania `latest`). WARN po `staleDays` z wiersza pinu, exit 1 tylko ze
 `--strict`; `--ack <id|all>` to świadoma decyzja „widziałem, zostaję". `@types/node` WARN-uje celowo
@@ -71,15 +71,15 @@ nie ma. Są w **historii**, przed scaleniem `04ae6c1`: `git show <commit>:docs/D
 docs/`. Kod jest ten sam, więc numery paragrafów dalej się zgadzają.
 
 Hook `.githooks/pre-commit` regeneruje `CODE-INDEX.md` przed każdym commitem. Uzbraja go
-`npm run prepare` — **jawnie**, bo `.npmrc` ma `ignore-scripts=true` i `npm install` skryptu
+`pnpm run prepare` — **jawnie**, bo `.npmrc` ma `ignore-scripts=true` i `pnpm install` skryptu
 `prepare` nie uruchamia.
 
 ## Artefakty GENEROWANE — nigdy nie edytuj ręcznie
 
 | plik | regeneruje | kiedy |
 | --- | --- | --- |
-| `CODE-INDEX.md` | `npm run code-index` (albo hook) | każda zmiana `.mjs` w `packages/*/src`, `packages/*/bin`, `scripts` |
-| `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` | `npm run portable`, na żądanie | JEDEN zip niesie OBA narzędzia (`browser-inspector`, `nx-angular-inspector`) pod JEDNĄ wersją — korzeń i oba `packages/*/package.json` muszą się zgadzać, inaczej build odmawia; bajty deterministyczne |
+| `CODE-INDEX.md` | `pnpm run code-index` (albo hook) | każda zmiana `.mjs` w `packages/*/src`, `packages/*/bin`, `scripts` |
+| `download/scribe-devtools-portable-<wersja>.zip` + `.sha256` | `pnpm run portable`, na żądanie | JEDEN zip niesie OBA narzędzia (`browser-inspector`, `nx-angular-inspector`) pod JEDNĄ wersją — korzeń i oba `packages/*/package.json` muszą się zgadzać, inaczej build odmawia; bajty deterministyczne |
 | `scripts/upstream-state.json` | `node scripts/check-upstream.mjs` (dopisuje/kasuje wiersze, nie zastępuje pliku w całości) | za każdym uruchomieniem; commituje się jak lockfile — diff jest **zapisem decyzji**, nie tylko danymi |
 
 Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo obleje bramkę.

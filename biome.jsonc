@@ -45,7 +45,7 @@
       "**",
       "!node_modules/**",
       "!coverage/**",
-      "!package-lock.json",
+      "!pnpm-lock.yaml",
       "!.scribe-devtools/**",
       "!.ws/**",
       "!download/**"

@@ -21,7 +21,7 @@
 //   staleDays    after this many days without a review, `check-upstream.mjs` (online, WARN) complains.
 //   why          what breaks, in one sentence — this is what the reviewer of a bump needs.
 //
-// `check-pins.mjs` is offline and deterministic, so it can be the first step of `npm run verify`.
+// `check-pins.mjs` is offline and deterministic, so it can be the first step of `pnpm run verify`.
 // Whether the pin is still `latest` upstream is a calendar question and belongs to a separate,
 // network-touching, WARN-only script — mixing the two would make the gate red on a train.
 
@@ -60,7 +60,7 @@ export const PINS = [
     policy: 'caret',
     prose: [],
     staleDays: 180,
-    why: '`biome format .` is the first step of `npm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. It replaced prettier: on this tree the two disagree about exactly ONE line out of 62 files (a space before `)` in an empty `for` update clause), so the switch was a change of tool, not of style. What it does NOT carry over is Markdown: the 2.x configuration schema has no markdown section, so the nine prose files prettier used to format are on review now. A major that adds one would be worth taking; that is what this row is for.',
+    why: '`biome format .` is the first step of `pnpm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. It replaced prettier: on this tree the two disagree about exactly ONE line out of 62 files (a space before `)` in an empty `for` update clause), so the switch was a change of tool, not of style. What it does NOT carry over is Markdown: the 2.x configuration schema has no markdown section, so the nine prose files prettier used to format are on review now. A major that adds one would be worth taking; that is what this row is for.',
   },
   {
     id: 'typescript',

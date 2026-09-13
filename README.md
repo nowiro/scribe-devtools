@@ -18,20 +18,20 @@ linia, ścieżkę do pliku z całością zamiast wypisywania jej wprost.
 
 ## Instalacja
 
-Wymagania: Node ≥ 22, npm; dla `browser-inspector` — systemowy Chrome albo Edge (nic nie jest
+Wymagania: Node ≥ 22, pnpm; dla `browser-inspector` — systemowy Chrome albo Edge (nic nie jest
 pobierane, `playwright-core` nie ma pobierania przeglądarek).
 
 ```bash
 git clone <repo> scribe-devtools
 cd scribe-devtools
-npm ci            # .npmrc: ignore-scripts=true, engine-strict=true
-npm run prepare   # uzbraja hook pre-commit (npm install go NIE uruchamia — ignore-scripts)
-npm run verify    # bramki: biome format, check-pins, tsc, CODE-INDEX, sync instrukcji, claims
+pnpm install --frozen-lockfile   # .npmrc: ignore-scripts=true, engine-strict=true
+pnpm run prepare                 # uzbraja hook pre-commit (instalacja go NIE uruchamia — ignore-scripts)
+pnpm run verify                  # bramki: biome format, check-pins, tsc, CODE-INDEX, sync instrukcji, claims
 ```
 
 Bez binarek na PATH: `node packages/browser-inspector/bin/browser-inspector.mjs …` /
 `node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs …`, albo
-`npm run browser-inspector -- …` / `npm run nx-angular-inspector -- …`.
+`pnpm run browser-inspector -- …` / `pnpm run nx-angular-inspector -- …`.
 
 ## browser-inspector
 
@@ -83,7 +83,7 @@ zgadywanie. Pełna lista komend: `nx-angular-inspector help`; zasady workspace'u
 
 ## Wersja portable
 
-Bez npm, bez builda: `npm run portable` pakuje oba narzędzia do
+Bez menedżera pakietów, bez builda: `pnpm run portable` pakuje oba narzędzia do
 `download/scribe-devtools-portable-<wersja>.zip` (+ sidecar `.sha256`), wersja tylko z
 `package.json` korzenia, build deterministyczny. Po rozpakowaniu: `browser-inspector.cmd` /
 `./browser-inspector`, `nx-angular-inspector.cmd` / `./nx-angular-inspector`, albo
@@ -92,7 +92,7 @@ Bez npm, bez builda: `npm run portable` pakuje oba narzędzia do
 ## GitHub Copilot i VS Code
 
 - `.github/copilot-instructions.md` — karta repo i kanoniczna kopia bloków instrukcji obu narzędzi
-  (ta sama, którą kopiuje repozytorium aplikacji; `npm run verify` pilnuje równości z `AGENTS.md`).
+  (ta sama, którą kopiuje repozytorium aplikacji; `pnpm run verify` pilnuje równości z `AGENTS.md`).
 - `.github/instructions/*.instructions.md` — reguły per obszar plików (`source`, `scripts`,
   `docs`, `nx-angular-inspector`), dołączane automatycznie według `applyTo`.
 - `.github/prompts/`: `/migrate-from-mcp-playwright` prowadzi migrację repozytorium aplikacji
@@ -112,12 +112,12 @@ jak to się nazywa — proza jest po polsku, identyfikatory po angielsku.
 
 | skrypt | co robi |
 | --- | --- |
-| `npm run verify` | wszystkie bramki (patrz AGENTS.md) |
-| `npm run typecheck` | `tsc --noEmit` z `checkJs` |
-| `npm run claims` | uruchamia obie binarki i sprawdza obietnice z prozy (jedna linia, limit 120 znaków, kody wyjścia) |
-| `npm run code-index` | regeneracja `CODE-INDEX.md` |
-| `npm run portable` | zip portable obu narzędzi |
-| `npm run browser-inspector -- <args>` / `npm run nx-angular-inspector -- <args>` | narzędzie bez PATH |
+| `pnpm run verify` | wszystkie bramki (patrz AGENTS.md) |
+| `pnpm run typecheck` | `tsc --noEmit` z `checkJs` |
+| `pnpm run claims` | uruchamia obie binarki i sprawdza obietnice z prozy (jedna linia, limit 120 znaków, kody wyjścia) |
+| `pnpm run code-index` | regeneracja `CODE-INDEX.md` |
+| `pnpm run portable` | zip portable obu narzędzi |
+| `pnpm run browser-inspector -- <args>` / `pnpm run nx-angular-inspector -- <args>` | narzędzie bez PATH |
 
 ## Układ repozytorium
 

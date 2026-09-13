@@ -23,7 +23,7 @@
 .editorconfig  text eol=lf
 
 # The lockfile: LF, no diff in review, marked as generated.
-package-lock.json text eol=lf -diff linguist-generated=true
+pnpm-lock.yaml text eol=lf -diff linguist-generated=true
 
 # Binaries — never touched by line-ending conversion.
 *.png   binary

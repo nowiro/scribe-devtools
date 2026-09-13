@@ -1,7 +1,7 @@
 // check-upstream.mjs — the calendar half of the currency doctrine.
 //
 // `check-pins.mjs` is offline and deterministic: it answers "does the repository agree with
-// itself" and is the first step of `npm run verify`. This script answers a different question —
+// itself" and is the first step of `pnpm run verify`. This script answers a different question —
 // "is what we declared still what upstream calls `latest`, and for how long has it not been" — and
 // that question needs the network. It is therefore NOT part of `verify`: a gate that depends on
 // npm's registry being reachable is a gate that goes red on a train. Run it by hand, or with

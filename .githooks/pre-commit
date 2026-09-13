@@ -1,9 +1,9 @@
 #!/bin/sh
-# Regenerates CODE-INDEX.md so each commit carries it fresh — `npm run verify` fails on a stale
-# one, this hook makes staleness impossible. Armed by `npm run prepare` (`.npmrc` has
-# ignore-scripts=true, so `npm install` does NOT run `prepare` — call it once).
+# Regenerates CODE-INDEX.md so each commit carries it fresh — `pnpm run verify` fails on a stale
+# one, this hook makes staleness impossible. Armed by `pnpm run prepare` (`.npmrc` has
+# ignore-scripts=true, so `pnpm install` does NOT run `prepare` — call it once).
 #
-# The portable zip (`npm run portable`) is NOT built here: on this minimal branch it is an
+# The portable zip (`pnpm run portable`) is NOT built here: on this minimal branch it is an
 # on-demand script, not a per-commit artifact — nothing here needs a 3 MB blob added to every
 # commit that only touches a source file.
 node scripts/index-code.mjs || exit 1

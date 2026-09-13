@@ -1,0 +1,6 @@
+# pnpm-workspace.yaml — the workspace members, moved here from `workspaces` in package.json.
+#
+# pnpm does not read the npm `workspaces` field; it reads this file and nothing else. Leaving the
+# old field in place would have been two declarations of the same truth, one of them dead.
+packages:
+  - 'packages/*'
