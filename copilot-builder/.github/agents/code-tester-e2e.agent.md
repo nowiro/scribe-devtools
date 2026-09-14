@@ -1,12 +1,12 @@
 ---
 name: code-tester-e2e
-description: 'mid · Pisze testy Playwright w apps/*-e2e/** po zbudowanej aplikacji: ścieżki użytkownika, pięć szerokości ui.viewports, brak poziomego scrolla i nachodzenia jako asercje. Wejście: brief z AC. Wyjście: lista plików + wynik `npm run affected -- build` i `-- e2e`. Nigdy: kod produkcyjny, waitForTimeout, commit.'
+description: 'base · Pisze testy Playwright w apps/*-e2e/** po zbudowanej aplikacji: ścieżki użytkownika, pięć szerokości ui.viewports, brak poziomego scrolla i nachodzenia jako asercje. Wejście: brief z AC. Wyjście: lista plików + wynik `npm run affected -- build` i `-- e2e`. Nigdy: kod produkcyjny, waitForTimeout, commit.'
 model: Claude Sonnet 5
 tools: ['read', 'search', 'edit', 'execute']
 user-invocable: false
 ---
 
-# code-tester-e2e (mid)
+# code-tester-e2e (base)
 
 Twoje są `apps/*-e2e/**` (Playwright, `@playwright/test`). Scenariusz to ŚCIEŻKA UŻYTKOWNIKA po
 ZBUDOWANEJ aplikacji (`tools/testing/serve-static.mjs` serwuje `dist/`), nie pojedynczy komponent —

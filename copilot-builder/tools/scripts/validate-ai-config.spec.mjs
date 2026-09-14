@@ -127,7 +127,7 @@ describe('validateAiConfig', () => {
 
   it('A18 — a seat whose model is not from the family it promises, which also doubles a family', () => {
     patch(dir, '.github/models-registry.json', (text) =>
-      text.replace('"senior-moonshot": "Kimi K3"', '"senior-moonshot": "Claude Opus 5"'),
+      text.replace('"main-moonshot": "Kimi K3"', '"main-moonshot": "Claude Opus 5"'),
     );
     // The agent file follows its tier, so A5 stays quiet; A18 sees a broken promise and a shared family.
     patch(dir, '.github/agents/code-reviewer-moonshot.agent.md', (text) =>
@@ -155,7 +155,7 @@ describe('validateAiConfig', () => {
     mkdirSync(path.join(dir, '.github/agents'), { recursive: true });
     writeFileSync(
       path.join(dir, '.github/agents/code-ghost.agent.md'),
-      "---\nname: code-ghost\ndescription: junior · ghost\nmodel: GPT-5.6 Luna\ntools: ['read']\nuser-invocable: false\n---\n",
+      "---\nname: code-ghost\ndescription: fast · ghost\nmodel: GPT-5.6 Luna\ntools: ['read']\nuser-invocable: false\n---\n",
       'utf8',
     );
     const hits = rulesHit(dir, 'A3');

@@ -14,13 +14,13 @@ Właściciel: `code-tooling` (mechanika) i `doc-spec` (treść prompta / agenta)
 - Dokładnie jeden agent widoczny (`user-invocable: true`): `orchestrator`. Reszta pracuje przez
   delegację (`agents:` orkiestratora).
 - `description` każdego agenta ma stały szablon: `<tier> · <rola>. Wejście: … Wyjście: … Nigdy: …` —
-  orkiestrator (tier `junior`) wybiera wykonawcę po tym opisie, więc opis mówi, co agent bierze, co zwraca
+  orkiestrator (tier `fast`) wybiera wykonawcę po tym opisie, więc opis mówi, co agent bierze, co zwraca
   i czego nie robi; plik orkiestratora jest procedurą z dokładnymi komendami, nie opisem.
 - `model:` to nazwa, którą rejestr przypisuje tierowi z rosteru — zmiana modelu to zmiana rejestru
-  (`tiers`), nigdy pliku agenta. `description` zaczyna się od tagu tieru (`junior ·`, `mid ·`, `senior-<rodzina> ·`, `vision ·`).
+  (`tiers`), nigdy pliku agenta. `description` zaczyna się od tagu tieru (`fast ·`, `base ·`, `main-<rodzina> ·`, `vision ·`).
 - Review kodu to trzy miejsca z `review.seats` rejestru na trzech RÓŻNYCH rodzinach modeli (`models.*.family`),
   ten sam brief i zakres; miejsce nazywa się po rodzinie, którą obiecuje (`code-reviewer-<rodzina>`, tier
-  `senior-<rodzina>`), a A18 sprawdza, że model za tierem jest z tej rodziny i że trzy rodziny są różne —
+  `main-<rodzina>`), a A18 sprawdza, że model za tierem jest z tej rodziny i że trzy rodziny są różne —
   zmiana dostawcy to zmiana nazwy agenta, tieru i wpisu w `review.seats`.
 - `tools:` wynika z roli (`agents.roles` w rejestrze): reviewer/triager bez `edit` i `execute`, writer z
   `edit`, tester z `edit` + `execute`, verifier z `execute`, scm z `execute` bez `edit` (`scm-git` — jedyny

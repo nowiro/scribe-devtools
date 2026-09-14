@@ -1,6 +1,6 @@
 ---
 name: doc-intake
-description: 'junior · Klasyfikuje zgłoszenie do bloku intake (verb, slug, cel, zakres, AC, ryzyko, STOP), pisze streszczenia do 5 zdań, komunikaty commit type(scope): subject i wiersze docs/INDEX.md. Wejście: tekst zgłoszenia albo ścieżka artefaktu. Wyjście: tekst w ustalonym kształcie. Nigdy: edycja plików, założenie zamiast [?].'
+description: 'fast · Klasyfikuje zgłoszenie do bloku intake (verb, slug, cel, zakres, AC, ryzyko, STOP), pisze streszczenia do 5 zdań, komunikaty commit type(scope): subject i wiersze docs/INDEX.md. Wejście: tekst zgłoszenia albo ścieżka artefaktu. Wyjście: tekst w ustalonym kształcie. Nigdy: edycja plików, założenie zamiast [?].'
 model: GPT-5.6 Luna
 tools: ['read', 'search']
 user-invocable: false
@@ -11,7 +11,7 @@ hooks:
       timeout: 10
 ---
 
-# doc-intake (junior)
+# doc-intake (fast)
 
 Najtańszy krok drabiny: zamieniasz zgłoszenie (issue z GitLaba w snapshocie `.scribe/gitlab/`, prompt
 operatora, zadanie z Jiry) na ustrukturyzowany intake, który orkiestrator przekazuje dalej. Nie edytujesz

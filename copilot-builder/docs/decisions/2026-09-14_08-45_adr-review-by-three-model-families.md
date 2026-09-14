@@ -14,7 +14,7 @@ tiery — i rolę reviewer); tamten ADR pozostaje w mocy.
 
 ## Kontekst
 
-Review kodu wykonywał jeden agent (`code-reviewer`) na jednym modelu z tieru senior. Jeden model ma jeden
+Review kodu wykonywał jeden agent (`code-reviewer`) na jednym modelu z tieru main. Jeden model ma jeden
 zestaw ślepych plam, a druga i trzecia tura na tym samym modelu powtarza te same przeoczenia za tę samą
 cenę. Przegląd tego szablonu przed pierwszym wydaniem (sekcja „Fixed" w `CHANGELOG.md`) został zrobiony
 niezależnymi odczytami i każdy z nich znalazł usterki, których pozostałe nie zgłosiły. Wiarygodne jest
@@ -30,7 +30,7 @@ scala trzy tabele i liczy, ile rodzin zgłosiło to samo.**
 1. Miejsca `code-reviewer-anthropic`, `code-reviewer-openai`, `code-reviewer-moonshot` — rola `reviewer`,
    `user-invocable: false`, hook `deny-writes`; ten sam zakres w każdym pliku agenta: architektura,
    jakość i testowalność, bezpieczeństwo, SOLID/DRY/KISS/YAGNI.
-2. Miejsca i ich tiery nazywają się po rodzinie modelu (`code-reviewer-<rodzina>`, `senior-<rodzina>`),
+2. Miejsca i ich tiery nazywają się po rodzinie modelu (`code-reviewer-<rodzina>`, `main-<rodzina>`),
    a `review.seats` w rejestrze mówi, którą rodzinę każde miejsce obiecuje. Brama `ai:validate` A18
    sprawdza, że model za tierem miejsca jest z obiecanej rodziny i że trzy rodziny są różne. Zmiana
    dostawcy to zmiana nazwy agenta, tieru i wpisu w `review.seats` — wszystko pod bramą; wymagane są
@@ -55,7 +55,7 @@ scala trzy tabele i liczy, ile rodzin zgłosiło to samo.**
 
 ## Konsekwencje
 
-- Koszt review to trzy miejsca senior na wejściu; brief to lista plików i diff, nie historia rozmowy, a to,
+- Koszt review to trzy miejsca main na wejściu; brief to lista plików i diff, nie historia rozmowy, a to,
   co rozstrzyga brama (`lint`, `typecheck`, `build`, `check:secrets`), nadal nie jest przedmiotem review.
 - Rodzina `moonshot` to model open-weight hostowany przez GitHub, w planach Business i Enterprise
   domyślnie wyłączony — administrator włącza politykę albo miejsce moonshot zostaje zastąpione miejscem innej rodziny

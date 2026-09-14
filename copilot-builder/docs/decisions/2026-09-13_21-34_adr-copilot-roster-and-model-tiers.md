@@ -57,8 +57,8 @@ Wszystko powyżej sprawdza `npm run ai:validate` (A1–A17), także w hooku pre-
   niesie przedmiotu w nazwie; wzorzec nazw w rejestrze dopuszcza gołe `orchestrator`. Reviewer T3 zastąpiony
   trzema miejscami o tym samym zakresie na trzech rodzinach modeli —
   [ADR](2026-09-14_08-45_adr-review-by-three-model-families.md).
-- 2026-09-14: tiery mają ludzkie nazwy — `junior` (mechanika), `mid` (kod i spec), `senior-<rodzina>` (miejsca
+- 2026-09-14: tiery mają ludzkie nazwy — `fast` (mechanika), `base` (kod i spec), `main-<rodzina>` (miejsca
   review, po jednym na rodzinę modelu), `vision`; były `T1` / `T2` / `T3` / `vision`.
-- 2026-09-14: orkiestrator zszedł na tier `junior` — jego plik stał się procedurą z dokładnymi komendami
+- 2026-09-14: orkiestrator zszedł na tier `fast` — jego plik stał się procedurą z dokładnymi komendami
   i szablonem briefu, a opisy subagentów mają szablon „wejście / wyjście / nigdy"; koordynacja po procedurze
   jest mechaniką, nie osądem.

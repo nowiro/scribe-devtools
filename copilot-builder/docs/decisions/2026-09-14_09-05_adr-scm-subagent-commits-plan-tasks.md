@@ -26,7 +26,7 @@ zmian, obchodzić hooków ani ruszać historii.
 agent z prawem do `git commit`; SHA trafia do kolumny `commit` planu i do run-logu. Push i tag pozostają
 przy człowieku.**
 
-1. Rola `scm` w rejestrze: `execute` bez `edit` i bez `agent`; tier junior. `scm-git` stage'uje wyłącznie
+1. Rola `scm` w rejestrze: `execute` bez `edit` i bez `agent`; tier fast. `scm-git` stage'uje wyłącznie
    ścieżki wymienione w zleceniu, nigdy `git add -A` ani `.`; obcy plik w drzewie = STOP.
 2. Hooki gita (`.githooks/`: skan sekretów, indeks ze stage'a, Biome, `ai:validate`, commitlint) są bramą
    commita; czerwony hook wraca do orkiestratora jako wynik. `--no-verify`, `--amend`, `rebase`,

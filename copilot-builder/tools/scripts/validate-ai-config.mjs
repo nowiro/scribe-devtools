@@ -388,7 +388,7 @@ function checkRouting(repo, registry, fail) {
 }
 
 /**
- * A18 — the review seats. Three reviews are worth three senior seats only when they are independent, and
+ * A18 — the review seats. Three reviews are worth three main seats only when they are independent, and
  * independence is a property of the model FAMILIES, not of the prompts: the same brief read by one vendor
  * three times shares that vendor's blind spots. Each seat is NAMED after the family it promises
  * (`review.seats`: agent → family), so the gate checks the promise — the model behind the seat's tier is

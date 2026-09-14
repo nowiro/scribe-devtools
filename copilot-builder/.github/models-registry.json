@@ -26,12 +26,12 @@
     ]
   },
   "tiers": {
-    "$comment": "junior — cheap mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator, whose agent file is a step-by-step procedure with exact commands, so coordination is mechanics too. mid — code and specs. senior-<family> — the three code-review seats (see `review`), the most expensive tier, named after the model family behind them: the same scope three times, one family each. vision — a model that reads screenshots.",
-    "junior": "GPT-5.6 Luna",
-    "mid": "Claude Sonnet 5",
-    "senior-anthropic": "Claude Opus 5",
-    "senior-openai": "GPT-5.6 Sol",
-    "senior-moonshot": "Kimi K3",
+    "$comment": "fast — cheap mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator, whose agent file is a step-by-step procedure with exact commands, so coordination is mechanics too. base — code and specs. main-<family> — the three code-review seats (see `review`), the most expensive tier, named after the model family behind them: the same scope three times, one family each. vision — a model that reads screenshots.",
+    "fast": "GPT-5.6 Luna",
+    "base": "Claude Sonnet 5",
+    "main-anthropic": "Claude Opus 5",
+    "main-openai": "GPT-5.6 Sol",
+    "main-moonshot": "Kimi K3",
     "vision": "GPT-5 mini"
   },
   "agents": {
@@ -52,21 +52,21 @@
       "integration": { "requires": ["execute"], "forbids": ["edit", "agent"], "mcp": true }
     },
     "roster": {
-      "orchestrator": { "role": "orchestrator", "tier": "junior", "visible": true },
-      "code-angular": { "role": "writer", "tier": "mid", "visible": false },
-      "code-tooling": { "role": "writer", "tier": "junior", "visible": false },
-      "code-tester-unit": { "role": "tester", "tier": "junior", "visible": false },
-      "code-tester-e2e": { "role": "tester", "tier": "mid", "visible": false },
-      "code-verifier": { "role": "verifier", "tier": "junior", "visible": false },
-      "code-reviewer-anthropic": { "role": "reviewer", "tier": "senior-anthropic", "visible": false },
-      "code-reviewer-openai": { "role": "reviewer", "tier": "senior-openai", "visible": false },
-      "code-reviewer-moonshot": { "role": "reviewer", "tier": "senior-moonshot", "visible": false },
+      "orchestrator": { "role": "orchestrator", "tier": "fast", "visible": true },
+      "code-angular": { "role": "writer", "tier": "base", "visible": false },
+      "code-tooling": { "role": "writer", "tier": "fast", "visible": false },
+      "code-tester-unit": { "role": "tester", "tier": "fast", "visible": false },
+      "code-tester-e2e": { "role": "tester", "tier": "base", "visible": false },
+      "code-verifier": { "role": "verifier", "tier": "fast", "visible": false },
+      "code-reviewer-anthropic": { "role": "reviewer", "tier": "main-anthropic", "visible": false },
+      "code-reviewer-openai": { "role": "reviewer", "tier": "main-openai", "visible": false },
+      "code-reviewer-moonshot": { "role": "reviewer", "tier": "main-moonshot", "visible": false },
       "code-reviewer-ui": { "role": "reviewer", "tier": "vision", "visible": false },
-      "doc-intake": { "role": "triager", "tier": "junior", "visible": false },
-      "doc-spec": { "role": "writer", "tier": "mid", "visible": false },
-      "doc-reviewer": { "role": "reviewer", "tier": "mid", "visible": false },
-      "scm-git": { "role": "scm", "tier": "junior", "visible": false },
-      "mcp-gateway": { "role": "integration", "tier": "junior", "visible": false }
+      "doc-intake": { "role": "triager", "tier": "fast", "visible": false },
+      "doc-spec": { "role": "writer", "tier": "base", "visible": false },
+      "doc-reviewer": { "role": "reviewer", "tier": "base", "visible": false },
+      "scm-git": { "role": "scm", "tier": "fast", "visible": false },
+      "mcp-gateway": { "role": "integration", "tier": "fast", "visible": false }
     }
   },
   "review": {

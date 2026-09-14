@@ -9,7 +9,7 @@ Sprawdź spójność trójki spec ↔ plan ↔ stan repozytorium dla podanego sl
 
 1. Każde AC ma pokrycie w zadaniach planu; każde zadanie planu służy jakiemuś AC.
 2. Kolumna `agent` zgodna z `npm run route -- <ścieżki>` (ścieżka wyznacza właściciela); tier zgodny z rosterem
-   (`.github/models-registry.json`) — praca junior nie siedzi w zadaniach mid.
+   (`.github/models-registry.json`) — praca fast nie siedzi w zadaniach base.
 3. Zgodność ze WSZYSTKIMI ADR-ami z `docs/decisions/` i z `docs/tech-stack.md`; odstępstwo bez ADR-u
    = blocker. ADR `superseded` nie jest podstawą.
 4. Standardy UI obecne w planie, gdy zmienia się ekran: matryca viewportów, mobile-first, a11y, stany

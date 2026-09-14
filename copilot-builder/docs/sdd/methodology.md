@@ -13,14 +13,14 @@ intake → specify → clarify → plan → analyze (go/no-go) → implement →
 
 | Szczebel  | Kto                                      | Artefakt / mechanizm                                                             |
 | --------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
-| intake    | `doc-intake` (junior) przez `/intake`        | blok intake: verb, slug, cel, AC, zakres, klasa ryzyka; niejasność → **STOP**   |
+| intake    | `doc-intake` (fast) przez `/intake`        | blok intake: verb, slug, cel, AC, zakres, klasa ryzyka; niejasność → **STOP**   |
 | specify   | skrypt `npm run workflow:specify`        | `docs/specs/<slug>/spec.md` (z `[?]`), plan, run-log — **0 kredytów**            |
 | clarify   | `/clarify` → operator odpowiada          | `[?]` domknięte, `status: draft → clarified`                                     |
-| plan      | `doc-spec` (mid) przez `/plan`            | tabela `id · title · agent · done_when · status · AC · commit`, agent po ŚCIEŻCE pliku (`npm run route`)    |
+| plan      | `doc-spec` (base) przez `/plan`            | tabela `id · title · agent · done_when · status · AC · commit`, agent po ŚCIEŻCE pliku (`npm run route`)    |
 | analyze   | `/analyze` (read-only)                   | GO / NO-GO + blockery; otwarte `[?]` = NO-GO                                    |
 | checklist | `/checklist` (read-only, opcjonalnie)    | ☑/☐ jakości przed pierwszą linią kodu                                            |
 | implement | `code-*` przez delegację (`/implement`)  | kod + testy; jedno zlecenie = jeden wykonawca = jedna brama                      |
-| commit    | `scm-git` (junior) po każdym zadaniu `done`  | `git commit` plików zadania, `type(scope): subject`; SHA w kolumnie `commit` planu |
+| commit    | `scm-git` (fast) po każdym zadaniu `done`  | `git commit` plików zadania, `type(scope): subject`; SHA w kolumnie `commit` planu |
 | review    | `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` (ten sam brief, trzy rodziny modeli), `doc-reviewer` | `docs/reviews/<stempel>_review-<slug>.md` — trzy tabele scalone skryptem `npm run review:merge` (liczba zgodnych rodzin, konflikty, werdykt najgorszy z trzech) |
 | test      | `code-tester-unit`, `code-tester-e2e`    | Vitest + Playwright; progi pokrycia z `tools/testing/vitest-angular.config.mts` |
 | DoD       | `/dod`                                   | `npm run verify` zielone + run-log domknięty                                     |
@@ -65,7 +65,7 @@ pytania i czeka na odpowiedź operatora — bez delegacji i edycji do tego czasu
    zapisana w spec.
 3. Poprawka minimalna (KISS) przez właściciela ścieżki.
 4. Regresja: failing test zielony + `npm run verify`; test zostaje w repozytorium na stałe.
-5. Ta sama brama czerwona dwa razy → eskalacja do `code-reviewer-anthropic` (senior-anthropic) i operatora, nie trzecia próba.
+5. Ta sama brama czerwona dwa razy → eskalacja do `code-reviewer-anthropic` (main-anthropic) i operatora, nie trzecia próba.
 
 ## Zadanie `done` = commit przez `scm-git`
 

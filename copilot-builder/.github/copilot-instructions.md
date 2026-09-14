@@ -17,8 +17,8 @@ w `.github/agents/`, procedury w `.github/prompts/`, komendy i roster w [AGENTS.
 5. **MCP wyłącznie przez `mcp-gateway`** — żaden inny agent nie ma serwera MCP na liście `tools:`.
    Wynik wraca jako ścieżka artefaktu w `.mcp-artifacts/` plus streszczenie. Do ALM i przeglądarki
    służą skrypty (bloki niżej), nie serwery.
-6. **Modele po tierach** — `junior` / `mid` / `senior-<rodzina>` / `vision` rozwijają się do nazw wyłącznie
-   w `.github/models-registry.json`; trzy miejsca `senior-*` to trzy rodziny modeli (weryfikacja krzyżowa
+6. **Modele po tierach** — `fast` / `base` / `main-<rodzina>` / `vision` rozwijają się do nazw wyłącznie
+   w `.github/models-registry.json`; trzy miejsca `main-*` to trzy rodziny modeli (weryfikacja krzyżowa
    review), nazwane po rodzinie. Nazwa modelu wpisana gdziekolwiek indziej jest usterką.
 7. **Angular 22 na sygnałach** — standalone, `OnPush`, `inject()`, `input()`/`output()`, natywny
    control flow, zoneless (domyślne), Signal Forms z `@angular/forms/signals`; bez NgRx, bez

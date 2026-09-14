@@ -106,21 +106,21 @@ z odhaczoną listą DoD. Do repozytorium trafiają ADR-y i raporty review.
 
 | Agent              | Tier   | Rola                                                                        |
 | ------------------ | ------ | --------------------------------------------------------------------------- |
-| `orchestrator`     | junior | **jedyny widoczny** — prowadzi drabinę według procedury, deleguje po ścieżce pliku |
-| `code-angular`     | mid     | kod aplikacji i bibliotek                                                   |
-| `code-tooling`     | junior     | skrypty, konfiguracje, CI                                                   |
-| `code-tester-unit` | junior     | testy jednostkowe Vitest                                                    |
-| `code-tester-e2e`  | mid     | Playwright                                                                  |
-| `code-verifier`    | junior     | uruchamia bramy                                                             |
-| `code-reviewer-anthropic`  | senior-anthropic   | review kodu w rodzinie anthropic — pełny zakres, ten sam brief co pozostałe (tylko odczyt)    |
-| `code-reviewer-openai`  | senior-openai   | review kodu w rodzinie openai — ten sam brief i zakres (tylko odczyt)   |
-| `code-reviewer-moonshot`  | senior-moonshot   | review kodu w rodzinie moonshot — ten sam brief i zakres (tylko odczyt)   |
+| `orchestrator`     | fast | **jedyny widoczny** — prowadzi drabinę według procedury, deleguje po ścieżce pliku |
+| `code-angular`     | base     | kod aplikacji i bibliotek                                                   |
+| `code-tooling`     | fast     | skrypty, konfiguracje, CI                                                   |
+| `code-tester-unit` | fast     | testy jednostkowe Vitest                                                    |
+| `code-tester-e2e`  | base     | Playwright                                                                  |
+| `code-verifier`    | fast     | uruchamia bramy                                                             |
+| `code-reviewer-anthropic`  | main-anthropic   | review kodu w rodzinie anthropic — pełny zakres, ten sam brief co pozostałe (tylko odczyt)    |
+| `code-reviewer-openai`  | main-openai   | review kodu w rodzinie openai — ten sam brief i zakres (tylko odczyt)   |
+| `code-reviewer-moonshot`  | main-moonshot   | review kodu w rodzinie moonshot — ten sam brief i zakres (tylko odczyt)   |
 | `code-reviewer-ui` | vision | zrzuty na 5 szerokościach vs makieta i AC (tylko odczyt)                    |
-| `doc-intake`       | junior     | klasyfikacja zgłoszenia, streszczenia, commit message                       |
-| `doc-spec`         | mid     | spec, plan, run-log, ADR, raporty review                                    |
-| `doc-reviewer`     | mid     | przegląd prozy (tylko odczyt)                                               |
-| `mcp-gateway`      | junior     | jedyny dostęp do serwerów MCP (`.vscode/mcp.json`); zwraca artefakt + streszczenie |
-| `scm-git`          | junior     | commituje ukończone zadanie planu (`git commit` plików zadania; bez push)   |
+| `doc-intake`       | fast     | klasyfikacja zgłoszenia, streszczenia, commit message                       |
+| `doc-spec`         | base     | spec, plan, run-log, ADR, raporty review                                    |
+| `doc-reviewer`     | base     | przegląd prozy (tylko odczyt)                                               |
+| `mcp-gateway`      | fast     | jedyny dostęp do serwerów MCP (`.vscode/mcp.json`); zwraca artefakt + streszczenie |
+| `scm-git`          | fast     | commituje ukończone zadanie planu (`git commit` plików zadania; bez push)   |
 
 Tiery rozwijają się do nazw modeli wyłącznie w `.github/models-registry.json` — zmiana planu Copilota
 w organizacji to zmiana `policy.enabled` i `tiers`, nie plików agentów. `npm run ai:validate` pilnuje

@@ -18,7 +18,7 @@ Wejście: spec `clarified` (`docs/specs/<slug>/spec.md`). Wyjście: wypełniona 
 4. `done_when` jest komendą albo obserwowalnym stanem (`npm run affected -- test` zielone; plik istnieje),
    nie przymiotnikiem.
 5. Zadania klasy ryzyka (auth, rozliczenia, migracja, współbieżność, dane osobowe) dostają wiersz review
-   przez trzy miejsca `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` (senior, trzy rodziny modeli)
+   przez trzy miejsca `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` (main, trzy rodziny modeli)
    PRZED implementacją.
 6. Nowa biblioteka/aplikacja w planie ma wiersz z komendą `npm run new:lib|new:app`, nigdy „utwórz ręcznie".
 7. Kolumna `commit` startuje pusta (`—`); zadanie `done` dostaje SHA commita wykonanego przez `scm-git`

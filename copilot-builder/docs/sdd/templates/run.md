@@ -18,16 +18,16 @@ Powiązane: spec `docs/specs/{{slug}}/spec.md` · plan `docs/plans/{{stamp}}_{{v
 
 | #   | krok (SDD)         | agent                       | tier   | wynik / artefakt                          | status |
 | --- | ------------------ | --------------------------- | ------ | ----------------------------------------- | ------ |
-| 0   | intake             | doc-intake                  | junior     | verb, slug, AC, klasa ryzyka              | todo   |
+| 0   | intake             | doc-intake                  | fast     | verb, slug, AC, klasa ryzyka              | todo   |
 | 1   | specify (scaffold) | — (skrypt)                  | 0      | spec + plan + run-log                     | done   |
-| 2   | clarify            | orchestrator            | junior  | `[?]` domknięte, `status: clarified`      | todo   |
-| 3   | plan               | doc-spec                    | mid     | tabela zadań                              | todo   |
-| 4   | analyze            | orchestrator            | junior  | GO / NO-GO                                | todo   |
-| 5   | implement          | code-angular / code-tooling | mid/junior  | kod lint-clean                            | todo   |
-| 6   | testy              | code-tester-unit + code-tester-e2e | junior/mid | unit + e2e zielone                    | todo   |
-| 7   | bramy              | code-verifier               | junior     | `npm run verify`                          | todo   |
-| 8   | review             | code-reviewer-anthropic + code-reviewer-openai + code-reviewer-moonshot + doc-reviewer | senior-*/mid | APPROVED / NO-GO (trzy tabele scalone) | todo   |
-| 9   | DoD                | orchestrator            | junior  | wszystkie punkty `/dod` ✅                | todo   |
+| 2   | clarify            | orchestrator            | fast  | `[?]` domknięte, `status: clarified`      | todo   |
+| 3   | plan               | doc-spec                    | base     | tabela zadań                              | todo   |
+| 4   | analyze            | orchestrator            | fast  | GO / NO-GO                                | todo   |
+| 5   | implement          | code-angular / code-tooling | base/fast  | kod lint-clean                            | todo   |
+| 6   | testy              | code-tester-unit + code-tester-e2e | fast/base | unit + e2e zielone                    | todo   |
+| 7   | bramy              | code-verifier               | fast     | `npm run verify`                          | todo   |
+| 8   | review             | code-reviewer-anthropic + code-reviewer-openai + code-reviewer-moonshot + doc-reviewer | main-*/base | APPROVED / NO-GO (trzy tabele scalone) | todo   |
+| 9   | DoD                | orchestrator            | fast  | wszystkie punkty `/dod` ✅                | todo   |
 
 > Commity: każde zadanie planu `done` ma SHA w kolumnie `commit` planu (wykonuje `scm-git`, tylko pliki
 > zadania); push wykonuje człowiek po DoD. STOP (`doc-reviewer`, STOP-AND-ASK) kończy turę — odpowiedź

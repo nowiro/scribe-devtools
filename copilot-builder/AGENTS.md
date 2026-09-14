@@ -84,21 +84,21 @@ to ten sam brief do trzech miejsc na trzech rodzinach modeli (`review.seats`); o
 
 | Agent               | Rola         | Tier   | Widoczny | Zakres                                                            |
 | ------------------- | ------------ | ------ | -------- | ----------------------------------------------------------------- |
-| `orchestrator`      | orchestrator | junior | **tak**  | procedura drabiny SDD krok po kroku: routing skryptem, briefy w stałym szablonie, STOP, commit przez `scm-git`, DoD |
-| `code-angular`      | writer       | mid     | nie      | `apps/**`, `libs/**` (`.ts`, `.html`, `.css`, bez `*.spec.ts`)   |
-| `code-tooling`      | writer       | junior     | nie      | `tools/**`, hooki, konfiguracje lintów, `angular.json`, CI       |
-| `code-tester-unit`  | tester       | junior     | nie      | `**/*.spec.ts`, `tools/**/*.spec.mjs`                             |
-| `code-tester-e2e`   | tester       | mid     | nie      | `apps/*-e2e/**` (Playwright)                                      |
-| `code-verifier`     | verifier     | junior     | nie      | uruchamia bramy, raportuje pierwszą czerwoną                      |
-| `code-reviewer-anthropic`   | reviewer     | senior-anthropic   | nie      | review kodu w rodzinie anthropic — pełny zakres (architektura, jakość, bezpieczeństwo), ten sam brief co pozostałe dwa miejsca — tylko odczyt |
-| `code-reviewer-openai`   | reviewer     | senior-openai   | nie      | review kodu w rodzinie openai — ten sam brief i zakres — tylko odczyt |
-| `code-reviewer-moonshot`   | reviewer     | senior-moonshot   | nie      | review kodu w rodzinie moonshot — ten sam brief i zakres — tylko odczyt |
+| `orchestrator`      | orchestrator | fast | **tak**  | procedura drabiny SDD krok po kroku: routing skryptem, briefy w stałym szablonie, STOP, commit przez `scm-git`, DoD |
+| `code-angular`      | writer       | base     | nie      | `apps/**`, `libs/**` (`.ts`, `.html`, `.css`, bez `*.spec.ts`)   |
+| `code-tooling`      | writer       | fast     | nie      | `tools/**`, hooki, konfiguracje lintów, `angular.json`, CI       |
+| `code-tester-unit`  | tester       | fast     | nie      | `**/*.spec.ts`, `tools/**/*.spec.mjs`                             |
+| `code-tester-e2e`   | tester       | base     | nie      | `apps/*-e2e/**` (Playwright)                                      |
+| `code-verifier`     | verifier     | fast     | nie      | uruchamia bramy, raportuje pierwszą czerwoną                      |
+| `code-reviewer-anthropic`   | reviewer     | main-anthropic   | nie      | review kodu w rodzinie anthropic — pełny zakres (architektura, jakość, bezpieczeństwo), ten sam brief co pozostałe dwa miejsca — tylko odczyt |
+| `code-reviewer-openai`   | reviewer     | main-openai   | nie      | review kodu w rodzinie openai — ten sam brief i zakres — tylko odczyt |
+| `code-reviewer-moonshot`   | reviewer     | main-moonshot   | nie      | review kodu w rodzinie moonshot — ten sam brief i zakres — tylko odczyt |
 | `code-reviewer-ui`  | reviewer     | vision | nie      | zrzuty na 5 szerokościach vs makieta i AC: odstępy, wyrównania, nachodzenie, scroll — tylko odczyt |
-| `doc-intake`        | triager      | junior     | nie      | klasyfikacja zgłoszenia, streszczenia, commit message, INDEX     |
-| `doc-spec`          | writer       | mid     | nie      | spec, plan, run-log, ADR, raporty review (`docs/**`)              |
-| `doc-reviewer`      | reviewer     | mid     | nie      | przegląd prozy i artefaktów SDD — tylko odczyt                    |
-| `mcp-gateway`       | integration  | junior     | nie      | JEDYNY dostęp do serwerów MCP z `.vscode/mcp.json`; artefakt + streszczenie |
-| `scm-git`           | scm          | junior     | nie      | `git add` wskazanych plików + `git commit` ukończonego zadania planu; bez push, amend, `--no-verify` |
+| `doc-intake`        | triager      | fast     | nie      | klasyfikacja zgłoszenia, streszczenia, commit message, INDEX     |
+| `doc-spec`          | writer       | base     | nie      | spec, plan, run-log, ADR, raporty review (`docs/**`)              |
+| `doc-reviewer`      | reviewer     | base     | nie      | przegląd prozy i artefaktów SDD — tylko odczyt                    |
+| `mcp-gateway`       | integration  | fast     | nie      | JEDYNY dostęp do serwerów MCP z `.vscode/mcp.json`; artefakt + streszczenie |
+| `scm-git`           | scm          | fast     | nie      | `git add` wskazanych plików + `git commit` ukończonego zadania planu; bez push, amend, `--no-verify` |
 
 ## Granice, których nie wolno przekroczyć
 
