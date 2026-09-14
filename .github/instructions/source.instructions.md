@@ -14,7 +14,8 @@ applyTo: 'packages/**/src/**/*.mjs,packages/**/bin/**/*.mjs'
 - Pełne nazwy narzędzi wszędzie: binarki, skrypty, zmienne środowiskowe, nazwy pipe'ów i plików —
   skróty w kodzie i komunikatach są zakazane.
 - W browser-inspectorze klient (`bin/browser-inspector.mjs`, `src/client.mjs`, `src/cli.mjs`,
-  `src/steps.schema.mjs`, `src/paths.mjs`, `src/print.mjs`) NIGDY nie importuje `playwright-core`
+  `src/config.mjs`, `src/steps.schema.mjs`, `src/paths.mjs`, `src/print.mjs`) NIGDY nie importuje
+  `playwright-core`
   ani modułów silnika (`engine.mjs`, `lanes.mjs`, `flow.mjs`, `session.mjs`, `steps.ctx.mjs`,
   `steps.run.mjs`) — to jest budżet startu klienta, bez testu na tej gałęzi pilnuj tego ręcznie
   przy review.

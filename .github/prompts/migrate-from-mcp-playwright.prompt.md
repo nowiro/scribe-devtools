@@ -24,10 +24,12 @@ i lista plików z konfiguracją MCP. Pokaż ją i czekaj na „dalej".
 
 ## 1. Narzędzie obok repo
 
-- Klon: `git clone <url scribe-devtools> ../scribe-devtools && cd ../scribe-devtools && npm ci && npm run prepare`
-  (`.npmrc` ma `ignore-scripts=true` — to celowe). Alternatywnie zbuduj zip portable
-  (`npm run portable` → `download/`, `node packages/browser-inspector/bin/browser-inspector.mjs help`
-  działa z rozpakowanego zipa bez npm).
+- Klon: `git clone <url scribe-devtools> ../scribe-devtools`, potem w `../scribe-devtools`:
+  `pnpm install --frozen-lockfile && pnpm run prepare` (repo ma tylko `pnpm-lock.yaml`, więc `npm ci` nie
+  zadziała; `.npmrc` ma `ignore-scripts=true` — to celowe, dlatego `prepare` wołasz jawnie). Alternatywnie
+  zbuduj zip portable (`pnpm run portable` → `download/`,
+  `node packages/browser-inspector/bin/browser-inspector.mjs help` działa z rozpakowanego zipa bez menedżera
+  pakietów).
 - W `package.json` aplikacji dodaj skrypt:
   `"browser-inspector": "node ../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs"`
   i od tej pory wołaj **`pnpm browser-inspector …`** (npm: `npm run browser-inspector -- …`).
@@ -87,7 +89,7 @@ Napisz `tools/scripts/smoke-browser.mjs` (Node, zero zależności, cross-platfor
 2. serwer statyczny per aplikacja (`node:http`, **tabela MIME z `.js → text/javascript`** — bez
    niej moduły Angulara nie wykonają się i strona będzie pusta; fallback SPA na `index.html`);
 3. `findRunner()`: `SCRIBE_DEVTOOLS_DIR` → `../scribe-devtools/packages/browser-inspector/bin/browser-inspector.mjs`;
-   brak `node_modules/playwright-core` → komunikat `npm ci --prefix <dir>`;
+   brak `node_modules/playwright-core` → komunikat `pnpm install --frozen-lockfile --dir <dir>`;
 4. `spawn(process.execPath, [runner, config, '--stamp', stamp, ...args])` (asynchronicznie —
    `spawnSync` zablokowałby pętlę zdarzeń serwerów); pod `CI=true` narzędzie samo jedzie bez keepera;
 5. odczyt `<outputDir>/<stamp>/<snapshot>/report.json`, `evaluateReports()`: brak raportu albo

@@ -95,7 +95,9 @@ Ręczna edycja któregokolwiek z nich to błąd — zostanie nadpisana albo oble
   literał w `auth.login` ma być błędem walidacji; keeper nigdy nie dostaje `env`.
 - Nie importuj `playwright-core` ani żadnego modułu silnika (`engine.mjs`, `lanes.mjs`, `flow.mjs`,
   `session.mjs`, `steps.ctx.mjs`, `steps.run.mjs`) w kliencie (`bin/browser-inspector.mjs`,
-  `src/client.mjs`) — budżet startu klienta to 72 ms.
+  `src/client.mjs` i wszystko, co one importują — lista w
+  [.github/instructions/source.instructions.md](.github/instructions/source.instructions.md)) — budżet
+  startu klienta to 72 ms.
 - Nie używaj `networkidle` domyślnie, `isTTY` do czegokolwiek, ping-pongu kart ani
   `about:blank` między przebiegami.
 - Nieudany krok to wynik w raporcie (exit 0 w batchu), nie wyjątek.

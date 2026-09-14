@@ -1,8 +1,9 @@
 # Instrukcje dla GitHub Copilota w tym repozytorium
 
 Źródłem prawdy jest [AGENTS.md](../AGENTS.md) — VS Code ładuje go razem z tym plikiem (`chat.useAgentsMdFile`),
-więc ten plik go nie powtarza: niesie kartę repo w dwóch zdaniach, jedną regułę, której AGENTS.md nie ma, i
-kanoniczną kopię bloków instrukcji obu narzędzi. Reguły per obszar plików: `.github/instructions/*.instructions.md`;
+więc ten plik go nie powtarza: niesie kartę repo w dwóch zdaniach, jedną regułę, której AGENTS.md nie ma (pełne
+nazwy narzędzi), jednozdaniowy skrót reguły „najpierw indeks i słownik” i kanoniczną kopię bloków instrukcji obu
+narzędzi. Reguły per obszar plików: `.github/instructions/*.instructions.md`;
 przepływy: `/migrate-from-mcp-playwright`, `/browser-session`, `/perf-optimize`; bramki jako zadania VS Code:
 Terminal → Run Task (`verify`, `claims`, `portable`, `code-index`, `browser-inspector: doctor|up|stop`,
 `nx-angular-inspector: help`).

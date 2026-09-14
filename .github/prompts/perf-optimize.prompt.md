@@ -1,6 +1,6 @@
 ---
 description: 'Optimize DX & performance of an Angular + Nx + Vitest + Playwright + ESLint repo: package-manager tuning (npm/pnpm/yarn, no migration), Nx caching without Nx Cloud, affected-only verify, native git hooks, GitLab CI build pipeline.'
-mode: agent
+agent: agent
 ---
 
 # /perf-optimize — repo performance & DX runbook
@@ -143,7 +143,7 @@ Often worth more on Windows than the whole Vitest tuning: an unexcluded watcher 
   - ESLint: `eslint.useFlatConfig: true`, `eslint.validate` incl. `html` (Angular templates), `eslint.workingDirectories: [{ "mode": "auto" }]` for the monorepo, `eslint.run: "onSave"` when typed linting makes on-type linting laggy, `editor.codeActionsOnSave: { "source.fixAll.eslint": "explicit" }`.
   - Format: Prettier as default formatter per language, `editor.formatOnSave: true`, `files.eol: "\n"` (matches `.gitattributes`), never `source.organizeImports` next to an ESLint import sorter.
   - Task/scan noise in monorepos: `npm.autoDetect: "off"`, `typescript.tsc.autoDetect: "off"`.
-  - Copilot: prompt files (`chat.promptFiles`) and instruction files (`github.copilot.chat.codeGeneration.useInstructionFiles`) enabled so `.github/prompts/*.prompt.md` and `.github/instructions/*.instructions.md` are picked up.
+  - Copilot: prompt files (`chat.promptFilesLocations`), instruction files (`chat.instructionsFilesLocations`, `github.copilot.chat.codeGeneration.useInstructionFiles`) and `chat.useAgentsMdFile` enabled so `.github/prompts/*.prompt.md`, `.github/instructions/*.instructions.md` and `AGENTS.md` are picked up.
   - Vitest / Playwright extensions: point them at the repo configs; disable continuous background runs if they compete for CPU with the terminal.
 - `.vscode/extensions.json`: `recommendations` = Angular Language Service, ESLint, Prettier, Vitest, Playwright, Nx Console, EditorConfig, Copilot + Copilot Chat; `unwantedRecommendations` = any second formatter/linter (TSLint-era extensions, Beautify-style formatters) that would fight Prettier/ESLint.
 - Verify every setting id against the installed VS Code / extension versions before committing; measure with the VS Code "Developer: Show Running Extensions" and tsserver restart time before/after.
