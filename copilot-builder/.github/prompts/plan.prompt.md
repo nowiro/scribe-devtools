@@ -1,5 +1,5 @@
 ---
-description: 'Plan: tabela zadań | id | title | agent | done_when | status | commit | z agentem wyznaczonym po ŚCIEŻCE pliku, triadą testową i commitem per zadanie'
+description: 'Plan: tabela zadań | id | title | agent | paths | done_when | status | AC | commit | z agentem wyznaczonym przez route dla paths, triadą testową i commitem per zadanie'
 agent: orchestrator
 ---
 
@@ -10,7 +10,8 @@ Wejście: spec `clarified` (`docs/specs/<slug>/spec.md`). Wyjście: wypełniona 
 
 1. Jedno zadanie na obszar, nie jedno na wszystko: kolumnę `agent` wyznacza ŚCIEŻKA dotykanego pliku —
    `npm run route -- <ścieżki>` odpowiada z `tools/scripts/routing.config.mjs` (0 kredytów); „—" albo brak
-   reguły to STOP-AND-ASK, nie zgadywanie właściciela.
+   reguły to STOP-AND-ASK, nie zgadywanie właściciela. Te ścieżki wpisujesz w kolumnę `paths` — z niej
+   `npm run sdd -- brief` buduje brief, a `npm run sdd:check` (C5) sprawdza, że `agent` równa się `route`.
 2. Każde zadanie służy jakiemuś AC (traceability `plan.<verb>.<slug>` ↔ `spec.<slug>`); zadanie bez AC to
    YAGNI, AC bez zadania to dziura.
 3. Triada testowa obowiązkowa przy zmianie zachowania: scenariusze z AC, unit (Vitest), e2e (Playwright,

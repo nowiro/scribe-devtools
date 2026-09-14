@@ -69,7 +69,9 @@ describe('validateAiConfig', () => {
   });
 
   it('A5 — a model written into an agent file instead of the tier', () => {
-    patch(dir, '.github/agents/code-tooling.agent.md', (text) => text.replace(/^model: .*$/mu, 'model: Claude Opus 5'));
+    patch(dir, '.github/agents/code-tooling.agent.md', (text) =>
+      text.replace(/^model: .*$/mu, 'model: Claude Sonnet 5'),
+    );
     expect(rulesHit(dir, 'A5')).toHaveLength(1);
   });
 
@@ -127,11 +129,11 @@ describe('validateAiConfig', () => {
 
   it('A18 — a seat whose model is not from the family it promises, which also doubles a family', () => {
     patch(dir, '.github/models-registry.json', (text) =>
-      text.replace('"main-moonshot": "Kimi K3"', '"main-moonshot": "Claude Opus 5"'),
+      text.replace('"main-moonshot": "Kimi K2.7 Code"', '"main-moonshot": "Claude Sonnet 5"'),
     );
     // The agent file follows its tier, so A5 stays quiet; A18 sees a broken promise and a shared family.
     patch(dir, '.github/agents/code-reviewer-moonshot.agent.md', (text) =>
-      text.replace(/^model: .*$/mu, 'model: Claude Opus 5'),
+      text.replace(/^model: .*$/mu, 'model: Claude Sonnet 5'),
     );
     const hits = rulesHit(dir, 'A18');
     expect(hits.some((hit) => hit.includes('promises moonshot'))).toBe(true);

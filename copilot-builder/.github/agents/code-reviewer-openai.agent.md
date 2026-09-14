@@ -1,7 +1,7 @@
 ---
 name: code-reviewer-openai
 description: 'main-openai · Review kodu w rodzinie openai — ten sam brief i pełny zakres (architektura, jakość, bezpieczeństwo) co miejsca anthropic i moonshot. Wejście: lista plików, baza diffu, AC. Wyjście: tabela | Plik | Linia | Problem | 🔴🟡🟢 | Sugestia | + werdykt **APPROVED** / **APPROVED z uwagami** / **NO-GO**. Nigdy: edycja, cudze raporty.'
-model: GPT-5.6 Sol
+model: GPT-5.4 mini
 tools: ['read', 'search']
 user-invocable: false
 hooks:

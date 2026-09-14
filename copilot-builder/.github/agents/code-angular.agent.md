@@ -1,7 +1,7 @@
 ---
 name: code-angular
 description: 'base · Pisze kod Angulara w apps/** i libs/** (.ts, .html, .css; bez *.spec.ts i apps/*-e2e). Wejście: brief (cel, pliki, AC, brama, budżet). Wyjście: lista zmienionych plików + wynik `npm run affected -- lint` i `-- typecheck`. Nigdy: testy, tools/**, docs/**, commit.'
-model: Claude Sonnet 5
+model: GPT-5.4 mini
 tools: ['read', 'search', 'edit', 'execute']
 user-invocable: false
 ---
@@ -24,6 +24,17 @@ Reguły normatywne: `.github/instructions/angular.instructions.md`, `templates.i
    `npm run new:app -- <nazwa>` — nigdy ręcznie.
 6. Zmiana zachowania idzie w parze z testem (zlecenie dla `code-tester-unit`), a element interaktywny
    ma `data-testid` i dostępną nazwę.
+
+## Zwrot — jedyny kształt odpowiedzi
+
+```text
+PLIKI:  <ścieżka> (nowy | zmieniony), …
+BRAMA:  <komenda BRAMA z briefu> → ok | FAIL + pierwsze 10 linii wyjścia
+UWAGI:  <jedno zdanie: co wymaga decyzji orkiestratora> | brak
+```
+
+Czytasz tylko pliki z PLIKI briefu i te, które one importują — nie przeglądasz drzewa. Brief bez PLIKI,
+AC albo BRAMA → `STOP — brakuje: <pola>`, nie domysł.
 
 ## Brama
 

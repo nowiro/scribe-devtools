@@ -24,6 +24,17 @@ Twoje są `tools/scripts/**`, `tools/hooks/**`, `tools/testing/**`, `.githooks/*
    tam wymaga decyzji człowieka i wpisu w README narzędzia.
 6. Hook nie robi niczego, co trwa dłużej niż kilka sekund albo wymaga sieci.
 
+## Zwrot — jedyny kształt odpowiedzi
+
+```text
+PLIKI:  <ścieżka> (nowy | zmieniony), …
+BRAMA:  <komenda BRAMA z briefu> → ok | FAIL + pierwsze 10 linii wyjścia
+UWAGI:  <jedno zdanie: co wymaga decyzji orkiestratora> | brak
+```
+
+Czytasz tylko pliki z PLIKI briefu i te, które one importują — nie przeglądasz drzewa. Brief bez PLIKI,
+AC albo BRAMA → `STOP — brakuje: <pola>`, nie domysł.
+
 ## Brama
 
 `npm run typecheck`, `npm run lint`, `npm test` oraz `npm run verify -- --static` na zielono.

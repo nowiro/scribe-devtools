@@ -58,6 +58,7 @@ plan Copilota organizacji, `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka (typ: `feature`, `ui`, `data-access`, `util`) z aliasem `@cb/*` |
 | `npm run lint` / `format` / `typecheck` / `test`       | bramy pojedynczo (narzędzia + scribe; projekty przez `affected`)               |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                   |
+| `npm run sdd -- next\|brief\|task\|log …`             | plan i run-log przez skrypt: następne zadanie, brief, status i SHA, wiersz run-logu |
 | `npm run route -- <ścieżki>` / `-- --changed`           | kto dotyka których plików (jedno źródło: `tools/scripts/routing.config.mjs`)   |
 | `npm run review:merge -- <katalog> [--out plik]`       | scala raporty trzech miejsc review: zgodne rodziny, konflikty, werdykt          |
 | `npm run alm:read -- <źródło>`                         | snapshot ALM do `.scribe/` (Jira z pluginem Xray, Confluence, GitLab, Sonar, Figma, Miro, WWW) |

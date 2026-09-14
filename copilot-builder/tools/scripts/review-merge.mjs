@@ -18,6 +18,7 @@
 // Exit codes: 0 merged · 1 an input has no findings table or no verdict · 2 usage error.
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { cells } from './lib/md-table.mjs';
 import { REPO, isMain } from './lib/repo.mjs';
 
 /** @typedef {'🔴' | '🟡' | '🟢'} Severity */
@@ -58,19 +59,6 @@ const cleanLine = (cell) => {
   const value = cell.replaceAll('`', '').trim();
   return value === '' || value === '-' || value === '—' || value.toLowerCase() === 'n/a' ? '—' : value;
 };
-
-/**
- * The cells of one markdown table row, trimmed, outer pipes dropped.
- * @param {string} line
- * @returns {string[]}
- */
-export function cells(line) {
-  const trimmed = line.trim();
-  const inner = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
-  const body = inner.endsWith('|') ? inner.slice(0, -1) : inner;
-  // `\|` is a pipe INSIDE a cell (markdown's own escape), not a separator.
-  return body.split(/(?<!\\)\|/u).map((cell) => cell.trim().replaceAll('\\|', '|'));
-}
 
 /**
  * The first table whose header names Plik and Linia; rows keep the header's column order.

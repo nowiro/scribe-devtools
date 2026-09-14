@@ -31,9 +31,10 @@ w `.github/agents/`, procedury w `.github/prompts/`, komendy i roster w [AGENTS.
     planu commituje `scm-git` (jedyny agent z `git commit`); push i tag wykonuje człowiek.
 11. **STOP-AND-ASK** — niejednoznaczność zmieniająca zakres, koszt albo bezpieczeństwo zatrzymuje pracę
     z jedną skonsolidowaną listą pytań z opcjami i rekomendacją. Nie zgaduj — STOP kończy turę, dalej
-    dopiero po odpowiedzi człowieka.
+    dopiero po odpowiedzi człowieka. Brief bez PLIKI, AC albo BRAMA → `STOP — brakuje: <pola>`.
 12. **Zacznij od indeksu** — [CODE-INDEX.md](../CODE-INDEX.md) mówi, GDZIE coś jest,
-    [GLOSSARY.md](../GLOSSARY.md), JAK to się nazywa. Otwieraj tylko to, co któryś z nich nazwie.
+    [GLOSSARY.md](../GLOSSARY.md), JAK to się nazywa. Otwieraj tylko to, co któryś z nich nazwie albo co
+    stoi w PLIKI briefu; tabele planu i run-logu zmienia `npm run sdd`, nie ręka.
 
 ## Blok instrukcji `browser-inspector`
 

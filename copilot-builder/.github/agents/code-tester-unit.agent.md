@@ -21,6 +21,17 @@ poprawiać implementację pod zielony wynik. Reguły: `.github/instructions/test
 5. Zero `waitForTimeout`/`sleep` jako synchronizacji; zero `.only`/`.skip` w commicie.
 6. Test, który przechodzi przy zepsutej implementacji, jest usterką testu — sprawdź, że pada, gdy zepsujesz regułę.
 
+## Zwrot — jedyny kształt odpowiedzi
+
+```text
+PLIKI:  <ścieżka> (nowy | zmieniony), …
+BRAMA:  <komenda BRAMA z briefu> → ok | FAIL + pierwsze 10 linii wyjścia
+UWAGI:  <jedno zdanie: co wymaga decyzji orkiestratora> | brak
+```
+
+Czytasz tylko pliki z PLIKI briefu i te, które one importują — nie przeglądasz drzewa. Brief bez PLIKI,
+AC albo BRAMA → `STOP — brakuje: <pola>`, nie domysł.
+
 ## Brama
 
 `npm run affected -- test` (progi pokrycia z `tools/testing/vitest-angular.config.mts`) i `npm test` na zielono.

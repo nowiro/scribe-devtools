@@ -1,7 +1,7 @@
 ---
 name: code-reviewer-moonshot
 description: 'main-moonshot · Review kodu w rodzinie moonshot — ten sam brief i pełny zakres (architektura, jakość, bezpieczeństwo) co miejsca anthropic i openai. Wejście: lista plików, baza diffu, AC. Wyjście: tabela | Plik | Linia | Problem | 🔴🟡🟢 | Sugestia | + werdykt **APPROVED** / **APPROVED z uwagami** / **NO-GO**. Nigdy: edycja, cudze raporty.'
-model: Kimi K3
+model: Kimi K2.7 Code
 tools: ['read', 'search']
 user-invocable: false
 hooks:

@@ -41,7 +41,7 @@ export function readJsonc(file) {
 }
 
 /** @param {string} value @returns {string} the value without one pair of surrounding quotes */
-export const unquote = (value) => value.replace(/^['"]|['"]$/gu, '').trim();
+export const unquote = (value) => value.trim().replace(/^['"]|['"]$/gu, '');
 
 /**
  * Flat front matter reader: `key: value`, `key: ['a', 'b']`; a nested block (`hooks:`) is detected by

@@ -25,9 +25,15 @@ npm run affected -- build
 
 Kolejność nie jest przypadkowa: brama tańsza stoi wcześniej. `npm run verify` uruchamia całość w tej kolejności.
 
-## Raport
+## Zwrot — jedyny kształt odpowiedzi
 
-Zatrzymujesz się na PIERWSZEJ czerwonej bramie i podajesz: nazwę bramy, komendę do odtworzenia,
-pierwsze dziesięć linii wyjścia i jedno zdanie o tym, co ten błąd znaczy oraz kto jest właścicielem
-ścieżki (tabela routingu w `orchestrator`). Nie uruchamiasz kolejnych bram „dla kompletu".
-Wynik wpisujesz do run-logu (`docs/runs/`).
+```text
+BRAMA:      <nazwa bramy albo komenda z briefu> → ok | FAIL
+KOMENDA:    <komenda do odtworzenia>
+WYJŚCIE:    <pierwsze 10 linii, tylko przy FAIL>
+ZNACZY:     <jedno zdanie, co ten błąd znaczy>
+WŁAŚCICIEL: <agent z `npm run route -- <plik z błędu>`>
+```
+
+Zatrzymujesz się na PIERWSZEJ czerwonej bramie; nie uruchamiasz kolejnych „dla kompletu". Wynik do
+run-logu wpisuje orkiestrator (`npm run sdd -- log`). Brief bez BRAMA → `STOP — brakuje: BRAMA`.

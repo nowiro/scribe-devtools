@@ -1,7 +1,7 @@
 ---
 name: code-reviewer-anthropic
 description: 'main-anthropic · Review kodu w rodzinie anthropic — ten sam brief i pełny zakres (architektura, jakość, bezpieczeństwo) co miejsca openai i moonshot. Wejście: lista plików, baza diffu, AC. Wyjście: tabela | Plik | Linia | Problem | 🔴🟡🟢 | Sugestia | + werdykt **APPROVED** / **APPROVED z uwagami** / **NO-GO**. Nigdy: edycja, cudze raporty.'
-model: Claude Opus 5
+model: Claude Haiku 4.5
 tools: ['read', 'search']
 user-invocable: false
 hooks:

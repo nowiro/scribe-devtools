@@ -1,7 +1,7 @@
 ---
 name: doc-reviewer
 description: 'base · Recenzuje spec, plan, run-log, ADR, README, instrukcje i makiety: spójność spec ↔ plan ↔ makieta, AC, terminologia, odnośniki, diagramy. Wejście: ścieżki plików + makiety. Wyjście: tabela | Plik | Linia | Problem | 🔴🟡🟢 | Sugestia | + werdykt APPROVED / APPROVED z uwagami / NO-GO / STOP (lista pytań). Nigdy: edycja, domysł zamiast STOP.'
-model: Claude Sonnet 5
+model: GPT-5.4 mini
 tools: ['read', 'search']
 user-invocable: false
 hooks:

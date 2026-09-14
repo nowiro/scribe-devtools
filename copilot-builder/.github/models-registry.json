@@ -2,36 +2,54 @@
   "$comment": "The ONLY place where a tier becomes a model name, and the only source of truth about the roster: which agents exist, what role each one plays, which tier it runs on and whether a human can pick it in the agent list. Every other file (AGENTS.md, .github/agents/*.agent.md, docs) refers to tiers and roles and is checked against this file by `npm run ai:validate`. A model name written anywhere else is a defect. Prices are deliberately absent: they are read from the pricing page when a decision needs them, because a copied number rots silently.",
   "observedAt": "2026-09-14",
   "models": {
-    "GPT-5.6 Luna": { "family": "openai" },
-    "GPT-5.6 Sol": { "family": "openai" },
-    "GPT-5 mini": { "family": "openai", "vision": true },
-    "Claude Sonnet 5": { "family": "anthropic" },
-    "Claude Opus 5": { "family": "anthropic" },
-    "GPT-5.3-Codex": { "family": "openai" },
+    "GPT-5.6 Luna": {
+      "family": "openai"
+    },
+    "GPT-5 mini": {
+      "family": "openai",
+      "vision": true
+    },
+    "Claude Sonnet 5": {
+      "family": "anthropic"
+    },
+    "GPT-5.3-Codex": {
+      "family": "openai"
+    },
     "Kimi K3": {
       "family": "moonshot",
       "note": "open-weight model hosted by GitHub; off by default on Business and Enterprise plans — an administrator enables its policy before anyone can pick it"
+    },
+    "Kimi K2.7 Code": {
+      "family": "moonshot",
+      "note": "open-weight model hosted by GitHub; off by default on Business and Enterprise plans — an administrator enables its policy before anyone can pick it"
+    },
+    "Claude Haiku 4.5": {
+      "family": "anthropic"
+    },
+    "GPT-5.4 mini": {
+      "family": "openai"
     }
   },
   "policy": {
-    "$comment": "What the organisation's Copilot plan actually exposes in the model picker. Adjust this list first; then `tiers` — never the agent files.",
+    "$comment": "What the organisation's Copilot plan actually exposes in the model picker. Adjust this list first; then `tiers` — never the agent files. Claude Opus 5 and GPT-5.6 Sol were removed on 2026-09-14 by decision (cost): the review seats run on the cheaper model of each family, and a tier cannot point at a model that is not listed here (A2).",
     "enabled": [
       "GPT-5.6 Luna",
-      "GPT-5.6 Sol",
+      "GPT-5.4 mini",
       "GPT-5 mini",
-      "Claude Sonnet 5",
-      "Claude Opus 5",
       "GPT-5.3-Codex",
+      "Claude Haiku 4.5",
+      "Claude Sonnet 5",
+      "Kimi K2.7 Code",
       "Kimi K3"
     ]
   },
   "tiers": {
-    "$comment": "fast — cheap mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator, whose agent file is a step-by-step procedure with exact commands, so coordination is mechanics too. base — code and specs. main-<family> — the three code-review seats (see `review`), the most expensive tier, named after the model family behind them: the same scope three times, one family each. vision — a model that reads screenshots.",
+    "$comment": "Every tier runs the cheapest capable model of its class ON PURPOSE: the agent files are procedures with exact commands and fixed return templates, the SDD tables are edited by scripts (npm run sdd), routing and review merging are scripts, and review is cross-checked by three families — a weak model has nothing to improvise. fast — mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator. base — code, e2e, specs and prose review. main-<family> — the three code-review seats (see `review`), named after the model family behind them; each takes the cheapest model of its family. vision — a model that reads screenshots. Stronger models are one edit here (A2 requires them in policy.enabled).",
     "fast": "GPT-5.6 Luna",
-    "base": "Claude Sonnet 5",
-    "main-anthropic": "Claude Opus 5",
-    "main-openai": "GPT-5.6 Sol",
-    "main-moonshot": "Kimi K3",
+    "base": "GPT-5.4 mini",
+    "main-anthropic": "Claude Haiku 4.5",
+    "main-openai": "GPT-5.4 mini",
+    "main-moonshot": "Kimi K2.7 Code",
     "vision": "GPT-5 mini"
   },
   "agents": {
@@ -42,31 +60,123 @@
     "$commentForbidden": "Tool sets no agent may list, whatever its role: data from outside the repository comes in through the scripts (alm:read, browser-inspector) and the MCP gateway, never through a browsing tool in a coding agent.",
     "forbiddenToolSets": ["web"],
     "roles": {
-      "orchestrator": { "requires": ["agent", "edit"], "forbids": [], "mcp": false },
-      "writer": { "requires": ["edit"], "forbids": ["agent"], "mcp": false },
-      "tester": { "requires": ["edit", "execute"], "forbids": ["agent"], "mcp": false },
-      "verifier": { "requires": ["execute"], "forbids": ["agent"], "mcp": false },
-      "reviewer": { "requires": ["read"], "forbids": ["edit", "execute", "agent"], "mcp": false },
-      "triager": { "requires": ["read"], "forbids": ["edit", "execute", "agent"], "mcp": false },
-      "scm": { "requires": ["execute"], "forbids": ["edit", "agent"], "mcp": false },
-      "integration": { "requires": ["execute"], "forbids": ["edit", "agent"], "mcp": true }
+      "orchestrator": {
+        "requires": ["agent", "edit"],
+        "forbids": [],
+        "mcp": false
+      },
+      "writer": {
+        "requires": ["edit"],
+        "forbids": ["agent"],
+        "mcp": false
+      },
+      "tester": {
+        "requires": ["edit", "execute"],
+        "forbids": ["agent"],
+        "mcp": false
+      },
+      "verifier": {
+        "requires": ["execute"],
+        "forbids": ["agent"],
+        "mcp": false
+      },
+      "reviewer": {
+        "requires": ["read"],
+        "forbids": ["edit", "execute", "agent"],
+        "mcp": false
+      },
+      "triager": {
+        "requires": ["read"],
+        "forbids": ["edit", "execute", "agent"],
+        "mcp": false
+      },
+      "scm": {
+        "requires": ["execute"],
+        "forbids": ["edit", "agent"],
+        "mcp": false
+      },
+      "integration": {
+        "requires": ["execute"],
+        "forbids": ["edit", "agent"],
+        "mcp": true
+      }
     },
     "roster": {
-      "orchestrator": { "role": "orchestrator", "tier": "fast", "visible": true },
-      "code-angular": { "role": "writer", "tier": "base", "visible": false },
-      "code-tooling": { "role": "writer", "tier": "fast", "visible": false },
-      "code-tester-unit": { "role": "tester", "tier": "fast", "visible": false },
-      "code-tester-e2e": { "role": "tester", "tier": "base", "visible": false },
-      "code-verifier": { "role": "verifier", "tier": "fast", "visible": false },
-      "code-reviewer-anthropic": { "role": "reviewer", "tier": "main-anthropic", "visible": false },
-      "code-reviewer-openai": { "role": "reviewer", "tier": "main-openai", "visible": false },
-      "code-reviewer-moonshot": { "role": "reviewer", "tier": "main-moonshot", "visible": false },
-      "code-reviewer-ui": { "role": "reviewer", "tier": "vision", "visible": false },
-      "doc-intake": { "role": "triager", "tier": "fast", "visible": false },
-      "doc-spec": { "role": "writer", "tier": "base", "visible": false },
-      "doc-reviewer": { "role": "reviewer", "tier": "base", "visible": false },
-      "scm-git": { "role": "scm", "tier": "fast", "visible": false },
-      "mcp-gateway": { "role": "integration", "tier": "fast", "visible": false }
+      "orchestrator": {
+        "role": "orchestrator",
+        "tier": "fast",
+        "visible": true
+      },
+      "code-angular": {
+        "role": "writer",
+        "tier": "base",
+        "visible": false
+      },
+      "code-tooling": {
+        "role": "writer",
+        "tier": "fast",
+        "visible": false
+      },
+      "code-tester-unit": {
+        "role": "tester",
+        "tier": "fast",
+        "visible": false
+      },
+      "code-tester-e2e": {
+        "role": "tester",
+        "tier": "base",
+        "visible": false
+      },
+      "code-verifier": {
+        "role": "verifier",
+        "tier": "fast",
+        "visible": false
+      },
+      "code-reviewer-anthropic": {
+        "role": "reviewer",
+        "tier": "main-anthropic",
+        "visible": false
+      },
+      "code-reviewer-openai": {
+        "role": "reviewer",
+        "tier": "main-openai",
+        "visible": false
+      },
+      "code-reviewer-moonshot": {
+        "role": "reviewer",
+        "tier": "main-moonshot",
+        "visible": false
+      },
+      "code-reviewer-ui": {
+        "role": "reviewer",
+        "tier": "vision",
+        "visible": false
+      },
+      "doc-intake": {
+        "role": "triager",
+        "tier": "fast",
+        "visible": false
+      },
+      "doc-spec": {
+        "role": "writer",
+        "tier": "base",
+        "visible": false
+      },
+      "doc-reviewer": {
+        "role": "reviewer",
+        "tier": "base",
+        "visible": false
+      },
+      "scm-git": {
+        "role": "scm",
+        "tier": "fast",
+        "visible": false
+      },
+      "mcp-gateway": {
+        "role": "integration",
+        "tier": "fast",
+        "visible": false
+      }
     }
   },
   "review": {

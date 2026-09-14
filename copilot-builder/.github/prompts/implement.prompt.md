@@ -7,14 +7,15 @@ agent: orchestrator
 
 Warunek wejścia: `/analyze` = GO. Wykonujesz plan `docs/plans/<stempel>_<verb>-<slug>.md` zadanie po zadaniu.
 
-1. Zlecenie do wykonawcy (kontrakt z `orchestrator`): cel, pliki w zakresie, AC, brama do zaliczenia,
-   budżet. Bez historii rozmowy; szablon startowy, gdy obszar go ma (`new:app`, `new:lib`, wzorce
+1. Zadanie wskazuje `npm run sdd -- next <plan>`, brief buduje `npm run sdd -- brief <plan> <id>` (AGENT,
+   ZADANIE, PLIKI z kolumny `paths`, AC ze spec, BRAMA z `done_when`, BUDŻET, ZWRÓĆ, NIE) — wysyłasz go
+   dosłownie. Bez historii rozmowy; szablon startowy, gdy obszar go ma (`new:app`, `new:lib`, wzorce
    z `.github/instructions/`).
 2. Kolejność: scaffold skryptem → `code-angular` (kod) → `code-tester-unit` (spec) → `code-tester-e2e`
    → `code-verifier` (bramy). Zadania niezależne mogą iść równolegle, wyniki scalasz Ty.
-3. Po każdym zadaniu: `status → done` w planie, wiersz w run-logu (agent, tier, artefakt, wynik bramy),
-   komunikat od `doc-intake` i commit przez `scm-git` (tylko pliki zadania) — SHA do kolumny `commit`.
-   Jedno zadanie = jeden commit; zadanie bez SHA nie jest `done`.
+3. Po każdym zadaniu: `npm run sdd -- task <plan> <id> --status done`, komunikat od `doc-intake`, commit
+   przez `scm-git` (tylko pliki zadania), `npm run sdd -- task <plan> <id> --commit <sha7>` i wiersz
+   run-logu przez `npm run sdd -- log`. Jedno zadanie = jeden commit; zadanie bez SHA nie jest `done`.
 4. Ta sama brama czerwona dwa razy u tego samego wykonawcy → STOP z listą pytań, nie trzecia próba;
    STOP kończy turę — czekasz na odpowiedź operatora.
 5. Rozjazd planu z kodem → wygrywa plan; rozbieżność zapisujesz w planie i pytasz.

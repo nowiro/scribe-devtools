@@ -23,6 +23,7 @@ deterministycznie.
 | `npm run new:app -- <nazwa>`                           | nowa aplikacja `apps/<nazwa>` + `apps/<nazwa>-e2e` (Playwright)                        |
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka `libs/<zakres>/<typ>-<nazwa>`, alias `@cb/<zakres>/<typ>-<nazwa>`      |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                            |
+| `npm run sdd -- next\|brief\|task\|log …`               | plan i run-log przez skrypt: następne zadanie, brief z planu, status i SHA zadania, wiersz run-logu (skill `sdd-scripts`) |
 | `npm run route -- <ścieżki>` / `-- --changed` / `-- --sync` | kto dotyka których plików (z `tools/scripts/routing.config.mjs`); `--sync` regeneruje tabelę routingu orkiestratora |
 | `npm run review:merge -- <katalog\|pliki> [--slug s] [--out plik]` | scala raporty miejsc review w jedną tabelę: liczba zgodnych rodzin, konflikty 🔴/🟢, werdykt najgorszy z trzech |
 | `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira (z Xray — pluginem testów w Jirze)/Confluence/GitLab/Sonar/Figma/Miro/WWW do `.scribe/`                |
@@ -42,7 +43,7 @@ deterministycznie.
 | `check:pins`               | `tools/scripts/pins.config.mjs` jedynym miejscem deklaracji wersji; każda zależność ma wiersz z `why`; reguła TAG: tag obrazu Playwrighta w CI = pin |
 | `guard:forbidden`          | brak plików innych asystentów, GitHub Actions, Nx, Prettiera, Husky, drugiego lockfile'a               |
 | `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna i równa `routing.config.mjs`, trzy miejsca review na trzech rodzinach modeli (A1–A19) |
-| `sdd:check`                | nazwy i wiersze INDEX artefaktów commitowanych; front matter spec/plan, `[?]`, agenci z rosteru         |
+| `sdd:check`                | nazwy i wiersze INDEX artefaktów commitowanych; front matter spec/plan, `[?]`, agenci z rosteru, `agent` = `route` dla `paths` zadania (C5) |
 | `stack:check`              | blok AUTOGEN w `docs/tech-stack.md` zgodny z `package.json`                                             |
 | `code-index --check`       | świeżość `CODE-INDEX.md`                                                                                |
 | `check:instructions`       | bloki instrukcji `AGENTS.md` ≡ `.github/copilot-instructions.md`, ≤ 600 bajtów każdy                    |

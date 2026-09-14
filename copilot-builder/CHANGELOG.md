@@ -58,6 +58,15 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
   drabiny z warunkiem wejścia, dokładnymi komendami i wyjściem, stały szablon briefu, review w 8 krokach, krok
   commit, jedyny kształt STOP, format run-logu, lista „nigdy"), a opis każdego subagenta ma szablon
   „wejście / wyjście / nigdy" — tani model orkiestruje po procedurze, nie po wyczuciu.
+- Miejsca review na tańszym modelu każdej rodziny: niezależność bierze się z rodzin, nie z flagowych modeli,
+  więc rejestr wskazuje tańsze modele tej samej rodziny (wg cennika GitHuba z 2026-09-14 trzy odczyty kosztują
+  około 2,4× mniej), a dwa najdroższe modele zniknęły z polityki rejestru — brama A2 nie pozwoli wskazać ich tierem.
+- Słabsze modele w każdym tierze (`base` i miejsca review na najtańszych modelach swoich rodzin) i to, co pozwala
+  im sobie radzić: `npm run sdd -- next|brief|task|log` (tools/scripts/sdd.mjs) wybiera zadanie, buduje brief
+  z wiersza planu i AC ze spec, zmienia status i SHA zadania, dopisuje wiersz run-logu — model nie edytuje
+  tabel; plan ma kolumnę `paths`, a `sdd:check` (C5) sprawdza, że `agent` równa się `route` dla tych ścieżek;
+  wykonawcy, verifier i doc-spec mają sztywny wzór zwrotu (PLIKI / BRAMA / UWAGI); brief bez PLIKI, AC albo
+  BRAMA to `STOP — brakuje`; skill `sdd-scripts` z tabelą komend; wspólny parser tabel `lib/md-table.mjs`.
 
 ### Fixed (po niezależnym przeglądzie architektura / jakość / bezpieczeństwo)
 

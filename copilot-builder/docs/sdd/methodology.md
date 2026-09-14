@@ -73,7 +73,8 @@ Plan to lista zadań ze statusem (`todo` / `in-progress` / `done` / `n/a`) i kol
 zadanie (`done_when` zielone): `status → done` w tabeli planu, wiersz w run-logu (agent, tier, artefakt,
 wynik bramy), komunikat `type(scope): subject` od `doc-intake` (scope z `commitlint.config.mjs`) i commit
 przez `scm-git` — jedynego agenta z prawem do `git commit`; SHA w kolumnie `commit`. Zadanie bez commita
-nie jest `done`. Push i tag wykonuje człowiek po `/dod`.
+nie jest `done`. Push i tag wykonuje człowiek po `/dod`. Status, SHA i wiersz run-logu zmienia
+`npm run sdd -- task` / `sdd -- log`, brief z planu buduje `sdd -- brief` — model nie edytuje tabel ręcznie.
 
 ## Koniec pętli
 

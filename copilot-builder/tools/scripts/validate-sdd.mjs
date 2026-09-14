@@ -11,13 +11,17 @@
 //       front matter with `id: spec.<slug>` matching its directory and a known `status`; a spec marked
 //       `clarified` or `done` carries no `[?]`; a plan points at an existing spec and its task table has
 //       the required columns; every `agent` in a plan is a roster name from .github/models-registry.json
-//       — a plan that names an agent that does not exist is a plan nobody will execute.
+//       — a plan that names an agent that does not exist is a plan nobody will execute;
+//   C5  a plan task that lists `paths` names the agent `route` names for them, and none of those paths
+//       routes to nobody — the agent column is the answer of tools/scripts/routing.config.mjs, not a guess.
 //
 // Exit codes: 0 pass · 1 violation · 2 environment error (missing INDEX, unreadable registry).
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { stampToEpoch } from './stamp.mjs';
+import { listCell, parseTable } from './lib/md-table.mjs';
 import { REPO, frontmatter as readFrontmatter, isMain } from './lib/repo.mjs';
+import { routePath } from './route.mjs';
 
 /** @param {string} text */
 export const frontmatter = (text) => readFrontmatter(text, { unquote: true });
@@ -175,6 +179,42 @@ function checkSpecs(repo, problems) {
 }
 
 /**
+ * C5 — every task with `paths` names the agent `route` names for them. Pure over the plan text, so it
+ * is testable without a repository: the answer for a path comes from routing.config.mjs.
+ * @param {string} text
+ * @param {string} where
+ * @returns {string[]}
+ */
+export function planRouteProblems(text, where) {
+  const table = parseTable(text, (header) => header.includes('agent') && header.includes('paths'));
+  if (table === null) return [];
+  const iId = table.header.indexOf('id');
+  const iAgent = table.header.indexOf('agent');
+  const iPaths = table.header.indexOf('paths');
+  /** @type {string[]} */
+  const problems = [];
+  for (const row of table.rows) {
+    const paths = listCell(row[iPaths] ?? '');
+    if (paths.length === 0) continue;
+    const id = row[iId] ?? '?';
+    const declared = new Set(agentNames(row[iAgent] ?? ''));
+    for (const file of paths) {
+      const hit = routePath(file);
+      if (hit === null || hit.agent === null) {
+        problems.push(
+          `C5 ${where}: ${id}: path "${file}" routes to nobody (${hit?.what ?? 'no rule in routing.config.mjs'})`,
+        );
+      } else if (!declared.has(hit.agent)) {
+        problems.push(
+          `C5 ${where}: ${id}: "${file}" routes to ${hit.agent}, but the agent column says ${[...declared].join(' + ') || '—'}`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
+/**
  * C4 — one local plan.
  * @param {string} repo
  * @param {string} entry file name in docs/plans
@@ -202,6 +242,7 @@ function checkPlan(repo, entry, roster, problems) {
         problems.push(`C4 ${where}: agent "${name}" is not in the roster (.github/models-registry.json)`);
     }
   }
+  problems.push(...planRouteProblems(text, where));
 }
 
 /**

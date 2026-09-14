@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 93.
+Modules: 95.
 
 ## tools/browser-inspector/bin/browser-inspector.mjs
 - purpose: the entry the agent runs (DESIGN.md §2.1 / §3.1).
@@ -461,10 +461,15 @@ Modules: 93.
 - exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `insideStringLiteral(code, index) → boolean`, `insideTemplateLiteral(code, index) → boolean`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
 - imports: `tools/scripts/lib/repo.mjs`
 
+## tools/scripts/lib/md-table.mjs
+- purpose: one markdown table reader for the scripts that read or edit SDD tables (plan, run-log, review reports).
+- exports: `cells(line) → string[]`, `listCell(cell) → string[]`, `parseTable(text, accept) → Table | null`, `renderRow(row) → string`, `replaceRows(text, table, rows) → string`
+- imported by: `tools/scripts/review-merge.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/validate-sdd.mjs`
+
 ## tools/scripts/lib/repo.mjs
 - purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
 - exports: `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
-- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
+- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/new-project.mjs
 - purpose: the ONE way an application or a library is added to this workspace (0 credits).
@@ -478,20 +483,26 @@ Modules: 93.
 
 ## tools/scripts/review-merge.mjs
 - purpose: three readings of one change, from three model families, into one table (0 credits).
-- exports: `SEVERITY`, `VERDICTS`, `cells(line) → string[]`, `expandInputs(inputs) → string[]`, `findingsTable(markdown) → { header: string[], rows: string[][] } | null`, `mergeReviews(reports, seatFamilies) → Merged`, `parseArgs(argv) → { inputs: string[], out: string | null, slug: string }`, `parseReport(markdown, family) → Report | null`, `renderMerged(merged, {…}) → string`, `reviewSeatFamilies(repo) → string[]`, `runCli(argv) → number`, `severityOf(cell) → Severity | null`
-- imports: `tools/scripts/lib/repo.mjs`
+- exports: `SEVERITY`, `VERDICTS`, `expandInputs(inputs) → string[]`, `findingsTable(markdown) → { header: string[], rows: string[][] } | null`, `mergeReviews(reports, seatFamilies) → Merged`, `parseArgs(argv) → { inputs: string[], out: string | null, slug: string }`, `parseReport(markdown, family) → Report | null`, `renderMerged(merged, {…}) → string`, `reviewSeatFamilies(repo) → string[]`, `runCli(argv) → number`, `severityOf(cell) → Severity | null`
+- imports: `tools/scripts/lib/md-table.mjs`, `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/route.mjs
 - purpose: who touches a path, answered from tools/scripts/routing.config.mjs (0 credits).
 - exports: `ORCHESTRATOR_FILE`, `ROUTING_END`, `ROUTING_START`, `extractRoutingBlock(markdown) → string | null`, `formatRouting(routing) → string`, `globToRegExp(glob) → RegExp`, `normalizePath(file) → string`, `renderRoutingTable(seats) → string`, `reviewSeats(repo) → [string, string][]`, `routePath(file, rules) → { agent: string | null, what: string, glob: string } | null`, `routePaths(files, rules) → Routing`, `runCli(argv) → number`, `syncOrchestrator(repo, {…}) → { fresh: boolean, problem: string | null }`
 - imports: `tools/scripts/affected.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/routing.config.mjs`
 - types only: `tools/scripts/routing.config.mjs`
-- imported by: `tools/scripts/validate-ai-config.mjs`
+- imported by: `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`
 
 ## tools/scripts/routing.config.mjs
 - purpose: WHO touches WHAT, declared once.
 - exports: `BY_PATH`, `BY_WORK`, `REVIEW_SEATS_ROW`
 - imported by: `tools/scripts/route.mjs`
+
+## tools/scripts/sdd.mjs
+- purpose: the SDD tables edited by a script, not by a model (0 credits).
+- exports: `STATUSES`, `acField(task, lines, specPath) → string`, `acLines(specText) → Map<number, string>`, `nextTask(tasks) → Task | null`, `parseArgs(argv) → { command: string, positional: string[], flags: Record<stri…`, `readPlan(text) → Plan | null`, `renderBrief(task, ac) → string`, `runCli(argv) → number`, `updateLog(text, entry) → string | null`, `updateTask(text, id, change) → { text: string, task: Task } | null`
+- imports: `tools/scripts/lib/md-table.mjs`, `tools/scripts/lib/repo.mjs`
+- types only: `tools/scripts/lib/md-table.mjs`
 
 ## tools/scripts/setup-hooks.mjs
 - purpose: arms the committed git hooks: `git config core.hooksPath .githooks`.
@@ -515,8 +526,8 @@ Modules: 93.
 
 ## tools/scripts/validate-sdd.mjs
 - purpose: the SDD hygiene gate (0 credits, part of `npm run verify`).
-- exports: `agentNames(cell) → string[]`, `firstTableHeader(text) → string[]`, `frontmatter(text)`, `tableColumn(text, column) → string[]`, `validateSdd(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
-- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/stamp.mjs`
+- exports: `agentNames(cell) → string[]`, `firstTableHeader(text) → string[]`, `frontmatter(text)`, `planRouteProblems(text, where) → string[]`, `tableColumn(text, column) → string[]`, `validateSdd(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
+- imports: `tools/scripts/lib/md-table.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/route.mjs`, `tools/scripts/stamp.mjs`
 
 ## tools/scripts/verify.mjs
 - purpose: THE Definition of Done: every gate of the repository, in one order, first red stops.

@@ -1,7 +1,7 @@
 ---
 name: code-tester-e2e
 description: 'base · Pisze testy Playwright w apps/*-e2e/** po zbudowanej aplikacji: ścieżki użytkownika, pięć szerokości ui.viewports, brak poziomego scrolla i nachodzenia jako asercje. Wejście: brief z AC. Wyjście: lista plików + wynik `npm run affected -- build` i `-- e2e`. Nigdy: kod produkcyjny, waitForTimeout, commit.'
-model: Claude Sonnet 5
+model: GPT-5.4 mini
 tools: ['read', 'search', 'edit', 'execute']
 user-invocable: false
 ---
@@ -23,6 +23,17 @@ to należy do testu jednostkowego. Reguły: `.github/instructions/testing-e2e.in
 4. Zero `.only`/`.skip`; `retries` tylko na CI, nigdy po to, by ukryć flake.
 5. Scenariusz znany z góry najpierw eksplorujesz sesją `npm run browser-inspector -- open <url>` i eksportujesz
    `flow.json`; do specu Playwright przepisujesz to, co ma zostać bramą.
+
+## Zwrot — jedyny kształt odpowiedzi
+
+```text
+PLIKI:  <ścieżka> (nowy | zmieniony), …
+BRAMA:  <komenda BRAMA z briefu> → ok | FAIL + pierwsze 10 linii wyjścia
+UWAGI:  <jedno zdanie: co wymaga decyzji orkiestratora> | brak
+```
+
+Czytasz tylko pliki z PLIKI briefu i te, które one importują — nie przeglądasz drzewa. Brief bez PLIKI,
+AC albo BRAMA → `STOP — brakuje: <pola>`, nie domysł.
 
 ## Brama
 
