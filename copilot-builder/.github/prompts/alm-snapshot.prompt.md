@@ -1,6 +1,6 @@
 ---
 description: 'Snapshot ALM przez scribe: zrzut Jira/Confluence/GitLab/Sonar do .scribe/ i czytanie go wybiórczo — zamiast serwera MCP'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /alm-snapshot — dane z Jira, Confluence, GitLab, Sonar na dysku

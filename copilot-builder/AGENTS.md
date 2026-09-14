@@ -23,6 +23,8 @@ deterministycznie.
 | `npm run new:app -- <nazwa>`                           | nowa aplikacja `apps/<nazwa>` + `apps/<nazwa>-e2e` (Playwright)                        |
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka `libs/<zakres>/<typ>-<nazwa>`, alias `@cb/<zakres>/<typ>-<nazwa>`      |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                            |
+| `npm run route -- <ścieżki>` / `-- --changed` / `-- --sync` | kto dotyka których plików (z `tools/scripts/routing.config.mjs`); `--sync` regeneruje tabelę routingu orkiestratora |
+| `npm run review:merge -- <katalog\|pliki> [--slug s] [--out plik]` | scala raporty miejsc review w jedną tabelę: liczba zgodnych rodzin, konflikty 🔴/🟢, werdykt najgorszy z trzech |
 | `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira (z Xray — pluginem testów w Jirze)/Confluence/GitLab/Sonar/Figma/Miro/WWW do `.scribe/`                |
 | `npm run alm:create\|alm:update -- <źródło> <plik.md>` | publikacja Markdownu z front matter (dry-run; `--yes` zapisuje)                         |
 | `npm run browser-inspector -- <config.json>` / `-- open <url>` | flow batch albo sesja interaktywna w systemowym Chrome/Edge                      |
@@ -39,7 +41,7 @@ deterministycznie.
 | `format:check`             | Biome (TS/JS/JSON/CSS; 120 kolumn, LF, pojedyncze cudzysłowy). Markdown i szablony HTML — bez formatera |
 | `check:pins`               | `tools/scripts/pins.config.mjs` jedynym miejscem deklaracji wersji; każda zależność ma wiersz z `why`; reguła TAG: tag obrazu Playwrighta w CI = pin |
 | `guard:forbidden`          | brak plików innych asystentów, GitHub Actions, Nx, Prettiera, Husky, drugiego lockfile'a               |
-| `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna (A1–A17) |
+| `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna i równa `routing.config.mjs`, trzy miejsca review na trzech rodzinach modeli (A1–A19) |
 | `sdd:check`                | nazwy i wiersze INDEX artefaktów commitowanych; front matter spec/plan, `[?]`, agenci z rosteru         |
 | `stack:check`              | blok AUTOGEN w `docs/tech-stack.md` zgodny z `package.json`                                             |
 | `code-index --check`       | świeżość `CODE-INDEX.md`                                                                                |
@@ -58,12 +60,15 @@ deterministycznie.
 | blok AUTOGEN w `docs/tech-stack.md`   | `npm run stack:sync`             | każda zmiana wersji w `package.json`             |
 | `tools/scripts/upstream-state.json`   | `npm run check:upstream`         | zegar zaległości pinów — commituje się jak lockfile |
 | `angular.json`, `tsconfig.json` (projekty, aliasy) | `npm run new:app` / `new:lib` | nowy projekt — nie ręcznie                     |
+| tabela routingu w `.github/agents/orchestrator.agent.md` (blok ROUTING) | `npm run route -- --sync` | każda zmiana `tools/scripts/routing.config.mjs` albo `review.seats` |
 
 ## Punkty synchronizacji (zmiana w jednym wymaga zmiany w drugim)
 
 - bloki `INSTRUCTION:browser-inspector` i `INSTRUCTION:scribe` niżej ↔ `.github/copilot-instructions.md`;
 - roster w `.github/models-registry.json` ↔ pliki `.github/agents/*.agent.md` ↔ tabela rosteru niżej
-  ↔ tabela routingu w `orchestrator-sdd`;
+  ↔ tabela routingu w `orchestrator` (generowana z `tools/scripts/routing.config.mjs`, brama A19);
+- trzy miejsca review (`review.seats` w rejestrze) ↔ trzy różne `family` w `models` (A18) ↔ sekcja „Review"
+  w `orchestrator` i prompt `/review`;
 - serwery w `.vscode/mcp.json` ↔ lista `tools:` agenta `mcp-gateway`;
 - wersja `@playwright/test` ↔ tag obrazu Playwrighta w `.gitlab-ci.yml` (reguła TAG w `check:pins`);
 - `PREFIX`, `ALIAS_SCOPE`, `DEFAULT_BRANCH` w `tools/scripts/workspace.config.mjs` ↔ `angular.json` (`schematics.*.prefix`)
@@ -74,22 +79,26 @@ deterministycznie.
 
 ## Roster
 
-Jeden agent widoczny, reszta przez delegację. Rola i tier żyją w `.github/models-registry.json`.
+Jeden agent widoczny, reszta przez delegację. Rola i tier żyją w `.github/models-registry.json`. Review kodu
+to ten sam brief do trzech miejsc na trzech rodzinach modeli (`review.seats`); orkiestrator scala i liczy zgodne rodziny.
 
 | Agent               | Rola         | Tier   | Widoczny | Zakres                                                            |
 | ------------------- | ------------ | ------ | -------- | ----------------------------------------------------------------- |
-| `orchestrator-sdd`  | orchestrator | T2     | **tak**  | drabina SDD, routing po ścieżce, STOP-AND-ASK, DoD               |
-| `code-angular`      | writer       | T2     | nie      | `apps/**`, `libs/**` (`.ts`, `.html`, `.css`, bez `*.spec.ts`)   |
-| `code-tooling`      | writer       | T1     | nie      | `tools/**`, hooki, konfiguracje lintów, `angular.json`, CI       |
-| `code-tester-unit`  | tester       | T1     | nie      | `**/*.spec.ts`, `tools/**/*.spec.mjs`                             |
-| `code-tester-e2e`   | tester       | T2     | nie      | `apps/*-e2e/**` (Playwright)                                      |
-| `code-verifier`     | verifier     | T1     | nie      | uruchamia bramy, raportuje pierwszą czerwoną                      |
-| `code-reviewer`     | reviewer     | T3     | nie      | architektura, bezpieczeństwo, koszt — tylko odczyt               |
-| `code-reviewer-ui`  | reviewer     | vision | nie      | zrzuty z browser-inspectora vs AC i makieta — tylko odczyt       |
-| `doc-intake`        | triager      | T1     | nie      | klasyfikacja zgłoszenia, streszczenia, commit message, INDEX     |
-| `doc-spec`          | writer       | T2     | nie      | spec, plan, run-log, ADR, raporty review (`docs/**`)              |
-| `doc-reviewer`      | reviewer     | T2     | nie      | przegląd prozy i artefaktów SDD — tylko odczyt                    |
-| `mcp-gateway`       | integration  | T1     | nie      | JEDYNY dostęp do serwerów MCP z `.vscode/mcp.json`; artefakt + streszczenie |
+| `orchestrator`      | orchestrator | junior | **tak**  | procedura drabiny SDD krok po kroku: routing skryptem, briefy w stałym szablonie, STOP, commit przez `scm-git`, DoD |
+| `code-angular`      | writer       | mid     | nie      | `apps/**`, `libs/**` (`.ts`, `.html`, `.css`, bez `*.spec.ts`)   |
+| `code-tooling`      | writer       | junior     | nie      | `tools/**`, hooki, konfiguracje lintów, `angular.json`, CI       |
+| `code-tester-unit`  | tester       | junior     | nie      | `**/*.spec.ts`, `tools/**/*.spec.mjs`                             |
+| `code-tester-e2e`   | tester       | mid     | nie      | `apps/*-e2e/**` (Playwright)                                      |
+| `code-verifier`     | verifier     | junior     | nie      | uruchamia bramy, raportuje pierwszą czerwoną                      |
+| `code-reviewer-anthropic`   | reviewer     | senior-anthropic   | nie      | review kodu w rodzinie anthropic — pełny zakres (architektura, jakość, bezpieczeństwo), ten sam brief co pozostałe dwa miejsca — tylko odczyt |
+| `code-reviewer-openai`   | reviewer     | senior-openai   | nie      | review kodu w rodzinie openai — ten sam brief i zakres — tylko odczyt |
+| `code-reviewer-moonshot`   | reviewer     | senior-moonshot   | nie      | review kodu w rodzinie moonshot — ten sam brief i zakres — tylko odczyt |
+| `code-reviewer-ui`  | reviewer     | vision | nie      | zrzuty na 5 szerokościach vs makieta i AC: odstępy, wyrównania, nachodzenie, scroll — tylko odczyt |
+| `doc-intake`        | triager      | junior     | nie      | klasyfikacja zgłoszenia, streszczenia, commit message, INDEX     |
+| `doc-spec`          | writer       | mid     | nie      | spec, plan, run-log, ADR, raporty review (`docs/**`)              |
+| `doc-reviewer`      | reviewer     | mid     | nie      | przegląd prozy i artefaktów SDD — tylko odczyt                    |
+| `mcp-gateway`       | integration  | junior     | nie      | JEDYNY dostęp do serwerów MCP z `.vscode/mcp.json`; artefakt + streszczenie |
+| `scm-git`           | scm          | junior     | nie      | `git add` wskazanych plików + `git commit` ukończonego zadania planu; bez push, amend, `--no-verify` |
 
 ## Granice, których nie wolno przekroczyć
 
@@ -101,6 +110,8 @@ Jeden agent widoczny, reszta przez delegację. Rola i tier żyją w `.github/mod
 5. Sekrety wyłącznie przez środowisko albo profil użytkownika; literał w configu jest błędem walidacji.
 6. `--yes` przy `alm:create|alm:update` tylko na wyraźne, bieżące polecenie człowieka; usuwania nie ma.
 7. Nazwa modelu poza `.github/models-registry.json`, wersja w prozie poza blokiem AUTOGEN — usterka.
+8. `git commit` wykonuje wyłącznie `scm-git` (ukończone zadanie planu, tylko jego pliki); push i tag wykonuje
+   człowiek. STOP (werdykt `doc-reviewer`, STOP-AND-ASK) kończy turę — bez delegacji do odpowiedzi operatora.
 
 ## Gdzie co jest
 

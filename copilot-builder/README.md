@@ -15,7 +15,7 @@ Cztery decyzje, z których wynika reszta (każda ma ADR w [`docs/decisions/`](do
 3. **Skrypty zamiast serwerów MCP.** `npm run alm:read` robi snapshot Jiry/GitLaba/Confluence na dysk,
    `npm run browser-inspector` ogląda aplikację w systemowym Chrome; MCP zostaje wyłącznie za ukrytym
    subagentem `mcp-gateway`.
-4. **Jeden widoczny agent.** Człowiek wybiera `orchestrator-sdd`; reszta rosteru (`code-*`, `doc-*`,
+4. **Jeden widoczny agent.** Człowiek wybiera `orchestrator`; reszta rosteru (`code-*`, `doc-*`,
    `mcp-gateway`) pracuje przez delegację po ścieżce dotykanego pliku.
 
 ## Start
@@ -58,6 +58,8 @@ plan Copilota organizacji, `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka (typ: `feature`, `ui`, `data-access`, `util`) z aliasem `@cb/*` |
 | `npm run lint` / `format` / `typecheck` / `test`       | bramy pojedynczo (narzędzia + scribe; projekty przez `affected`)               |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                   |
+| `npm run route -- <ścieżki>` / `-- --changed`           | kto dotyka których plików (jedno źródło: `tools/scripts/routing.config.mjs`)   |
+| `npm run review:merge -- <katalog> [--out plik]`       | scala raporty trzech miejsc review: zgodne rodziny, konflikty, werdykt          |
 | `npm run alm:read -- <źródło>`                         | snapshot ALM do `.scribe/` (Jira z pluginem Xray, Confluence, GitLab, Sonar, Figma, Miro, WWW) |
 | `npm run alm:create` / `alm:update -- <źródło> <plik>` | publikacja Markdownu (dry-run; `--yes` zapisuje)                               |
 | `npm run browser-inspector -- …`                       | flow z configu albo sesja interaktywna na refach `eN`                          |
@@ -93,7 +95,8 @@ idzie całą drabiną; pytanie lub trywialna edycja — wprost. Kroki mechaniczn
 `npm run workflow:specify` emituje spec, plan i run-log ze szablonów; `npm run sdd:check` pilnuje ich
 kształtu. Prompty `/intake`, `/specify`, `/clarify`, `/plan`, `/analyze`, `/checklist`, `/implement`,
 `/review`, `/dod`, `/adr` prowadzą przez szczeble; `/new-project`, `/browser-session`, `/alm-snapshot`,
-`/alm-publish` obsługują narzędzia.
+`/alm-publish` obsługują narzędzia. Plan to lista zadań ze statusem; ukończone zadanie commituje `scm-git`,
+push wykonuje człowiek. STOP (niejasność, AC ↔ makieta) kończy turę i czeka na odpowiedź operatora.
 
 Artefakty SDD (`docs/specs/`, `docs/plans/`, `docs/runs/`) są **lokalne i gitignorowane** — kontraktem
 z zespołem jest issue w GitLabie (szablon `.gitlab/issue_templates/Default.md` jest specyfikacją) i opis MR
@@ -103,22 +106,27 @@ z odhaczoną listą DoD. Do repozytorium trafiają ADR-y i raporty review.
 
 | Agent              | Tier   | Rola                                                                        |
 | ------------------ | ------ | --------------------------------------------------------------------------- |
-| `orchestrator-sdd` | T2     | **jedyny widoczny** — prowadzi drabinę, deleguje po ścieżce pliku           |
-| `code-angular`     | T2     | kod aplikacji i bibliotek                                                   |
-| `code-tooling`     | T1     | skrypty, konfiguracje, CI                                                   |
-| `code-tester-unit` | T1     | testy jednostkowe Vitest                                                    |
-| `code-tester-e2e`  | T2     | Playwright                                                                  |
-| `code-verifier`    | T1     | uruchamia bramy                                                             |
-| `code-reviewer`    | T3     | architektura, bezpieczeństwo, koszt (tylko odczyt)                          |
-| `code-reviewer-ui` | vision | zrzuty ekranu vs kryteria akceptacji (tylko odczyt)                         |
-| `doc-intake`       | T1     | klasyfikacja zgłoszenia, streszczenia, commit message                       |
-| `doc-spec`         | T2     | spec, plan, run-log, ADR, raporty review                                    |
-| `doc-reviewer`     | T2     | przegląd prozy (tylko odczyt)                                               |
-| `mcp-gateway`      | T1     | jedyny dostęp do serwerów MCP (`.vscode/mcp.json`); zwraca artefakt + streszczenie |
+| `orchestrator`     | junior | **jedyny widoczny** — prowadzi drabinę według procedury, deleguje po ścieżce pliku |
+| `code-angular`     | mid     | kod aplikacji i bibliotek                                                   |
+| `code-tooling`     | junior     | skrypty, konfiguracje, CI                                                   |
+| `code-tester-unit` | junior     | testy jednostkowe Vitest                                                    |
+| `code-tester-e2e`  | mid     | Playwright                                                                  |
+| `code-verifier`    | junior     | uruchamia bramy                                                             |
+| `code-reviewer-anthropic`  | senior-anthropic   | review kodu w rodzinie anthropic — pełny zakres, ten sam brief co pozostałe (tylko odczyt)    |
+| `code-reviewer-openai`  | senior-openai   | review kodu w rodzinie openai — ten sam brief i zakres (tylko odczyt)   |
+| `code-reviewer-moonshot`  | senior-moonshot   | review kodu w rodzinie moonshot — ten sam brief i zakres (tylko odczyt)   |
+| `code-reviewer-ui` | vision | zrzuty na 5 szerokościach vs makieta i AC (tylko odczyt)                    |
+| `doc-intake`       | junior     | klasyfikacja zgłoszenia, streszczenia, commit message                       |
+| `doc-spec`         | mid     | spec, plan, run-log, ADR, raporty review                                    |
+| `doc-reviewer`     | mid     | przegląd prozy (tylko odczyt)                                               |
+| `mcp-gateway`      | junior     | jedyny dostęp do serwerów MCP (`.vscode/mcp.json`); zwraca artefakt + streszczenie |
+| `scm-git`          | junior     | commituje ukończone zadanie planu (`git commit` plików zadania; bez push)   |
 
 Tiery rozwijają się do nazw modeli wyłącznie w `.github/models-registry.json` — zmiana planu Copilota
 w organizacji to zmiana `policy.enabled` i `tiers`, nie plików agentów. `npm run ai:validate` pilnuje
-rosteru, uprawnień wg roli, jednego widocznego agenta i tego, że MCP ma jednego właściciela.
+rosteru, uprawnień wg roli, jednego widocznego agenta, jednego właściciela MCP i tego, że trzy miejsca
+review kodu (`review.seats`) stoją na trzech różnych rodzinach modeli — ten sam brief czytany przez trzy
+rodziny to weryfikacja krzyżowa, więc niezależność jest bramą (A18), nie prośbą w prompcie.
 
 ## ALM i przeglądarka bez serwerów MCP
 

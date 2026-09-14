@@ -1,6 +1,6 @@
 ---
 description: 'Analyze: raport spójności spec ↔ plan ↔ stan repozytorium przed implementacją — GO albo NO-GO z blockerami (tylko odczyt)'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /analyze — go / no-go przed implementacją (read-only)
@@ -8,8 +8,8 @@ agent: orchestrator-sdd
 Sprawdź spójność trójki spec ↔ plan ↔ stan repozytorium dla podanego sluga. NIC nie edytuj.
 
 1. Każde AC ma pokrycie w zadaniach planu; każde zadanie planu służy jakiemuś AC.
-2. Kolumna `agent` zgodna z tabelą routingu (ścieżka wyznacza właściciela); tier zgodny z rosterem
-   (`.github/models-registry.json`) — praca T1 nie siedzi w zadaniach T2.
+2. Kolumna `agent` zgodna z `npm run route -- <ścieżki>` (ścieżka wyznacza właściciela); tier zgodny z rosterem
+   (`.github/models-registry.json`) — praca junior nie siedzi w zadaniach mid.
 3. Zgodność ze WSZYSTKIMI ADR-ami z `docs/decisions/` i z `docs/tech-stack.md`; odstępstwo bez ADR-u
    = blocker. ADR `superseded` nie jest podstawą.
 4. Standardy UI obecne w planie, gdy zmienia się ekran: matryca viewportów, mobile-first, a11y, stany

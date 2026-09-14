@@ -1,6 +1,6 @@
 ---
 description: 'Sesja przeglądarkowa browser-inspector: spójrz na stronę, potem kliknij — refy eN, jedna linia na komendę, wynik na dysku; eksport flow.json'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /browser-session — spójrz na stronę, potem kliknij

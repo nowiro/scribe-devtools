@@ -39,6 +39,8 @@
     "stack:sync": "node tools/scripts/stack.mjs sync",
     "stack:check": "node tools/scripts/stack.mjs check",
     "workflow:specify": "node tools/scripts/workflow-specify.mjs",
+    "route": "node tools/scripts/route.mjs",
+    "review:merge": "node tools/scripts/review-merge.mjs",
     "alm:build": "tsc -p tools/scribe/integrations/tsconfig.json",
     "alm:read": "npm run alm:build && node tools/scribe/scripts/read.mjs",
     "alm:create": "npm run alm:build && node tools/scribe/scripts/write.mjs create",

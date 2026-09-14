@@ -1,6 +1,6 @@
 ---
 description: 'Specify: scaffold spec/plan/run-log skryptem (0 kredytów) i wypełnienie spec treścią z intake, z [?] zamiast domysłów'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /specify — spec z intake

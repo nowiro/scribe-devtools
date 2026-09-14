@@ -1,6 +1,6 @@
 ---
 description: 'ADR: zapis decyzji architektonicznej (kontekst, decyzja, odrzucone alternatywy, konsekwencje) z nazwą ze stemplem i wierszem w docs/INDEX.md'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /adr — decyzja, której się nie cofa bez śladu

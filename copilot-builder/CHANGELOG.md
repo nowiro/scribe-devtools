@@ -9,7 +9,7 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
 
 - Workspace Angular 22 (Angular CLI, `apps/` + `libs/`, bez Nx) z `npm run new:app` / `new:lib`,
   `affected.mjs` (graf z `angular.json` i aliasów, cache zadań) i `verify.mjs` jako definicją ukończenia.
-- Konfiguracja GitHub Copilota: jeden widoczny `orchestrator-sdd`, ukryty roster `code-*` / `doc-*` /
+- Konfiguracja GitHub Copilota: jeden widoczny `orchestrator`, ukryty roster `code-*` / `doc-*` /
   `mcp-gateway`, rejestr modeli z tierami, instrukcje ścieżkowe, prompty drabiny SDD, hooki.
 - Metodyka SDD (`docs/sdd/`) ze scaffoldem `workflow:specify` i bramą `sdd:check`; artefakty lokalne.
 - Wendorowane narzędzia: `tools/scribe` (snapshoty i zapis ALM) i `tools/browser-inspector`
@@ -25,6 +25,39 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
   `tools/scripts/lib/repo.mjs` i `tools/hooks/lib/payload.mjs` — wspólne pomocniki zamiast kopii.
 - Testy narzędzi: `affected` na prawdziwych repozytoriach git, walidator konfiguracji Copilota na kopii
   konfiguracji, hooki na macierzy komend, serwer e2e, synchronizacja instrukcji, generator.
+
+### Changed
+
+- Review kodu to weryfikacja krzyżowa przez trzy rodziny modeli zamiast jednego `code-reviewer`:
+  `code-reviewer-anthropic`, `code-reviewer-openai`, `code-reviewer-moonshot` dostają ten sam brief i pełny zakres, różnią się
+  wyłącznie rodziną modelu (tiery `senior-anthropic` / `senior-openai` / `senior-moonshot`, `review.seats` w rejestrze); orkiestrator scala
+  trzy tabele z liczbą zgodnych rodzin, `ai:validate` A18 odrzuca dwa miejsca na jednej rodzinie. ADR
+  w `docs/decisions/`.
+- Widoczny orkiestrator nazywa się `orchestrator` (było `orchestrator-sdd`); wzorzec nazw w rejestrze
+  dopuszcza gołe `orchestrator` dla jedynego koordynatora.
+- `code-reviewer-ui` ocenia zrzuty na pięciu szerokościach `ui.viewports` względem makiety: odstępy,
+  wyrównania w pionie i poziomie, nachodzenie i obcięcie, scroll, stany; pomiary z flow browser-inspectora
+  (`resize`, `screenshot`, `evaluate`). `code-tester-e2e` asertuje brak nachodzenia i dojście scrolla do końca.
+- Nowy agent `scm-git` (rola `scm`, junior): ukończone zadanie planu commituje agent — tylko pliki zadania,
+  hooki gita jako brama, bez push / amend / `--no-verify`; plan ma kolumnę `commit`, zadanie bez SHA nie jest
+  `done`. Niezmiennik „agent nigdy nie commituje" zastąpiony (ADR); push i tag zostają przy człowieku.
+- Brama STOP: werdykt **STOP** `doc-reviewer` (dokumentacja, makiety, AC ↔ makieta) i każdy STOP-AND-ASK
+  kończą turę orkiestratora — lista pytań i czekanie na odpowiedź operatora, bez delegacji do tego czasu.
+- Skill `mermaid-diagrams` (`.github/skills/`): diagramy w `.md` w Mermaid — typ do treści, reguły nazw,
+  sprawdzenie renderu; `doc-spec` je pisze, `doc-reviewer` sprawdza; rozszerzenie podglądu w `.vscode/extensions.json`.
+- Tiery mają ludzkie nazwy: `junior` (mechanika), `mid` (kod i spec), `senior-<rodzina>` (miejsca review, po
+  jednym na rodzinę modelu), `vision`; miejsca review nazwane po rodzinie (`code-reviewer-anthropic`,
+  `code-reviewer-openai`, `code-reviewer-moonshot`) — `review.seats` mówi, którą rodzinę miejsce obiecuje,
+  A18 sprawdza obietnicę.
+- Routing i scalanie review jako skrypty (0 kredytów): `tools/scripts/routing.config.mjs` jest jedynym źródłem
+  „kto dotyka czego", `npm run route -- <ścieżki>` (także `--changed`) odpowiada z niego, a tabela w pliku
+  orkiestratora jest generowana (`npm run route -- --sync`) i pilnowana bramą A19. `npm run review:merge`
+  łączy raporty trzech miejsc review w jedną tabelę z liczbą zgodnych rodzin, konfliktami 🔴/🟢 i werdyktem
+  najgorszym z trzech — orkiestrator czyta wynik, nie trzy tabele.
+- Orkiestrator na tierze `junior`: jego plik jest procedurą (krok 0 „co przyszło → co robisz", kroki 1–9
+  drabiny z warunkiem wejścia, dokładnymi komendami i wyjściem, stały szablon briefu, review w 8 krokach, krok
+  commit, jedyny kształt STOP, format run-logu, lista „nigdy"), a opis każdego subagenta ma szablon
+  „wejście / wyjście / nigdy" — tani model orkiestruje po procedurze, nie po wyczuciu.
 
 ### Fixed (po niezależnym przeglądzie architektura / jakość / bezpieczeństwo)
 

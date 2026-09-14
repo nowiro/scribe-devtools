@@ -1,27 +1,42 @@
 {
   "$comment": "The ONLY place where a tier becomes a model name, and the only source of truth about the roster: which agents exist, what role each one plays, which tier it runs on and whether a human can pick it in the agent list. Every other file (AGENTS.md, .github/agents/*.agent.md, docs) refers to tiers and roles and is checked against this file by `npm run ai:validate`. A model name written anywhere else is a defect. Prices are deliberately absent: they are read from the pricing page when a decision needs them, because a copied number rots silently.",
-  "observedAt": "2026-09-13",
+  "observedAt": "2026-09-14",
   "models": {
     "GPT-5.6 Luna": { "family": "openai" },
+    "GPT-5.6 Sol": { "family": "openai" },
     "GPT-5 mini": { "family": "openai", "vision": true },
     "Claude Sonnet 5": { "family": "anthropic" },
     "Claude Opus 5": { "family": "anthropic" },
-    "GPT-5.3-Codex": { "family": "openai" }
+    "GPT-5.3-Codex": { "family": "openai" },
+    "Kimi K3": {
+      "family": "moonshot",
+      "note": "open-weight model hosted by GitHub; off by default on Business and Enterprise plans — an administrator enables its policy before anyone can pick it"
+    }
   },
   "policy": {
     "$comment": "What the organisation's Copilot plan actually exposes in the model picker. Adjust this list first; then `tiers` — never the agent files.",
-    "enabled": ["GPT-5.6 Luna", "GPT-5 mini", "Claude Sonnet 5", "Claude Opus 5", "GPT-5.3-Codex"]
+    "enabled": [
+      "GPT-5.6 Luna",
+      "GPT-5.6 Sol",
+      "GPT-5 mini",
+      "Claude Sonnet 5",
+      "Claude Opus 5",
+      "GPT-5.3-Codex",
+      "Kimi K3"
+    ]
   },
   "tiers": {
-    "$comment": "T1 — cheap mechanics (classification, tooling, unit tests, gates). T2 — code and specs. T3 — architecture and security review, the most expensive seat, used rarely. vision — a model that reads screenshots.",
-    "T1": "GPT-5.6 Luna",
-    "T2": "Claude Sonnet 5",
-    "T3": "Claude Opus 5",
+    "$comment": "junior — cheap mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator, whose agent file is a step-by-step procedure with exact commands, so coordination is mechanics too. mid — code and specs. senior-<family> — the three code-review seats (see `review`), the most expensive tier, named after the model family behind them: the same scope three times, one family each. vision — a model that reads screenshots.",
+    "junior": "GPT-5.6 Luna",
+    "mid": "Claude Sonnet 5",
+    "senior-anthropic": "Claude Opus 5",
+    "senior-openai": "GPT-5.6 Sol",
+    "senior-moonshot": "Kimi K3",
     "vision": "GPT-5 mini"
   },
   "agents": {
-    "$comment": "Names are `<domain>-<subject>`: `orchestrator-*` coordinates, `code-*` touches code, `doc-*` touches prose, `mcp-*` talks to MCP servers. The role carries the permissions ai:validate enforces on the `tools:` list of each agent file. Exactly one agent is visible to a human — the orchestrator; everything else is reached through delegation.",
-    "namePattern": "^(orchestrator|code|doc|mcp)-[a-z0-9-]+$",
+    "$comment": "Names are `<domain>-<subject>`: `code-*` touches code, `doc-*` touches prose, `scm-*` touches git history, `mcp-*` talks to MCP servers; the one visible coordinator is plain `orchestrator` — there is exactly one, so it carries no subject. The role carries the permissions ai:validate enforces on the `tools:` list of each agent file. Exactly one agent is visible to a human — the orchestrator; everything else is reached through delegation.",
+    "namePattern": "^(orchestrator|(?:code|doc|scm|mcp)-[a-z0-9-]+)$",
     "maxVisible": 1,
     "toolSets": ["read", "search", "edit", "execute", "agent", "web", "todo"],
     "$commentForbidden": "Tool sets no agent may list, whatever its role: data from outside the repository comes in through the scripts (alm:read, browser-inspector) and the MCP gateway, never through a browsing tool in a coding agent.",
@@ -33,21 +48,33 @@
       "verifier": { "requires": ["execute"], "forbids": ["agent"], "mcp": false },
       "reviewer": { "requires": ["read"], "forbids": ["edit", "execute", "agent"], "mcp": false },
       "triager": { "requires": ["read"], "forbids": ["edit", "execute", "agent"], "mcp": false },
+      "scm": { "requires": ["execute"], "forbids": ["edit", "agent"], "mcp": false },
       "integration": { "requires": ["execute"], "forbids": ["edit", "agent"], "mcp": true }
     },
     "roster": {
-      "orchestrator-sdd": { "role": "orchestrator", "tier": "T2", "visible": true },
-      "code-angular": { "role": "writer", "tier": "T2", "visible": false },
-      "code-tooling": { "role": "writer", "tier": "T1", "visible": false },
-      "code-tester-unit": { "role": "tester", "tier": "T1", "visible": false },
-      "code-tester-e2e": { "role": "tester", "tier": "T2", "visible": false },
-      "code-verifier": { "role": "verifier", "tier": "T1", "visible": false },
-      "code-reviewer": { "role": "reviewer", "tier": "T3", "visible": false },
+      "orchestrator": { "role": "orchestrator", "tier": "junior", "visible": true },
+      "code-angular": { "role": "writer", "tier": "mid", "visible": false },
+      "code-tooling": { "role": "writer", "tier": "junior", "visible": false },
+      "code-tester-unit": { "role": "tester", "tier": "junior", "visible": false },
+      "code-tester-e2e": { "role": "tester", "tier": "mid", "visible": false },
+      "code-verifier": { "role": "verifier", "tier": "junior", "visible": false },
+      "code-reviewer-anthropic": { "role": "reviewer", "tier": "senior-anthropic", "visible": false },
+      "code-reviewer-openai": { "role": "reviewer", "tier": "senior-openai", "visible": false },
+      "code-reviewer-moonshot": { "role": "reviewer", "tier": "senior-moonshot", "visible": false },
       "code-reviewer-ui": { "role": "reviewer", "tier": "vision", "visible": false },
-      "doc-intake": { "role": "triager", "tier": "T1", "visible": false },
-      "doc-spec": { "role": "writer", "tier": "T2", "visible": false },
-      "doc-reviewer": { "role": "reviewer", "tier": "T2", "visible": false },
-      "mcp-gateway": { "role": "integration", "tier": "T1", "visible": false }
+      "doc-intake": { "role": "triager", "tier": "junior", "visible": false },
+      "doc-spec": { "role": "writer", "tier": "mid", "visible": false },
+      "doc-reviewer": { "role": "reviewer", "tier": "mid", "visible": false },
+      "scm-git": { "role": "scm", "tier": "junior", "visible": false },
+      "mcp-gateway": { "role": "integration", "tier": "junior", "visible": false }
+    }
+  },
+  "review": {
+    "$comment": "Code review is a cross-verification by three model families, not one reading: the three seats get the SAME brief and the SAME full scope (architecture, quality, security) and differ only in the family of the model behind them, so a finding two families agree on is confirmed and one vendor's blind spot cannot swallow the whole review. Each seat is named after the family it promises — `seats` maps the agent to that family — and `ai:validate` (A18) checks the promise: the model behind the seat's tier IS of that family, and no two seats share one. Swapping a vendor therefore means renaming the seat, its tier and this entry, all under the gate; any three families satisfy it. The orchestrator sends the brief in parallel, no seat sees another's report, and merges the three tables with a count of agreeing families; the verdict is the worst of the three.",
+    "seats": {
+      "code-reviewer-anthropic": "anthropic",
+      "code-reviewer-openai": "openai",
+      "code-reviewer-moonshot": "moonshot"
     }
   },
   "mcp": {
@@ -57,7 +84,7 @@
     "artifactDir": ".mcp-artifacts"
   },
   "ui": {
-    "$comment": "UI conventions as data. Mobile-first means: only min-width media queries, and every screen checked at all listed widths.",
+    "$comment": "UI conventions as data. Mobile-first means: only min-width media queries, and every screen checked at all listed widths — the five widths code-reviewer-ui and the e2e tests go through.",
     "approach": "mobile-first",
     "viewports": [360, 768, 1024, 1440, 1920]
   }

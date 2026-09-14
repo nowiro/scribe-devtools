@@ -74,7 +74,9 @@ describe('validateAiConfig', () => {
   });
 
   it('A13 — a reviewer without the deny-writes hook', () => {
-    patch(dir, '.github/agents/code-reviewer.agent.md', (text) => text.replace(/hooks:[\s\S]*?timeout: 10\n/u, ''));
+    patch(dir, '.github/agents/code-reviewer-anthropic.agent.md', (text) =>
+      text.replace(/hooks:[\s\S]*?timeout: 10\n/u, ''),
+    );
     expect(rulesHit(dir, 'A13')).toHaveLength(1);
   });
 
@@ -83,7 +85,7 @@ describe('validateAiConfig', () => {
       text.replace('node tools/hooks/guard-commands.mjs', 'bash tools/hooks/guard-commands.sh'),
     );
     expect(rulesHit(dir, 'A14')).toHaveLength(1);
-    patch(dir, '.github/agents/code-reviewer.agent.md', (text) =>
+    patch(dir, '.github/agents/code-reviewer-anthropic.agent.md', (text) =>
       text.replace('command: node tools/hooks/deny-writes.mjs', 'command: node tools/hooks/deny-writes.mjs --and-more'),
     );
     expect(rulesHit(dir, 'A14').length).toBeGreaterThan(1);
@@ -119,10 +121,33 @@ describe('validateAiConfig', () => {
   });
 
   it('A17 — an agent the orchestrator never routes to', () => {
-    patch(dir, '.github/agents/orchestrator-sdd.agent.md', (text) =>
-      text.replaceAll('`doc-reviewer`', '`doc-reviewer-x`'),
-    );
+    patch(dir, '.github/agents/orchestrator.agent.md', (text) => text.replaceAll('`doc-reviewer`', '`doc-reviewer-x`'));
     expect(rulesHit(dir, 'A17')).toHaveLength(1);
+  });
+
+  it('A18 — a seat whose model is not from the family it promises, which also doubles a family', () => {
+    patch(dir, '.github/models-registry.json', (text) =>
+      text.replace('"senior-moonshot": "Kimi K3"', '"senior-moonshot": "Claude Opus 5"'),
+    );
+    // The agent file follows its tier, so A5 stays quiet; A18 sees a broken promise and a shared family.
+    patch(dir, '.github/agents/code-reviewer-moonshot.agent.md', (text) =>
+      text.replace(/^model: .*$/mu, 'model: Claude Opus 5'),
+    );
+    const hits = rulesHit(dir, 'A18');
+    expect(hits.some((hit) => hit.includes('promises moonshot'))).toBe(true);
+    expect(hits.some((hit) => hit.includes('anthropic family'))).toBe(true);
+    expect(rulesHit(dir, 'A5')).toHaveLength(0);
+  });
+
+  it('A19 — a routing table edited by hand instead of regenerated from routing.config.mjs', () => {
+    patch(dir, '.github/agents/orchestrator.agent.md', (text) =>
+      text.replace('<!-- ROUTING:START -->', '<!-- ROUTING:START -->\n| ręczny wiersz | `code-angular` |'),
+    );
+    expect(rulesHit(dir, 'A19')).toHaveLength(1);
+    patch(dir, '.github/agents/orchestrator.agent.md', (text) =>
+      text.replaceAll(/<!-- ROUTING:(?:START|END) -->/gu, ''),
+    );
+    expect(rulesHit(dir, 'A19')[0]).toContain('markers');
   });
 
   it('A3 — a roster agent without a file and a file without a roster entry', () => {
@@ -130,7 +155,7 @@ describe('validateAiConfig', () => {
     mkdirSync(path.join(dir, '.github/agents'), { recursive: true });
     writeFileSync(
       path.join(dir, '.github/agents/code-ghost.agent.md'),
-      "---\nname: code-ghost\ndescription: T1 · ghost\nmodel: GPT-5.6 Luna\ntools: ['read']\nuser-invocable: false\n---\n",
+      "---\nname: code-ghost\ndescription: junior · ghost\nmodel: GPT-5.6 Luna\ntools: ['read']\nuser-invocable: false\n---\n",
       'utf8',
     );
     const hits = rulesHit(dir, 'A3');

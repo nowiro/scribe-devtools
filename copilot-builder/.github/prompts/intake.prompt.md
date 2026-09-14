@@ -1,6 +1,6 @@
 ---
 description: 'Intake zgłoszenia: klasyfikacja (verb, slug), kompletność kryteriów akceptacji, lista [?] — start drabiny SDD'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /intake — ustrukturyzowany intake zgłoszenia

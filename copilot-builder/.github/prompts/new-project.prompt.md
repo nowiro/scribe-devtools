@@ -1,6 +1,6 @@
 ---
 description: 'Nowa aplikacja lub biblioteka: skrypt new:app / new:lib, potem lista rzeczy do zrobienia (routing, aliasy, testy, e2e) — nigdy ręczny ng generate'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /new-project — aplikacja albo biblioteka w workspace
@@ -14,6 +14,6 @@ agent: orchestrator-sdd
    dla aplikacji także `npm run affected -- build` i `npm run affected -- e2e`.
 4. `npm run code-index` (indeks pokazuje `public-api.ts` / `app.routes.ts` nowego projektu) i `npm run verify -- --static`.
 5. Zleć `code-angular` pierwszy realny ekran / API biblioteki wg spec — placeholder ze scaffoldu nie jest produktem.
-6. Propozycja commita: `feat(apps): add <nazwa> application` / `feat(libs): add <zakres>/<typ>-<nazwa> library`.
+6. Commit przez `scm-git`: `feat(apps): add <nazwa> application` / `feat(libs): add <zakres>/<typ>-<nazwa> library`.
 
 Nigdy `ng generate application|library` wprost i nigdy ręczne edycje `angular.json` pod nowy projekt.

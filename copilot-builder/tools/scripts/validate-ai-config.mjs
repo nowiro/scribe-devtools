@@ -25,12 +25,16 @@
 //   A15 no agent lists a tool set the registry forbids for everyone (`web`: data comes in through scripts)
 //   A16 every MCP server starts a pinned local binary (`node node_modules/…`), never `npx` or a moving tag
 //   A17 the orchestrator's routing table names every other roster agent (no agent is unreachable)
+//   A18 every review seat (registry `review.seats`: agent → promised family) is a roster reviewer whose model IS
+//       of that family, and the three families differ — three readings by one vendor are one reading
+//   A19 the orchestrator's routing table is the one route.mjs renders from routing.config.mjs (npm run route -- --sync)
 //
 // Exit codes: 0 pass · 1 violation · 2 environment error.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { FORBIDDEN_PATHS } from './guard-forbidden.mjs';
 import { REPO, frontmatter, isMain, readJsonc, unquote } from './lib/repo.mjs';
+import { extractRoutingBlock, renderRoutingTable } from './route.mjs';
 
 /** Files of other assistants — the same list guard:forbidden enforces, read once. */
 const FORBIDDEN = FORBIDDEN_PATHS.map(([file]) => file).filter(
@@ -49,6 +53,8 @@ const FORBIDDEN = FORBIDDEN_PATHS.map(([file]) => file).filter(
  * @property {RegExp} namePattern
  * @property {number} maxVisible
  * @property {string} mcpOwner
+ * @property {Record<string, string>} families model name → family (vendor), from `models`
+ * @property {Record<string, string>} reviewSeats seat agent → the model family it promises (`review.seats`)
  */
 
 /**
@@ -121,6 +127,10 @@ function readRegistry(repo) {
     namePattern: new RegExp(agents.namePattern ?? '^[a-z0-9-]+$', 'u'),
     maxVisible: agents.maxVisible ?? 1,
     mcpOwner: registry.mcp?.owner ?? '',
+    families: Object.fromEntries(
+      Object.entries(registry.models ?? {}).map(([name, model]) => [name, String(model?.family ?? '')]),
+    ),
+    reviewSeats: registry.review?.seats ?? {},
   };
 }
 
@@ -344,8 +354,10 @@ function checkHooks(repo, fronts, registry, fail) {
 }
 
 /**
- * A17 — the orchestrator's routing table (the first markdown table of its file) names every other
- * roster agent in its last column; an agent without a row is one the orchestrator will never call.
+ * A17 + A19 — the orchestrator's routing table. A17: every other roster agent is named in some row of
+ * the file, so no agent is unreachable. A19: the table between the ROUTING markers is exactly what
+ * `route.mjs` renders from routing.config.mjs and the registry's review seats — the prose the
+ * orchestrator reads and the answer `npm run route` gives can never disagree.
  * @param {string} repo @param {Registry} registry @param {Fail} fail
  */
 function checkRouting(repo, registry, fail) {
@@ -355,14 +367,65 @@ function checkRouting(repo, registry, fail) {
   for (const orchestrator of orchestrators) {
     const file = path.join(repo, '.github', 'agents', `${orchestrator}.agent.md`);
     if (!existsSync(file)) continue;
-    const rows = readFileSync(file, 'utf8')
-      .split('\n')
-      .filter((line) => line.trim().startsWith('|'));
+    const where = `.github/agents/${orchestrator}.agent.md`;
+    const text = readFileSync(file, 'utf8');
+    const rows = text.split('\n').filter((line) => line.trim().startsWith('|'));
     const named = new Set(rows.flatMap((row) => [...row.matchAll(/`([a-z0-9-]+)`/gu)].map((match) => match[1])));
     for (const name of Object.keys(registry.roster)) {
       if (name !== orchestrator && !named.has(name))
-        fail('A17', `.github/agents/${orchestrator}.agent.md: routing table has no row naming \`${name}\``);
+        fail('A17', `${where}: routing table has no row naming \`${name}\``);
     }
+    const block = extractRoutingBlock(text);
+    if (block === null) {
+      fail(
+        'A19',
+        `${where}: no ROUTING:START / ROUTING:END markers — the routing table is generated (npm run route -- --sync)`,
+      );
+    } else if (block !== renderRoutingTable(Object.entries(registry.reviewSeats))) {
+      fail('A19', `${where}: routing table is stale vs tools/scripts/routing.config.mjs — run npm run route -- --sync`);
+    }
+  }
+}
+
+/**
+ * A18 — the review seats. Three reviews are worth three senior seats only when they are independent, and
+ * independence is a property of the model FAMILIES, not of the prompts: the same brief read by one vendor
+ * three times shares that vendor's blind spots. Each seat is NAMED after the family it promises
+ * (`review.seats`: agent → family), so the gate checks the promise — the model behind the seat's tier is
+ * of that family — and that no two seats end up on one family.
+ * @param {Registry} registry @param {Fail} fail
+ */
+function checkReviewSeats(registry, fail) {
+  const seats = Object.entries(registry.reviewSeats);
+  if (seats.length === 0) {
+    fail('A18', 'the registry declares no review.seats — code review has no independent seats');
+    return;
+  }
+  /** @type {Map<string, string[]>} actual family → seats on it */
+  const byFamily = new Map();
+  for (const [seat, promised] of seats) {
+    const entry = registry.roster[seat];
+    if (!entry) {
+      fail('A18', `review.seats names "${seat}", which is not in the roster`);
+      continue;
+    }
+    if (entry.role !== 'reviewer') fail('A18', `review seat ${seat} has role ${entry.role}, not reviewer`);
+    const model = registry.tiers[entry.tier] ?? '';
+    const family = registry.families[model] ?? '';
+    if (family === '') {
+      fail('A18', `review seat ${seat}: tier ${entry.tier} → "${model}" has no family in models`);
+      continue;
+    }
+    if (family !== promised)
+      fail('A18', `review seat ${seat} promises ${promised} but tier ${entry.tier} → "${model}" is ${family}`);
+    byFamily.set(family, [...(byFamily.get(family) ?? []), seat]);
+  }
+  for (const [family, seatsOnIt] of byFamily) {
+    if (seatsOnIt.length > 1)
+      fail(
+        'A18',
+        `review seats ${seatsOnIt.join(' and ')} both run on the ${family} family — three readings by one vendor are one reading`,
+      );
   }
 }
 
@@ -416,6 +479,7 @@ export function validateAiConfig(repo = REPO) {
   checkHooks(repo, fronts, registry, fail);
   checkMcpConfig(repo, fail);
   checkRouting(repo, registry, fail);
+  checkReviewSeats(registry, fail);
 
   // A12 — the human-readable roster.
   const agentsMd = path.join(repo, 'AGENTS.md');
@@ -429,7 +493,7 @@ export function validateAiConfig(repo = REPO) {
     fail('A12', 'AGENTS.md is missing');
   }
 
-  const summary = `${files.length} agents (${visible} visible), ${Object.keys(registry.tiers).length} tiers, ${servers.length} MCP server(s) owned by ${registry.mcpOwner || '—'}`;
+  const summary = `${files.length} agents (${visible} visible), ${Object.keys(registry.tiers).length} tiers, ${servers.length} MCP server(s) owned by ${registry.mcpOwner || '—'}, ${Object.keys(registry.reviewSeats).length} review seats`;
   return { ok: problems.length === 0, code: problems.length === 0 ? 0 : 1, problems, summary };
 }
 

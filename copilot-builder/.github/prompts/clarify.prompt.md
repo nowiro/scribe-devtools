@@ -1,6 +1,6 @@
 ---
 description: 'Clarify: zbierz wszystkie [?] ze spec jako JEDNĄ listę pytań z opcjami i rekomendacją; po odpowiedziach status draft → clarified'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /clarify — domknięcie znaczników `[?]`

@@ -1,6 +1,6 @@
 ---
 description: 'DoD: domknięcie zadania — wszystkie AC, /analyze GO, review APPROVED, npm run verify zielone, run-log z weryfikacją końcową'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /dod — Definition of Done
@@ -15,8 +15,9 @@ Zadanie jest skończone WYŁĄCZNIE, gdy wszystkie punkty są prawdą i są zapi
    w `Unreleased`.
 6. Run-log ma sekcję „Weryfikacja końcowa" (diff vs spec, wynik `verify`, testy, działa end-to-end,
    werdykt go / no-go z jednym zdaniem) i listę napotkanych problemów z przyczyną i naprawą.
-7. Propozycja commitów w konwencji `type(scope): subject` i opis MR wg `.gitlab/merge_request_templates/Default.md`
-   (Co / Po co / Jak zweryfikować / Ryzyka / DoD / `Closes #<issue>`).
+7. Każde zadanie planu ma SHA w kolumnie `commit` (commity `scm-git`, `type(scope): subject`) i opis MR wg
+   `.gitlab/merge_request_templates/Default.md` (Co / Po co / Jak zweryfikować / Ryzyka / DoD / `Closes #<issue>`);
+   push wykonuje człowiek.
 
 Jeśli którykolwiek punkt nie jest prawdą — nie ma DoD; wracasz do właściwego szczebla (złe wymaganie →
 `/clarify`; zły plan → `/plan`; błąd kodu albo NO-GO review → `/implement`).

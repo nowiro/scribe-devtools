@@ -1,6 +1,6 @@
 ---
 description: 'Checklist: brama jakości PRZED implementacją — wymagania, testy, kod, a11y, DoD — ☑/☐ z opisem weryfikacji (tylko odczyt)'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /checklist — „czy budujemy na najwyższej jakości" (read-only, po /analyze)

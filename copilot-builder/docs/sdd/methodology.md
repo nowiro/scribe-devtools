@@ -13,14 +13,15 @@ intake → specify → clarify → plan → analyze (go/no-go) → implement →
 
 | Szczebel  | Kto                                      | Artefakt / mechanizm                                                             |
 | --------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
-| intake    | `doc-intake` (T1) przez `/intake`        | blok intake: verb, slug, cel, AC, zakres, klasa ryzyka; niejasność → **STOP**   |
+| intake    | `doc-intake` (junior) przez `/intake`        | blok intake: verb, slug, cel, AC, zakres, klasa ryzyka; niejasność → **STOP**   |
 | specify   | skrypt `npm run workflow:specify`        | `docs/specs/<slug>/spec.md` (z `[?]`), plan, run-log — **0 kredytów**            |
 | clarify   | `/clarify` → operator odpowiada          | `[?]` domknięte, `status: draft → clarified`                                     |
-| plan      | `doc-spec` (T2) przez `/plan`            | tabela `id · title · agent · done_when · status · AC`, agent po ŚCIEŻCE pliku    |
+| plan      | `doc-spec` (mid) przez `/plan`            | tabela `id · title · agent · done_when · status · AC · commit`, agent po ŚCIEŻCE pliku (`npm run route`)    |
 | analyze   | `/analyze` (read-only)                   | GO / NO-GO + blockery; otwarte `[?]` = NO-GO                                    |
 | checklist | `/checklist` (read-only, opcjonalnie)    | ☑/☐ jakości przed pierwszą linią kodu                                            |
 | implement | `code-*` przez delegację (`/implement`)  | kod + testy; jedno zlecenie = jeden wykonawca = jedna brama                      |
-| review    | `code-reviewer` (T3), `doc-reviewer`     | `docs/reviews/<stempel>_review-<slug>.md`, werdykt APPROVED / NO-GO              |
+| commit    | `scm-git` (junior) po każdym zadaniu `done`  | `git commit` plików zadania, `type(scope): subject`; SHA w kolumnie `commit` planu |
+| review    | `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` (ten sam brief, trzy rodziny modeli), `doc-reviewer` | `docs/reviews/<stempel>_review-<slug>.md` — trzy tabele scalone skryptem `npm run review:merge` (liczba zgodnych rodzin, konflikty, werdykt najgorszy z trzech) |
 | test      | `code-tester-unit`, `code-tester-e2e`    | Vitest + Playwright; progi pokrycia z `tools/testing/vitest-angular.config.mts` |
 | DoD       | `/dod`                                   | `npm run verify` zielone + run-log domknięty                                     |
 
@@ -53,7 +54,9 @@ Na KAŻDYM szczeblu: niejasne / sprzeczne / niekompletne → STOP, nie zgaduj �
 pytań z opcjami, rekomendacją i wpływem (zakres / koszt / bezpieczeństwo). Trzy przypadki: niejednoznaczność
 (dwie sprzeczne interpretacje AC), sprzeczność (AC kontra kod albo ADR), decyzja ważąca na zakresie (nowa
 zależność, zmiana schematu, złamanie kontraktu). Wszystko inne agent rozstrzyga sam i zapisuje w run-logu
-jako założenie. Hierarchia prawdy: **AC > makieta > domysł**.
+jako założenie. Hierarchia prawdy: **AC > makieta > domysł**. STOP kończy turę: orkiestrator wypisuje
+pytania i czeka na odpowiedź operatora — bez delegacji i edycji do tego czasu. Werdykt **STOP**
+`doc-reviewer` (dokumentacja, makiety, AC ↔ makieta) jest tą samą bramą.
 
 ## Ścieżka defektu (`fix`) — repro-first
 
@@ -62,13 +65,15 @@ jako założenie. Hierarchia prawdy: **AC > makieta > domysł**.
    zapisana w spec.
 3. Poprawka minimalna (KISS) przez właściciela ścieżki.
 4. Regresja: failing test zielony + `npm run verify`; test zostaje w repozytorium na stałe.
-5. Ta sama brama czerwona dwa razy → eskalacja do `code-reviewer` (T3) i operatora, nie trzecia próba.
+5. Ta sama brama czerwona dwa razy → eskalacja do `code-reviewer-anthropic` (senior-anthropic) i operatora, nie trzecia próba.
 
-## Krok = wpis w planie + proponowany commit
+## Zadanie `done` = commit przez `scm-git`
 
-Ukończony szczebel: `status → done` w tabeli planu, wiersz w run-logu (agent, tier, artefakt, wynik bramy)
-i propozycja commita `type(scope): subject` (scope z `commitlint.config.mjs`). Commit wykonuje człowiek —
-agent nigdy.
+Plan to lista zadań ze statusem (`todo` / `in-progress` / `done` / `n/a`) i kolumną `commit`. Ukończone
+zadanie (`done_when` zielone): `status → done` w tabeli planu, wiersz w run-logu (agent, tier, artefakt,
+wynik bramy), komunikat `type(scope): subject` od `doc-intake` (scope z `commitlint.config.mjs`) i commit
+przez `scm-git` — jedynego agenta z prawem do `git commit`; SHA w kolumnie `commit`. Zadanie bez commita
+nie jest `done`. Push i tag wykonuje człowiek po `/dod`.
 
 ## Koniec pętli
 
@@ -94,5 +99,5 @@ iteracja ma własny spec, plan i run-log.
 ## Powiązane
 
 - [`templates/spec.md`](templates/spec.md), [`templates/plan.md`](templates/plan.md), [`templates/run.md`](templates/run.md)
-- `.github/agents/orchestrator-sdd.agent.md` — tabela routingu i kontrakt zlecenia
+- `.github/agents/orchestrator.agent.md` — tabela routingu i kontrakt zlecenia
 - `.gitlab/issue_templates/Default.md` — issue jako specyfikacja

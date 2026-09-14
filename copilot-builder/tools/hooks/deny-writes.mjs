@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * deny-writes.mjs — PreToolUse hook of the read-only agents (code-reviewer, code-reviewer-ui,
+ * deny-writes.mjs — PreToolUse hook of the read-only agents (code-reviewer-anthropic/-b/-c, code-reviewer-ui,
  * doc-reviewer): whatever the agent's `tools:` list says, only tools that READ may run.
  *
  * An allowlist, not a denylist: a list of forbidden verbs let `install_extension`, `memory` (which

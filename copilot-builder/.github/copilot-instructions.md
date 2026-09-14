@@ -12,13 +12,14 @@ w `.github/agents/`, procedury w `.github/prompts/`, komendy i roster w [AGENTS.
 2. **Definicja ukończenia** — `npm run verify` na zielono. Bram się nie pomija, hooków nie obchodzi.
 3. **Tylko Copilot** — jedno źródło kontekstu. Nie ma tu `CLAUDE.md`, `.claude/`, `.cursor/`, `.ai/`
    (pilnuje `npm run guard:forbidden`).
-4. **Jeden widoczny agent** — `orchestrator-sdd`. Reszta rosteru jest ukryta i pracuje przez delegację;
-   ścieżka dotykanego pliku wyznacza wykonawcę (tabela routingu w `orchestrator-sdd`).
+4. **Jeden widoczny agent** — `orchestrator`. Reszta rosteru jest ukryta i pracuje przez delegację;
+   ścieżka dotykanego pliku wyznacza wykonawcę (`npm run route`, tabela w `orchestrator`).
 5. **MCP wyłącznie przez `mcp-gateway`** — żaden inny agent nie ma serwera MCP na liście `tools:`.
    Wynik wraca jako ścieżka artefaktu w `.mcp-artifacts/` plus streszczenie. Do ALM i przeglądarki
    służą skrypty (bloki niżej), nie serwery.
-6. **Modele po tierach** — `T1` / `T2` / `T3` / `vision` rozwijają się do nazw wyłącznie
-   w `.github/models-registry.json`. Nazwa modelu wpisana gdziekolwiek indziej jest usterką.
+6. **Modele po tierach** — `junior` / `mid` / `senior-<rodzina>` / `vision` rozwijają się do nazw wyłącznie
+   w `.github/models-registry.json`; trzy miejsca `senior-*` to trzy rodziny modeli (weryfikacja krzyżowa
+   review), nazwane po rodzinie. Nazwa modelu wpisana gdziekolwiek indziej jest usterką.
 7. **Angular 22 na sygnałach** — standalone, `OnPush`, `inject()`, `input()`/`output()`, natywny
    control flow, zoneless (domyślne), Signal Forms z `@angular/forms/signals`; bez NgRx, bez
    `BehaviorSubject` jako magazynu stanu. Szczegóły: `.github/instructions/angular.instructions.md`.
@@ -26,10 +27,11 @@ w `.github/agents/`, procedury w `.github/prompts/`, komendy i roster w [AGENTS.
    kierunek zależności pilnuje `eslint.rules.mjs`. Nikt nie importuje `src/` innego projektu.
 9. **Język** — proza (dokumentacja, komentarze, teksty UI) po polsku; identyfikatory, ścieżki, commity
    po angielsku. Komentarz mówi DLACZEGO, nie co.
-10. **Conventional Commits** — `type(scope): subject`, scope z `commitlint.config.mjs`. Agent proponuje
-    commit, nigdy go nie wykonuje.
+10. **Conventional Commits** — `type(scope): subject`, scope z `commitlint.config.mjs`. Ukończone zadanie
+    planu commituje `scm-git` (jedyny agent z `git commit`); push i tag wykonuje człowiek.
 11. **STOP-AND-ASK** — niejednoznaczność zmieniająca zakres, koszt albo bezpieczeństwo zatrzymuje pracę
-    z jedną skonsolidowaną listą pytań z opcjami i rekomendacją. Nie zgaduj.
+    z jedną skonsolidowaną listą pytań z opcjami i rekomendacją. Nie zgaduj — STOP kończy turę, dalej
+    dopiero po odpowiedzi człowieka.
 12. **Zacznij od indeksu** — [CODE-INDEX.md](../CODE-INDEX.md) mówi, GDZIE coś jest,
     [GLOSSARY.md](../GLOSSARY.md), JAK to się nazywa. Otwieraj tylko to, co któryś z nich nazwie.
 

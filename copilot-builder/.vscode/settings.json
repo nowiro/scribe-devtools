@@ -22,7 +22,7 @@
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
 
   // ───────────────────────────── Pętla agenta i punkty kontrolne
-  // Roster jest płaski: `orchestrator-sdd` deleguje jeden poziom w dół i nikt nie deleguje dalej.
+  // Roster jest płaski: `orchestrator` deleguje jeden poziom w dół i nikt nie deleguje dalej.
   "chat.agent.maxRequests": 25,
   "chat.subagents.allowInvocationsFromSubagents": false,
   "chat.checkpoints.enabled": true,

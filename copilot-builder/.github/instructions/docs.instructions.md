@@ -22,4 +22,6 @@ Właściciele: proza procesu (spec, plan, run-log, ADR, review) — `doc-spec`; 
   słowa na identyfikatory; każdy odnośnik w kolumnie „gdzie w kodzie" musi istnieć (brama).
 - Bloki `INSTRUCTION:<narzędzie>:START/END` w `AGENTS.md` ≡ kopie w `.github/copilot-instructions.md`
   (limit 600 bajtów na blok) — `npm run check:instructions`.
+- Diagramy: blok ```mermaid wg skilla `.github/skills/mermaid-diagrams/SKILL.md` (typ do treści, etykiety po
+  polsku, bez kolorów); diagram opisujący kod idzie za kodem w tym samym MR — `doc-reviewer` sprawdza zgodność.
 - Sekcja „Powiązane" na końcu dłuższego dokumentu — dwa, trzy odnośniki, żeby dokument miał wyjście.

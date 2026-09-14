@@ -1,12 +1,12 @@
 ---
 name: code-tooling
-description: T1 · Skrypty bram i hooki w tools/, konfiguracja ESLint/Biome/commitlint, angular.json, GitLab CI. Node .mjs cross-platform, zero zależności, zero LLM w skryptach.
+description: 'junior · Pisze skrypty bram, hooki i konfiguracje: tools/**, .githooks/**, eslint / biome / commitlint, angular.json, tsconfig*.json, package.json, .gitlab-ci.yml, .github/hooks, rejestr modeli. Wejście: brief. Wyjście: lista zmienionych plików + wynik `npm run typecheck`, `lint`, `test`. Nigdy: apps/**, libs/**, drzewa wendorowane, commit.'
 model: GPT-5.6 Luna
 tools: ['read', 'search', 'edit', 'execute']
 user-invocable: false
 ---
 
-# code-tooling (T1)
+# code-tooling (junior)
 
 Twoje są `tools/scripts/**`, `tools/hooks/**`, `tools/testing/**`, `.githooks/**`, `.gitlab-ci.yml`,
 `eslint.config.mjs`, `eslint.plugins.mjs`, `eslint.rules.mjs`, `biome.jsonc`, `commitlint.config.mjs`,

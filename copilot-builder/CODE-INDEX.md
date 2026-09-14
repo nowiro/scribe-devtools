@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 90.
+Modules: 93.
 
 ## tools/browser-inspector/bin/browser-inspector.mjs
 - purpose: the entry the agent runs (DESIGN.md §2.1 / §3.1).
@@ -183,7 +183,7 @@ Modules: 90.
 - imported by: `tools/browser-inspector/src/auth.mjs`, `tools/browser-inspector/src/cli.mjs`, `tools/browser-inspector/src/config.mjs`, `tools/browser-inspector/src/flow.mjs`, `tools/browser-inspector/src/session-log.mjs`, `tools/browser-inspector/src/session.mjs`, `tools/browser-inspector/src/steps.ctx.mjs`, `tools/browser-inspector/src/steps.run.mjs`
 
 ## tools/hooks/deny-writes.mjs
-- purpose: PreToolUse hook of the read-only agents (code-reviewer, code-reviewer-ui, doc-reviewer): whatever the agent's `tools:` list says, only tool…
+- purpose: PreToolUse hook of the read-only agents (code-reviewer-anthropic/-b/-c, code-reviewer-ui, doc-reviewer): whatever the agent's `tools:` list…
 - exports: `READ_TOOLS`, `decide(tool) → string | null`
 - imports: `tools/hooks/lib/payload.mjs`
 
@@ -410,6 +410,7 @@ Modules: 90.
 - exports: `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `mergeBaseFor(base, repo) → string | null`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
 - env: `CB_TASK_CACHE`
 - imports: `tools/scripts/display-command.mjs`, `tools/scripts/lib/repo.mjs`
+- imported by: `tools/scripts/route.mjs`
 
 ## tools/scripts/check-glossary.mjs
 - purpose: GLOSSARY.md maps words to identifiers; this gate checks that every identifier it names still exists (part of `npm run verify`).
@@ -463,7 +464,7 @@ Modules: 90.
 ## tools/scripts/lib/repo.mjs
 - purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
 - exports: `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
-- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
+- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/new-project.mjs
 - purpose: the ONE way an application or a library is added to this workspace (0 credits).
@@ -474,6 +475,23 @@ Modules: 90.
 - purpose: the single declaration site for every dependency version in this repository.
 - exports: `FROZEN_ALWAYS`, `PINS`
 - imported by: `tools/scripts/check-pins.mjs`, `tools/scripts/check-upstream.mjs`
+
+## tools/scripts/review-merge.mjs
+- purpose: three readings of one change, from three model families, into one table (0 credits).
+- exports: `SEVERITY`, `VERDICTS`, `cells(line) → string[]`, `expandInputs(inputs) → string[]`, `findingsTable(markdown) → { header: string[], rows: string[][] } | null`, `mergeReviews(reports, seatFamilies) → Merged`, `parseArgs(argv) → { inputs: string[], out: string | null, slug: string }`, `parseReport(markdown, family) → Report | null`, `renderMerged(merged, {…}) → string`, `reviewSeatFamilies(repo) → string[]`, `runCli(argv) → number`, `severityOf(cell) → Severity | null`
+- imports: `tools/scripts/lib/repo.mjs`
+
+## tools/scripts/route.mjs
+- purpose: who touches a path, answered from tools/scripts/routing.config.mjs (0 credits).
+- exports: `ORCHESTRATOR_FILE`, `ROUTING_END`, `ROUTING_START`, `extractRoutingBlock(markdown) → string | null`, `formatRouting(routing) → string`, `globToRegExp(glob) → RegExp`, `normalizePath(file) → string`, `renderRoutingTable(seats) → string`, `reviewSeats(repo) → [string, string][]`, `routePath(file, rules) → { agent: string | null, what: string, glob: string } | null`, `routePaths(files, rules) → Routing`, `runCli(argv) → number`, `syncOrchestrator(repo, {…}) → { fresh: boolean, problem: string | null }`
+- imports: `tools/scripts/affected.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/routing.config.mjs`
+- types only: `tools/scripts/routing.config.mjs`
+- imported by: `tools/scripts/validate-ai-config.mjs`
+
+## tools/scripts/routing.config.mjs
+- purpose: WHO touches WHAT, declared once.
+- exports: `BY_PATH`, `BY_WORK`, `REVIEW_SEATS_ROW`
+- imported by: `tools/scripts/route.mjs`
 
 ## tools/scripts/setup-hooks.mjs
 - purpose: arms the committed git hooks: `git config core.hooksPath .githooks`.
@@ -493,7 +511,7 @@ Modules: 90.
 ## tools/scripts/validate-ai-config.mjs
 - purpose: the gate over the GitHub Copilot configuration (0 credits; pre-commit, session-stop hook and `npm run verify`).
 - exports: `mcpServerConfigs(repo) → Record<string, { type?: string, command?: string, args?: st…`, `mcpServers(repo) → string[]`, `parseList(value) → string[]`, `patternHeads(pattern) → string[]`, `validateAiConfig(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
-- imports: `tools/scripts/guard-forbidden.mjs`, `tools/scripts/lib/repo.mjs`
+- imports: `tools/scripts/guard-forbidden.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/route.mjs`
 
 ## tools/scripts/validate-sdd.mjs
 - purpose: the SDD hygiene gate (0 credits, part of `npm run verify`).

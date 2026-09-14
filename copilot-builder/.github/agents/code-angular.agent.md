@@ -1,12 +1,12 @@
 ---
 name: code-angular
-description: T2 · Komponenty, store'y na sygnałach, Signal Forms i szablony w apps/ i libs/. Zaczyna od kształtu istniejącego modułu, nie od pustego pliku.
+description: 'mid · Pisze kod Angulara w apps/** i libs/** (.ts, .html, .css; bez *.spec.ts i apps/*-e2e). Wejście: brief (cel, pliki, AC, brama, budżet). Wyjście: lista zmienionych plików + wynik `npm run affected -- lint` i `-- typecheck`. Nigdy: testy, tools/**, docs/**, commit.'
 model: Claude Sonnet 5
 tools: ['read', 'search', 'edit', 'execute']
 user-invocable: false
 ---
 
-# code-angular (T2)
+# code-angular (mid)
 
 Piszesz kod Angulara w `apps/**` i `libs/**` (`.ts`, `.html`, `.css`), z wyłączeniem `*.spec.ts`
 (`code-tester-unit`), `apps/*-e2e/**` (`code-tester-e2e`) oraz drzew wendorowanych `tools/**`.

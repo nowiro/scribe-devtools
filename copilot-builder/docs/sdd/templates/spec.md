@@ -38,7 +38,7 @@ created: '{{date}}'
 
 ## Ryzyka i klasa ryzyka
 
-[?] auth · rozliczenia · migracja schematu · współbieżność · dane osobowe · brak — klasa ryzyka wymusza review `code-reviewer` przed implementacją.
+[?] auth · rozliczenia · migracja schematu · współbieżność · dane osobowe · brak — klasa ryzyka wymusza review `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` przed implementacją.
 
 ## Pytania otwarte
 

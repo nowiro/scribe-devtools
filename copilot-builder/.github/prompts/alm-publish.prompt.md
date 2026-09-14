@@ -1,6 +1,6 @@
 ---
 description: 'Publikacja do ALM przez scribe: spec → issue/MR GitLab albo zadanie Jira z pliku Markdown; dry-run domyślny, --yes tylko na polecenie'
-agent: orchestrator-sdd
+agent: orchestrator
 ---
 
 # /alm-publish — spec jako issue, zadanie albo strona
