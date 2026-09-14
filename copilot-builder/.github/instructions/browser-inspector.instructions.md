@@ -14,6 +14,6 @@ zależność runtime — `playwright-core` (exact, `tools/scripts/pins.config.mj
 - Sekrety tylko przez środowisko (`valueFromEnv`, `--env`, `@{NAZWA}`); literał w configu jest błędem
   walidacji, nie udogodnieniem. Raport powtarza NAZWĘ zmiennej, nigdy wartość.
 - Nieudany krok to wynik w raporcie (exit 0 w batchu), nie wyjątek; błąd środowiska to jasny komunikat.
-- Wynik zawsze na dysku (`.scribe-devtools/browser-inspector/`, gitignorowany) — komenda drukuje jedną
+- Wynik zawsze na dysku (`.browser-inspector/`, gitignorowany) — komenda drukuje jedną
   linię i ścieżkę; nie wciągaj strony do kontekstu.
 - Gramatyka kroków i flag: `npm run browser-inspector -- help [krok]`; szablon flow: `templates/flow.md`.

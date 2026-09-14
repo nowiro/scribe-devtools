@@ -1,11 +1,11 @@
 ---
-description: 'Publikacja do ALM przez scribe: spec → issue/MR GitLab albo zadanie Jira z pliku Markdown; dry-run domyślny, --yes tylko na polecenie'
+description: 'Publikacja do ALM przez skrypty alm:*: spec → issue/MR GitLab albo zadanie Jira z pliku Markdown; dry-run domyślny, --yes tylko na polecenie'
 agent: orchestrator
 ---
 
 # /alm-publish — spec jako issue, zadanie albo strona
 
-1. Plik wejściowy to Markdown z front matter wg szablonu z `tools/scribe/templates/`
+1. Plik wejściowy to Markdown z front matter wg szablonu z `tools/alm/templates/`
    (`gitlab-issue.md`, `gitlab-mr.md`, `jira-issue.md`, `confluence-page.md`) — `doc-spec` składa go ze spec:
    Kontekst, Zakres (lista numerowana), Kryteria akceptacji (checkboxy), Przypadki brzegowe, Poza zakresem,
    Założenia. Niejasność jako `[DO WYJAŚNIENIA: pytanie]`, nigdy domysł.

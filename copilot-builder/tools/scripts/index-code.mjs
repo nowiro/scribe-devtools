@@ -3,7 +3,7 @@
 // One cheap file answers "what does module X export" and "who depends on it" without grepping the
 // tree: an agent reads the index first and opens only the files that matter, which is faster and
 // cheaper than a full-tree scan. It covers the TOOLING (tools/scripts, tools/hooks, the vendored
-// browser-inspector and the ALM integrations of tools/scribe) and the PUBLIC API of the workspace
+// browser-inspector and the ALM integrations of tools/alm) and the PUBLIC API of the workspace
 // (every library's `public-api.ts`, every application's `app.routes.ts`) — the map level. Questions
 // below that level are answered by opening the file the index names, not by indexing everything.
 //
@@ -32,8 +32,8 @@ const TOOL_DIRS = [
   'tools/testing',
   'tools/browser-inspector/bin',
   'tools/browser-inspector/src',
-  'tools/scribe/scripts',
-  'tools/scribe/integrations',
+  'tools/alm/scripts',
+  'tools/alm/integrations',
 ];
 /** Public-API files of workspace projects: the map level of applications and libraries. */
 const PUBLIC_API =
@@ -233,7 +233,7 @@ export function parseImports(source, fromFile) {
       if (match[1].includes('${') || insideTemplateLiteral(code, match.index) || insideStringLiteral(code, match.index))
         continue;
       const resolved = path.posix.join(path.posix.dirname(fromFile), match[1]);
-      // TypeScript sources (tools/scribe) write `./x.js` (NodeNext) for a file that is `./x.ts` on disk.
+      // TypeScript sources (tools/alm) write `./x.js` (NodeNext) for a file that is `./x.ts` on disk.
       out.add(fromFile.endsWith('.ts') ? resolved.replace(/\.js$/u, '.ts') : resolved);
     }
   }

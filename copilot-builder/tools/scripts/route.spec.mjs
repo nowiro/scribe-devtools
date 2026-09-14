@@ -57,7 +57,7 @@ describe('routePath — first match wins, specific before general', () => {
   });
 
   it('vendored and generated files route to nobody on purpose; an unknown path has no rule', () => {
-    expect(routePath('tools/scribe/scripts/read.mjs')?.agent).toBeNull();
+    expect(routePath('tools/alm/scripts/read.mjs')?.agent).toBeNull();
     expect(routePath('tools/browser-inspector/src/cli.mjs')?.agent).toBeNull();
     expect(routePath('CODE-INDEX.md')?.agent).toBeNull();
     expect(routePath('weird.bin')).toBeNull();
@@ -74,12 +74,12 @@ describe('routePaths', () => {
       'apps/x/src/a.ts',
       'apps/x/src/a.spec.ts',
       'libs/y/src/b.ts',
-      'tools/scribe/x.ts',
+      'tools/alm/x.ts',
       'nope.bin',
     ]);
     expect(routing.byAgent.get('code-angular')).toEqual(['apps/x/src/a.ts', 'libs/y/src/b.ts']);
     expect(routing.byAgent.get('code-tester-unit')).toEqual(['apps/x/src/a.spec.ts']);
-    expect(routing.nobody.map((entry) => entry.file)).toEqual(['tools/scribe/x.ts', 'nope.bin']);
+    expect(routing.nobody.map((entry) => entry.file)).toEqual(['tools/alm/x.ts', 'nope.bin']);
     expect(routing.nobody[1].why).toContain('STOP-AND-ASK');
   });
 });

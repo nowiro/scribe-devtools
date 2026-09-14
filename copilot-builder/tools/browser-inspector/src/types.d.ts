@@ -385,7 +385,7 @@ export interface Report {
   final?: string;
 }
 
-/** `<outputDir>/<stamp>/<snapshot>/_manifest.json` — the read-runtime convention scribe tools read. */
+/** `<outputDir>/<stamp>/<snapshot>/_manifest.json` — the read-runtime convention the ALM tools read. */
 export interface SnapshotManifest {
   name: string;
   type: 'page' | 'flow';

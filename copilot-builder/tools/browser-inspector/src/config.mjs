@@ -16,7 +16,7 @@ import { ARTIFACT_NAME, WAIT_UNTIL, checkField, validateSteps } from './steps.sc
 
 /** Defaults DESIGN.md §3.3 fixes; the report header names the ones that differ from them. */
 export const DEFAULTS = Object.freeze({
-  outputDir: './.scribe-devtools/browser-inspector',
+  outputDir: './.browser-inspector',
   parallel: 1,
   settleMs: 2000,
   browser: Object.freeze({ headless: true, fastHeadless: true, motion: 'no-preference' }),
@@ -242,7 +242,7 @@ function validateSnapshot(snapshot, where) {
 
 /**
  * Validate a raw (parsed JSON) config and return it normalized: defaults applied, `outputDir`
- * absolute (relative to the config file, like scribe), snapshots and steps otherwise untouched.
+ * absolute (relative to the config file, like the ALM tool), snapshots and steps otherwise untouched.
  * @param {unknown} raw
  * @param {{ configPath?: string, cwd?: string }} [options] `configPath` anchors `outputDir`
  * @returns {Record<string, any>}

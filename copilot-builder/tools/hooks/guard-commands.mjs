@@ -273,7 +273,7 @@ const RULES = [
     const yes = args.includes('--yes') || args.includes('-y');
     if (program === 'npm' && args[0] === 'run' && /^alm:(?:create|update)/u.test(args[1] ?? '') && yes)
       return 'ALM write with --yes — only a human runs that';
-    if (program === 'node' && args.some((a) => /scribe[/\\]scripts[/\\]write\.mjs$/u.test(a)) && yes)
+    if (program === 'node' && args.some((a) => /alm[/\\]scripts[/\\]write\.mjs$/u.test(a)) && yes)
       return 'ALM write with --yes — only a human runs that';
     return null;
   },

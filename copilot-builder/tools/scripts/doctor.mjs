@@ -86,7 +86,7 @@ function defaultPlaywrightCache() {
 }
 
 /**
- * The ALM credentials file, resolved exactly like the vendored scribe does it:
+ * The ALM credentials file, resolved exactly like the vendored ALM tool does it:
  * EXTRACT_CONFIG_PATH (a directory) › XDG_CONFIG_HOME › ~/.config/<EXTRACT_CONFIG_DIR ?? extract>/config.json.
  */
 function almConfigPath() {

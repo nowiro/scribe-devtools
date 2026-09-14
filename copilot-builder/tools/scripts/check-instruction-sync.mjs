@@ -1,12 +1,12 @@
 // The instruction block quoted in AGENTS.md IS the fixed cost of a tool's side of an agent session:
-// one blockquote that tells the agent how to call `browser-inspector` or the ALM scripts (`scribe`)
+// one blockquote that tells the agent how to call `browser-inspector` or the ALM scripts (`alm`)
 // without loading a tool schema. A second copy lives in `.github/copilot-instructions.md`: VS Code
 // Copilot reads that file in every mode, AGENTS.md only when `chat.useAgentsMdFile` is on — so both
 // carry the block and `npm run verify` compares them character for character. A drift there is the
 // agent reading one instruction while the humans review another.
 //
 // There is more than one tool, so there is more than one block, and each block has its own NAMED
-// markers: `<!-- INSTRUCTION:browser-inspector:START -->`, `<!-- INSTRUCTION:scribe:START -->`.
+// markers: `<!-- INSTRUCTION:browser-inspector:START -->`, `<!-- INSTRUCTION:alm:START -->`.
 //
 // A block absent from BOTH files is skipped rather than failed, unless `--require-all` is passed:
 // this repository ships both tools, so `npm run verify` passes it — here a block missing from both
@@ -45,7 +45,7 @@ export const TOTAL_BYTE_LIMIT = 1300;
 /** @type {readonly Block[]} */
 export const BLOCKS = Object.freeze([
   { name: 'browser-inspector', limit: BYTE_LIMIT },
-  { name: 'scribe', limit: BYTE_LIMIT },
+  { name: 'alm', limit: BYTE_LIMIT },
 ]);
 
 /** How a block is referred to in messages. @param {string} name */

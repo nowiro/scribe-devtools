@@ -63,7 +63,7 @@ describe('parseImports', () => {
   });
 
   it('maps NodeNext `.js` specifiers of TypeScript sources to the `.ts` file on disk', () => {
-    expect(parseImports("import { a } from './b.js';", 'tools/scribe/x.ts')).toEqual(['tools/scribe/b.ts']);
+    expect(parseImports("import { a } from './b.js';", 'tools/alm/x.ts')).toEqual(['tools/alm/b.ts']);
   });
 });
 

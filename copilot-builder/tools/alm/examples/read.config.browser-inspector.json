@@ -1,0 +1,79 @@
+{
+  "outputDir": "./.alm/browser-inspector",
+  "snapshots": [
+    {
+      "name": "landing-page",
+      "type": "page",
+      "url": "http://localhost:3000/",
+      "waitUntil": "networkidle",
+      "fullPage": true
+    },
+    {
+      "name": "dashboard-admin",
+      "type": "flow",
+      "url": "http://localhost:3000/login",
+      "steps": [
+        {
+          "do": "fill",
+          "selector": "#email",
+          "valueFromEnv": "APP_ADMIN_USER"
+        },
+        {
+          "do": "fill",
+          "selector": "#password",
+          "valueFromEnv": "APP_ADMIN_PASSWORD"
+        },
+        {
+          "do": "click",
+          "selector": "button[type=submit]"
+        },
+        {
+          "do": "waitFor",
+          "selector": "[data-testid=dashboard]"
+        },
+        {
+          "do": "extract",
+          "name": "welcome",
+          "selector": "[data-testid=dashboard] h1"
+        },
+        {
+          "do": "screenshot",
+          "name": "after-login"
+        }
+      ]
+    },
+    {
+      "name": "raporty-viewer-sso",
+      "type": "flow",
+      "url": "http://localhost:3000/raporty",
+      "steps": [
+        {
+          "do": "waitFor",
+          "selector": "#kc-form-login"
+        },
+        {
+          "do": "fill",
+          "selector": "#username",
+          "valueFromEnv": "APP_VIEWER_USER"
+        },
+        {
+          "do": "fill",
+          "selector": "#password",
+          "valueFromEnv": "APP_VIEWER_PASSWORD"
+        },
+        {
+          "do": "click",
+          "selector": "#kc-login"
+        },
+        {
+          "do": "waitFor",
+          "selector": "[data-testid=raporty]"
+        },
+        {
+          "do": "screenshot",
+          "name": "raporty-jako-viewer"
+        }
+      ]
+    }
+  ]
+}

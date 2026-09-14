@@ -1,0 +1,17 @@
+{
+  "outputDir": "./.alm/xray",
+  "snapshots": [
+    {
+      "name": "tests",
+      "type": "tests",
+      "jql": "project = PROJ AND issuetype = Test ORDER BY created ASC",
+      "maxItems": 500
+    },
+    {
+      "name": "executions",
+      "type": "test_executions",
+      "jql": "project = PROJ AND issuetype = 'Test Execution' ORDER BY created ASC",
+      "maxItems": 100
+    }
+  ]
+}

@@ -3,7 +3,7 @@
  *
  * Layers, in order (a later layer wins over an earlier one):
  *   1. global ignores — build output, caches, tool output and the two vendored trees
- *      (tools/scribe, tools/browser-inspector), which carry their own gates and are read, not rewritten;
+ *      (tools/alm, tools/browser-inspector), which carry their own gates and are read, not rewritten;
  *   2. the JavaScript base for every code file;
  *   3. typed TypeScript for applications and libraries (strict + stylistic, type information from
  *      the project tsconfigs through the TypeScript project service);
@@ -35,13 +35,13 @@ export default defineConfig(
     '**/coverage/**',
     '**/.angular/**',
     '**/.cache/**',
-    '**/.scribe/**',
-    '**/.scribe-devtools/**',
+    '**/.alm/**',
+    '**/.browser-inspector/**',
     '**/.mcp-artifacts/**',
     '**/tmp/**',
     '**/playwright-report/**',
     '**/test-results/**',
-    'tools/scribe/**',
+    'tools/alm/**',
     'tools/browser-inspector/**',
   ]),
   {

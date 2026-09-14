@@ -46,10 +46,10 @@ Równy co do znaku blokowi w `AGENTS.md` (`npm run check:instructions`, limit 60
 
 <!-- INSTRUCTION:browser-inspector:END -->
 
-## Blok instrukcji `scribe` (ALM)
+## Blok instrukcji `alm` (ALM)
 
-<!-- INSTRUCTION:scribe:START -->
+<!-- INSTRUCTION:alm:START -->
 
-> ALM (Jira i jej plugin Xray, Confluence, GitLab, Sonar, Figma, Miro): `npm run alm:read -- <źródło> [config.json] [--stamp X]` pisze snapshot do `.scribe/<źródło>/<stamp>/<snapshot>/` (`_manifest.json` + `<zasób>.md|.json`); czytaj manifest, potem tylko potrzebne pliki. Zapis: `npm run alm:create|alm:update -- <źródło> <plik.md>` z front matter wg `tools/scribe/templates/` — bez `--yes` dry-run z diffem; `--yes` tylko na wyraźne polecenie człowieka; usuwania nie ma.
+> ALM (Jira i jej plugin Xray, Confluence, GitLab, Sonar, Figma, Miro): `npm run alm:read -- <źródło> [config.json] [--stamp X]` pisze snapshot do `.alm/<źródło>/<stamp>/<snapshot>/` (`_manifest.json` + `<zasób>.md|.json`); czytaj manifest, potem tylko potrzebne pliki. Zapis: `npm run alm:create|alm:update -- <źródło> <plik.md>` z front matter wg `tools/alm/templates/` — bez `--yes` dry-run z diffem; `--yes` tylko na wyraźne polecenie człowieka; usuwania nie ma.
 
-<!-- INSTRUCTION:scribe:END -->
+<!-- INSTRUCTION:alm:END -->

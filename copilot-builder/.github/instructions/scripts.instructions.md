@@ -18,4 +18,4 @@ Właściciel: `code-tooling`. Brama: `npm run typecheck` (tsc `--checkJs` z JSDo
 - Hook (`tools/hooks/*.mjs`) czyta payload ze stdin, odpowiada JSON-em na stdout, nigdy nie blokuje
   dłużej niż kilka sekund i nie wychodzi do sieci. `.githooks/*` to `#!/bin/sh` z `set -e`.
 - Testy `*.spec.mjs` obok skryptu (Vitest, `vitest.tools.config.mts`); dane jawne, bez sieci.
-- `tools/scribe/**` i `tools/browser-inspector/**` są wendorowane — mają własne README i zasady.
+- `tools/alm/**` i `tools/browser-inspector/**` są wendorowane — mają własne README i zasady.

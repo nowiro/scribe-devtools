@@ -26,7 +26,7 @@ export const REVIEW_SEATS_ROW = '<review.seats>';
 export const BY_PATH = Object.freeze([
   {
     agent: null,
-    globs: ['tools/scribe/**', 'tools/browser-inspector/**'],
+    globs: ['tools/alm/**', 'tools/browser-inspector/**'],
     what: 'narzędzia wendorowane — czyta się, nie przepisuje; poprawka to decyzja człowieka',
   },
   {

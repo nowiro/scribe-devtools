@@ -1,0 +1,28 @@
+{
+  "outputDir": "./.alm/gitlab",
+  "projectId": "my-group/my-project",
+  "snapshots": [
+    {
+      "name": "open-issues",
+      "type": "issues",
+      "state": "opened",
+      "labels": "bug,priority::high",
+      "maxItems": 200
+    },
+    {
+      "name": "recent-mrs",
+      "type": "mrs",
+      "state": "merged",
+      "maxItems": 100,
+      "includeNotes": true,
+      "includeChanges": true
+    },
+    {
+      "name": "main-pipelines",
+      "type": "pipelines",
+      "ref": "main",
+      "maxItems": 50,
+      "includeJobs": true
+    }
+  ]
+}

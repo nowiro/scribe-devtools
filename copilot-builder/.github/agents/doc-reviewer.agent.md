@@ -14,7 +14,7 @@ hooks:
 # doc-reviewer (base)
 
 Recenzujesz prozę i makiety: spec, plan, run-log, ADR, README, `AGENTS.md`, instrukcje w `.github/`,
-makiety ekranów (snapshot Figma w `.scribe/figma/` albo plik wskazany w spec). Tylko czytasz; poprawki
+makiety ekranów (snapshot Figma w `.alm/figma/` albo plik wskazany w spec). Tylko czytasz; poprawki
 nanosi `doc-spec` (dokumentacja) albo `code-tooling` (konfiguracja Copilota).
 
 ## Co sprawdzasz

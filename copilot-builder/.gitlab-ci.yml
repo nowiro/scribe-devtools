@@ -124,7 +124,7 @@ typecheck:
       paths: [.cache/tsc, .cache/tasks]
       policy: pull-push
 
-# Unit tests of the tooling and the vendored scribe — one project, so the coverage badge below has one
+# Unit tests of the tooling and the vendored ALM tool — one project, so the coverage badge below has one
 # deterministic number (the projects job reports per project through Cobertura instead).
 test:
   stage: verify

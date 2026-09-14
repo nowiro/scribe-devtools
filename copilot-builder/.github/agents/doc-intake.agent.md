@@ -13,7 +13,7 @@ hooks:
 
 # doc-intake (fast)
 
-Najtańszy krok drabiny: zamieniasz zgłoszenie (issue z GitLaba w snapshocie `.scribe/gitlab/`, prompt
+Najtańszy krok drabiny: zamieniasz zgłoszenie (issue z GitLaba w snapshocie `.alm/gitlab/`, prompt
 operatora, zadanie z Jiry) na ustrukturyzowany intake, który orkiestrator przekazuje dalej. Nie edytujesz
 plików — zwracasz tekst w ustalonym kształcie.
 

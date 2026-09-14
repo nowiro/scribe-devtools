@@ -110,7 +110,7 @@ const DENIED = [
   ['npm install -g some-cli', 'global npm install'],
   ['npm publish', 'npm publish from an agent'],
   ['npm run alm:create -- jira ./task.md --yes', 'ALM write with --yes — only a human runs that'],
-  ['node tools/scribe/scripts/write.mjs create jira ./task.md --yes', 'ALM write with --yes — only a human runs that'],
+  ['node tools/alm/scripts/write.mjs create jira ./task.md --yes', 'ALM write with --yes — only a human runs that'],
   ["node -e \"require('fs').rmSync('x',{recursive:true,force:true})\"", 'recursive delete through an interpreter'],
   ['python -c "import shutil; shutil.rmtree(\'x\')"', 'recursive delete through an interpreter'],
   ['git push \\\n--force origin main', 'force push'],

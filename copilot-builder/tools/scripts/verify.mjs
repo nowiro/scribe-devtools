@@ -39,8 +39,8 @@ export const STATIC = [
 export const CODE = [
   { label: 'typecheck (tools)', command: [node, bin('typescript/bin/tsc'), '-p', 'tsconfig.tools.json'] },
   {
-    label: 'typecheck (scribe)',
-    command: [node, bin('typescript/bin/tsc'), '-p', 'tools/scribe/integrations/tsconfig.test.json'],
+    label: 'typecheck (alm)',
+    command: [node, bin('typescript/bin/tsc'), '-p', 'tools/alm/integrations/tsconfig.test.json'],
   },
   {
     label: 'lint',
@@ -55,7 +55,7 @@ export const CODE = [
     ],
   },
   {
-    label: 'test (tools + scribe)',
+    label: 'test (tools + alm)',
     command: [node, bin('vitest/vitest.mjs'), 'run', '--config', 'vitest.tools.config.mts'],
   },
 ];

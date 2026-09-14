@@ -20,7 +20,7 @@ Twoje są `tools/scripts/**`, `tools/hooks/**`, `tools/testing/**`, `.githooks/*
 2. Cross-platform: `node:path`, `process.platform`; żadnego basha w logice, żadnego `npx`.
 3. Nowa zależność = wiersz w `tools/scripts/pins.config.mjs` z `why` — bez niego `check:pins` jest czerwony.
 4. Wersja nigdy w prozie: `docs/tech-stack.md` regeneruje `npm run stack:sync`.
-5. Drzewa wendorowane (`tools/scribe`, `tools/browser-inspector`) czytasz, nie przepisujesz; zmiana
+5. Drzewa wendorowane (`tools/alm`, `tools/browser-inspector`) czytasz, nie przepisujesz; zmiana
    tam wymaga decyzji człowieka i wpisu w README narzędzia.
 6. Hook nie robi niczego, co trwa dłużej niż kilka sekund albo wymaga sieci.
 

@@ -15,13 +15,13 @@ const block = (name, body) => `<!-- INSTRUCTION:${name}:START -->\n> ${body}\n<!
 
 describe('extractInstruction', () => {
   it('returns the blockquote text between the named markers', () => {
-    expect(extractInstruction(`intro\n${block('scribe', 'use alm:read')}\noutro`, 'scribe')).toBe('use alm:read');
+    expect(extractInstruction(`intro\n${block('alm', 'use alm:read')}\noutro`, 'alm')).toBe('use alm:read');
   });
 
   it('is null when the markers are missing or the content is not a blockquote', () => {
-    expect(extractInstruction('nothing here', 'scribe')).toBeNull();
+    expect(extractInstruction('nothing here', 'alm')).toBeNull();
     expect(
-      extractInstruction('<!-- INSTRUCTION:scribe:START -->\nplain line\n<!-- INSTRUCTION:scribe:END -->', 'scribe'),
+      extractInstruction('<!-- INSTRUCTION:alm:START -->\nplain line\n<!-- INSTRUCTION:alm:END -->', 'alm'),
     ).toBeNull();
   });
 });
@@ -45,7 +45,7 @@ describe('checkInstructionSync', () => {
   });
 
   it('passes identical blocks within the caps and reports the total', async () => {
-    const text = `${block('browser-inspector', 'run browser-inspector')}\n${block('scribe', 'run alm:read')}`;
+    const text = `${block('browser-inspector', 'run browser-inspector')}\n${block('alm', 'run alm:read')}`;
     write(text, text);
     const result = await checkInstructionSync(dir, { requireAll: true });
     expect(result.ok).toBe(true);
@@ -53,7 +53,7 @@ describe('checkInstructionSync', () => {
   });
 
   it('points at the first differing character when the copies drift', async () => {
-    write(block('scribe', 'run alm:read'), block('scribe', 'run alm:reed'));
+    write(block('alm', 'run alm:read'), block('alm', 'run alm:reed'));
     const result = await checkInstructionSync(dir);
     expect(result.ok).toBe(false);
     expect(result.message).toContain('first difference at character 10');
@@ -61,17 +61,17 @@ describe('checkInstructionSync', () => {
 
   it('fails a block over its cap and blocks over the total', async () => {
     const long = 'x'.repeat(BYTE_LIMIT + 1);
-    write(block('scribe', long), block('scribe', long));
+    write(block('alm', long), block('alm', long));
     expect((await checkInstructionSync(dir)).message).toContain(`limit ${BYTE_LIMIT} B`);
     const half = 'y'.repeat(BYTE_LIMIT - 1);
-    const both = `${block('browser-inspector', half)}\n${block('scribe', half)}`;
+    const both = `${block('browser-inspector', half)}\n${block('alm', half)}`;
     write(both, both);
     const result = await checkInstructionSync(dir);
     expect(result.ok).toBe(TOTAL_BYTE_LIMIT >= 2 * (BYTE_LIMIT - 1));
   });
 
   it('skips a block absent from both files unless every block is required', async () => {
-    write(block('scribe', 'run alm:read'), block('scribe', 'run alm:read'));
+    write(block('alm', 'run alm:read'), block('alm', 'run alm:read'));
     expect((await checkInstructionSync(dir)).ok).toBe(true);
     const required = await checkInstructionSync(dir, { requireAll: true });
     expect(required.ok).toBe(false);
@@ -79,12 +79,9 @@ describe('checkInstructionSync', () => {
   });
 
   it('fails when a block is in one file only or its markers are broken', async () => {
-    write(block('scribe', 'run alm:read'), 'no block');
+    write(block('alm', 'run alm:read'), 'no block');
     expect((await checkInstructionSync(dir)).ok).toBe(false);
-    write(
-      '<!-- INSTRUCTION:scribe:START -->\nnot a quote\n<!-- INSTRUCTION:scribe:END -->',
-      block('scribe', 'run alm:read'),
-    );
+    write('<!-- INSTRUCTION:alm:START -->\nnot a quote\n<!-- INSTRUCTION:alm:END -->', block('alm', 'run alm:read'));
     expect((await checkInstructionSync(dir)).message).toContain('not one blockquote');
   });
 

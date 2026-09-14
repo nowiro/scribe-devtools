@@ -1,5 +1,5 @@
 // auth.mjs — log in ONCE, run every snapshot already logged in (DESIGN.md §2.3, §2.6, §3.3; a port
-// of the auth block of scribe's demo/skryba/read-browser.mjs).
+// of the auth block of the ALM tool's read-browser pipeline).
 //
 // Three ways to a `storageState` file (cookies + localStorage), one decision about its freshness:
 //
@@ -421,13 +421,13 @@ export async function ensureSession(auth, options = {}) {
 }
 
 /**
- * The state file is live credentials — a commit with it is not a typo, it is a leak. `.scribe-devtools/` is
+ * The state file is live credentials — a commit with it is not a typo, it is a leak. `.browser-inspector/` is
  * in the repository's `.gitignore`; anywhere else gets one line in the log.
  * @param {string} statePath @param {(line: string) => void} log
  */
 function warnIfOutside(statePath, log) {
-  if (!statePath.replaceAll('\\', '/').includes('/.scribe-devtools/')) {
-    log(`auth: WARNING ${statePath} is outside .scribe-devtools/ — a live session, do not commit it`);
+  if (!statePath.replaceAll('\\', '/').includes('/.browser-inspector/')) {
+    log(`auth: WARNING ${statePath} is outside .browser-inspector/ — a live session, do not commit it`);
   }
 }
 

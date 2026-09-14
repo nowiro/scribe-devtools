@@ -107,7 +107,7 @@ export const PINS = [
     policy: 'exact',
     staleDays: 120,
     prose: [],
-    why: 'Schema validation at every boundary: ALM configs and front matter in tools/scribe, and Signal Forms `validateStandardSchema` in applications. A major changes the error shape the pipelines print.',
+    why: 'Schema validation at every boundary: ALM configs and front matter in tools/alm, and Signal Forms `validateStandardSchema` in applications. A major changes the error shape the pipelines print.',
   },
   {
     id: 'yaml',
@@ -115,16 +115,16 @@ export const PINS = [
     policy: 'exact',
     staleDays: 180,
     prose: [],
-    why: 'Front matter parser of the ALM write pipelines (tools/scribe); yaml 2.x only.',
+    why: 'Front matter parser of the ALM write pipelines (tools/alm); yaml 2.x only.',
   },
   {
     id: 'playwright-core',
     owner: DEPS,
     policy: 'exact',
     minSupported: '1.62.1',
-    prose: ['AGENTS.md', 'README.md', 'tools/browser-inspector/', 'tools/scribe/', '.gitlab-ci.yml'],
+    prose: ['AGENTS.md', 'README.md', 'tools/browser-inspector/', 'tools/alm/', '.gitlab-ci.yml'],
     staleDays: 45,
-    why: 'browser-inspector reads playwright-core internals (aria-ref resolution, snapshot refs) that are not public API, and tools/scribe drives the browser source with it. Must equal the version @playwright/test resolves, or two copies of the engine land in node_modules.',
+    why: 'browser-inspector reads playwright-core internals (aria-ref resolution, snapshot refs) that are not public API, and tools/alm drives the browser source with it. Must equal the version @playwright/test resolves, or two copies of the engine land in node_modules.',
   },
   // ── Test runners ──────────────────────────────────────────────────────────────────────────
   {
@@ -142,7 +142,7 @@ export const PINS = [
     policy: 'exact',
     staleDays: 90,
     prose: [],
-    why: 'Unit test runner for tools/ and tools/scribe, and the runner behind @angular/build:unit-test, which peer-depends on vitest ^4. @vitest/coverage-v8 must be the same version.',
+    why: 'Unit test runner for tools/ and tools/alm, and the runner behind @angular/build:unit-test, which peer-depends on vitest ^4. @vitest/coverage-v8 must be the same version.',
   },
   {
     id: '@vitest/coverage-v8',
@@ -175,7 +175,7 @@ export const PINS = [
     policy: 'exact',
     staleDays: 365,
     prose: [],
-    why: 'Types only, consumed by `tsc` over tools/ (checkJs) and tools/scribe. Kept on the Node major of .nvmrc on purpose: types from a newer runtime would typecheck calls that do not exist on the runtime we run.',
+    why: 'Types only, consumed by `tsc` over tools/ (checkJs) and tools/alm. Kept on the Node major of .nvmrc on purpose: types from a newer runtime would typecheck calls that do not exist on the runtime we run.',
   },
   // ── Formatter and linters ─────────────────────────────────────────────────────────────────
   {

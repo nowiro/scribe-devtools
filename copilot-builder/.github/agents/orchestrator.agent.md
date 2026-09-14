@@ -47,7 +47,7 @@ zapisujesz, co dalej). Nie zaczynasz kroku, którego WEJŚCIE nie jest spełnion
 
 - WEJŚCIE: wiadomość zakwalifikowana do drabiny w kroku 0.
 - DZIAŁANIE: brief do `doc-intake` z treścią zgłoszenia (albo ścieżką snapshotu, np.
-  `.scribe/gitlab/<stempel>/…/issue-<iid>.md` po `npm run alm:read -- gitlab`).
+  `.alm/gitlab/<stempel>/…/issue-<iid>.md` po `npm run alm:read -- gitlab`).
 - WYJŚCIE: blok intake (verb, slug, cel, zakres, AC, ryzyko, STOP). Blok z sekcją STOP → krok S.
   Inaczej → krok 2.
 
@@ -145,7 +145,7 @@ zapisujesz, co dalej). Nie zaczynasz kroku, którego WEJŚCIE nie jest spełnion
 <!-- ROUTING:START -->
 | Dotykany plik / praca | Wykonawca |
 | --- | --- |
-| `tools/scribe/**`, `tools/browser-inspector/**` — narzędzia wendorowane — czyta się, nie przepisuje; poprawka to decyzja człowieka | — (człowiek) |
+| `tools/alm/**`, `tools/browser-inspector/**` — narzędzia wendorowane — czyta się, nie przepisuje; poprawka to decyzja człowieka | — (człowiek) |
 | `CODE-INDEX.md` — generowany (`npm run code-index`, hook pre-commit) — nie edytuj | — (człowiek) |
 | `apps/*-e2e/**` — Playwright | `code-tester-e2e` |
 | `**/*.spec.ts`, `**/*.spec.mjs` — testy jednostkowe Vitest | `code-tester-unit` |
@@ -211,7 +211,7 @@ Nie przekazujesz historii rozmowy ani cudzych raportów. Jeden brief = jeden wyk
    szerokości z `ui.viewports` rejestru (360, 768, 1024, 1440, 1920) kroki `resize`, `screenshot`
    z `fullPage` i `evaluate` mierzące `document.documentElement.scrollWidth > document.documentElement.clientWidth`.
    Uruchomienie: `npm run browser-inspector -- read.config.browser-inspector.json --stamp <slug>`.
-2. Brief do `code-reviewer-ui`: ścieżki zrzutów z `.scribe-devtools/browser-inspector/<slug>/`, ścieżka
+2. Brief do `code-reviewer-ui`: ścieżki zrzutów z `.browser-inspector/<slug>/`, ścieżka
    makiety, AC, wartości z `evaluate`.
 3. 🔴 z raportu → zadanie dla `code-angular`; reszta jak w review.
 
@@ -263,7 +263,7 @@ twierdzi, że przeszła.
 - nie wysyłasz zlecenia bez briefu w szablonie i nie dokładasz do niego historii rozmowy;
 - nie czytasz trzech raportów review — czytasz wynik `review:merge`;
 - nie edytujesz tabeli routingu, `CODE-INDEX.md` ani `docs/tech-stack.md` (generowane);
-- nie dotykasz `tools/scribe/**` i `tools/browser-inspector/**` (wendorowane — decyzja człowieka);
+- nie dotykasz `tools/alm/**` i `tools/browser-inspector/**` (wendorowane — decyzja człowieka);
 - nie prosisz agenta o to, co robi `npm run` (scaffold, routing, brief, tabele, scalanie, bramy);
 - nie idziesz dalej po STOP; nie robisz trzeciej próby;
 - nie wpisujesz nazw modeli poza rejestrem; przy sprzeczności planu z kodem wygrywa plan.

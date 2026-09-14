@@ -100,8 +100,8 @@
     "**/coverage": true,
     "**/.angular": true,
     "**/.cache": true,
-    "**/.scribe": true,
-    "**/.scribe-devtools": true,
+    "**/.alm": true,
+    "**/.browser-inspector": true,
     "**/.mcp-artifacts": true
   },
   "search.exclude": {
@@ -110,8 +110,8 @@
     "**/coverage": true,
     "**/.angular": true,
     "**/.cache": true,
-    "**/.scribe": true,
-    "**/.scribe-devtools": true,
+    "**/.alm": true,
+    "**/.browser-inspector": true,
     "**/.mcp-artifacts": true,
     "**/playwright-report": true,
     "**/test-results": true,
@@ -124,8 +124,8 @@
     "**/coverage/**": true,
     "**/.angular/**": true,
     "**/.cache/**": true,
-    "**/.scribe/**": true,
-    "**/.scribe-devtools/**": true
+    "**/.alm/**": true,
+    "**/.browser-inspector/**": true
   },
   "npm.autoDetect": "off",
   "typescript.tsc.autoDetect": "off",

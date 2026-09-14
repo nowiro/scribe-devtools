@@ -8,7 +8,7 @@ agent: orchestrator
 Prowadzisz operatora przez intake nowego zadania. Zbierz KOMPLET przed scaffoldem; braki to pytania
 teraz, nie założenia później.
 
-1. **Źródło**: issue GitLaba (`npm run alm:read -- gitlab`, potem `.scribe/gitlab/<stempel>/…/issue-<iid>.md`),
+1. **Źródło**: issue GitLaba (`npm run alm:read -- gitlab`, potem `.alm/gitlab/<stempel>/…/issue-<iid>.md`),
    zadanie Jiry (`npm run alm:read -- jira`) albo prompt operatora. Snapshot czytasz wybiórczo.
 2. **Klasyfikacja** (`doc-intake`): verb ∈ `feature | fix | refactor | deps | chore | security | docs`,
    slug kebab-case ≤ 5 słów, klasa ryzyka (auth, rozliczenia, migracja, współbieżność, dane osobowe).

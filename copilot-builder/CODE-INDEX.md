@@ -9,12 +9,206 @@ type-only edges apart) and **who imports it** — read this before grepping.
 
 Modules: 95.
 
+## tools/alm/integrations/browser-inspector/read-browser-inspector.ts
+- purpose: web pages through a real browser, as a script instead of the Playwright MCP server.
+- exports: `ReadConfig`, `Step`, `WebReport`, `describeStep(step: Step)`, `renderReportMarkdown(report: WebReport)`, `resolveFillValue(step: {…})`
+- subscribes: `page:console`, `page:pageerror`, `page:requestfailed`
+- imports: `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+
+## tools/alm/integrations/confluence/read-confluence.ts
+- purpose: deterministic Confluence data pipeline.
+- exports: `ExtractedPage`, `ReadConfig`, `buildPageConcept(page: ExtractedPage, inSnapshot: ReadonlySet<string>)`, `pageWebUrl(links: {…} | undefined, fallbackBase?: string)`, `renderPageMarkdown(page: ExtractedPage)`
+- imports: `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/confluence-cql.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/okf.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+- imported by: `tools/alm/integrations/confluence/write-confluence.ts`
+
+## tools/alm/integrations/confluence/write-confluence.ts
+- purpose: WRITE to Confluence: create a page or update a page's content.
+- exports: `WriteMeta`, `WriteMetaType`, `adfBodyValue(markdown: string)`, `buildCreatePayload(meta: WriteMetaType, spaceId: string, title: string, body: string)`, `buildUpdatePayload(id: string, title: string, bodyValue: string, nextVersion: number)`, `updateBodyValue(inputBody: string, currentValue: string | undefined)`
+- imports: `tools/alm/integrations/confluence/read-confluence.ts`, `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/markdown-to-adf.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/write-runtime.ts`
+
+## tools/alm/integrations/figma/read-figma.ts
+- purpose: batch extraction from Figma into on-disk snapshots.
+- exports: `ReadConfig`, `paginateLibrary(http: HttpClient, path: string, field: 'components' | 'styles', maxItems: number)`, `processFileSummary(http: HttpClient, snapshot: z.infer<typeof FileSummarySnapshot>, dir: string)`, `processLibrary(http: HttpClient, snapshot: z.infer<typeof ComponentsSnapshot> | z.infer<typeof StylesSnapshot>, dir: string)`, `processTokens(http: HttpClient, snapshot: z.infer<typeof TokensSnapshot>, dir: string)`
+- imports: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/figma-node-tree.ts`, `tools/alm/integrations/shared/figma-tokens.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+
+## tools/alm/integrations/gitlab/read-gitlab.ts
+- purpose: deterministic GitLab data pipeline.
+- exports: `ExtractedIssue`, `ExtractedMr`, `ExtractedPipeline`, `ReadConfig`, `listAll`, `renderIssueMarkdown(issue: ExtractedIssue)`, `renderMrMarkdown(mr: ExtractedMr)`, `renderPipelineMarkdown(pipeline: ExtractedPipeline)`
+- imports: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/gitlab-reshape.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+
+## tools/alm/integrations/gitlab/write-gitlab.ts
+- purpose: WRITE to GitLab: create/update an issue or a merge request, or add a note (comment) to either.
+- exports: `ResolvedWriteMeta`, `WriteMeta`, `WriteMetaType`, `buildCreatePayload(meta: WriteMetaType, title: string, body: string)`, `buildUpdatePayload(meta: WriteMetaType, title: string | undefined, body: string | undefined)`, `collectionPath(meta: ResolvedWriteMeta)`, `encodeProject`
+- imports: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/gitlab-reshape.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/write-runtime.ts`
+
+## tools/alm/integrations/jira/read-jira.ts
+- purpose: deterministic Jira data pipeline.
+- exports: `DEFAULT_OUTPUT_DIR`, `ExtractedIssue`, `MAX_SUBLIST_ITEMS`, `RawIssue`, `ReadConfig`, `buildExtractedIssue(raw: RawIssue, registry: FieldRegistry, snapshot: Snapshot)`, `buildIssueConcept(issue: ExtractedIssue, renderedMarkdown?: string)`, `fetchFullChangelog(http: HttpClient, key: string, raw: RawIssue, max)`, `fetchWorklogs(http: HttpClient, key: string, max)`, `renderIssueMarkdown(issue: ExtractedIssue)`
+- imports: `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/field-registry.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/jira-reshape.ts`, `tools/alm/integrations/shared/okf.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+
+## tools/alm/integrations/jira/write-jira.ts
+- purpose: WRITE to Jira: create an issue, update an issue's content, or add a comment.
+- exports: `WriteMeta`, `WriteMetaType`, `buildCreatePayload(meta: WriteMetaType, title: string, description: AdfNode)`, `buildUpdatePayload(meta: WriteMetaType, title: string | undefined, description: AdfNode | undefined)`
+- imports: `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/markdown-to-adf.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/write-runtime.ts`
+
+## tools/alm/integrations/miro/read-miro.ts
+- purpose: batch extraction from Miro boards into on-disk snapshots.
+- exports: `BoardItem`, `ReadConfig`, `boardIdSchema`, `fetchBoardItems(http: HttpClient, boardId: string, maxItems: number)`, `fetchBoards(http: HttpClient, teamId: string | undefined, maxItems: number)`, `groupByType(items: readonly BoardItem[…])`, `renderBoardMarkdown(board: RawBoard, items: readonly BoardItem[…], truncated: boolean)`, `reshapeItem(raw: RawItem)`, `stripHtml(html: string)`
+- imports: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+- imported by: `tools/alm/integrations/miro/write-miro.ts`
+
+## tools/alm/integrations/miro/write-miro.ts
+- purpose: WRITE to Miro: create sticky notes on a board, or update one note's text.
+- exports: `WriteMeta`, `WriteMetaType`, `buildNotePayload(meta: WriteMetaType, text: string, index: number)`, `notePosition(index: number)`, `splitNotes(body: string)`
+- imports: `tools/alm/integrations/miro/read-miro.ts`, `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/line-diff.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/write-runtime.ts`
+
+## tools/alm/integrations/shared/adf.ts
+- purpose: ADF (Atlassian Document Format) → Markdown converter.
+- exports: `AdfMark`, `AdfNode`, `adfToMarkdown(input: AdfNode | string | null | undefined)`, `adfToMarkdownSafe(raw: unknown)`, `codeSpan(text: string)`, `fencedBlock(content: string, language)`, `flatLine(text: string)`, `longestBacktickRun(text: string)`
+- imported by: `tools/alm/integrations/browser-inspector/read-browser-inspector.ts`, `tools/alm/integrations/confluence/read-confluence.ts`, `tools/alm/integrations/confluence/write-confluence.ts`, `tools/alm/integrations/jira/read-jira.ts`, `tools/alm/integrations/jira/write-jira.ts`, `tools/alm/integrations/shared/jira-reshape.ts`, `tools/alm/integrations/shared/markdown-to-adf.ts`, `tools/alm/integrations/xray/read-xray.ts`
+
+## tools/alm/integrations/shared/auth.ts
+- purpose: Token loading.
+- exports: `AuthConfig`, `E_AUTH_MISSING`, `authHeaderFor(auth: AuthConfig)`, `defaultGitLabProject()`, `defaultJiraProject()`, `loadConfluenceAuth()`, `loadFigmaAuth()`, `loadGitLabAuth()`, `loadJiraAuth()`, `loadMiroAuth()`, `loadSonarAuth()`, `resetUserConfigCacheForTests()`
+- imports: `tools/alm/integrations/shared/errors.ts`, `tools/alm/integrations/shared/user-config.ts`
+- imported by: `tools/alm/integrations/confluence/read-confluence.ts`, `tools/alm/integrations/confluence/write-confluence.ts`, `tools/alm/integrations/figma/read-figma.ts`, `tools/alm/integrations/gitlab/read-gitlab.ts`, `tools/alm/integrations/gitlab/write-gitlab.ts`, `tools/alm/integrations/jira/read-jira.ts`, `tools/alm/integrations/jira/write-jira.ts`, `tools/alm/integrations/miro/read-miro.ts`, `tools/alm/integrations/miro/write-miro.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/sonar/read-sonar.ts`, `tools/alm/integrations/xray/read-xray.ts`
+
+## tools/alm/integrations/shared/confluence-cql.ts
+- purpose: Pure helpers for assembling Confluence CQL (Confluence Query Language) search strings.
+- exports: `BuildLabelCqlInput`, `buildLabelSearchCql(input: BuildLabelCqlInput)`, `escapeCqlString(value: string)`
+- imported by: `tools/alm/integrations/confluence/read-confluence.ts`
+
+## tools/alm/integrations/shared/errors.ts
+- purpose: Typed error hierarchy shared by every pipeline.
+- exports: `AuthError`, `ExtractError`, `NetworkError`, `NotFoundError`, `RateLimitError`, `SecurityError`, `UpstreamError`
+- imported by: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/xray/read-xray.ts`
+
+## tools/alm/integrations/shared/field-registry.ts
+- purpose: Field registry — discovers Jira's custom-field metadata and maps `customfield_10042` to a human-readable shape `{ id, name, type, value }`.
+- exports: `FieldMeta`, `FieldRegistry`, `ReshapedField`, `createJiraFieldRegistry(http: HttpClient, options: {…})`, `reshapeFieldValue(meta: FieldMeta | undefined, raw: unknown, // Required on purpose: the optional form fell back to 'unknown' — the exact
+  // indistinguishable-field collapse the docblock above condemns, reachable by
+  // any caller that simply forgot the argument.
+  fieldId: string)`
+- imports: `tools/alm/integrations/shared/http-client.ts`
+- imported by: `tools/alm/integrations/jira/read-jira.ts`, `tools/alm/integrations/shared/jira-reshape.ts`
+
+## tools/alm/integrations/shared/figma-node-tree.ts
+- purpose: Pure helpers for bounding a Figma document node tree before it reaches the consumer.
+- exports: `PrunedForest`, `countNodes(children: readonly unknown[…], depth)`, `pruneNodeTree(children: readonly unknown[…], maxNodes: number)`
+- imported by: `tools/alm/integrations/figma/read-figma.ts`
+
+## tools/alm/integrations/shared/figma-tokens.ts
+- purpose: Pure emitters for Figma design tokens → CSS variables / SCSS variables / TS const.
+- exports: `FigmaResolvedType`, `RawFigmaColor`, `RawFigmaVariable`, `RawFigmaVariableCollection`, `RawVariablesResponse`, `Token`, `TokenKind`, `emitCss(tokens: readonly Token[…])`, `emitForFormat(tokens: readonly Token[…], format: 'css' | 'scss' | 'ts')`, `emitScss(tokens: readonly Token[…])`, `emitTs(tokens: readonly Token[…])`, `mapFigmaVariables(raw: RawVariablesResponse)`
+- imported by: `tools/alm/integrations/figma/read-figma.ts`
+
+## tools/alm/integrations/shared/gitlab-reshape.ts
+- purpose: Reshape raw GitLab MR / Issue / Pipeline responses into a token-friendly canonical form.
+- exports: `CanonicalGitLabIssue`, `CanonicalMr`, `CanonicalPipeline`, `encodeProject(project: string)`, `reshapeGitLabIssue(raw: RawGitLabIssue)`, `reshapeGitLabMr(raw: RawMr)`, `reshapeGitLabPipeline(raw: RawPipeline)`
+- imported by: `tools/alm/integrations/gitlab/read-gitlab.ts`, `tools/alm/integrations/gitlab/write-gitlab.ts`
+
+## tools/alm/integrations/shared/http-client.ts
+- purpose: Tiny HTTP client over native fetch.
+- exports: `DEFAULT_TIMEOUT_MS`, `HttpClient`, `HttpClientOptions`, `HttpRequest`, `ResponseMeta`, `assertHostnameAllowed(url: string)`, `buildUrl(baseUrl: string, path: string, query?: HttpRequest[…])`, `createHttpClient(auth: AuthConfig, options: HttpClientOptions)`, `createNamedHttpClient(name: string, auth: AuthConfig)`
+- env: `EXTRACT_ALLOW_PRIVATE_HOSTS`, `EXTRACT_HTTP_CONCURRENCY`
+- imports: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/errors.ts`, `tools/alm/integrations/shared/http-log.ts`, `tools/alm/integrations/shared/lru-cache.ts`, `tools/alm/integrations/shared/run-identity.ts`, `tools/alm/integrations/shared/version.ts`
+- imported by: `tools/alm/integrations/confluence/read-confluence.ts`, `tools/alm/integrations/confluence/write-confluence.ts`, `tools/alm/integrations/figma/read-figma.ts`, `tools/alm/integrations/gitlab/read-gitlab.ts`, `tools/alm/integrations/gitlab/write-gitlab.ts`, `tools/alm/integrations/jira/read-jira.ts`, `tools/alm/integrations/jira/write-jira.ts`, `tools/alm/integrations/miro/read-miro.ts`, `tools/alm/integrations/miro/write-miro.ts`, `tools/alm/integrations/shared/field-registry.ts`, `tools/alm/integrations/sonar/read-sonar.ts`, `tools/alm/integrations/xray/read-xray.ts`
+
+## tools/alm/integrations/shared/http-log.ts
+- purpose: JSONL z KAŻDĄ próbą żądania HTTP i jej odpowiedzią, w osobnym pliku per przebieg.
+- exports: `HttpLogAttempt`, `HttpLogEntry`, `HttpLogger`, `createHttpLogger(scriptName: string, env: NodeJS.ProcessEnv)`, `httpLogEntry(attempt: HttpLogAttempt, now: Date)`
+- env: `EXTRACT_HTTP_LOG`, `EXTRACT_HTTP_LOG_DIR`
+- imported by: `tools/alm/integrations/shared/http-client.ts`
+
+## tools/alm/integrations/shared/jira-reshape.ts
+- purpose: Reshape a raw Jira issue into a token-friendly canonical form.
+- exports: `CanonicalIssue`, `IssueRef`, `issueRefLine(ref: IssueRef)`, `reshapeJiraIssue(raw: RawIssue, registry: FieldRegistry)`
+- imports: `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/field-registry.ts`
+- imported by: `tools/alm/integrations/jira/read-jira.ts`, `tools/alm/integrations/xray/read-xray.ts`
+
+## tools/alm/integrations/shared/line-diff.ts
+- purpose: A minimal line diff for the `apply` pipelines' dry-run output.
+- exports: `diffLines(before: string, after: string)`
+- imported by: `tools/alm/integrations/miro/write-miro.ts`, `tools/alm/integrations/shared/write-runtime.ts`
+
+## tools/alm/integrations/shared/lru-cache.ts
+- purpose: Tiny TTL + LRU cache, dependency-free.
+- exports: `LruCache`
+- imported by: `tools/alm/integrations/shared/http-client.ts`
+
+## tools/alm/integrations/shared/markdown-to-adf.ts
+- purpose: Markdown → ADF (Atlassian Document Format), the WRITE-side twin of `adf.ts`.
+- exports: `AdfDoc`, `markdownToAdf(markdown: string)`, `parseInline(source: string, inherited: readonly AdfMark[…])`
+- imports: `tools/alm/integrations/shared/adf.ts`
+- imported by: `tools/alm/integrations/confluence/write-confluence.ts`, `tools/alm/integrations/jira/write-jira.ts`
+
+## tools/alm/integrations/shared/okf.ts
+- purpose: OKF v0.1 bundle writer for the `extract-*` pipelines (render format `'okf'`).
+- exports: `OKF_BUNDLE_DIR`, `OkfConceptInput`, `OkfFmValue`, `OkfLogEntry`, `insertOkfLogEntry(entry: OkfLogEntry, priorLog?: string)`, `okfFrontmatter(entries: readonly (readonly […])[…])`, `okfLogDate(stampOrIso: string)`, `okfScalar(value: string)`, `renderOkfConcept(concept: OkfConceptInput, stamp: string)`, `renderOkfIndex(args: {…})`, `writeOkfBundle(args: {…})`
+- imports: `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/version.ts`
+- imported by: `tools/alm/integrations/confluence/read-confluence.ts`, `tools/alm/integrations/jira/read-jira.ts`
+
+## tools/alm/integrations/shared/read-runtime.ts
+- purpose: Shared helpers for `integrations/<source>/extract-<source>.ts`.
+- exports: `ManifestRun`, `OffsetPage`, `OffsetWalk`, `PIPELINE_CONCURRENCY`, `ReadArgs`, `ReadRun`, `RenderFormat`, `SIDECAR_DEFAULT_CHARS`, `STAMP_PATTERN`, `WrittenFile`, `assertSafeBasename(basename: string)`, `assertUniqueSnapshotNames(config: {…}, ctx: z.RefinementCtx)`, `buildManifest`, `createScriptLogger(scriptName: string)`, `defaultConfigPath(source: string)`, `defaultOutputDir(source: string)`, `escapeTableCell(value: string)`, `formatSchemaIssues(error: z.ZodError)`, `formatStamp(date: Date)`, `loadJsonConfig`, `mapWithConcurrency`, `mdTable(headers: readonly string[…], rows: readonly (readonly string[…])[…])`, `parseCursorFromLink(linkOrUndefined: string | undefined)`, `parseReadArgs(argv: readonly string[…], defaultConfigPath: string, env: Record<string, string | undefined>)`, `renderFormatsSchema`, `renderFormatsWithOkfSchema`, `runIfMain(scriptName: string, fileUrl: string, main: ())`, `snapshotNameSchema`, `startReadRun`, `walkOffsetPages`, `warnIfTruncated(log: (msg: string), truncated: boolean, detail: string)`, `writeManifest(dir: string, manifest: unknown)`, `writePipelineOutputs(args: {…})`
+- env: `EXTRACT_STAMP`
+- imports: `tools/alm/integrations/shared/run-identity.ts`, `tools/alm/integrations/shared/version.ts`
+- imported by: `tools/alm/integrations/browser-inspector/read-browser-inspector.ts`, `tools/alm/integrations/confluence/read-confluence.ts`, `tools/alm/integrations/confluence/write-confluence.ts`, `tools/alm/integrations/figma/read-figma.ts`, `tools/alm/integrations/gitlab/read-gitlab.ts`, `tools/alm/integrations/gitlab/write-gitlab.ts`, `tools/alm/integrations/jira/read-jira.ts`, `tools/alm/integrations/jira/write-jira.ts`, `tools/alm/integrations/miro/read-miro.ts`, `tools/alm/integrations/miro/write-miro.ts`, `tools/alm/integrations/shared/okf.ts`, `tools/alm/integrations/shared/write-runtime.ts`, `tools/alm/integrations/sonar/read-sonar.ts`, `tools/alm/integrations/xray/read-xray.ts`
+
+## tools/alm/integrations/shared/run-identity.ts
+- purpose: Identity of ONE run, for outbound attribution.
+- exports: `getCorrelationId(env: Record<string, string | undefined>)`, `getRunUser()`, `resetCorrelationIdForTests()`, `sanitizeHeaderValue(value: string)`
+- env: `EXTRACT_CORRELATION_ID`, `USER`, `USERNAME`
+- imported by: `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+
+## tools/alm/integrations/shared/sonar-reshape.ts
+- purpose: Reshape raw Sonar issues / hotspots / measures into token-friendly canonical forms.
+- exports: `CanonicalHotspot`, `CanonicalSonarIssue`, `SonarImpact`, `reshapeHotspot(raw: RawHotspot)`, `reshapeSonarIssue(raw: RawSonarIssue)`
+- imported by: `tools/alm/integrations/sonar/read-sonar.ts`
+
+## tools/alm/integrations/shared/user-config.ts
+- purpose: Cross-platform user-profile config loader for the upstream credentials.
+- exports: `UserConfig`, `UserConfigSchema`, `getUserConfigPath()`, `loadUserConfig()`
+- env: `EXTRACT_CONFIG_DIR`, `EXTRACT_CONFIG_PATH`, `XDG_CONFIG_HOME`
+- imported by: `tools/alm/integrations/shared/auth.ts`
+
+## tools/alm/integrations/shared/version.ts
+- purpose: Version of the extract tooling.
+- exports: `getRepoVersion()`
+- imported by: `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/okf.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/write-runtime.ts`
+
+## tools/alm/integrations/shared/write-runtime.ts
+- purpose: Shared runtime for the WRITE pipelines (`integrations/<source>/write-<source>.ts`).
+- exports: `DRY_RUN_FOOTER`, `MarkdownInput`, `ProvenanceAction`, `WriteArgs`, `WriteMode`, `assertWriteMode(declared: WriteMode | undefined, actual: WriteMode, describe: string)`, `loadMarkdownInput`, `logUpdatePreview(log: (msg: string), args: {…})`, `mapLinesOutsideFences(text: string, transform: (line: string))`, `parseMarkdownInput`, `parseWriteArgs(argv: readonly string[…])`, `prepareBodyWithLog(log: (msg: string), body: string, action: ProvenanceAction)`, `prepareCommentBodyWithLog(log: (msg: string), rawBody: string, labels: {…})`, `provenanceLine(action: ProvenanceAction)`, `stripTrailingProvenance(body: string)`, `updatedBodyOrUndefined(input: {…})`, `withProvenance(body: string, action: ProvenanceAction)`
+- imports: `tools/alm/integrations/shared/line-diff.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/version.ts`
+- imported by: `tools/alm/integrations/confluence/write-confluence.ts`, `tools/alm/integrations/gitlab/write-gitlab.ts`, `tools/alm/integrations/jira/write-jira.ts`, `tools/alm/integrations/miro/write-miro.ts`
+
+## tools/alm/integrations/sonar/read-sonar.ts
+- purpose: deterministic SonarQube / SonarCloud data pipeline.
+- exports: `HotspotsSummary`, `IssuesSummary`, `MeasuresSummary`, `QualityGateSummary`, `ReadConfig`, `paginateSonar`, `renderHotspotsMarkdown(summary: HotspotsSummary)`, `renderIssuesMarkdown(summary: IssuesSummary)`, `renderMeasuresMarkdown(summary: MeasuresSummary)`, `renderQualityGateMarkdown(qg: QualityGateSummary)`
+- imports: `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/read-runtime.ts`, `tools/alm/integrations/shared/sonar-reshape.ts`
+
+## tools/alm/integrations/xray/read-xray.ts
+- purpose: batch extraction from Xray for Jira (Server/DC, Xray as a Jira PLUGIN) into on-disk snapshots.
+- exports: `ReadConfig`, `chunkKeys(keys: readonly string[…], size: number)`, `renderExecutionsMarkdown(summary: ExecutionsSummary)`, `renderTestsMarkdown(summary: TestsSummary)`, `reshapeRun(raw: RawRun)`, `reshapeTest(raw: RawTest, envelope: Omit<IssueRef, 'type'>)`
+- imports: `tools/alm/integrations/shared/adf.ts`, `tools/alm/integrations/shared/auth.ts`, `tools/alm/integrations/shared/errors.ts`, `tools/alm/integrations/shared/http-client.ts`, `tools/alm/integrations/shared/jira-reshape.ts`, `tools/alm/integrations/shared/read-runtime.ts`
+
+## tools/alm/scripts/read.mjs
+- purpose: one entry point for every read pipeline.
+- exports: `DIST`, `E_READ_NOT_BUILT`, `E_READ_USAGE`, `ROOT`, `discoverPipelines(dist, prefix) → Array<{name: string, entry: string}>`, `plan({…})`, `predictConfigPath(name, argv)`, `runDispatcher(decision, check)`, `selectSource(pipelines, name, spec) → {error: {code: string, exit: number, message: string}} | {c…`
+- imported by: `tools/alm/scripts/write.mjs`
+
+## tools/alm/scripts/write.mjs
+- purpose: one entry point for BOTH write commands, `create` and `update`, over the `write-<source>` pipelines.
+- exports: `E_WRITE_NOT_BUILT`, `E_WRITE_USAGE`, `plan({…})`
+- imports: `tools/alm/scripts/read.mjs`
+
 ## tools/browser-inspector/bin/browser-inspector.mjs
 - purpose: the entry the agent runs (DESIGN.md §2.1 / §3.1).
 - imports: `tools/browser-inspector/src/cli.mjs`, `tools/browser-inspector/src/client.mjs`
 
 ## tools/browser-inspector/src/auth.mjs
-- purpose: log in ONCE, run every snapshot already logged in (DESIGN.md §2.3, §2.6, §3.3; a port of the auth block of scribe's demo/skryba/read-browse…
+- purpose: log in ONCE, run every snapshot already logged in (DESIGN.md §2.3, §2.6, §3.3; a port of the auth block of the ALM tool's read-browser pipe…
 - exports: `AuthError`, `E_AUTH`, `OAUTH_TIMEOUT_MS`, `TOKEN_EXPIRY_MARGIN_MS`, `ensureSession(auth, options) → Promise<SessionInfo>`, `metaPath(statePath)`, `oauthRequestBody(oauth, source) → Record<string, string>`, `oauthStorageState(store, accessToken)`, `oauthTokenUrl(oauth) → string`, `resolveAuthValues(auth, source) → { values: Record<string, string>, secretValues: string[], m…`, `resolveStatePath(auth, baseDir)`, `sessionUsable(stat, nowMs, maxAgeMinutes) → { usable: boolean, reason: string }`, `storageStateFor(snapshot, session) → string | undefined`, `tokenExpiresAt(tokenResponse, nowMs) → number | undefined`, `tokenUsable(meta, nowMs) → { usable: boolean, reason: string }`
 - imports: `tools/browser-inspector/src/isolation.mjs`, `tools/browser-inspector/src/recorder.mjs`, `tools/browser-inspector/src/redact.mjs`, `tools/browser-inspector/src/steps.schema.mjs`
 - types only: `tools/browser-inspector/src/types.d.ts`
@@ -211,200 +405,6 @@ Modules: 95.
 - purpose: Stop hook: after an agent session ends, run the cheap gates and report.
 - imports: `tools/hooks/lib/payload.mjs`
 
-## tools/scribe/integrations/browser-inspector/read-browser-inspector.ts
-- purpose: web pages through a real browser, as a script instead of the Playwright MCP server.
-- exports: `ReadConfig`, `Step`, `WebReport`, `describeStep(step: Step)`, `renderReportMarkdown(report: WebReport)`, `resolveFillValue(step: {…})`
-- subscribes: `page:console`, `page:pageerror`, `page:requestfailed`
-- imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-
-## tools/scribe/integrations/confluence/read-confluence.ts
-- purpose: deterministic Confluence data pipeline.
-- exports: `ExtractedPage`, `ReadConfig`, `buildPageConcept(page: ExtractedPage, inSnapshot: ReadonlySet<string>)`, `pageWebUrl(links: {…} | undefined, fallbackBase?: string)`, `renderPageMarkdown(page: ExtractedPage)`
-- imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/confluence-cql.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-- imported by: `tools/scribe/integrations/confluence/write-confluence.ts`
-
-## tools/scribe/integrations/confluence/write-confluence.ts
-- purpose: WRITE to Confluence: create a page or update a page's content.
-- exports: `WriteMeta`, `WriteMetaType`, `adfBodyValue(markdown: string)`, `buildCreatePayload(meta: WriteMetaType, spaceId: string, title: string, body: string)`, `buildUpdatePayload(id: string, title: string, bodyValue: string, nextVersion: number)`, `updateBodyValue(inputBody: string, currentValue: string | undefined)`
-- imports: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/markdown-to-adf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
-
-## tools/scribe/integrations/figma/read-figma.ts
-- purpose: batch extraction from Figma into on-disk snapshots.
-- exports: `ReadConfig`, `paginateLibrary(http: HttpClient, path: string, field: 'components' | 'styles', maxItems: number)`, `processFileSummary(http: HttpClient, snapshot: z.infer<typeof FileSummarySnapshot>, dir: string)`, `processLibrary(http: HttpClient, snapshot: z.infer<typeof ComponentsSnapshot> | z.infer<typeof StylesSnapshot>, dir: string)`, `processTokens(http: HttpClient, snapshot: z.infer<typeof TokensSnapshot>, dir: string)`
-- imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/figma-node-tree.ts`, `tools/scribe/integrations/shared/figma-tokens.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-
-## tools/scribe/integrations/gitlab/read-gitlab.ts
-- purpose: deterministic GitLab data pipeline.
-- exports: `ExtractedIssue`, `ExtractedMr`, `ExtractedPipeline`, `ReadConfig`, `listAll`, `renderIssueMarkdown(issue: ExtractedIssue)`, `renderMrMarkdown(mr: ExtractedMr)`, `renderPipelineMarkdown(pipeline: ExtractedPipeline)`
-- imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/gitlab-reshape.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-
-## tools/scribe/integrations/gitlab/write-gitlab.ts
-- purpose: WRITE to GitLab: create/update an issue or a merge request, or add a note (comment) to either.
-- exports: `ResolvedWriteMeta`, `WriteMeta`, `WriteMetaType`, `buildCreatePayload(meta: WriteMetaType, title: string, body: string)`, `buildUpdatePayload(meta: WriteMetaType, title: string | undefined, body: string | undefined)`, `collectionPath(meta: ResolvedWriteMeta)`, `encodeProject`
-- imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/gitlab-reshape.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
-
-## tools/scribe/integrations/jira/read-jira.ts
-- purpose: deterministic Jira data pipeline.
-- exports: `DEFAULT_OUTPUT_DIR`, `ExtractedIssue`, `MAX_SUBLIST_ITEMS`, `RawIssue`, `ReadConfig`, `buildExtractedIssue(raw: RawIssue, registry: FieldRegistry, snapshot: Snapshot)`, `buildIssueConcept(issue: ExtractedIssue, renderedMarkdown?: string)`, `fetchFullChangelog(http: HttpClient, key: string, raw: RawIssue, max)`, `fetchWorklogs(http: HttpClient, key: string, max)`, `renderIssueMarkdown(issue: ExtractedIssue)`
-- imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/field-registry.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-
-## tools/scribe/integrations/jira/write-jira.ts
-- purpose: WRITE to Jira: create an issue, update an issue's content, or add a comment.
-- exports: `WriteMeta`, `WriteMetaType`, `buildCreatePayload(meta: WriteMetaType, title: string, description: AdfNode)`, `buildUpdatePayload(meta: WriteMetaType, title: string | undefined, description: AdfNode | undefined)`
-- imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/markdown-to-adf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
-
-## tools/scribe/integrations/miro/read-miro.ts
-- purpose: batch extraction from Miro boards into on-disk snapshots.
-- exports: `BoardItem`, `ReadConfig`, `boardIdSchema`, `fetchBoardItems(http: HttpClient, boardId: string, maxItems: number)`, `fetchBoards(http: HttpClient, teamId: string | undefined, maxItems: number)`, `groupByType(items: readonly BoardItem[…])`, `renderBoardMarkdown(board: RawBoard, items: readonly BoardItem[…], truncated: boolean)`, `reshapeItem(raw: RawItem)`, `stripHtml(html: string)`
-- imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-- imported by: `tools/scribe/integrations/miro/write-miro.ts`
-
-## tools/scribe/integrations/miro/write-miro.ts
-- purpose: WRITE to Miro: create sticky notes on a board, or update one note's text.
-- exports: `WriteMeta`, `WriteMetaType`, `buildNotePayload(meta: WriteMetaType, text: string, index: number)`, `notePosition(index: number)`, `splitNotes(body: string)`
-- imports: `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/line-diff.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
-
-## tools/scribe/integrations/shared/adf.ts
-- purpose: ADF (Atlassian Document Format) → Markdown converter.
-- exports: `AdfMark`, `AdfNode`, `adfToMarkdown(input: AdfNode | string | null | undefined)`, `adfToMarkdownSafe(raw: unknown)`, `codeSpan(text: string)`, `fencedBlock(content: string, language)`, `flatLine(text: string)`, `longestBacktickRun(text: string)`
-- imported by: `tools/scribe/integrations/browser-inspector/read-browser-inspector.ts`, `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`, `tools/scribe/integrations/shared/markdown-to-adf.ts`, `tools/scribe/integrations/xray/read-xray.ts`
-
-## tools/scribe/integrations/shared/auth.ts
-- purpose: Token loading.
-- exports: `AuthConfig`, `E_AUTH_MISSING`, `authHeaderFor(auth: AuthConfig)`, `defaultGitLabProject()`, `defaultJiraProject()`, `loadConfluenceAuth()`, `loadFigmaAuth()`, `loadGitLabAuth()`, `loadJiraAuth()`, `loadMiroAuth()`, `loadSonarAuth()`, `resetUserConfigCacheForTests()`
-- imports: `tools/scribe/integrations/shared/errors.ts`, `tools/scribe/integrations/shared/user-config.ts`
-- imported by: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/figma/read-figma.ts`, `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/sonar/read-sonar.ts`, `tools/scribe/integrations/xray/read-xray.ts`
-
-## tools/scribe/integrations/shared/confluence-cql.ts
-- purpose: Pure helpers for assembling Confluence CQL (Confluence Query Language) search strings.
-- exports: `BuildLabelCqlInput`, `buildLabelSearchCql(input: BuildLabelCqlInput)`, `escapeCqlString(value: string)`
-- imported by: `tools/scribe/integrations/confluence/read-confluence.ts`
-
-## tools/scribe/integrations/shared/errors.ts
-- purpose: Typed error hierarchy shared by every pipeline.
-- exports: `AuthError`, `ExtractError`, `NetworkError`, `NotFoundError`, `RateLimitError`, `SecurityError`, `UpstreamError`
-- imported by: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/xray/read-xray.ts`
-
-## tools/scribe/integrations/shared/field-registry.ts
-- purpose: Field registry — discovers Jira's custom-field metadata and maps `customfield_10042` to a human-readable shape `{ id, name, type, value }`.
-- exports: `FieldMeta`, `FieldRegistry`, `ReshapedField`, `createJiraFieldRegistry(http: HttpClient, options: {…})`, `reshapeFieldValue(meta: FieldMeta | undefined, raw: unknown, // Required on purpose: the optional form fell back to 'unknown' — the exact
-  // indistinguishable-field collapse the docblock above condemns, reachable by
-  // any caller that simply forgot the argument.
-  fieldId: string)`
-- imports: `tools/scribe/integrations/shared/http-client.ts`
-- imported by: `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`
-
-## tools/scribe/integrations/shared/figma-node-tree.ts
-- purpose: Pure helpers for bounding a Figma document node tree before it reaches the consumer.
-- exports: `PrunedForest`, `countNodes(children: readonly unknown[…], depth)`, `pruneNodeTree(children: readonly unknown[…], maxNodes: number)`
-- imported by: `tools/scribe/integrations/figma/read-figma.ts`
-
-## tools/scribe/integrations/shared/figma-tokens.ts
-- purpose: Pure emitters for Figma design tokens → CSS variables / SCSS variables / TS const.
-- exports: `FigmaResolvedType`, `RawFigmaColor`, `RawFigmaVariable`, `RawFigmaVariableCollection`, `RawVariablesResponse`, `Token`, `TokenKind`, `emitCss(tokens: readonly Token[…])`, `emitForFormat(tokens: readonly Token[…], format: 'css' | 'scss' | 'ts')`, `emitScss(tokens: readonly Token[…])`, `emitTs(tokens: readonly Token[…])`, `mapFigmaVariables(raw: RawVariablesResponse)`
-- imported by: `tools/scribe/integrations/figma/read-figma.ts`
-
-## tools/scribe/integrations/shared/gitlab-reshape.ts
-- purpose: Reshape raw GitLab MR / Issue / Pipeline responses into a token-friendly canonical form.
-- exports: `CanonicalGitLabIssue`, `CanonicalMr`, `CanonicalPipeline`, `encodeProject(project: string)`, `reshapeGitLabIssue(raw: RawGitLabIssue)`, `reshapeGitLabMr(raw: RawMr)`, `reshapeGitLabPipeline(raw: RawPipeline)`
-- imported by: `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`
-
-## tools/scribe/integrations/shared/http-client.ts
-- purpose: Tiny HTTP client over native fetch.
-- exports: `DEFAULT_TIMEOUT_MS`, `HttpClient`, `HttpClientOptions`, `HttpRequest`, `ResponseMeta`, `assertHostnameAllowed(url: string)`, `buildUrl(baseUrl: string, path: string, query?: HttpRequest[…])`, `createHttpClient(auth: AuthConfig, options: HttpClientOptions)`, `createNamedHttpClient(name: string, auth: AuthConfig)`
-- env: `EXTRACT_ALLOW_PRIVATE_HOSTS`, `EXTRACT_HTTP_CONCURRENCY`
-- imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/errors.ts`, `tools/scribe/integrations/shared/http-log.ts`, `tools/scribe/integrations/shared/lru-cache.ts`, `tools/scribe/integrations/shared/run-identity.ts`, `tools/scribe/integrations/shared/version.ts`
-- imported by: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/figma/read-figma.ts`, `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/field-registry.ts`, `tools/scribe/integrations/sonar/read-sonar.ts`, `tools/scribe/integrations/xray/read-xray.ts`
-
-## tools/scribe/integrations/shared/http-log.ts
-- purpose: JSONL z KAŻDĄ próbą żądania HTTP i jej odpowiedzią, w osobnym pliku per przebieg.
-- exports: `HttpLogAttempt`, `HttpLogEntry`, `HttpLogger`, `createHttpLogger(scriptName: string, env: NodeJS.ProcessEnv)`, `httpLogEntry(attempt: HttpLogAttempt, now: Date)`
-- env: `EXTRACT_HTTP_LOG`, `EXTRACT_HTTP_LOG_DIR`
-- imported by: `tools/scribe/integrations/shared/http-client.ts`
-
-## tools/scribe/integrations/shared/jira-reshape.ts
-- purpose: Reshape a raw Jira issue into a token-friendly canonical form.
-- exports: `CanonicalIssue`, `IssueRef`, `issueRefLine(ref: IssueRef)`, `reshapeJiraIssue(raw: RawIssue, registry: FieldRegistry)`
-- imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/field-registry.ts`
-- imported by: `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/xray/read-xray.ts`
-
-## tools/scribe/integrations/shared/line-diff.ts
-- purpose: A minimal line diff for the `apply` pipelines' dry-run output.
-- exports: `diffLines(before: string, after: string)`
-- imported by: `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
-
-## tools/scribe/integrations/shared/lru-cache.ts
-- purpose: Tiny TTL + LRU cache, dependency-free.
-- exports: `LruCache`
-- imported by: `tools/scribe/integrations/shared/http-client.ts`
-
-## tools/scribe/integrations/shared/markdown-to-adf.ts
-- purpose: Markdown → ADF (Atlassian Document Format), the WRITE-side twin of `adf.ts`.
-- exports: `AdfDoc`, `markdownToAdf(markdown: string)`, `parseInline(source: string, inherited: readonly AdfMark[…])`
-- imports: `tools/scribe/integrations/shared/adf.ts`
-- imported by: `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/jira/write-jira.ts`
-
-## tools/scribe/integrations/shared/okf.ts
-- purpose: OKF v0.1 bundle writer for the `extract-*` pipelines (render format `'okf'`).
-- exports: `OKF_BUNDLE_DIR`, `OkfConceptInput`, `OkfFmValue`, `OkfLogEntry`, `insertOkfLogEntry(entry: OkfLogEntry, priorLog?: string)`, `okfFrontmatter(entries: readonly (readonly […])[…])`, `okfLogDate(stampOrIso: string)`, `okfScalar(value: string)`, `renderOkfConcept(concept: OkfConceptInput, stamp: string)`, `renderOkfIndex(args: {…})`, `writeOkfBundle(args: {…})`
-- imports: `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/version.ts`
-- imported by: `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/jira/read-jira.ts`
-
-## tools/scribe/integrations/shared/read-runtime.ts
-- purpose: Shared helpers for `integrations/<source>/extract-<source>.ts`.
-- exports: `ManifestRun`, `OffsetPage`, `OffsetWalk`, `PIPELINE_CONCURRENCY`, `ReadArgs`, `ReadRun`, `RenderFormat`, `SIDECAR_DEFAULT_CHARS`, `STAMP_PATTERN`, `WrittenFile`, `assertSafeBasename(basename: string)`, `assertUniqueSnapshotNames(config: {…}, ctx: z.RefinementCtx)`, `buildManifest`, `createScriptLogger(scriptName: string)`, `defaultConfigPath(source: string)`, `defaultOutputDir(source: string)`, `escapeTableCell(value: string)`, `formatSchemaIssues(error: z.ZodError)`, `formatStamp(date: Date)`, `loadJsonConfig`, `mapWithConcurrency`, `mdTable(headers: readonly string[…], rows: readonly (readonly string[…])[…])`, `parseCursorFromLink(linkOrUndefined: string | undefined)`, `parseReadArgs(argv: readonly string[…], defaultConfigPath: string, env: Record<string, string | undefined>)`, `renderFormatsSchema`, `renderFormatsWithOkfSchema`, `runIfMain(scriptName: string, fileUrl: string, main: ())`, `snapshotNameSchema`, `startReadRun`, `walkOffsetPages`, `warnIfTruncated(log: (msg: string), truncated: boolean, detail: string)`, `writeManifest(dir: string, manifest: unknown)`, `writePipelineOutputs(args: {…})`
-- env: `EXTRACT_STAMP`
-- imports: `tools/scribe/integrations/shared/run-identity.ts`, `tools/scribe/integrations/shared/version.ts`
-- imported by: `tools/scribe/integrations/browser-inspector/read-browser-inspector.ts`, `tools/scribe/integrations/confluence/read-confluence.ts`, `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/figma/read-figma.ts`, `tools/scribe/integrations/gitlab/read-gitlab.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/read-jira.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/read-miro.ts`, `tools/scribe/integrations/miro/write-miro.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/write-runtime.ts`, `tools/scribe/integrations/sonar/read-sonar.ts`, `tools/scribe/integrations/xray/read-xray.ts`
-
-## tools/scribe/integrations/shared/run-identity.ts
-- purpose: Identity of ONE run, for outbound attribution.
-- exports: `getCorrelationId(env: Record<string, string | undefined>)`, `getRunUser()`, `resetCorrelationIdForTests()`, `sanitizeHeaderValue(value: string)`
-- env: `EXTRACT_CORRELATION_ID`, `USER`, `USERNAME`
-- imported by: `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-
-## tools/scribe/integrations/shared/sonar-reshape.ts
-- purpose: Reshape raw Sonar issues / hotspots / measures into token-friendly canonical forms.
-- exports: `CanonicalHotspot`, `CanonicalSonarIssue`, `SonarImpact`, `reshapeHotspot(raw: RawHotspot)`, `reshapeSonarIssue(raw: RawSonarIssue)`
-- imported by: `tools/scribe/integrations/sonar/read-sonar.ts`
-
-## tools/scribe/integrations/shared/user-config.ts
-- purpose: Cross-platform user-profile config loader for the upstream credentials.
-- exports: `UserConfig`, `UserConfigSchema`, `getUserConfigPath()`, `loadUserConfig()`
-- env: `EXTRACT_CONFIG_DIR`, `EXTRACT_CONFIG_PATH`, `XDG_CONFIG_HOME`
-- imported by: `tools/scribe/integrations/shared/auth.ts`
-
-## tools/scribe/integrations/shared/version.ts
-- purpose: Version of the extract tooling.
-- exports: `getRepoVersion()`
-- imported by: `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/okf.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/write-runtime.ts`
-
-## tools/scribe/integrations/shared/write-runtime.ts
-- purpose: Shared runtime for the WRITE pipelines (`integrations/<source>/write-<source>.ts`).
-- exports: `DRY_RUN_FOOTER`, `MarkdownInput`, `ProvenanceAction`, `WriteArgs`, `WriteMode`, `assertWriteMode(declared: WriteMode | undefined, actual: WriteMode, describe: string)`, `loadMarkdownInput`, `logUpdatePreview(log: (msg: string), args: {…})`, `mapLinesOutsideFences(text: string, transform: (line: string))`, `parseMarkdownInput`, `parseWriteArgs(argv: readonly string[…])`, `prepareBodyWithLog(log: (msg: string), body: string, action: ProvenanceAction)`, `prepareCommentBodyWithLog(log: (msg: string), rawBody: string, labels: {…})`, `provenanceLine(action: ProvenanceAction)`, `stripTrailingProvenance(body: string)`, `updatedBodyOrUndefined(input: {…})`, `withProvenance(body: string, action: ProvenanceAction)`
-- imports: `tools/scribe/integrations/shared/line-diff.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/version.ts`
-- imported by: `tools/scribe/integrations/confluence/write-confluence.ts`, `tools/scribe/integrations/gitlab/write-gitlab.ts`, `tools/scribe/integrations/jira/write-jira.ts`, `tools/scribe/integrations/miro/write-miro.ts`
-
-## tools/scribe/integrations/sonar/read-sonar.ts
-- purpose: deterministic SonarQube / SonarCloud data pipeline.
-- exports: `HotspotsSummary`, `IssuesSummary`, `MeasuresSummary`, `QualityGateSummary`, `ReadConfig`, `paginateSonar`, `renderHotspotsMarkdown(summary: HotspotsSummary)`, `renderIssuesMarkdown(summary: IssuesSummary)`, `renderMeasuresMarkdown(summary: MeasuresSummary)`, `renderQualityGateMarkdown(qg: QualityGateSummary)`
-- imports: `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/read-runtime.ts`, `tools/scribe/integrations/shared/sonar-reshape.ts`
-
-## tools/scribe/integrations/xray/read-xray.ts
-- purpose: batch extraction from Xray for Jira (Server/DC, Xray as a Jira PLUGIN) into on-disk snapshots.
-- exports: `ReadConfig`, `chunkKeys(keys: readonly string[…], size: number)`, `renderExecutionsMarkdown(summary: ExecutionsSummary)`, `renderTestsMarkdown(summary: TestsSummary)`, `reshapeRun(raw: RawRun)`, `reshapeTest(raw: RawTest, envelope: Omit<IssueRef, 'type'>)`
-- imports: `tools/scribe/integrations/shared/adf.ts`, `tools/scribe/integrations/shared/auth.ts`, `tools/scribe/integrations/shared/errors.ts`, `tools/scribe/integrations/shared/http-client.ts`, `tools/scribe/integrations/shared/jira-reshape.ts`, `tools/scribe/integrations/shared/read-runtime.ts`
-
-## tools/scribe/scripts/read.mjs
-- purpose: one entry point for every read pipeline.
-- exports: `DIST`, `E_READ_NOT_BUILT`, `E_READ_USAGE`, `ROOT`, `discoverPipelines(dist, prefix) → Array<{name: string, entry: string}>`, `plan({…})`, `predictConfigPath(name, argv)`, `runDispatcher(decision, check)`, `selectSource(pipelines, name, spec) → {error: {code: string, exit: number, message: string}} | {c…`
-- imported by: `tools/scribe/scripts/write.mjs`
-
-## tools/scribe/scripts/write.mjs
-- purpose: one entry point for BOTH write commands, `create` and `update`, over the `write-<source>` pipelines.
-- exports: `E_WRITE_NOT_BUILT`, `E_WRITE_USAGE`, `plan({…})`
-- imports: `tools/scribe/scripts/read.mjs`
-
 ## tools/scripts/affected.mjs
 - purpose: run one target for the projects a change touches: the `nx affected` this repository deliberately does not have, in one dependency-free scri…
 - exports: `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `mergeBaseFor(base, repo) → string | null`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
@@ -452,7 +452,7 @@ Modules: 95.
 
 ## tools/scripts/guard-forbidden.mjs
 - purpose: the things this repository has decided NOT to have (part of `npm run verify`).
-- exports: `FORBIDDEN_PACKAGES`, `FORBIDDEN_PATHS`, `guardForbidden(repo) → { ok: boolean, problems: string[] }`
+- exports: `FORBIDDEN_PACKAGES`, `FORBIDDEN_PATHS`, `FORBIDDEN_WORDS`, `IGNORE_MARK`, `findForbiddenWords(text, file) → string[]`, `guardForbidden(repo, files) → { ok: boolean, problems: string[], scanned: number }`, `trackedFiles(repo) → string[] | null`
 - imports: `tools/scripts/lib/repo.mjs`
 - imported by: `tools/scripts/validate-ai-config.mjs`
 

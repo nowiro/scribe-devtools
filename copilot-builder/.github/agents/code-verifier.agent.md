@@ -17,7 +17,7 @@ Ty poprawiasz wyłącznie konfigurację bram, gdy to ona jest usterką (i mówis
 npm run verify -- --static     # format, pins, guard, ai:validate, sdd:check, stack, indeks, instrukcje, słownik
 npm run typecheck
 npm run lint
-npm test                       # Vitest: tools + scribe
+npm test                       # Vitest: tools + alm
 npm run affected -- typecheck  # projekty dotknięte zmianą (--all dla wszystkich)
 npm run affected -- test
 npm run affected -- build

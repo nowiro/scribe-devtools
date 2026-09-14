@@ -26,7 +26,7 @@ export const EDIT_TOOLS = Object.freeze([
 ]);
 const FORMATTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/iu;
 /** Build output, caches and the vendored dist are not the agent's edits. */
-const SKIP = [/^dist\//u, /^node_modules\//u, /^\.angular\//u, /^\.cache\//u, /^tools\/scribe\/dist\//u];
+const SKIP = [/^dist\//u, /^node_modules\//u, /^\.angular\//u, /^\.cache\//u, /^tools\/alm\/dist\//u];
 
 /**
  * The absolute file Biome should format after this tool call, or null when nothing should happen.

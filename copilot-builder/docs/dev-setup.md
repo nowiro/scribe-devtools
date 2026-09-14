@@ -15,7 +15,7 @@
 6. Poświadczenia ALM (`npm run alm:read`): `~/.config/extract/config.json` (Windows:
    `%USERPROFILE%\.config\extract\config.json`) albo zmienne `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_TOKEN`,
    `GITLAB_BASE_URL` / `GITLAB_TOKEN`, `CONFLUENCE_*`, `SONAR_*`. Nigdy w repozytorium. Szczegóły i tokeny
-   o minimalnym zakresie: `tools/scribe/INSTRUKCJA.md`.
+   o minimalnym zakresie: `tools/alm/INSTRUKCJA.md`.
 7. VS Code: zainstaluj rozszerzenia polecane w `.vscode/extensions.json` (Biome, ESLint, Angular Language
    Service, Vitest, Playwright, Copilot Chat, EditorConfig). Ustawienia workspace'u są w repozytorium;
    preferencje osobiste trzymaj w profilu użytkownika.

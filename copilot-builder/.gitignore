@@ -25,15 +25,15 @@ blob-report/
 # upstream customer data (issue descriptions, comments, page bodies) or somebody's application
 # under inspection. Reproducible with one command, so it earns no place in history — and git does
 # not forget, so getting it back out would mean rewriting every clone.
-.scribe/
-.scribe-devtools/
+.alm/
+.browser-inspector/
 # Artefacts handed back by the MCP integration subagent — same rule, same reason.
 .mcp-artifacts/
 
 # A read config carries YOUR JQL, project keys, page ids and browser flows — the committed
-# examples in tools/scribe/examples/ name a placeholder project and pull nothing.
+# examples in tools/alm/examples/ name a placeholder project and pull nothing.
 read.config.*.json
-!tools/scribe/examples/read.config.*.json
+!tools/alm/examples/read.config.*.json
 
 # SDD artefacts are local-only by policy (docs/sdd/methodology.md): specs, plans and run-logs are
 # working material of one task, not documentation of the project. Only the directory markers stay.

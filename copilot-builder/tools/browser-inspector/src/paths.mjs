@@ -21,7 +21,7 @@ export const CI_VARS = Object.freeze([
   'CIRCLECI',
 ]);
 
-export const DEFAULT_OUTPUT_DIR = './.scribe-devtools/browser-inspector';
+export const DEFAULT_OUTPUT_DIR = './.browser-inspector';
 
 /** Marker written by `scripts/portable-zip.mjs` next to the package.json of an unpacked zip. */
 export const PORTABLE_MARKER = 'PORTABLE';
@@ -44,7 +44,7 @@ export function fnv1a(text) {
 
 /**
  * @typedef {object} IdentityParts
- * @property {string} pkgVersion `@scribe-devtools/browser-inspector` version
+ * @property {string} pkgVersion `browser-inspector` version
  * @property {string} pwVersion `playwright-core` version
  * @property {number | string} nodeMajor
  * @property {string} [channel] `chrome` | `msedge` | '' (auto)
@@ -246,8 +246,8 @@ export const logFile = (/** @type {string} */ hash, tmpdir = os.tmpdir()) =>
 export const sessionDir = (out, name = 'default') => path.join(out, 'session', name);
 
 /**
- * The output directory of a config, resolved like scribe does: relative to the CONFIG FILE, not
- * the cwd — so a config in the repo root writes to `<repo>/.scribe-devtools/browser-inspector` from anywhere.
+ * The output directory of a config, resolved like the ALM tool does: relative to the CONFIG FILE, not
+ * the cwd — so a config in the repo root writes to `<repo>/.browser-inspector` from anywhere.
  * @param {string | undefined} outputDir
  * @param {string} baseDir directory of the config file (or the cwd for a session)
  * @returns {string}

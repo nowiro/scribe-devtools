@@ -11,7 +11,7 @@
   // `lib` because browser-inspector passes callbacks into `page.evaluate` — `document` and `window`
   // in those arrow functions are real.
   //
-  // tools/scribe is TypeScript with its own configuration (tools/scribe/integrations/tsconfig*.json)
+  // tools/alm is TypeScript with its own configuration (tools/alm/integrations/tsconfig*.json)
   // and is not part of this file.
   "compilerOptions": {
     "allowJs": true,

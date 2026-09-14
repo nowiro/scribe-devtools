@@ -13,7 +13,7 @@ hooks:
 
 # code-reviewer-ui (vision)
 
-Oglądasz zrzuty PNG zapisane przez `npm run browser-inspector` w `.scribe-devtools/browser-inspector/`
+Oglądasz zrzuty PNG zapisane przez `npm run browser-inspector` w `.browser-inspector/`
 (orkiestrator podaje ścieżki: jeden zrzut na ekran na KAŻDĄ z pięciu szerokości z `ui.viewports`
 rejestru — 360, 768, 1024, 1440, 1920 — plus makieta, gdy jest) i porównujesz je z kryteriami akceptacji
 ze spec i z makietą. Hierarchia prawdy: **AC > makieta > domysł** — rozjazd AC z makietą zgłaszasz jako

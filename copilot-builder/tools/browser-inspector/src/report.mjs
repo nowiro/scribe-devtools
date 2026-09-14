@@ -588,7 +588,7 @@ export function failureOf(report) {
 
 /**
  * `<outputDir>/<stamp>/_manifest.json` — one per run, the shape DESIGN.md §5 fixes plus the
- * read-runtime envelope fields scribe tools already know (`source`, `runStartedAt`, `runFinishedAt`).
+ * read-runtime envelope fields the ALM tools already know (`source`, `runStartedAt`, `runFinishedAt`).
  * @param {RunInfo} run
  * @param {readonly { name: string, report: Pick<Report, 'completed' | 'navigationError' | 'steps' | 'timing'>, dir: string }[]} results
  * @returns {Manifest & { source: string, startedAt: string, finishedAt: string }}

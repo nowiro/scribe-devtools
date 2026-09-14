@@ -12,7 +12,7 @@
       "sourceMaps": true
     },
     {
-      "name": "Vitest: bieżący plik (tools/scribe)",
+      "name": "Vitest: bieżący plik (tools/alm)",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",

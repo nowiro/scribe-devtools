@@ -26,7 +26,7 @@ deterministycznie.
 | `npm run sdd -- next\|brief\|task\|log …`               | plan i run-log przez skrypt: następne zadanie, brief z planu, status i SHA zadania, wiersz run-logu (skill `sdd-scripts`) |
 | `npm run route -- <ścieżki>` / `-- --changed` / `-- --sync` | kto dotyka których plików (z `tools/scripts/routing.config.mjs`); `--sync` regeneruje tabelę routingu orkiestratora |
 | `npm run review:merge -- <katalog\|pliki> [--slug s] [--out plik]` | scala raporty miejsc review w jedną tabelę: liczba zgodnych rodzin, konflikty 🔴/🟢, werdykt najgorszy z trzech |
-| `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira (z Xray — pluginem testów w Jirze)/Confluence/GitLab/Sonar/Figma/Miro/WWW do `.scribe/`                |
+| `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira (z Xray — pluginem testów w Jirze)/Confluence/GitLab/Sonar/Figma/Miro/WWW do `.alm/`                |
 | `npm run alm:create\|alm:update -- <źródło> <plik.md>` | publikacja Markdownu z front matter (dry-run; `--yes` zapisuje)                         |
 | `npm run browser-inspector -- <config.json>` / `-- open <url>` | flow batch albo sesja interaktywna w systemowym Chrome/Edge                      |
 | `npm run code-index`                                   | regeneracja `CODE-INDEX.md`                                                             |
@@ -41,16 +41,16 @@ deterministycznie.
 | -------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `format:check`             | Biome (TS/JS/JSON/CSS; 120 kolumn, LF, pojedyncze cudzysłowy). Markdown i szablony HTML — bez formatera |
 | `check:pins`               | `tools/scripts/pins.config.mjs` jedynym miejscem deklaracji wersji; każda zależność ma wiersz z `why`; reguła TAG: tag obrazu Playwrighta w CI = pin |
-| `guard:forbidden`          | brak plików innych asystentów, GitHub Actions, Nx, Prettiera, Husky, drugiego lockfile'a               |
+| `guard:forbidden`          | brak plików innych asystentów, GitHub Actions, Nx, Prettiera, Husky, drugiego lockfile'a; brak nazw własnych narzędzia źródłowego w ścieżce i treści każdego śledzonego pliku (`FORBIDDEN_WORDS`) |
 | `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna i równa `routing.config.mjs`, trzy miejsca review na trzech rodzinach modeli (A1–A19) |
 | `sdd:check`                | nazwy i wiersze INDEX artefaktów commitowanych; front matter spec/plan, `[?]`, agenci z rosteru, `agent` = `route` dla `paths` zadania (C5) |
 | `stack:check`              | blok AUTOGEN w `docs/tech-stack.md` zgodny z `package.json`                                             |
 | `code-index --check`       | świeżość `CODE-INDEX.md`                                                                                |
 | `check:instructions`       | bloki instrukcji `AGENTS.md` ≡ `.github/copilot-instructions.md`, ≤ 600 bajtów każdy                    |
 | `check:glossary`           | każdy odnośnik w `GLOSSARY.md` wskazuje żywą ścieżkę albo symbol                                        |
-| `typecheck`                | `tsc --checkJs` nad `tools/**` (JSDoc) i `tsc` nad `tools/scribe/integrations`                          |
+| `typecheck`                | `tsc --checkJs` nad `tools/**` (JSDoc) i `tsc` nad `tools/alm/integrations`                          |
 | `lint`                     | ESLint: angular-eslint, typescript-eslint (typed), granice modułów `@cb/*`, sonarjs, unicorn i spółka   |
-| `test`                     | Vitest: `tools/scripts`, `tools/hooks`, `tools/testing` i `tools/scribe` (`vitest.tools.config.mts`)    |
+| `test`                     | Vitest: `tools/scripts`, `tools/hooks`, `tools/testing` i `tools/alm` (`vitest.tools.config.mts`)    |
 | `affected typecheck/test/build` | projekty workspace przez `affected.mjs` (`--all` w `verify`, dotknięte w `verify:affected`)        |
 
 ## Artefakty GENEROWANE — nigdy nie edytuj ręcznie
@@ -65,7 +65,7 @@ deterministycznie.
 
 ## Punkty synchronizacji (zmiana w jednym wymaga zmiany w drugim)
 
-- bloki `INSTRUCTION:browser-inspector` i `INSTRUCTION:scribe` niżej ↔ `.github/copilot-instructions.md`;
+- bloki `INSTRUCTION:browser-inspector` i `INSTRUCTION:alm` niżej ↔ `.github/copilot-instructions.md`;
 - roster w `.github/models-registry.json` ↔ pliki `.github/agents/*.agent.md` ↔ tabela rosteru niżej
   ↔ tabela routingu w `orchestrator` (generowana z `tools/scripts/routing.config.mjs`, brama A19);
 - trzy miejsca review (`review.seats` w rejestrze) ↔ trzy różne `family` w `models` (A18) ↔ sekcja „Review"
@@ -103,9 +103,9 @@ to ten sam brief do trzech miejsc na trzech rodzinach modeli (`review.seats`); o
 
 ## Granice, których nie wolno przekroczyć
 
-1. `tools/scribe/**` i `tools/browser-inspector/**` — narzędzia wendorowane: czytane, nie przepisywane.
+1. `tools/alm/**` i `tools/browser-inspector/**` — narzędzia wendorowane: czytane, nie przepisywane.
 2. Nikt poza `mcp-gateway` nie ma serwera MCP na liście `tools:`; sesja główna startuje bez schematów narzędzi.
-3. `.scribe/`, `.scribe-devtools/`, `.mcp-artifacts/`, `read.config.*.json` — dane spoza repozytorium; nigdy do commita.
+3. `.alm/`, `.browser-inspector/`, `.mcp-artifacts/`, `read.config.*.json` — dane spoza repozytorium; nigdy do commita.
 4. Import między projektami wyłącznie przez alias `@cb/<zakres>/<typ>[-<nazwa>]`; kierunek zależności
    feature → ui, data-access, util · ui → ui, util · data-access → data-access, util · util → util.
 5. Sekrety wyłącznie przez środowisko albo profil użytkownika; literał w configu jest błędem walidacji.
@@ -126,7 +126,7 @@ się nazywa. Rozmiary podane po to, żebyś mógł zdecydować, czy czytasz w ca
 Układ: `apps/` aplikacje (+ `apps/<app>-e2e`) · `libs/<zakres>/<typ>-<nazwa>` biblioteki ·
 `tools/scripts` bramy i scaffold (`lib/repo.mjs` — wspólne pomocniki, `workspace.config.mjs` — nazwy zmieniane
 przy adopcji) · `tools/hooks` hooki Copilota (`lib/payload.mjs`) · `tools/testing` runner Vitest i serwer
-e2e · `tools/scribe` ALM · `tools/browser-inspector` przeglądarka · `docs/` metodyka, decyzje, kanon
+e2e · `tools/alm` ALM · `tools/browser-inspector` przeglądarka · `docs/` metodyka, decyzje, kanon
 wersji · `.github/` Copilot · `.gitlab/` szablony issue/MR · `.githooks/` hooki gita.
 
 ## Blok instrukcji `browser-inspector`
@@ -137,8 +137,8 @@ Równy co do znaku blokowi w `.github/copilot-instructions.md` (`npm run check:i
 > Przeglądarka: `npm run browser-inspector -- <config.json> [--stamp X]` wykonuje flow, wynik w `<outputDir>/<stamp>/<snapshot>/report.md` (`## errors`, `## values`; `## steps` tylko przy FAIL); nieudany krok = wynik, exit 0. Sesja: `… open <url>`, `… find <tekst>` / `… snap` dają refy `eN`; `… click|fill|form|press|select|wait|shot|eval|console|net` drukują jedną linię (exit 1 = FAIL); `… export flow.json` zapisuje sesję jako config. Wynik czytaj z dysku, nie wklejaj strony do kontekstu.
 <!-- INSTRUCTION:browser-inspector:END -->
 
-## Blok instrukcji `scribe` (ALM)
+## Blok instrukcji `alm` (ALM)
 
-<!-- INSTRUCTION:scribe:START -->
-> ALM (Jira i jej plugin Xray, Confluence, GitLab, Sonar, Figma, Miro): `npm run alm:read -- <źródło> [config.json] [--stamp X]` pisze snapshot do `.scribe/<źródło>/<stamp>/<snapshot>/` (`_manifest.json` + `<zasób>.md|.json`); czytaj manifest, potem tylko potrzebne pliki. Zapis: `npm run alm:create|alm:update -- <źródło> <plik.md>` z front matter wg `tools/scribe/templates/` — bez `--yes` dry-run z diffem; `--yes` tylko na wyraźne polecenie człowieka; usuwania nie ma.
-<!-- INSTRUCTION:scribe:END -->
+<!-- INSTRUCTION:alm:START -->
+> ALM (Jira i jej plugin Xray, Confluence, GitLab, Sonar, Figma, Miro): `npm run alm:read -- <źródło> [config.json] [--stamp X]` pisze snapshot do `.alm/<źródło>/<stamp>/<snapshot>/` (`_manifest.json` + `<zasób>.md|.json`); czytaj manifest, potem tylko potrzebne pliki. Zapis: `npm run alm:create|alm:update -- <źródło> <plik.md>` z front matter wg `tools/alm/templates/` — bez `--yes` dry-run z diffem; `--yes` tylko na wyraźne polecenie człowieka; usuwania nie ma.
+<!-- INSTRUCTION:alm:END -->

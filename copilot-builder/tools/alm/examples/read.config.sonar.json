@@ -1,0 +1,31 @@
+{
+  "outputDir": "./.alm/sonar",
+  "snapshots": [
+    {
+      "name": "quality-gate",
+      "type": "quality_gate",
+      "projectKey": "my-org:my-service"
+    },
+    {
+      "name": "blocking-issues",
+      "type": "issues",
+      "projectKey": "my-org:my-service",
+      "severities": ["BLOCKER", "CRITICAL"],
+      "types": ["BUG", "VULNERABILITY"],
+      "maxItems": 1000
+    },
+    {
+      "name": "hotspots-to-review",
+      "type": "hotspots",
+      "projectKey": "my-org:my-service",
+      "status": "TO_REVIEW",
+      "maxItems": 500
+    },
+    {
+      "name": "measures",
+      "type": "measures",
+      "projectKey": "my-org:my-service",
+      "metrics": ["coverage", "duplicated_lines_density", "ncloc", "bugs", "vulnerabilities", "code_smells"]
+    }
+  ]
+}

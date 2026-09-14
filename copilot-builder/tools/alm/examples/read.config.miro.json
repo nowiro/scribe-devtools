@@ -1,0 +1,16 @@
+{
+  "outputDir": "./.alm/miro",
+  "snapshots": [
+    {
+      "name": "all-boards",
+      "type": "boards",
+      "maxItems": 100
+    },
+    {
+      "name": "project-board",
+      "type": "board",
+      "boardId": "uXjVN2wR8sY=",
+      "maxItems": 2000
+    }
+  ]
+}

@@ -12,7 +12,7 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
 - Konfiguracja GitHub Copilota: jeden widoczny `orchestrator`, ukryty roster `code-*` / `doc-*` /
   `mcp-gateway`, rejestr modeli z tierami, instrukcje ścieżkowe, prompty drabiny SDD, hooki.
 - Metodyka SDD (`docs/sdd/`) ze scaffoldem `workflow:specify` i bramą `sdd:check`; artefakty lokalne.
-- Wendorowane narzędzia: `tools/scribe` (snapshoty i zapis ALM) i `tools/browser-inspector`
+- Wendorowane narzędzia: `tools/alm` (snapshoty i zapis ALM) i `tools/browser-inspector`
   (przeglądarka przez skrypt), z blokami instrukcji synchronizowanymi bramą.
 - GitLab CI (`.gitlab-ci.yml`) z cache bez usług zewnętrznych, affected na MR, build raz, e2e na artefakcie;
   szablony issue (spec) i MR (DoD).
@@ -67,6 +67,11 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
   tabel; plan ma kolumnę `paths`, a `sdd:check` (C5) sprawdza, że `agent` równa się `route` dla tych ścieżek;
   wykonawcy, verifier i doc-spec mają sztywny wzór zwrotu (PLIKI / BRAMA / UWAGI); brief bez PLIKI, AC albo
   BRAMA to `STOP — brakuje`; skill `sdd-scripts` z tabelą komend; wspólny parser tabel `lib/md-table.mjs`.
+- Narzędzia wendorowane nazwane po funkcji, bez marki źródła: ALM to `alm` (`tools/alm/`, dane `.alm/<źródło>/`,
+  projekty Vitest `alm-scripts` / `alm-integrations`, blok `INSTRUCTION:alm`, proweniencja „za pomocą narzędzia
+  alm v…", tooling `2.3.0`), przeglądarka pisze do `.browser-inspector/`. `guard:forbidden` dostał listę słów
+  zakazanych (`FORBIDDEN_WORDS`: całe słowo, bez względu na wielkość liter, ścieżka i treść każdego śledzonego
+  pliku; `forbidden:ignore` zwalnia linię) — ADR w `docs/decisions/`.
 
 ### Fixed (po niezależnym przeglądzie architektura / jakość / bezpieczeństwo)
 

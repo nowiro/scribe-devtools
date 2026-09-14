@@ -15,7 +15,7 @@
     "format:check": "biome format .",
     "lint": "eslint . --max-warnings=0 --cache --cache-location .cache/eslint/",
     "lint:fix": "eslint . --fix --cache --cache-location .cache/eslint/",
-    "typecheck": "tsc -p tsconfig.tools.json && tsc -p tools/scribe/integrations/tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.tools.json && tsc -p tools/alm/integrations/tsconfig.test.json",
     "test": "vitest run --config vitest.tools.config.mts",
     "test:watch": "vitest --config vitest.tools.config.mts",
     "test:cov": "vitest run --config vitest.tools.config.mts --coverage",
@@ -42,10 +42,10 @@
     "route": "node tools/scripts/route.mjs",
     "sdd": "node tools/scripts/sdd.mjs",
     "review:merge": "node tools/scripts/review-merge.mjs",
-    "alm:build": "tsc -p tools/scribe/integrations/tsconfig.json",
-    "alm:read": "npm run alm:build && node tools/scribe/scripts/read.mjs",
-    "alm:create": "npm run alm:build && node tools/scribe/scripts/write.mjs create",
-    "alm:update": "npm run alm:build && node tools/scribe/scripts/write.mjs update",
+    "alm:build": "tsc -p tools/alm/integrations/tsconfig.json",
+    "alm:read": "npm run alm:build && node tools/alm/scripts/read.mjs",
+    "alm:create": "npm run alm:build && node tools/alm/scripts/write.mjs create",
+    "alm:update": "npm run alm:build && node tools/alm/scripts/write.mjs update",
     "browser-inspector": "node tools/browser-inspector/bin/browser-inspector.mjs"
   },
   "dependencies": {

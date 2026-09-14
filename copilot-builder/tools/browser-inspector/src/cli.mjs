@@ -19,7 +19,7 @@ import {
   validateSteps,
 } from './steps.schema.mjs';
 
-/** Run stamp form, the same as scribe's `read-runtime`: `YYYY-MM-DD_HH-MM`. */
+/** Run stamp form, the same as the ALM tool's `read-runtime`: `YYYY-MM-DD_HH-MM`. */
 export const STAMP_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/u;
 
 export class CliError extends Error {

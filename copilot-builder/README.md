@@ -56,12 +56,12 @@ plan Copilota organizacji, `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify
 | `npm run affected -- <target> [--all] [--base=<ref>]`  | `lint`, `typecheck`, `test`, `build`, `e2e` dla dotkniętych projektów          |
 | `npm run new:app -- <nazwa>`                           | nowa aplikacja z projektem e2e                                                 |
 | `npm run new:lib -- <zakres>/<typ>-<nazwa>`            | nowa biblioteka (typ: `feature`, `ui`, `data-access`, `util`) z aliasem `@cb/*` |
-| `npm run lint` / `format` / `typecheck` / `test`       | bramy pojedynczo (narzędzia + scribe; projekty przez `affected`)               |
+| `npm run lint` / `format` / `typecheck` / `test`       | bramy pojedynczo (narzędzia + alm; projekty przez `affected`)               |
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                   |
 | `npm run sdd -- next\|brief\|task\|log …`             | plan i run-log przez skrypt: następne zadanie, brief, status i SHA, wiersz run-logu |
 | `npm run route -- <ścieżki>` / `-- --changed`           | kto dotyka których plików (jedno źródło: `tools/scripts/routing.config.mjs`)   |
 | `npm run review:merge -- <katalog> [--out plik]`       | scala raporty trzech miejsc review: zgodne rodziny, konflikty, werdykt          |
-| `npm run alm:read -- <źródło>`                         | snapshot ALM do `.scribe/` (Jira z pluginem Xray, Confluence, GitLab, Sonar, Figma, Miro, WWW) |
+| `npm run alm:read -- <źródło>`                         | snapshot ALM do `.alm/` (Jira z pluginem Xray, Confluence, GitLab, Sonar, Figma, Miro, WWW) |
 | `npm run alm:create` / `alm:update -- <źródło> <plik>` | publikacja Markdownu (dry-run; `--yes` zapisuje)                               |
 | `npm run browser-inspector -- …`                       | flow z configu albo sesja interaktywna na refach `eN`                          |
 | `npm run code-index`                                   | regeneracja `CODE-INDEX.md` (hook pre-commit robi to sam)                      |
@@ -77,7 +77,7 @@ libs/<zakres>/<typ>-<nazwa> biblioteki ze źródeł przez alias @cb/<zakres>/<ty
 tools/scripts/              bramy, affected, verify, scaffold, piny, indeks kodu
 tools/hooks/                hooki Copilota (guard-commands, deny-writes, format-on-edit, session-stop, handoff)
 tools/testing/              współdzielona konfiguracja Vitest dla projektów, statyczny serwer e2e
-tools/scribe/               ALM przez skrypty (integracje TS, dyspozytory, przykłady, szablony treści)
+tools/alm/               ALM przez skrypty (integracje TS, dyspozytory, przykłady, szablony treści)
 tools/browser-inspector/    przeglądarka przez skrypt (playwright-core + systemowy Chrome/Edge)
 docs/sdd/                   metodyka SDD i szablony spec/plan/run-log
 docs/decisions/             ADR-y (nazwy ze stemplem, wiersz w docs/INDEX.md)
@@ -134,11 +134,11 @@ rodziny to weryfikacja krzyżowa, więc niezależność jest bramą (A18), nie p
 Definicje narzędzi serwera MCP to koszt stały każdej sesji (pięć serwerów ALM = ok. 7,5 tys. tokenów,
 zanim padnie pierwsze pytanie — pomiar w ADR). Skrypt kosztuje jedno zdanie instrukcji:
 
-- **scribe** (`tools/scribe/`): `npm run alm:read -- jira` zapisuje snapshot do `.scribe/jira/<stempel>/`
+- **alm** (`tools/alm/`): `npm run alm:read -- jira` zapisuje snapshot do `.alm/jira/<stempel>/`
   (`_manifest.json` z rozmiarami plików, `<klucz>.md` i `.json` per zadanie); agent czyta manifest, potem
   wybrane pliki. `npm run alm:create -- gitlab ./issue.md` publikuje Markdown z front matter — dry-run
   domyślnie, `--yes` zapisuje, usuwania nie ma. Poświadczenia w `~/.config/extract/config.json` albo w
-  zmiennych `JIRA_*`, `GITLAB_*`… Instrukcja: [`tools/scribe/INSTRUKCJA.md`](tools/scribe/INSTRUKCJA.md).
+  zmiennych `JIRA_*`, `GITLAB_*`… Instrukcja: [`tools/alm/INSTRUKCJA.md`](tools/alm/INSTRUKCJA.md).
 - **browser-inspector** (`tools/browser-inspector/`): `npm run browser-inspector -- read.config.browser-inspector.json`
   wykonuje flow (zrzuty, konsola, sieć, mapa elementów) i pisze `report.md`; `-- open <url>`, `find`, `click eN`,
   `snap`, `export flow.json` to sesja interaktywna — jedna linia na komendę, wynik na dysku.

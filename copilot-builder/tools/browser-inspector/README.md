@@ -3,7 +3,7 @@
 Patrzenie na aplikację webową przez **systemowy Chrome/Edge** bez serwera MCP: flow batch z configu JSON
 (zrzuty, konsola, sieć, mapa elementów, nazwane ekstrakty → `report.md`) albo sesja interaktywna na refach
 `eN` (`open`, `find`, `click e45`, `fill`, `snap`, `export flow.json`) — jedna linia stdout na komendę
-(`ok` / `FAIL`), całość na dysku w `.scribe-devtools/browser-inspector/`. Ciepła przeglądarka żyje
+(`ok` / `FAIL`), całość na dysku w `.browser-inspector/`. Ciepła przeglądarka żyje
 w lokalnym **keeperze**, który startuje sam i gaśnie po bezczynności; na CI (`CI`, `GITLAB_CI`, …) keepera
 nie ma — komendy biegną w procesie.
 
@@ -30,5 +30,8 @@ sprawdzane `npm run typecheck`.
 
 Kod pochodzi z narzędzia **browser-inspector** (pakiet `0.1.0`), przeniesionego do tego repozytorium.
 Zasada: **czytamy, nie przepisujemy**. Zmiany: manifest `package.json` zredukowany do nazwy, wersji i `bin`
-(zależność deklaruje korzeń); wywołanie przez `npm run browser-inspector -- …`. Katalog wyników
-`.scribe-devtools/` i zmienne `BROWSER_INSPECTOR_*` bez zmian.
+(zależność deklaruje korzeń); wywołanie przez `npm run browser-inspector -- …`; katalog wyników to
+`.browser-inspector/` — w źródle był to podkatalog katalogu nazwanego po pakiecie źródłowym, a szablon nie niesie
+tej nazwy (`npm run guard:forbidden`, ADR w `docs/decisions/`), stąd `DEFAULT_OUTPUT_DIR` w `src/paths.mjs`,
+`outputDir` w `src/config.mjs` i kontrola `storageState` w `src/auth.mjs` różnią się od źródła. Zmienne
+`BROWSER_INSPECTOR_*` bez zmian.

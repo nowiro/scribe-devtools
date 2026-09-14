@@ -4,9 +4,13 @@
 // Each entry is a decision recorded in docs/decisions/, not a taste: a second assistant's config
 // doubles the always-on context; GitHub Actions would be a second CI next to GitLab; Nx and Prettier
 // were weighed and declined; Husky is replaced by .githooks; a live `.mcp.json` would put tool
-// schemas into every session. The guard turns each decision from prose into a red gate.
+// schemas into every session; and a vendored tool carries the name of what it DOES, not the brand of
+// where it came from — a company adopts this tree as its own, and an upstream name in a path, a
+// Vitest project or a provenance line stamped into its Jira is noise to them and a leak of origin.
+// The guard turns each decision from prose into a red gate.
 //
 // Exit codes: 0 pass · 1 something forbidden is present.
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { REPO, isMain } from './lib/repo.mjs';
@@ -46,10 +50,68 @@ export const FORBIDDEN_PACKAGES = Object.freeze([
 ]);
 
 /**
- * @param {string} repo
- * @returns {{ ok: boolean, problems: string[] }}
+ * Words no tracked file may carry — in its path or its text, as a whole word, in any case. A word
+ * glued to letters or digits is a different word (`describe`, `subscribes` pass); a dot, slash,
+ * dash or underscore is a boundary (`.<word>/`, `<word>-devtools`, `<WORD>_TOKEN` fail). The one line
+ * that has to quote a word (this list, its spec) carries `forbidden:ignore`. Rename FIRST, add the
+ * word SECOND — the other order leaves `verify` red until the rename lands.
+ * @type {readonly [string, string][]} word → why it is forbidden
  */
-export function guardForbidden(repo = REPO) {
+export const FORBIDDEN_WORDS = Object.freeze([
+  ['scribe', 'upstream tool name — the ALM tool is `alm` here (tools/alm, .alm/); ADR neutral-tool-names'], // forbidden:ignore
+  ['nowiro', 'the upstream owner name; docs/decisions, ADR neutral-tool-names'], // forbidden:ignore
+]);
+
+/** Marker that exempts one line from the word scan. */
+export const IGNORE_MARK = 'forbidden:ignore';
+
+/** @param {string} word @returns {RegExp} */
+const wholeWord = (word) => new RegExp(`(?<![\\p{L}\\p{N}])${word}(?![\\p{L}\\p{N}])`, 'iu');
+
+/**
+ * Every forbidden word in `file`'s path and in every line of `text`, as `file:line · word — why`.
+ * @param {string} text
+ * @param {string} file repository-relative path, forward slashes
+ * @returns {string[]}
+ */
+export function findForbiddenWords(text, file) {
+  /** @type {string[]} */
+  const out = [];
+  const rules = FORBIDDEN_WORDS.map(([word, why]) => ({ word, why, pattern: wholeWord(word) }));
+  for (const { word, why, pattern } of rules) {
+    if (pattern.test(file)) out.push(`${file} · path carries \`${word}\` — ${why}`);
+  }
+  for (const [index, line] of text.split('\n').entries()) {
+    if (line.includes(IGNORE_MARK)) continue;
+    for (const { word, why, pattern } of rules) {
+      if (pattern.test(line)) out.push(`${file}:${index + 1} · \`${word}\` — ${why}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * The paths git tracks in `repo` — the tree as it will be cloned, not the working tree with its
+ * ignored snapshots and caches. `null` when git cannot answer (no repository): the caller reports
+ * that rather than passing over a tree it never scanned.
+ * @param {string} repo
+ * @returns {string[] | null}
+ */
+export function trackedFiles(repo) {
+  const result = spawnSync('git', ['ls-files', '-z'], { cwd: repo, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  return result.stdout.split('\0').filter(Boolean);
+}
+
+/** A NUL byte in the first 8 KiB is how git itself tells a binary from text. */
+const isBinary = (/** @type {Buffer} */ buffer) => buffer.subarray(0, 8192).includes(0);
+
+/**
+ * @param {string} repo
+ * @param {string[] | null} [files] tracked paths to scan for words; defaults to `git ls-files` of `repo`
+ * @returns {{ ok: boolean, problems: string[], scanned: number }}
+ */
+export function guardForbidden(repo = REPO, files = trackedFiles(repo)) {
   /** @type {string[]} */
   const problems = [];
   for (const [rel, why] of FORBIDDEN_PATHS) {
@@ -68,14 +130,28 @@ export function guardForbidden(repo = REPO) {
       problems.push('package.json scripts call `npx` — pin the tool in devDependencies and call its binary directly');
     }
   }
-  return { ok: problems.length === 0, problems };
+  let scanned = 0;
+  if (files === null) {
+    problems.push('git ls-files failed — the forbidden-word scan needs a git checkout');
+  } else {
+    for (const rel of files) {
+      const file = path.join(repo, rel);
+      // Still in the index, gone from the working tree: nothing to read, `git status` shows it.
+      if (!existsSync(file)) continue;
+      const buffer = readFileSync(file);
+      if (isBinary(buffer)) continue;
+      scanned += 1;
+      problems.push(...findForbiddenWords(buffer.toString('utf8'), rel));
+    }
+  }
+  return { ok: problems.length === 0, problems, scanned };
 }
 
 if (isMain(import.meta.url)) {
-  const { ok, problems } = guardForbidden();
+  const { ok, problems, scanned } = guardForbidden();
   if (ok)
     process.stdout.write(
-      `ok guard:forbidden · ${FORBIDDEN_PATHS.length} paths and ${FORBIDDEN_PACKAGES.length} packages absent\n`,
+      `ok guard:forbidden · ${FORBIDDEN_PATHS.length} paths and ${FORBIDDEN_PACKAGES.length} packages absent · ${FORBIDDEN_WORDS.length} words absent from ${scanned} tracked files\n`,
     );
   else process.stderr.write(`FAIL guard:forbidden\n${problems.map((p) => `  · ${p}`).join('\n')}\n`);
   process.exitCode = ok ? 0 : 1;

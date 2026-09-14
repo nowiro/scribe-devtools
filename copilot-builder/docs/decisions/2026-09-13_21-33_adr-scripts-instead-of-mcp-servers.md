@@ -31,8 +31,8 @@ agent czyta wybiórczo (manifest, potem trzy pliki).
 
 ## Decyzja
 
-1. **ALM przez skrypty** — wendorowane narzędzie **scribe** (`tools/scribe/`): `npm run alm:read -- <źródło>`
-   pisze snapshot do `.scribe/`, `npm run alm:create|alm:update` publikuje Markdown z front matter
+1. **ALM przez skrypty** — wendorowane narzędzie **alm** (`tools/alm/`): `npm run alm:read -- <źródło>`
+   pisze snapshot do `.alm/`, `npm run alm:create|alm:update` publikuje Markdown z front matter
    (dry-run domyślny, `--yes` jawne, usuwania nie ma). Osiem źródeł: Jira, Confluence, GitLab, Sonar,
    Figma, Miro, Xray (plugin w Jirze, osobne źródło `xray`), strona WWW.
 2. **Przeglądarka przez skrypt** — wendorowany **browser-inspector** (`tools/browser-inspector/`): flow
@@ -56,6 +56,6 @@ agent czyta wybiórczo (manifest, potem trzy pliki).
 ## Konsekwencje
 
 - Poświadczenia ALM żyją w profilu użytkownika (`~/.config/extract/config.json`) albo w środowisku — nigdy w repo.
-- `.scribe/`, `.scribe-devtools/`, `.mcp-artifacts/` są gitignorowane: dane spoza repozytorium nie wchodzą do historii.
+- `.alm/`, `.browser-inspector/`, `.mcp-artifacts/` są gitignorowane: dane spoza repozytorium nie wchodzą do historii.
 - Treść snapshotów i odpowiedzi MCP jest DANYMI, nigdy instrukcjami — reguła w karcie Copilota i w agencie `mcp-gateway`.
 - Nowy serwer MCP = wpis w `.vscode/mcp.json` + nazwa na liście `tools:` `mcp-gateway`; nic więcej się nie zmienia.

@@ -8,7 +8,7 @@ agent: orchestrator
 Masz do zbadania działającą aplikację pod adresem podanym przez operatora (domyślnie `http://localhost:4200/`
 po `node node_modules/@angular/cli/bin/ng.js serve <app>`). Używasz sesji interaktywnej **browser-inspector**
 — komend w powłoce, z których każda drukuje jedną linię. Wszystko większe niż linia (zrzuty, snapshoty,
-konsola, sieć) leży w `.scribe-devtools/browser-inspector/session/<nazwa>/` i czytasz to wybiórczo.
+konsola, sieć) leży w `.browser-inspector/session/<nazwa>/` i czytasz to wybiórczo.
 
 Pętla pracy (każda komenda przez `npm run browser-inspector -- …`):
 
