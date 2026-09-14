@@ -107,7 +107,7 @@ export function srcStamp(dir) {
   if (!existsSync(dir)) return newest;
   for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
     if (!entry.isFile()) continue;
-    const file = path.join(entry.parentPath ?? entry.path ?? dir, entry.name);
+    const file = path.join(entry.parentPath ?? dir, entry.name);
     try {
       newest = Math.max(newest, Math.floor(statSync(file).mtimeMs));
     } catch {
