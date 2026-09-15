@@ -166,6 +166,45 @@ describe('affected.mjs on a small workspace', () => {
     ]);
     expect(commandsFor(demo, 'lint', repo)[0]?.slice(2, 4)).toEqual(['apps/demo', '--max-warnings=0']);
   });
+
+  // AC2 — a folder whose NAME collides with a generated one, but which sits inside the project's
+  // sources, is a functional folder. Skipping it by name at every depth hid its imports from the
+  // graph AND its bytes from the task hash, so an edit landed on an unchanged cache marker.
+  it('scans a functional folder whose name collides with a generated one', () => {
+    write(
+      repo,
+      'apps/demo/src/app/reports/report.ts',
+      "import { sharedUtil } from '@cb/shared/util';\nexport const report = sharedUtil;\n",
+    );
+    expect(listFiles(repo, 'apps/demo')).toContain('apps/demo/src/app/reports/report.ts');
+
+    const scoped = readWorkspace(repo);
+    const edges = buildGraph(scoped, repo);
+    expect([...(edges.get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
+
+    const demo = /** @type {NonNullable<ReturnType<typeof scoped.projects.get>>} */ (scoped.projects.get('demo'));
+    const before = taskHash(demo, edges, scoped, 'lint', repo);
+    write(repo, 'apps/demo/src/app/reports/report.ts', "export const report = 'zmienione';\n");
+    expect(taskHash(demo, edges, scoped, 'lint', repo)).not.toBe(before);
+  });
+
+  // The other half of the same decision: a generated folder still disappears, as long as it sits
+  // where generators put it — directly under the project root.
+  it('still skips a generated folder directly under the project root', () => {
+    write(repo, 'apps/demo/coverage/lcov-report/x.ts', "import '@cb/shared/util';\n");
+    write(repo, 'apps/demo/.angular/cache/y.ts', "import '@cb/shared/util';\n");
+    const files = listFiles(repo, 'apps/demo');
+    expect(files.some((file) => file.includes('/coverage/'))).toBe(false);
+    expect(files.some((file) => file.includes('/.angular/'))).toBe(false);
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])]).toEqual(['shared-ui']);
+  });
+
+  // AC3 — `import '@cb/x';` is how a polyfill, a global stylesheet side-effect or a registration
+  // module is pulled in. It has no `from`, so the old pattern could not see it at all.
+  it('creates an edge for a side-effect import of a workspace alias', () => {
+    write(repo, 'apps/demo/src/polyfills.ts', "import '@cb/shared/util';\n");
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
+  });
 });
 
 describe('parseArgs', () => {
@@ -267,6 +306,36 @@ describe('changedFiles against real git history', () => {
       'apps/demo/src/new.ts',
       'libs/shared/util/src/lib/x.ts',
     ]);
+  });
+
+  // AC1 — git reports a renamed file only under its NEW path while rename detection is on, so the
+  // project that LOST the file never entered the seed set and dropped out of the answer silently.
+  it('reports both paths of a committed rename so the source project stays affected', () => {
+    write(repo, 'libs/shared/util/src/lib/moved.ts', "export const moved = 'tresc unikalna dla wykrywania rename';\n");
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'seed']);
+    git(repo, ['branch', 'main']);
+    git(repo, ['checkout', '-q', '-b', 'feature']);
+    git(repo, ['mv', 'libs/shared/util/src/lib/moved.ts', 'apps/demo/src/moved.ts']);
+    git(repo, ['commit', '-q', '-m', 'move']);
+
+    expect(changedFiles('main', repo)).toEqual(['apps/demo/src/moved.ts', 'libs/shared/util/src/lib/moved.ts']);
+    const workspace = readWorkspace(repo);
+    const graph = buildGraph(workspace, repo);
+    expect(affectedProjects(/** @type {string[]} */ (changedFiles('main', repo)), workspace, graph).affected).toContain(
+      'shared-util',
+    );
+  });
+
+  it('reports both paths of a staged rename, so the pre-commit gate sees it too', () => {
+    write(repo, 'libs/shared/util/src/lib/staged.ts', "export const staged = 'inna tresc unikalna';\n");
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'seed']);
+    git(repo, ['branch', 'main']);
+    git(repo, ['checkout', '-q', '-b', 'feature']);
+    git(repo, ['mv', 'libs/shared/util/src/lib/staged.ts', 'apps/demo/src/staged.ts']);
+
+    expect(changedFiles('main', repo)).toEqual(['apps/demo/src/staged.ts', 'libs/shared/util/src/lib/staged.ts']);
   });
 
   it('keeps non-ASCII paths readable so they still match a project root', () => {

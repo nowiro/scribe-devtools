@@ -49,17 +49,25 @@ export const ROOT_TRIGGERS = Object.freeze([
   'eslint.rules.mjs',
   'tools/testing/',
 ]);
-const SKIP_DIRS = new Set([
-  'node_modules',
-  'dist',
-  '.angular',
-  '.cache',
-  'coverage',
-  'playwright-report',
-  'test-results',
-  'reports',
-  'tmp',
-]);
+/**
+ * Directories that are never source, wherever they appear. Both are unambiguous: no Angular project
+ * keeps hand-written code in a folder called `node_modules` or `dist`.
+ */
+const SKIP_ANYWHERE = new Set(['node_modules', 'dist']);
+/**
+ * Generated directories, skipped ONLY among the DIRECT CHILDREN of the walk root — which is a
+ * project root in `aliasEdges` and for the dependency roots of `taskHash`, and additionally the
+ * `tools/testing/` root trigger, the one caller that walks something else.
+ *
+ * The depth distinction is not pedantry. `coverage/` and `.angular/` are written by generators next
+ * to the project they belong to, whereas `reports`, `tmp` and `test-results` are perfectly ordinary
+ * FEATURE folder names deeper inside `src/`. Matching them by NAME at every depth hid
+ * `apps/<app>/src/app/reports/**` from the dependency graph AND from the task hash at once, so an
+ * edit there landed on an unchanged cache marker and the task reported `hit … cached` without ever
+ * running. Being wrong here is silent in both directions, so the rule is deliberately the narrow
+ * one: skip only where a generator actually writes.
+ */
+const SKIP_AT_ROOT = new Set(['.angular', '.cache', 'coverage', 'playwright-report', 'test-results', 'reports', 'tmp']);
 
 /**
  * @typedef {object} Project
@@ -119,17 +127,19 @@ export function readWorkspace(repo = REPO) {
 export function listFiles(repo, dir) {
   /** @type {string[]} */
   const out = [];
-  const walk = (/** @type {string} */ rel) => {
+  const walk = (/** @type {string} */ rel, /** @type {number} */ depth) => {
     const abs = path.join(repo, rel);
     if (!existsSync(abs)) return;
     for (const entry of readdirSync(abs, { withFileTypes: true })) {
       const childRel = `${rel}/${entry.name}`;
       if (entry.isDirectory()) {
-        if (!SKIP_DIRS.has(entry.name)) walk(childRel);
+        if (SKIP_ANYWHERE.has(entry.name)) continue;
+        if (depth === 0 && SKIP_AT_ROOT.has(entry.name)) continue;
+        walk(childRel, depth + 1);
       } else out.push(childRel);
     }
   };
-  walk(dir.replace(/\/$/u, ''));
+  walk(dir.replace(/\/$/u, ''), 0);
   return out.sort();
 }
 
@@ -192,7 +202,12 @@ export function buildGraph(workspace, repo = REPO) {
  * @returns {Set<string>}
  */
 function aliasEdges(project, workspace, repo) {
-  const pattern = /(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/gu;
+  // Three shapes, and the third is the one that used to be invisible: `import '@cb/x';` — a polyfill,
+  // a global stylesheet side-effect, a locale or an interceptor registration. It has no `from`, so a
+  // pattern anchored on `from` could not see it, and the importing project silently lost the edge.
+  // `import\s+` must come last and requires the quote to follow directly, so it never swallows
+  // `import x from '…'` (already covered by the `from` branch) or `import('…')`.
+  const pattern = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/gu;
   const deps = new Set();
   for (const file of listFiles(repo, project.root)) {
     if (!/\.(?:ts|mts)$/u.test(file) || /\.d\.ts$/u.test(file)) continue;
@@ -256,10 +271,16 @@ export function changedFiles(base, repo = REPO) {
   // -z and quotePath=false: a path with a non-ASCII character would otherwise come back quoted and
   // octal-escaped ("apps/x/src/za\305\274.ts") and match no project root.
   const quiet = ['-c', 'core.quotePath=false'];
+  // --no-renames, and it is not optional. git's `diff.renames` defaults to ON, and a renamed file is
+  // then reported ONLY under its NEW path — so the project that LOST the file never enters the seed
+  // set and drops out of the answer without a word. Measured: moving a file out of a library to a
+  // path outside every project answered `[]`, fully green, while that library's build was broken.
+  // `ls-files --others` lists untracked paths and knows nothing about renames, so it stays as is.
+  const named = [...quiet, 'diff', '-z', '--name-only', '--no-renames'];
   const outputs = [
-    git([...quiet, 'diff', '-z', '--name-only', mergeBase, 'HEAD'], repo),
-    git([...quiet, 'diff', '-z', '--name-only'], repo),
-    git([...quiet, 'diff', '-z', '--name-only', '--cached'], repo),
+    git([...named, mergeBase, 'HEAD'], repo),
+    git([...named], repo),
+    git([...named, '--cached'], repo),
     git([...quiet, 'ls-files', '-z', '--others', '--exclude-standard'], repo),
   ];
   const files = new Set();
