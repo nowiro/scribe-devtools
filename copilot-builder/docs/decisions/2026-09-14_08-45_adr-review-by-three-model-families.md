@@ -65,3 +65,10 @@ scala trzy tabele i liczy, ile rodzin zgłosiło to samo.**
 - Zadania klasy ryzyka dostają przed implementacją wiersz review przez trzy miejsca.
 - `code-reviewer-ui` ocenia zrzuty na pięciu szerokościach `ui.viewports` (odstępy, wyrównania,
   nachodzenie, scroll, stany) względem makiety; pomiary dostarcza flow browser-inspectora.
+
+## Zmiany po przyjęciu
+
+- 2026-09-15: `review.seats` stało się pulą (czwarte miejsce `code-reviewer-google`), a jeden review czyta
+  `review.seatsPerReview` miejsc wylosowanych skryptem `npm run review:draw` — koszt review bez zmian, rodziny
+  rotują; brama A20 pilnuje liczby. Reguły tego ADR (ten sam brief, pełny zakres, różne rodziny, A18) stoją —
+  [ADR](2026-09-15_08-36_adr-review-seat-pool-and-random-draw.md).

@@ -33,6 +33,11 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
   wyłącznie rodziną modelu (tiery `main-anthropic` / `main-openai` / `main-moonshot`, `review.seats` w rejestrze); orkiestrator scala
   trzy tabele z liczbą zgodnych rodzin, `ai:validate` A18 odrzuca dwa miejsca na jednej rodzinie. ADR
   w `docs/decisions/`.
+- Pula miejsc review większa niż jeden review: czwarte miejsce `code-reviewer-google` (tier `main-google`)
+  w `review.seats`, a `review.seatsPerReview` w rejestrze mówi, ile miejsc z puli czyta jeden review (dziś
+  trzy z czterech — koszt review bez zmian, rodziny rotują). Które miejsca — losuje `npm run review:draw`
+  i zapisuje `draw.json` w katalogu review; `review:merge` czyta go jako listę rodzin, które mają oddać
+  raport; brama A20 pilnuje, że liczba mieści się między 2 a rozmiarem puli. ADR w `docs/decisions/`.
 - Widoczny orkiestrator nazywa się `orchestrator` (było `orchestrator-sdd`); wzorzec nazw w rejestrze
   dopuszcza gołe `orchestrator` dla jedynego koordynatora.
 - `code-reviewer-ui` ocenia zrzuty na pięciu szerokościach `ui.viewports` względem makiety: odstępy,
@@ -55,7 +60,7 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
   łączy raporty trzech miejsc review w jedną tabelę z liczbą zgodnych rodzin, konfliktami 🔴/🟢 i werdyktem
   najgorszym z trzech — orkiestrator czyta wynik, nie trzy tabele.
 - Orkiestrator na tierze `fast`: jego plik jest procedurą (krok 0 „co przyszło → co robisz", kroki 1–9
-  drabiny z warunkiem wejścia, dokładnymi komendami i wyjściem, stały szablon briefu, review w 8 krokach, krok
+  drabiny z warunkiem wejścia, dokładnymi komendami i wyjściem, stały szablon briefu, review w 9 krokach, krok
   commit, jedyny kształt STOP, format run-logu, lista „nigdy"), a opis każdego subagenta ma szablon
   „wejście / wyjście / nigdy" — tani model orkiestruje po procedurze, nie po wyczuciu.
 - Miejsca review na tańszym modelu każdej rodziny: niezależność bierze się z rodzin, nie z flagowych modeli,

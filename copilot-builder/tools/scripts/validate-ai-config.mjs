@@ -26,8 +26,10 @@
 //   A16 every MCP server starts a pinned local binary (`node node_modules/…`), never `npx` or a moving tag
 //   A17 the orchestrator's routing table names every other roster agent (no agent is unreachable)
 //   A18 every review seat (registry `review.seats`: agent → promised family) is a roster reviewer whose model IS
-//       of that family, and the three families differ — three readings by one vendor are one reading
+//       of that family, and no two seats share a family — two readings by one vendor are one reading
 //   A19 the orchestrator's routing table is the one route.mjs renders from routing.config.mjs (npm run route -- --sync)
+//   A20 `review.seatsPerReview` (how many seats review-draw draws for one review) is an integer from 2 to the
+//       pool size — one reading is no cross-check, and a review cannot draw more seats than exist
 //
 // Exit codes: 0 pass · 1 violation · 2 environment error.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -55,6 +57,7 @@ const FORBIDDEN = FORBIDDEN_PATHS.map(([file]) => file).filter(
  * @property {string} mcpOwner
  * @property {Record<string, string>} families model name → family (vendor), from `models`
  * @property {Record<string, string>} reviewSeats seat agent → the model family it promises (`review.seats`)
+ * @property {unknown} seatsPerReview how many seats one review draws from the pool (`review.seatsPerReview`)
  */
 
 /**
@@ -131,6 +134,7 @@ function readRegistry(repo) {
       Object.entries(registry.models ?? {}).map(([name, model]) => [name, String(model?.family ?? '')]),
     ),
     reviewSeats: registry.review?.seats ?? {},
+    seatsPerReview: registry.review?.seatsPerReview,
   };
 }
 
@@ -388,9 +392,9 @@ function checkRouting(repo, registry, fail) {
 }
 
 /**
- * A18 — the review seats. Three reviews are worth three main seats only when they are independent, and
- * independence is a property of the model FAMILIES, not of the prompts: the same brief read by one vendor
- * three times shares that vendor's blind spots. Each seat is NAMED after the family it promises
+ * A18 — the review seats. Several readings are worth several main seats only when they are independent,
+ * and independence is a property of the model FAMILIES, not of the prompts: the same brief read by one
+ * vendor twice shares that vendor's blind spots. Each seat is NAMED after the family it promises
  * (`review.seats`: agent → family), so the gate checks the promise — the model behind the seat's tier is
  * of that family — and that no two seats end up on one family.
  * @param {Registry} registry @param {Fail} fail
@@ -424,9 +428,32 @@ function checkReviewSeats(registry, fail) {
     if (seatsOnIt.length > 1)
       fail(
         'A18',
-        `review seats ${seatsOnIt.join(' and ')} both run on the ${family} family — three readings by one vendor are one reading`,
+        `review seats ${seatsOnIt.join(' and ')} both run on the ${family} family — two readings by one vendor are one reading`,
       );
   }
+}
+
+/**
+ * A20 — how many seats one review uses. review-draw takes `review.seatsPerReview` seats of the pool at
+ * random: below two there is nothing to cross-check, above the pool size there is nothing to draw, and a
+ * missing or fractional number would leave the draw to the orchestrator's imagination.
+ * @param {Registry} registry @param {Fail} fail
+ */
+function checkSeatsPerReview(registry, fail) {
+  const pool = Object.keys(registry.reviewSeats).length;
+  if (pool === 0) return; // A18 has already named the empty pool
+  const count = registry.seatsPerReview;
+  const range = `an integer from 2 to ${pool} (the size of review.seats)`;
+  if (count === undefined) {
+    fail('A20', `review.seatsPerReview is missing — ${range}; equal to ${pool} means every seat reads every review`);
+    return;
+  }
+  if (typeof count !== 'number' || !Number.isInteger(count)) {
+    fail('A20', `review.seatsPerReview is ${JSON.stringify(count)}, not ${range}`);
+    return;
+  }
+  if (count < 2) fail('A20', `review.seatsPerReview is ${count} — one reading is no cross-check; ${range}`);
+  if (count > pool) fail('A20', `review.seatsPerReview is ${count}, but the pool has ${pool} seats — ${range}`);
 }
 
 /**
@@ -480,6 +507,7 @@ export function validateAiConfig(repo = REPO) {
   checkMcpConfig(repo, fail);
   checkRouting(repo, registry, fail);
   checkReviewSeats(registry, fail);
+  checkSeatsPerReview(registry, fail);
 
   // A12 — the human-readable roster.
   const agentsMd = path.join(repo, 'AGENTS.md');
@@ -493,7 +521,7 @@ export function validateAiConfig(repo = REPO) {
     fail('A12', 'AGENTS.md is missing');
   }
 
-  const summary = `${files.length} agents (${visible} visible), ${Object.keys(registry.tiers).length} tiers, ${servers.length} MCP server(s) owned by ${registry.mcpOwner || '—'}, ${Object.keys(registry.reviewSeats).length} review seats`;
+  const summary = `${files.length} agents (${visible} visible), ${Object.keys(registry.tiers).length} tiers, ${servers.length} MCP server(s) owned by ${registry.mcpOwner || '—'}, ${Object.keys(registry.reviewSeats).length} review seats (${String(registry.seatsPerReview)} per review)`;
   return { ok: problems.length === 0, code: problems.length === 0 ? 0 : 1, problems, summary };
 }
 

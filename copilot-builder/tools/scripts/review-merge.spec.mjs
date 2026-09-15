@@ -2,7 +2,15 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { expandInputs, findingsTable, mergeReviews, parseArgs, parseReport, renderMerged } from './review-merge.mjs';
+import {
+  expandInputs,
+  expectedFamilies,
+  findingsTable,
+  mergeReviews,
+  parseArgs,
+  parseReport,
+  renderMerged,
+} from './review-merge.mjs';
 
 const HEADER = '| Plik | Linia | Problem | 🔴🟡🟢 | Sugestia |\n| --- | --- | --- | --- | --- |\n';
 
@@ -76,12 +84,12 @@ describe('mergeReviews', () => {
   });
 
   it('names a missing seat and a family without a seat instead of averaging them away', () => {
-    const partial = mergeReviews([/** @type {any} */ (parseReport(MOONSHOT, 'google'))], SEATS);
+    const partial = mergeReviews([/** @type {any} */ (parseReport(MOONSHOT, 'mistral'))], SEATS);
     expect(partial.warnings).toEqual([
-      'brak raportu rodziny anthropic — rejestr ma to miejsce w review.seats',
-      'brak raportu rodziny openai — rejestr ma to miejsce w review.seats',
-      'brak raportu rodziny moonshot — rejestr ma to miejsce w review.seats',
-      'raport rodziny google, która nie ma miejsca w review.seats',
+      'brak raportu rodziny anthropic — to miejsce ma oddać raport w tym review',
+      'brak raportu rodziny openai — to miejsce ma oddać raport w tym review',
+      'brak raportu rodziny moonshot — to miejsce ma oddać raport w tym review',
+      'raport rodziny mistral, która nie ma miejsca w tym review',
     ]);
   });
 });
@@ -134,6 +142,20 @@ describe('CLI helpers', () => {
       out: 'x.md',
       slug: 's',
     });
+  });
+
+  it('expectedFamilies reads the draw recorded in a directory and falls back to the registry pool', () => {
+    const run = path.join(dir, 'run');
+    mkdirSync(run);
+    writeFileSync(
+      path.join(run, 'draw.json'),
+      JSON.stringify({ seats: { 'code-reviewer-openai': 'openai', 'code-reviewer-moonshot': 'moonshot' } }),
+      'utf8',
+    );
+    expect(expectedFamilies(['loose.md', run])).toEqual(['openai', 'moonshot']);
+    const pool = expectedFamilies([path.join(dir, 'no-such-dir'), 'loose.md']);
+    expect(pool.length).toBeGreaterThanOrEqual(2);
+    expect(pool).toContain('anthropic');
   });
 
   it('expandInputs takes every *.md of a directory, sorted, and passes files through', () => {

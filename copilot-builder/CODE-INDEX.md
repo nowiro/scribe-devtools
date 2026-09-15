@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 95.
+Modules: 96.
 
 ## tools/alm/integrations/browser-inspector/read-browser-inspector.ts
 - purpose: web pages through a real browser, as a script instead of the Playwright MCP server.
@@ -469,7 +469,7 @@ Modules: 95.
 ## tools/scripts/lib/repo.mjs
 - purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
 - exports: `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
-- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
+- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-draw.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/new-project.mjs
 - purpose: the ONE way an application or a library is added to this workspace (0 credits).
@@ -481,10 +481,16 @@ Modules: 95.
 - exports: `FROZEN_ALWAYS`, `PINS`
 - imported by: `tools/scripts/check-pins.mjs`, `tools/scripts/check-upstream.mjs`
 
+## tools/scripts/review-draw.mjs
+- purpose: which seats read THIS change: `review.seatsPerReview` seats of the `review.seats` pool, drawn at random (0 credits).
+- exports: `DRAW_FILE`, `drawForDirectory(dir, {…}) → { draw: Draw, recorded: boolean }`, `drawSeats(items, count, random) → T[]`, `formatDraw(draw) → string`, `readDraw(file) → Draw | null`, `reviewPool(repo) → { seats: [string, string][], seatsPerReview: number }`, `runCli(argv) → number`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/stamp.mjs`
+- imported by: `tools/scripts/review-merge.mjs`
+
 ## tools/scripts/review-merge.mjs
-- purpose: three readings of one change, from three model families, into one table (0 credits).
-- exports: `SEVERITY`, `VERDICTS`, `expandInputs(inputs) → string[]`, `findingsTable(markdown) → { header: string[], rows: string[][] } | null`, `mergeReviews(reports, seatFamilies) → Merged`, `parseArgs(argv) → { inputs: string[], out: string | null, slug: string }`, `parseReport(markdown, family) → Report | null`, `renderMerged(merged, {…}) → string`, `reviewSeatFamilies(repo) → string[]`, `runCli(argv) → number`, `severityOf(cell) → Severity | null`
-- imports: `tools/scripts/lib/md-table.mjs`, `tools/scripts/lib/repo.mjs`
+- purpose: the readings of one change, from several model families, into one table (0 credits).
+- exports: `SEVERITY`, `VERDICTS`, `expandInputs(inputs) → string[]`, `expectedFamilies(inputs, repo) → string[]`, `findingsTable(markdown) → { header: string[], rows: string[][] } | null`, `mergeReviews(reports, seatFamilies) → Merged`, `parseArgs(argv) → { inputs: string[], out: string | null, slug: string }`, `parseReport(markdown, family) → Report | null`, `renderMerged(merged, {…}) → string`, `reviewSeatFamilies(repo) → string[]`, `runCli(argv) → number`, `severityOf(cell) → Severity | null`
+- imports: `tools/scripts/lib/md-table.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/review-draw.mjs`
 
 ## tools/scripts/route.mjs
 - purpose: who touches a path, answered from tools/scripts/routing.config.mjs (0 credits).
@@ -517,7 +523,7 @@ Modules: 95.
 ## tools/scripts/stamp.mjs
 - purpose: reading the `YYYY-MM-DD_HH-MM` stamp out of an artifact name.
 - exports: `STAMP_TIMEZONE`, `nowStamp(now, timeZone) → string`, `stampToEpoch(year, month, day, hour, minute, timeZone) → number`
-- imported by: `tools/hooks/handoff.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/workflow-specify.mjs`
+- imported by: `tools/hooks/handoff.mjs`, `tools/scripts/review-draw.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/validate-ai-config.mjs
 - purpose: the gate over the GitHub Copilot configuration (0 credits; pre-commit, session-stop hook and `npm run verify`).

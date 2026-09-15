@@ -25,7 +25,8 @@ deterministycznie.
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                            |
 | `npm run sdd -- next\|brief\|task\|log …`               | plan i run-log przez skrypt: następne zadanie, brief z planu, status i SHA zadania, wiersz run-logu (skill `sdd-scripts`) |
 | `npm run route -- <ścieżki>` / `-- --changed` / `-- --sync` | kto dotyka których plików (z `tools/scripts/routing.config.mjs`); `--sync` regeneruje tabelę routingu orkiestratora |
-| `npm run review:merge -- <katalog\|pliki> [--slug s] [--out plik]` | scala raporty miejsc review w jedną tabelę: liczba zgodnych rodzin, konflikty 🔴/🟢, werdykt najgorszy z trzech |
+| `npm run review:draw -- <katalog>`                   | losuje `review.seatsPerReview` miejsc z puli `review.seats` i zapisuje `draw.json` w katalogu review (ponowne uruchomienie drukuje zapisane losowanie) |
+| `npm run review:merge -- <katalog\|pliki> [--slug s] [--out plik]` | scala raporty miejsc review w jedną tabelę: liczba zgodnych rodzin, konflikty 🔴/🟢, werdykt najgorszy z miejsc; oczekiwane rodziny z `draw.json` |
 | `npm run alm:read -- <źródło> [config] [--stamp X]`    | snapshot Jira (z Xray — pluginem testów w Jirze)/Confluence/GitLab/Sonar/Figma/Miro/WWW do `.alm/`                |
 | `npm run alm:create\|alm:update -- <źródło> <plik.md>` | publikacja Markdownu z front matter (dry-run; `--yes` zapisuje)                         |
 | `npm run browser-inspector -- <config.json>` / `-- open <url>` | flow batch albo sesja interaktywna w systemowym Chrome/Edge                      |
@@ -42,7 +43,7 @@ deterministycznie.
 | `format:check`             | Biome (TS/JS/JSON/CSS; 120 kolumn, LF, pojedyncze cudzysłowy). Markdown i szablony HTML — bez formatera |
 | `check:pins`               | `tools/scripts/pins.config.mjs` jedynym miejscem deklaracji wersji; każda zależność ma wiersz z `why`; reguła TAG: tag obrazu Playwrighta w CI = pin |
 | `guard:forbidden`          | brak plików innych asystentów, GitHub Actions, Nx, Prettiera, Husky, drugiego lockfile'a; brak nazw własnych narzędzia źródłowego w ścieżce i treści każdego śledzonego pliku (`FORBIDDEN_WORDS`) |
-| `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna i równa `routing.config.mjs`, trzy miejsca review na trzech rodzinach modeli (A1–A19) |
+| `ai:validate`              | roster ↔ pliki agentów, tiery ↔ modele, uprawnienia wg roli, jeden widoczny agent, MCP tylko u `mcp-gateway`; hook `deny-writes` u ról read-only, komendy hooków tylko `node tools/hooks/*.mjs`, zakaz `web`, serwer MCP z `node_modules`, tabela routingu kompletna i równa `routing.config.mjs`, miejsca review na różnych rodzinach modeli, liczba miejsc na review w zakresie puli (A1–A20) |
 | `sdd:check`                | nazwy i wiersze INDEX artefaktów commitowanych; front matter spec/plan, `[?]`, agenci z rosteru, `agent` = `route` dla `paths` zadania (C5) |
 | `stack:check`              | blok AUTOGEN w `docs/tech-stack.md` zgodny z `package.json`                                             |
 | `code-index --check`       | świeżość `CODE-INDEX.md`                                                                                |
@@ -68,7 +69,8 @@ deterministycznie.
 - bloki `INSTRUCTION:browser-inspector` i `INSTRUCTION:alm` niżej ↔ `.github/copilot-instructions.md`;
 - roster w `.github/models-registry.json` ↔ pliki `.github/agents/*.agent.md` ↔ tabela rosteru niżej
   ↔ tabela routingu w `orchestrator` (generowana z `tools/scripts/routing.config.mjs`, brama A19);
-- trzy miejsca review (`review.seats` w rejestrze) ↔ trzy różne `family` w `models` (A18) ↔ sekcja „Review"
+- pula miejsc review (`review.seats` w rejestrze) ↔ różne `family` w `models` (A18) ↔ `review.seatsPerReview`
+  (A20, `npm run review:draw`) ↔ sekcja „Review"
   w `orchestrator` i prompt `/review`;
 - serwery w `.vscode/mcp.json` ↔ lista `tools:` agenta `mcp-gateway`;
 - wersja `@playwright/test` ↔ tag obrazu Playwrighta w `.gitlab-ci.yml` (reguła TAG w `check:pins`);
@@ -81,7 +83,8 @@ deterministycznie.
 ## Roster
 
 Jeden agent widoczny, reszta przez delegację. Rola i tier żyją w `.github/models-registry.json`. Review kodu
-to ten sam brief do trzech miejsc na trzech rodzinach modeli (`review.seats`); orkiestrator scala i liczy zgodne rodziny.
+to ten sam brief do `review.seatsPerReview` miejsc wylosowanych z puli `review.seats` (różne rodziny modeli,
+`npm run review:draw`); orkiestrator scala skryptem i liczy zgodne rodziny.
 
 | Agent               | Rola         | Tier   | Widoczny | Zakres                                                            |
 | ------------------- | ------------ | ------ | -------- | ----------------------------------------------------------------- |
@@ -91,9 +94,10 @@ to ten sam brief do trzech miejsc na trzech rodzinach modeli (`review.seats`); o
 | `code-tester-unit`  | tester       | fast     | nie      | `**/*.spec.ts`, `tools/**/*.spec.mjs`                             |
 | `code-tester-e2e`   | tester       | base     | nie      | `apps/*-e2e/**` (Playwright)                                      |
 | `code-verifier`     | verifier     | fast     | nie      | uruchamia bramy, raportuje pierwszą czerwoną                      |
-| `code-reviewer-anthropic`   | reviewer     | main-anthropic   | nie      | review kodu w rodzinie anthropic — pełny zakres (architektura, jakość, bezpieczeństwo), ten sam brief co pozostałe dwa miejsca — tylko odczyt |
+| `code-reviewer-anthropic`   | reviewer     | main-anthropic   | nie      | review kodu w rodzinie anthropic — pełny zakres (architektura, jakość, bezpieczeństwo), ten sam brief co pozostałe miejsca — tylko odczyt |
 | `code-reviewer-openai`   | reviewer     | main-openai   | nie      | review kodu w rodzinie openai — ten sam brief i zakres — tylko odczyt |
 | `code-reviewer-moonshot`   | reviewer     | main-moonshot   | nie      | review kodu w rodzinie moonshot — ten sam brief i zakres — tylko odczyt |
+| `code-reviewer-google`   | reviewer     | main-google   | nie      | review kodu w rodzinie google — ten sam brief i zakres — tylko odczyt |
 | `code-reviewer-ui`  | reviewer     | vision | nie      | zrzuty na 5 szerokościach vs makieta i AC: odstępy, wyrównania, nachodzenie, scroll — tylko odczyt |
 | `doc-intake`        | triager      | fast     | nie      | klasyfikacja zgłoszenia, streszczenia, commit message, INDEX     |
 | `doc-spec`          | writer       | base     | nie      | spec, plan, run-log, ADR, raporty review (`docs/**`)              |

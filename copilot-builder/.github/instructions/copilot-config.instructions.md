@@ -6,7 +6,7 @@ applyTo: '.github/**'
 # Konfiguracja Copilota (`.github/`)
 
 Właściciel: `code-tooling` (mechanika) i `doc-spec` (treść prompta / agenta). Brama: `npm run ai:validate`
-(reguły A1–A19 w `tools/scripts/validate-ai-config.mjs`). Po zmianie agentów: **Reload Window** w VS Code.
+(reguły A1–A20 w `tools/scripts/validate-ai-config.mjs`). Po zmianie agentów: **Reload Window** w VS Code.
 
 - Roster żyje w `.github/models-registry.json` (`agents.roster`: rola, tier, widoczność) — plik agenta bez
   wpisu w rosterze i wpis bez pliku są usterką. Nazwy `<domena>-<przedmiot>`: `code-*`, `doc-*`, `scm-*`, `mcp-*`;
@@ -18,10 +18,12 @@ Właściciel: `code-tooling` (mechanika) i `doc-spec` (treść prompta / agenta)
   i czego nie robi; plik orkiestratora jest procedurą z dokładnymi komendami, nie opisem.
 - `model:` to nazwa, którą rejestr przypisuje tierowi z rosteru — zmiana modelu to zmiana rejestru
   (`tiers`), nigdy pliku agenta. `description` zaczyna się od tagu tieru (`fast ·`, `base ·`, `main-<rodzina> ·`, `vision ·`).
-- Review kodu to trzy miejsca z `review.seats` rejestru na trzech RÓŻNYCH rodzinach modeli (`models.*.family`),
+- Review kodu to miejsca z puli `review.seats` rejestru na RÓŻNYCH rodzinach modeli (`models.*.family`),
   ten sam brief i zakres; miejsce nazywa się po rodzinie, którą obiecuje (`code-reviewer-<rodzina>`, tier
-  `main-<rodzina>`), a A18 sprawdza, że model za tierem jest z tej rodziny i że trzy rodziny są różne —
-  zmiana dostawcy to zmiana nazwy agenta, tieru i wpisu w `review.seats`.
+  `main-<rodzina>`). A18 sprawdza, że model za tierem jest z tej rodziny i że rodziny są różne; A20 — że
+  `review.seatsPerReview` (ile miejsc losuje `npm run review:draw` do jednego review) mieści się między 2
+  a rozmiarem puli. Zmiana dostawcy to zmiana nazwy agenta, tieru i wpisu w `review.seats`; nowa rodzina to
+  jedno miejsce więcej w puli.
 - `tools:` wynika z roli (`agents.roles` w rejestrze): reviewer/triager bez `edit` i `execute`, writer z
   `edit`, tester z `edit` + `execute`, verifier z `execute`, scm z `execute` bez `edit` (`scm-git` — jedyny
   `git commit`), orchestrator z `agent`. Reviewer ma dodatkowo

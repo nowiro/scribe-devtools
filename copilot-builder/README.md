@@ -60,7 +60,8 @@ plan Copilota organizacji, `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify
 | `npm run workflow:specify -- --verb=<v> --slug=<s>`    | scaffold spec + plan + run-log SDD (lokalne)                                   |
 | `npm run sdd -- next\|brief\|task\|log …`             | plan i run-log przez skrypt: następne zadanie, brief, status i SHA, wiersz run-logu |
 | `npm run route -- <ścieżki>` / `-- --changed`           | kto dotyka których plików (jedno źródło: `tools/scripts/routing.config.mjs`)   |
-| `npm run review:merge -- <katalog> [--out plik]`       | scala raporty trzech miejsc review: zgodne rodziny, konflikty, werdykt          |
+| `npm run review:draw -- <katalog>`                     | losuje miejsca review z puli (`review.seatsPerReview` z `review.seats`), zapisuje `draw.json` |
+| `npm run review:merge -- <katalog> [--out plik]`       | scala raporty wylosowanych miejsc review: zgodne rodziny, konflikty, werdykt   |
 | `npm run alm:read -- <źródło>`                         | snapshot ALM do `.alm/` (Jira z pluginem Xray, Confluence, GitLab, Sonar, Figma, Miro, WWW) |
 | `npm run alm:create` / `alm:update -- <źródło> <plik>` | publikacja Markdownu (dry-run; `--yes` zapisuje)                               |
 | `npm run browser-inspector -- …`                       | flow z configu albo sesja interaktywna na refach `eN`                          |
@@ -116,6 +117,7 @@ z odhaczoną listą DoD. Do repozytorium trafiają ADR-y i raporty review.
 | `code-reviewer-anthropic`  | main-anthropic   | review kodu w rodzinie anthropic — pełny zakres, ten sam brief co pozostałe (tylko odczyt)    |
 | `code-reviewer-openai`  | main-openai   | review kodu w rodzinie openai — ten sam brief i zakres (tylko odczyt)   |
 | `code-reviewer-moonshot`  | main-moonshot   | review kodu w rodzinie moonshot — ten sam brief i zakres (tylko odczyt)   |
+| `code-reviewer-google`  | main-google   | review kodu w rodzinie google — ten sam brief i zakres (tylko odczyt)   |
 | `code-reviewer-ui` | vision | zrzuty na 5 szerokościach vs makieta i AC (tylko odczyt)                    |
 | `doc-intake`       | fast     | klasyfikacja zgłoszenia, streszczenia, commit message                       |
 | `doc-spec`         | base     | spec, plan, run-log, ADR, raporty review                                    |
@@ -125,9 +127,10 @@ z odhaczoną listą DoD. Do repozytorium trafiają ADR-y i raporty review.
 
 Tiery rozwijają się do nazw modeli wyłącznie w `.github/models-registry.json` — zmiana planu Copilota
 w organizacji to zmiana `policy.enabled` i `tiers`, nie plików agentów. `npm run ai:validate` pilnuje
-rosteru, uprawnień wg roli, jednego widocznego agenta, jednego właściciela MCP i tego, że trzy miejsca
-review kodu (`review.seats`) stoją na trzech różnych rodzinach modeli — ten sam brief czytany przez trzy
-rodziny to weryfikacja krzyżowa, więc niezależność jest bramą (A18), nie prośbą w prompcie.
+rosteru, uprawnień wg roli, jednego widocznego agenta, jednego właściciela MCP i tego, że miejsca review
+kodu (`review.seats`) stoją na różnych rodzinach modeli, a jeden review losuje ich `review.seatsPerReview`
+(`npm run review:draw`, A20) — ten sam brief czytany przez kilka rodzin to weryfikacja krzyżowa, więc
+niezależność jest bramą (A18), nie prośbą w prompcie.
 
 ## ALM i przeglądarka bez serwerów MCP
 

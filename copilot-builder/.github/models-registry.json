@@ -28,6 +28,9 @@
     },
     "GPT-5.4 mini": {
       "family": "openai"
+    },
+    "Gemini 3.8 Flash": {
+      "family": "google"
     }
   },
   "policy": {
@@ -40,16 +43,18 @@
       "Claude Haiku 4.5",
       "Claude Sonnet 5",
       "Kimi K2.7 Code",
-      "Kimi K3"
+      "Kimi K3",
+      "Gemini 3.8 Flash"
     ]
   },
   "tiers": {
-    "$comment": "Every tier runs the cheapest capable model of its class ON PURPOSE: the agent files are procedures with exact commands and fixed return templates, the SDD tables are edited by scripts (npm run sdd), routing and review merging are scripts, and review is cross-checked by three families — a weak model has nothing to improvise. fast — mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator. base — code, e2e, specs and prose review. main-<family> — the three code-review seats (see `review`), named after the model family behind them; each takes the cheapest model of its family. vision — a model that reads screenshots. Stronger models are one edit here (A2 requires them in policy.enabled).",
+    "$comment": "Every tier runs the cheapest capable model of its class ON PURPOSE: the agent files are procedures with exact commands and fixed return templates, the SDD tables are edited by scripts (npm run sdd), routing, the review draw and review merging are scripts, and review is cross-checked by several model families — a weak model has nothing to improvise. fast — mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator. base — code, e2e, specs and prose review. main-<family> — the code-review seats (see `review`), named after the model family behind them; each takes the cheapest model of its family. vision — a model that reads screenshots. Stronger models are one edit here (A2 requires them in policy.enabled).",
     "fast": "GPT-5.6 Luna",
     "base": "GPT-5.4 mini",
     "main-anthropic": "Claude Haiku 4.5",
     "main-openai": "GPT-5.4 mini",
     "main-moonshot": "Kimi K2.7 Code",
+    "main-google": "Gemini 3.8 Flash",
     "vision": "GPT-5 mini"
   },
   "agents": {
@@ -147,6 +152,11 @@
         "tier": "main-moonshot",
         "visible": false
       },
+      "code-reviewer-google": {
+        "role": "reviewer",
+        "tier": "main-google",
+        "visible": false
+      },
       "code-reviewer-ui": {
         "role": "reviewer",
         "tier": "vision",
@@ -180,12 +190,14 @@
     }
   },
   "review": {
-    "$comment": "Code review is a cross-verification by three model families, not one reading: the three seats get the SAME brief and the SAME full scope (architecture, quality, security) and differ only in the family of the model behind them, so a finding two families agree on is confirmed and one vendor's blind spot cannot swallow the whole review. Each seat is named after the family it promises — `seats` maps the agent to that family — and `ai:validate` (A18) checks the promise: the model behind the seat's tier IS of that family, and no two seats share one. Swapping a vendor therefore means renaming the seat, its tier and this entry, all under the gate; any three families satisfy it. The orchestrator sends the brief in parallel, no seat sees another's report, and merges the three tables with a count of agreeing families; the verdict is the worst of the three.",
+    "$comment": "Code review is a cross-verification by several model families, not one reading. `seats` is the POOL: every seat gets the SAME brief and the SAME full scope (architecture, quality, security) and differs only in the family of the model behind it, so a finding two families agree on is confirmed and one vendor's blind spot cannot swallow the whole review. Each seat is named after the family it promises — `seats` maps the agent to that family — and `ai:validate` (A18) checks the promise: the model behind the seat's tier IS of that family, and no two seats share one. `seatsPerReview` says how many seats ONE review uses: `npm run review:draw` draws them at random from the pool (registry order kept) and records the draw in draw.json next to the reports, and `review:merge` reads that file as the list of families that owe a report — so a review costs `seatsPerReview` readings whatever the pool size, and the vendor mix rotates between reviews; equal to the pool size means every seat every time. A20 keeps the number between 2 (one reading is no cross-check) and the pool size. Swapping a vendor means renaming the seat, its tier and this entry, all under the gate; adding one is one more seat here. The orchestrator sends the brief in parallel, no seat sees another's report, and merges the tables with a count of agreeing families; the verdict is the worst of the seats.",
     "seats": {
       "code-reviewer-anthropic": "anthropic",
       "code-reviewer-openai": "openai",
-      "code-reviewer-moonshot": "moonshot"
-    }
+      "code-reviewer-moonshot": "moonshot",
+      "code-reviewer-google": "google"
+    },
+    "seatsPerReview": 3
   },
   "mcp": {
     "$comment": "Every MCP server declared in .vscode/mcp.json has exactly one owner — the integration subagent — and no other agent may name a server or one of its tools in `tools:`. The main session therefore never carries MCP tool schemas; the owner returns an artefact path plus a summary within the token budget.",

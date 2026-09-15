@@ -1,25 +1,27 @@
 #!/usr/bin/env node
-// review-merge.mjs — three readings of one change, from three model families, into one table (0 credits).
+// review-merge.mjs — the readings of one change, from several model families, into one table (0 credits).
 //
 //   node tools/scripts/review-merge.mjs <katalog | <rodzina>.md …> [--out <plik>] [--slug <slug>]
 //
 // Each input is what one review seat returned: a table `| Plik | Linia | Problem | 🔴🟡🟢 | Sugestia |`
 // and a verdict `**APPROVED**` / `**APPROVED z uwagami**` / `**NO-GO**`. A directory argument means
-// every `*.md` in it. The family is the file's base name (`anthropic.md`) and is checked against
-// `review.seats` of the registry: a family that holds no seat, and a seat that sent nothing, are both
-// written into the result — the merge never pretends a reading happened.
+// every `*.md` in it. The family is the file's base name (`anthropic.md`) and is checked against the
+// families that owe a report: the draw recorded in the directory (`draw.json`, written by review-draw)
+// or, without one, every seat of `review.seats`. A family that owes nothing, and a seat that sent
+// nothing, are both written into the result — the merge never pretends a reading happened.
 //
 // The merge is arithmetic on purpose: the same file and line from two families is ONE row with the
-// worst colour and the count of agreeing families (`3×`, `2×` = confirmed, `1×` = candidate); a 🔴 from
-// one family against a 🟢 from another is a conflict listed for the operator, never averaged to 🟡;
-// the verdict is the worst of the seats. Without this script the three tables would be merged inside
-// the orchestrator's context — the most expensive place in the ladder to count.
+// worst colour and the count of agreeing families (`2×` and more = confirmed, `1×` = candidate); a 🔴
+// from one family against a 🟢 from another is a conflict listed for the operator, never averaged to 🟡;
+// the verdict is the worst of the seats. Without this script the tables would be merged inside the
+// orchestrator's context — the most expensive place in the ladder to count.
 //
 // Exit codes: 0 merged · 1 an input has no findings table or no verdict · 2 usage error.
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { cells } from './lib/md-table.mjs';
 import { REPO, isMain } from './lib/repo.mjs';
+import { DRAW_FILE, readDraw } from './review-draw.mjs';
 
 /** @typedef {'🔴' | '🟡' | '🟢'} Severity */
 export const SEVERITY = Object.freeze({ '🔴': 2, '🟡': 1, '🟢': 0 });
@@ -124,18 +126,18 @@ const lineNumber = (line) => Number.parseInt(line, 10) || Number.MAX_SAFE_INTEGE
 
 /**
  * @param {Report[]} reports
- * @param {readonly string[]} seatFamilies the families the registry expects, in its order
+ * @param {readonly string[]} seatFamilies the families that owe a report, in registry order
  * @returns {Merged}
  */
 export function mergeReviews(reports, seatFamilies) {
   const warnings = reports.flatMap((report) => report.warnings);
   const present = new Set(reports.map((report) => report.family));
   for (const family of seatFamilies) {
-    if (!present.has(family)) warnings.push(`brak raportu rodziny ${family} — rejestr ma to miejsce w review.seats`);
+    if (!present.has(family)) warnings.push(`brak raportu rodziny ${family} — to miejsce ma oddać raport w tym review`);
   }
   for (const report of reports) {
     if (seatFamilies.length > 0 && !seatFamilies.includes(report.family)) {
-      warnings.push(`raport rodziny ${report.family}, która nie ma miejsca w review.seats`);
+      warnings.push(`raport rodziny ${report.family}, która nie ma miejsca w tym review`);
     }
   }
   const order = (/** @type {string} */ family) => {
@@ -244,7 +246,7 @@ export function renderMerged(merged, { slug = '' } = {}) {
 }
 
 /**
- * The families the registry seats, in registry order.
+ * The families of every seat in the registry pool, in registry order.
  * @param {string} [repo]
  * @returns {string[]}
  */
@@ -253,6 +255,22 @@ export function reviewSeatFamilies(repo = REPO) {
   if (!existsSync(file)) return [];
   const registry = JSON.parse(readFileSync(file, 'utf8'));
   return Object.values(registry.review?.seats ?? {}).map(String);
+}
+
+/**
+ * The families that owe a report: the draw recorded in the first directory input that holds one
+ * (review-draw writes `draw.json` next to the reports), otherwise every seat of the registry pool.
+ * @param {readonly string[]} inputs the CLI inputs, directories or files
+ * @param {string} [repo]
+ * @returns {string[]}
+ */
+export function expectedFamilies(inputs, repo = REPO) {
+  for (const input of inputs) {
+    if (!existsSync(input) || !statSync(input).isDirectory()) continue;
+    const draw = readDraw(path.join(input, DRAW_FILE));
+    if (draw !== null) return Object.values(draw.seats);
+  }
+  return reviewSeatFamilies(repo);
 }
 
 /**
@@ -324,7 +342,7 @@ export function runCli(argv) {
     reports.push(report);
   }
   if (unreadable > 0) return 1;
-  const merged = mergeReviews(reports, reviewSeatFamilies());
+  const merged = mergeReviews(reports, expectedFamilies(inputs));
   const markdown = renderMerged(merged, { slug });
   if (out === null) process.stdout.write(markdown);
   else {

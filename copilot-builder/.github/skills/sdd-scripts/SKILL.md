@@ -1,6 +1,6 @@
 ---
 name: sdd-scripts
-description: Komendy, którymi prowadzi się drabinę SDD bez edytowania tabel ręcznie — scaffold artefaktów, routing plików, następne zadanie, brief z planu, status i SHA zadania, wiersz run-logu, scalanie review. Użyj zawsze, gdy masz dotknąć planu, run-logu, routingu albo raportów review.
+description: Komendy, którymi prowadzi się drabinę SDD bez edytowania tabel ręcznie — scaffold artefaktów, routing plików, następne zadanie, brief z planu, status i SHA zadania, wiersz run-logu, losowanie miejsc review, scalanie review. Użyj zawsze, gdy masz dotknąć planu, run-logu, routingu albo raportów review.
 ---
 
 # Skrypty SDD — tabel nie edytuje się ręcznie
@@ -18,7 +18,8 @@ jej ręczną edycją.
 | brief dla zadania                        | `npm run sdd -- brief <plan.md> <id>`                                                   | blok AGENT / ZADANIE / PLIKI / AC / BRAMA / BUDŻET / ZWRÓĆ / NIE    |
 | status albo SHA zadania                  | `npm run sdd -- task <plan.md> <id> --status <todo\|in-progress\|done\|n/a> [--commit <sha>]` | zmieniony jeden wiersz planu                                  |
 | wiersz run-logu                          | `npm run sdd -- log <run.md> --step <n> --agent <a> --tier <t> --result "<tekst>" [--status <s>]` | zmieniony albo dopisany wiersz tabeli „Kroki"                |
-| scalone review trzech rodzin             | `npm run review:merge -- <katalog> --slug <slug> --out <plik>`                          | jedna tabela z liczbą zgodnych rodzin, konflikty, werdykt           |
+| które miejsca czytają review             | `npm run review:draw -- <katalog review>`                                              | `<agent>  <rodzina>` per linia; `draw.json` w katalogu (ponowne uruchomienie: to samo) |
+| scalone review wylosowanych miejsc       | `npm run review:merge -- <katalog> --slug <slug> --out <plik>`                          | jedna tabela z liczbą zgodnych rodzin, konflikty, werdykt           |
 | stempel do nazwy artefaktu               | `node -e "import('./tools/scripts/stamp.mjs').then(m=>console.log(m.nowStamp()))"`      | `YYYY-MM-DD_HH-MM`                                                  |
 | czy plan i spec są poprawne              | `npm run sdd:check`                                                                     | `ok` albo lista C1–C5 z plikiem i powodem                           |
 

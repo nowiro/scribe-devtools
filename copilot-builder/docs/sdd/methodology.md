@@ -21,7 +21,7 @@ intake → specify → clarify → plan → analyze (go/no-go) → implement →
 | checklist | `/checklist` (read-only, opcjonalnie)    | ☑/☐ jakości przed pierwszą linią kodu                                            |
 | implement | `code-*` przez delegację (`/implement`)  | kod + testy; jedno zlecenie = jeden wykonawca = jedna brama                      |
 | commit    | `scm-git` (fast) po każdym zadaniu `done`  | `git commit` plików zadania, `type(scope): subject`; SHA w kolumnie `commit` planu |
-| review    | `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` (ten sam brief, trzy rodziny modeli), `doc-reviewer` | `docs/reviews/<stempel>_review-<slug>.md` — trzy tabele scalone skryptem `npm run review:merge` (liczba zgodnych rodzin, konflikty, werdykt najgorszy z trzech) |
+| review    | miejsca `code-reviewer-<rodzina>` wylosowane z `review.seats` (`npm run review:draw`; ten sam brief, różne rodziny modeli), `doc-reviewer` | `docs/reviews/<stempel>_review-<slug>.md` — tabele scalone skryptem `npm run review:merge` (liczba zgodnych rodzin, konflikty, werdykt najgorszy z trzech) |
 | test      | `code-tester-unit`, `code-tester-e2e`    | Vitest + Playwright; progi pokrycia z `tools/testing/vitest-angular.config.mts` |
 | DoD       | `/dod`                                   | `npm run verify` zielone + run-log domknięty                                     |
 

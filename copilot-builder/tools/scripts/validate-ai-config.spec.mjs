@@ -141,6 +141,22 @@ describe('validateAiConfig', () => {
     expect(rulesHit(dir, 'A5')).toHaveLength(0);
   });
 
+  it('A20 — a review that draws one seat, more seats than the pool holds, a string, or nothing', () => {
+    const set = (/** @type {string} */ value) =>
+      patch(dir, '.github/models-registry.json', (text) =>
+        text.replace(/"seatsPerReview": [0-9"]+/u, `"seatsPerReview": ${value}`),
+      );
+    set('1');
+    expect(rulesHit(dir, 'A20')[0]).toContain('one reading is no cross-check');
+    set('99');
+    expect(rulesHit(dir, 'A20')[0]).toContain('the pool has');
+    set('"3"');
+    expect(rulesHit(dir, 'A20')).toHaveLength(1);
+    patch(dir, '.github/models-registry.json', (text) => text.replace(/,[^"]*"seatsPerReview": "3"/u, ''));
+    expect(rulesHit(dir, 'A20')[0]).toContain('missing');
+    expect(rulesHit(dir, 'A18')).toHaveLength(0);
+  });
+
   it('A19 — a routing table edited by hand instead of regenerated from routing.config.mjs', () => {
     patch(dir, '.github/agents/orchestrator.agent.md', (text) =>
       text.replace('<!-- ROUTING:START -->', '<!-- ROUTING:START -->\n| ręczny wiersz | `code-angular` |'),
