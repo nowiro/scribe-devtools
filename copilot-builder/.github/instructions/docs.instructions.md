@@ -5,23 +5,26 @@ applyTo: 'docs/**/*.md,README.md,AGENTS.md,GLOSSARY.md,CHANGELOG.md'
 
 # Dokumentacja
 
-Właściciele: proza procesu (spec, plan, run-log, ADR, review) — `doc-spec`; streszczenia, wiersze
-`docs/INDEX.md`, commit message — `doc-intake`; przegląd — `doc-reviewer`. Brama: `npm run sdd:check`,
-`npm run check:glossary`, `npm run stack:check`.
+Właściciel prozy procesu (spec, plan, run-log, ADR, review): `doc-spec`. Streszczenia, wiersze `docs/INDEX.md`
+i komunikaty commitów: `doc-intake`. Przegląd: `doc-reviewer`. Brama: `npm run sdd:check`, `npm run check:glossary`,
+`npm run stack:check`.
 
-- Proza po polsku, bez ozdobników: zdanie niesie fakt albo powód, inaczej nie ma go w dokumencie.
-  Identyfikatory, ścieżki, komendy po angielsku, w backtickach.
-- Wersje narzędzi NIE stoją w prozie — jedyne miejsce to blok AUTOGEN w `docs/tech-stack.md`
-  (`npm run stack:sync`). Nazwy modeli NIE stoją nigdzie poza `.github/models-registry.json` (tiery).
-- Artefakty commitowane (`docs/decisions/`, `docs/reviews/`) mają nazwę `YYYY-MM-DD_HH-MM_<slug>.md`
-  ze stemplem z realnego zegara i wiersz w `docs/INDEX.md`. Artefakty lokalne (`docs/specs/`,
-  `docs/plans/`, `docs/runs/`) są gitignorowane — nie linkuj ich z dokumentów commitowanych jako źródła prawdy.
-- ADR ma sekcje: Kontekst, Decyzja, Odrzucone alternatywy (z powodem), Konsekwencje. Decyzji się nie
-  kasuje — status `superseded` i wskazanie następcy.
-- `CODE-INDEX.md` jest generowany (`npm run code-index`) — nie edytuj ręcznie. `GLOSSARY.md` mapuje
-  słowa na identyfikatory; każdy odnośnik w kolumnie „gdzie w kodzie" musi istnieć (brama).
-- Bloki `INSTRUCTION:<narzędzie>:START/END` w `AGENTS.md` ≡ kopie w `.github/copilot-instructions.md`
-  (limit 600 bajtów na blok) — `npm run check:instructions`.
-- Diagramy: blok ```mermaid wg skilla `.github/skills/mermaid-diagrams/SKILL.md` (typ do treści, etykiety po
-  polsku, bez kolorów); diagram opisujący kod idzie za kodem w tym samym MR — `doc-reviewer` sprawdza zgodność.
-- Sekcja „Powiązane" na końcu dłuższego dokumentu — dwa, trzy odnośniki, żeby dokument miał wyjście.
+## Reguły
+
+1. Proza po polsku. Zdanie niesie fakt albo powód. Inne zdania kasujesz.
+2. Identyfikatory, ścieżki i komendy po angielsku, w backtickach.
+3. Wersji narzędzi nie wpisujesz w prozę. Stoją tylko w bloku AUTOGEN w `docs/tech-stack.md` (`npm run stack:sync`).
+4. Nazw modeli nie wpisujesz nigdzie poza `.github/models-registry.json`. Piszesz tier.
+5. Plik w `docs/decisions/` albo `docs/reviews/` nazywa się `YYYY-MM-DD_HH-MM_<slug>.md` (stempel
+   z `npm run stamp`) i ma wiersz w `docs/INDEX.md`.
+6. `docs/specs/`, `docs/plans/`, `docs/runs/` są lokalne i gitignorowane. Nie linkujesz ich z dokumentów
+   commitowanych jako źródła prawdy.
+7. ADR ma sekcje: Kontekst, Decyzja, Odrzucone alternatywy (z powodem), Konsekwencje. ADR nie kasujesz:
+   `status: superseded` i pole `superseded_by`.
+8. `CODE-INDEX.md` jest generowany. Nie edytujesz go. W `GLOSSARY.md` każdy odnośnik w kolumnie
+   „gdzie w kodzie" musi istnieć.
+9. Bloki `INSTRUCTION:<narzędzie>:START/END` w `AGENTS.md` i w `.github/copilot-instructions.md` są identyczne,
+   każdy do 600 bajtów.
+10. Diagram: blok ```mermaid według skilla `.github/skills/mermaid-diagrams/SKILL.md`. Diagram opisujący kod
+    zmienia się razem z kodem.
+11. Dłuższy dokument kończy sekcja „Powiązane" z dwoma, trzema odnośnikami.

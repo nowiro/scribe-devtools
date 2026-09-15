@@ -1,19 +1,21 @@
 ---
-description: 'Nowa aplikacja lub biblioteka: skrypt new:app / new:lib, potem lista rzeczy do zrobienia (routing, aliasy, testy, e2e) — nigdy ręczny ng generate'
+description: 'Nowa aplikacja lub biblioteka: skrypt new:app / new:lib, weryfikacja, indeks, pierwszy ekran; nigdy ręczny ng generate'
 agent: orchestrator
 ---
 
-# /new-project — aplikacja albo biblioteka w workspace
+# /new-project
 
-1. Ustal z operatorem: aplikacja (`<nazwa>`; SSR jest poza zakresem szablonu — osobna decyzja z ADR) czy biblioteka (`<zakres>/<typ>-<nazwa>`,
-   typ ∈ `feature | ui | data-access | util` — typ wyznacza, co biblioteka może importować).
-2. Uruchom skrypt (deterministyczny; przywraca `package.json`, ustawia runner testów, alias do źródeł, `OnPush`):
-   - `npm run new:app -- <nazwa> [--port=<n>]` → `apps/<nazwa>` + `apps/<nazwa>-e2e` (Playwright, test dymny na matrycy viewportów z rejestru)
-   - `npm run new:lib -- <zakres>/<typ>-<nazwa>` → `libs/<zakres>/<typ>-<nazwa>`, alias `<ALIAS_SCOPE>/<zakres>/<typ>-<nazwa>` (`tools/scripts/workspace.config.mjs`)
-3. Zweryfikuj: `npm run affected -- lint`, `npm run affected -- typecheck`, `npm run affected -- test`,
-   dla aplikacji także `npm run affected -- build` i `npm run affected -- e2e`.
-4. `npm run code-index` (indeks pokazuje `public-api.ts` / `app.routes.ts` nowego projektu) i `npm run verify -- --static`.
-5. Zleć `code-angular` pierwszy realny ekran / API biblioteki wg spec — placeholder ze scaffoldu nie jest produktem.
-6. Commit przez `scm-git`: `feat(apps): add <nazwa> application` / `feat(libs): add <zakres>/<typ>-<nazwa> library`.
+Wejście od człowieka: aplikacja (`<nazwa>`) albo biblioteka (`<zakres>/<typ>-<nazwa>`, typ to `feature`, `ui`,
+`data-access` albo `util`). Brak jednego z tych pól: STOP z jednym pytaniem.
 
-Nigdy `ng generate application|library` wprost i nigdy ręczne edycje `angular.json` pod nowy projekt.
+1. Aplikacja: `npm run new:app -- <nazwa> [--port=<n>]`. Powstaje `apps/<nazwa>` i `apps/<nazwa>-e2e`.
+   Biblioteka: `npm run new:lib -- <zakres>/<typ>-<nazwa>`. Powstaje `libs/<zakres>/<typ>-<nazwa>` i alias
+   `@cb/<zakres>/<typ>-<nazwa>`.
+2. `npm run affected -- lint`, `npm run affected -- typecheck`, `npm run affected -- test`. Aplikacja: także
+   `npm run affected -- build` i `npm run affected -- e2e`.
+3. `npm run code-index`. `npm run verify -- --static`.
+4. Brief do `code-angular`: pierwszy ekran albo API biblioteki według spec. Placeholder ze scaffoldu nie jest produktem.
+5. Krok C: komunikat `feat(apps): add <nazwa> application` albo `feat(libs): add <zakres>/<typ>-<nazwa> library`,
+   commit przez `scm-git`.
+
+Nigdy `ng generate application|library` wprost. Nigdy ręczna edycja `angular.json` pod nowy projekt.

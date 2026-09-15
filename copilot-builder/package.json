@@ -41,6 +41,7 @@
     "workflow:specify": "node tools/scripts/workflow-specify.mjs",
     "route": "node tools/scripts/route.mjs",
     "sdd": "node tools/scripts/sdd.mjs",
+    "stamp": "node tools/scripts/stamp.mjs",
     "review:draw": "node tools/scripts/review-draw.mjs",
     "review:merge": "node tools/scripts/review-merge.mjs",
     "alm:build": "tsc -p tools/alm/integrations/tsconfig.json",

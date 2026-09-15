@@ -1172,6 +1172,52 @@ export const STEPS = Object.freeze({
     help: 'locator <eN>     (durable selector: data-testid → #id → [name] → role=)',
     fromArgv: ({ ref }) => ({ ref }),
   },
+  tools: {
+    kind: 'query',
+    aliases: [],
+    batch: false,
+    session: true,
+    argv: [],
+    flags: { schema: 'bool' },
+    config: { schema: 'bool?' },
+    describe: () => 'tools',
+    help: 'tools [--schema]     (WebMCP: the tools the page registered on navigator.modelContext; all of them → tools.json)',
+    fromArgv: (_, flags) => ({ ...(flags.schema ? { schema: true } : {}) }),
+  },
+  call: {
+    kind: 'action',
+    aliases: [],
+    batch: false,
+    session: true,
+    argv: ['name', 'input...'],
+    flags: { file: 'string', timeout: 'int' },
+    config: { name: 'string', input: 'object?', file: 'string?', timeout: 'int?' },
+    validate: (s, where) => needOneOf(s, where, ['input', 'file'], { atMost: true }),
+    // The input may carry a value the page treats as a secret — the journal keeps the tool name only.
+    describe: (s) => `call ${String(s.name)}`,
+    help: 'call <tool> [{"json":…}] | call <tool> --file input.json [--timeout ms]     (WebMCP: run a page tool; result → calls/NNN-<tool>.json)',
+    fromArgv: ({ name, input }, flags) => {
+      const text = unquote(/** @type {string[]} */ (input ?? []).join(' '));
+      if (text !== '' && flags.file) throw new Error('give the input inline OR with --file, not both');
+      let parsed;
+      if (text !== '') {
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          throw new Error(`the input is not valid JSON — call ${String(name)} '{"key":"value"}'`);
+        }
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('the input must be a JSON object');
+        }
+      }
+      return {
+        name,
+        ...(parsed !== undefined ? { input: parsed } : {}),
+        ...(flags.file ? { file: flags.file } : {}),
+        ...(flags.timeout !== undefined ? { timeout: flags.timeout } : {}),
+      };
+    },
+  },
   run: {
     kind: 'control',
     aliases: [],

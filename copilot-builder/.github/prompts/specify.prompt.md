@@ -1,19 +1,18 @@
 ---
-description: 'Specify: scaffold spec/plan/run-log skryptem (0 kredytów) i wypełnienie spec treścią z intake, z [?] zamiast domysłów'
+description: 'Specify: scaffold spec, planu i run-logu skryptem i wypełnienie spec treścią z intake, z [?] zamiast domysłów'
 agent: orchestrator
 ---
 
-# /specify — spec z intake
+# /specify
 
-1. Uruchom scaffold (deterministyczny, 0 kredytów):
-   `npm run workflow:specify -- --verb=<verb> --slug=<slug> --title="<tytuł>"` — powstają
-   `docs/specs/<slug>/spec.md`, `docs/plans/<stempel>_<verb>-<slug>.md`, `docs/runs/<stempel>_<slug>.md`
-   (lokalne, gitignorowane). Istniejący slug dostaje `-v2`.
-2. Zleć `doc-spec` wypełnienie spec z bloku intake: Kontekst, User story, Kryteria akceptacji
-   (zakładając / gdy / wtedy, mierzalne, bez technologii), Wejścia i kontrakty, Metryki sukcesu,
-   Non-goals, Pytania otwarte. Każda niepewność = `[?]`, nie założenie.
-3. Sprawdź `npm run sdd:check` (front matter, `id: spec.<slug>`, `status: draft`).
-4. Zapisz krok „specify" w run-logu.
+Wejście od człowieka: blok intake (verb, slug, cel, AC). Wykonujesz krok 2 procedury orkiestratora.
 
-Wyjście: ścieżki trzech artefaktów, liczba `[?]` i następny krok: `/clarify <slug>`. Spec bez `[?]`
-przechodzi od razu do `/plan`.
+1. `npm run workflow:specify -- --verb=<verb> --slug=<slug> --title="<cel>"`. Powstają
+   `docs/specs/<slug>/spec.md`, `docs/plans/<stempel>_<verb>-<slug>.md`, `docs/runs/<stempel>_<slug>.md`.
+   Istniejący slug dostaje `-v2`.
+2. Brief do `doc-spec`: wypełnij spec z bloku intake. Sekcje: Kontekst, User story, Kryteria akceptacji
+   (zakładając / gdy / wtedy, bez technologii), Zakres i poza zakresem, Wejścia i kontrakty, Metryki sukcesu,
+   Ryzyka, Pytania otwarte. Każda niepewność jako `[?]`.
+3. `npm run sdd:check`.
+4. `npm run sdd -- log RUN --step 1 --agent doc-spec --tier base --result "spec, [?]: <liczba>"`.
+5. `[?]` większe od 0: `/clarify <slug>`. Równe 0: `/plan <slug>`.

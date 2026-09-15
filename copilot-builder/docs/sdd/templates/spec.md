@@ -9,8 +9,8 @@ created: '{{date}}'
 
 # Spec: {{title}}
 
-> Artefakt SDD, lokalny (`docs/specs/`, gitignorowany). Kształt: `docs/sdd/templates/spec.md`.
-> Domknij `[?]` przez `/clarify`, zanim powstanie plan (`status: clarified`). Hierarchia prawdy: AC > makieta > domysł.
+> Artefakt SDD, lokalny (`docs/specs/`, gitignorowany). Każda niepewność to `[?]`. `[?]` domyka `/clarify`
+> (`status: clarified`). Kolejność prawdy: AC, potem makieta, potem nic.
 
 ## Kontekst
 
@@ -22,11 +22,11 @@ created: '{{date}}'
 
 ## Kryteria akceptacji
 
-[?] Zakładając / gdy / wtedy — mierzalne, bez nazw technologii. Numerowane: AC1, AC2, … (plan i testy odwołują się do numeru).
+[?] Zakładając / gdy / wtedy. Mierzalne, bez nazw technologii. Numerowane: AC1, AC2, … (plan i testy odwołują się do numeru).
 
 ## Zakres i poza zakresem
 
-[?] Lista numerowana tego, co się zmienia z punktu widzenia użytkownika albo systemu; osobno to, czego celowo nie robimy (YAGNI).
+[?] Lista numerowana tego, co się zmienia dla użytkownika albo systemu. Osobno to, czego celowo nie robimy.
 
 ## Wejścia i kontrakty
 
@@ -38,8 +38,9 @@ created: '{{date}}'
 
 ## Ryzyka i klasa ryzyka
 
-[?] auth · rozliczenia · migracja schematu · współbieżność · dane osobowe · brak — klasa ryzyka wymusza review `code-reviewer-anthropic` + `code-reviewer-openai` + `code-reviewer-moonshot` przed implementacją.
+[?] auth · rozliczenia · migracja schematu · współbieżność · dane osobowe · brak. Klasa inna niż „brak" wymusza
+review przed implementacją przez miejsca z `npm run review:draw`.
 
 ## Pytania otwarte
 
-[?] Wszystko, co wymaga decyzji przed implementacją — `/clarify` domyka.
+[?] Wszystko, co wymaga decyzji przed implementacją. `/clarify` domyka.

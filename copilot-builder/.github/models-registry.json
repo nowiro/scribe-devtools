@@ -1,6 +1,6 @@
 {
   "$comment": "The ONLY place where a tier becomes a model name, and the only source of truth about the roster: which agents exist, what role each one plays, which tier it runs on and whether a human can pick it in the agent list. Every other file (AGENTS.md, .github/agents/*.agent.md, docs) refers to tiers and roles and is checked against this file by `npm run ai:validate`. A model name written anywhere else is a defect. Prices are deliberately absent: they are read from the pricing page when a decision needs them, because a copied number rots silently.",
-  "observedAt": "2026-09-14",
+  "observedAt": "2026-09-15",
   "models": {
     "GPT-5.6 Luna": {
       "family": "openai"
@@ -34,25 +34,15 @@
     }
   },
   "policy": {
-    "$comment": "What the organisation's Copilot plan actually exposes in the model picker. Adjust this list first; then `tiers` — never the agent files. Claude Opus 5 and GPT-5.6 Sol were removed on 2026-09-14 by decision (cost): the review seats run on the cheaper model of each family, and a tier cannot point at a model that is not listed here (A2).",
-    "enabled": [
-      "GPT-5.6 Luna",
-      "GPT-5.4 mini",
-      "GPT-5 mini",
-      "GPT-5.3-Codex",
-      "Claude Haiku 4.5",
-      "Claude Sonnet 5",
-      "Kimi K2.7 Code",
-      "Kimi K3",
-      "Gemini 3.8 Flash"
-    ]
+    "$comment": "What the organisation's Copilot plan actually exposes in the model picker. Adjust this list first; then `tiers` — never the agent files. Claude Opus 5 and GPT-5.6 Sol were removed on 2026-09-14 by decision (cost). On 2026-09-15 the list was narrowed to one model per family — GPT-5.6 Luna (openai), Kimi K2.7 Code (moonshot), Claude Sonnet 5 (anthropic), Gemini 3.8 Flash (google) — plus GPT-5 mini, kept only because it is the one model this registry vouches for as a screenshot reader (vision tier). A tier cannot point at a model that is not listed here (A2).",
+    "enabled": ["GPT-5.6 Luna", "GPT-5 mini", "Claude Sonnet 5", "Kimi K2.7 Code", "Gemini 3.8 Flash"]
   },
   "tiers": {
-    "$comment": "Every tier runs the cheapest capable model of its class ON PURPOSE: the agent files are procedures with exact commands and fixed return templates, the SDD tables are edited by scripts (npm run sdd), routing, the review draw and review merging are scripts, and review is cross-checked by several model families — a weak model has nothing to improvise. fast — mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator. base — code, e2e, specs and prose review. main-<family> — the code-review seats (see `review`), named after the model family behind them; each takes the cheapest model of its family. vision — a model that reads screenshots. Stronger models are one edit here (A2 requires them in policy.enabled).",
+    "$comment": "Every tier runs the cheapest model that the policy exposes for its class ON PURPOSE: the agent files are procedures with exact commands and fixed return templates, the SDD tables are edited by scripts (npm run sdd), routing, the review draw and review merging are scripts, and review is cross-checked by several model families — a weak model has nothing to improvise. fast — mechanics (classification, tooling, unit tests, gates, commits) and the orchestrator. base — code, e2e, specs and prose review; since 2026-09-15 the same model as fast (GPT-5.6 Luna is the cheapest model in the picker, list price 2026-09-15: $0.20 in / $1.20 out per 1M tokens, against $0.75 / $4.50 for GPT-5.4 mini it replaced) — a second attempt after a red gate still costs less than one attempt on the dearer model; if base starts hitting the two-attempt STOP too often, the one edit is `base` → `Claude Sonnet 5`. main-<family> — the code-review seats (see `review`), named after the model family behind them; each takes the ONE model the policy exposes for that family (anthropic: Claude Sonnet 5, $2 / $10 — the only seat that is not the cheapest of its family, by decision of 2026-09-15). vision — a model that reads screenshots. Stronger models are one edit here (A2 requires them in policy.enabled).",
     "fast": "GPT-5.6 Luna",
-    "base": "GPT-5.4 mini",
-    "main-anthropic": "Claude Haiku 4.5",
-    "main-openai": "GPT-5.4 mini",
+    "base": "GPT-5.6 Luna",
+    "main-anthropic": "Claude Sonnet 5",
+    "main-openai": "GPT-5.6 Luna",
     "main-moonshot": "Kimi K2.7 Code",
     "main-google": "Gemini 3.8 Flash",
     "vision": "GPT-5 mini"

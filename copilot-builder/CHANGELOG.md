@@ -28,6 +28,20 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
 
 ### Changed
 
+- browser-inspector: komendy sesyjne `tools` (narzędzia WebMCP zarejestrowane przez stronę, całość w `tools.json`)
+  i `call <tool> {json}` (wykonanie narzędzia, wynik w `calls/NNN-<tool>.json`) przez własny rejestr
+  `navigator.modelContext` instalowany w sesji; w aplikacjach narzędzia WebMCP tylko za `isDevMode()`
+  (sekcja w `angular.instructions.md`). Skill `angular-developer`: referencje z angular/skills wendorowane
+  z przypiętym commitem, bez plików sprzecznych z szablonem; `code-angular` czyta jeden plik na obszar.
+  Dwa ADR-y w `docs/decisions/`.
+
+- Cały roster roboczy na jednym, najtańszym modelu z pickera (tiery `fast` i `base` wskazują ten sam model;
+  miejsca review zostają na czterech rodzinach, `vision` na jedynym modelu z flagą `vision`), a każdy plik
+  w `.github/` przepisany pod mały model: jedno zdanie = jedna instrukcja, kroki z dokładną komendą, stały
+  kształt zwrotu, bez uzasadnień. Procedura review i przeglądu wizualnego w skillu `review-procedure`; prompty
+  to wejście od człowieka plus numer kroku orkiestratora; `npm run stamp` zamiast jednolinijkowca `node -e`;
+  komendy SDD auto-zatwierdzane w `.vscode/settings.json`, limit żądań na turę 60. ADR w `docs/decisions/`.
+
 - Review kodu to weryfikacja krzyżowa przez trzy rodziny modeli zamiast jednego `code-reviewer`:
   `code-reviewer-anthropic`, `code-reviewer-openai`, `code-reviewer-moonshot` dostają ten sam brief i pełny zakres, różnią się
   wyłącznie rodziną modelu (tiery `main-anthropic` / `main-openai` / `main-moonshot`, `review.seats` w rejestrze); orkiestrator scala

@@ -31,6 +31,11 @@ export const BY_PATH = Object.freeze([
   },
   {
     agent: null,
+    globs: ['.github/skills/angular-developer/references/**'],
+    what: 'referencje Angulara wendorowane z angular/skills (commit w SKILL.md) — czyta się, nie przepisuje',
+  },
+  {
+    agent: null,
     globs: ['CODE-INDEX.md'],
     what: 'generowany (`npm run code-index`, hook pre-commit) — nie edytuj',
   },

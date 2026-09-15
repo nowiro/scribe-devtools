@@ -260,7 +260,8 @@ export function resolveValues(parsed, input) {
       );
     }
     const wantsFile =
-      ((step.do === 'evaluate' || step.do === 'route' || step.do === 'run') && typeof step.file === 'string') ||
+      ((step.do === 'evaluate' || step.do === 'route' || step.do === 'run' || step.do === 'call') &&
+        typeof step.file === 'string') ||
       (step.do === 'state' && step.op === 'load' && typeof step.file === 'string');
     if (wantsFile) addFile(step.file, bases, `${address}.file`);
   };

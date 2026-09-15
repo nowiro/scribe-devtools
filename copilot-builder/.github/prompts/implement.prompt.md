@@ -1,24 +1,21 @@
 ---
-description: 'Implement: delegacja zadań planu po ścieżce pliku, jedno zlecenie na wykonawcę, bramy per zadanie, run-log po każdym kroku'
+description: 'Implement: zadania planu po kolei; brief ze skryptu, jeden agent na zadanie, brama przez code-verifier, commit przez scm-git, wiersz run-logu'
 agent: orchestrator
 ---
 
-# /implement — wykonanie planu
+# /implement
 
-Warunek wejścia: `/analyze` = GO. Wykonujesz plan `docs/plans/<stempel>_<verb>-<slug>.md` zadanie po zadaniu.
+Wejście od człowieka: slug. Warunek: `/analyze` = GO. Wykonujesz krok 6 procedury orkiestratora dla
+`docs/plans/<stempel>_<verb>-<slug>.md`, zadanie po zadaniu, potem krok C po każdym zadaniu.
 
-1. Zadanie wskazuje `npm run sdd -- next <plan>`, brief buduje `npm run sdd -- brief <plan> <id>` (AGENT,
-   ZADANIE, PLIKI z kolumny `paths`, AC ze spec, BRAMA z `done_when`, BUDŻET, ZWRÓĆ, NIE) — wysyłasz go
-   dosłownie. Bez historii rozmowy; szablon startowy, gdy obszar go ma (`new:app`, `new:lib`, wzorce
-   z `.github/instructions/`).
-2. Kolejność: scaffold skryptem → `code-angular` (kod) → `code-tester-unit` (spec) → `code-tester-e2e`
-   → `code-verifier` (bramy). Zadania niezależne mogą iść równolegle, wyniki scalasz Ty.
-3. Po każdym zadaniu: `npm run sdd -- task <plan> <id> --status done`, komunikat od `doc-intake`, commit
-   przez `scm-git` (tylko pliki zadania), `npm run sdd -- task <plan> <id> --commit <sha7>` i wiersz
-   run-logu przez `npm run sdd -- log`. Jedno zadanie = jeden commit; zadanie bez SHA nie jest `done`.
-4. Ta sama brama czerwona dwa razy u tego samego wykonawcy → STOP z listą pytań, nie trzecia próba;
-   STOP kończy turę — czekasz na odpowiedź operatora.
-5. Rozjazd planu z kodem → wygrywa plan; rozbieżność zapisujesz w planie i pytasz.
-6. Kod produkcyjny nie powstaje bez testu w tym samym zadaniu albo w zadaniu sparowanym.
+Przypomnienie kolejności dla jednego zadania:
 
-Wyjście po ostatnim zadaniu: `npm run verify:affected` zielone i przekazanie do `/review`.
+1. `npm run sdd -- next PLAN`.
+2. `npm run sdd -- task PLAN <id> --status in-progress`.
+3. `npm run sdd -- brief PLAN <id>`. Wyślij dosłownie do agenta z linii `AGENT:`.
+4. Brief do `code-verifier` z komendą BRAMA.
+5. `ok`: `npm run sdd -- task PLAN <id> --status done`, potem krok C (komunikat od `doc-intake`, commit
+   przez `scm-git`, `--commit <sha7>`, wiersz run-logu).
+6. `FAIL`: druga próba u tego samego agenta. Drugi `FAIL`: STOP.
+
+Po ostatnim zadaniu: brief do `code-verifier` z `npm run verify:affected`. `ok`: krok 7 (`/review`).

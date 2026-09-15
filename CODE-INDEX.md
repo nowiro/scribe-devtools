@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 52.
+Modules: 53.
 
 ## packages/browser-inspector/bin/browser-inspector.mjs
 - purpose: the entry the agent runs (DESIGN.md §2.1 / §3.1).
@@ -146,7 +146,7 @@ Modules: 52.
 - exports: `createSessions(input)`
 - subscribes: `page:close`, `page:popup`, `page:request`
 - env: `BROWSER_INSPECTOR_STEP_TIMEOUT_MS`, `BROWSER_INSPECTOR_UNSAFE`
-- imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`
+- imports: `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/client.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/paths.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/webmcp.mjs`
 - types only: `packages/browser-inspector/src/lanes.mjs`, `packages/browser-inspector/src/recorder.mjs`, `packages/browser-inspector/src/types.d.ts`
 - imported by: `packages/browser-inspector/src/engine.mjs`
 
@@ -173,7 +173,7 @@ Modules: 52.
 ## packages/browser-inspector/src/steps.run.mjs
 - purpose: `RUNNERS[name] = async (ctx, step) => …`, the engine-side twin of `STEPS` (DESIGN.md §3.2).
 - exports: `BODY_LINES_MAX`, `NET_LIST_MAX`, `RUNNERS`, `SNAP_MAX_DEFAULT`, `durableSelector(ctx, ref) → Promise<{ selector?: string, inFrame: boolean }>`, `fileContent(ctx, name) → Buffer`, `frameFor(ctx, selector) → any`, `globToRegExp(pattern) → RegExp`
-- imports: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.schema.mjs`
+- imports: `packages/browser-inspector/src/capture.mjs`, `packages/browser-inspector/src/deadline.mjs`, `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.schema.mjs`, `packages/browser-inspector/src/webmcp.mjs`
 - types only: `packages/browser-inspector/src/types.d.ts`
 - imported by: `packages/browser-inspector/src/engine.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `scripts/check-claims.mjs`
 
@@ -182,6 +182,11 @@ Modules: 52.
 - exports: `ALL_SPELLINGS`, `ARTIFACT_NAME`, `FIELD_TYPES`, `MODIFIERS`, `REF_PATTERN`, `STEPS`, `STEP_NAMES`, `WAIT_UNTIL`, `checkField(value, type, path) → string | undefined`, `describeStep(step) → string`, `helpFor(nameOrAlias) → string | undefined`, `isRef(value) → value is string`, `parseFieldType(type) → { base: string, optional: boolean, values?: string[] }`, `refFieldsOf(step, def) → string[]`, `resolveStepName(nameOrAlias) → string | undefined`, `splitPoint(pair)`, `stepNames(where) → string[]`, `validateStep(step, where, ctx) → string[]`, `validateSteps(steps, where, options) → string[]`, `valueArg(raw, flags) → { value: string } | { valueFromEnv: string }`
 - types only: `packages/browser-inspector/src/types.d.ts`
 - imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/cli.mjs`, `packages/browser-inspector/src/config.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`, `scripts/check-claims.mjs`
+
+## packages/browser-inspector/src/webmcp.mjs
+- purpose: the in-page half of `browser-inspector tools` / `browser-inspector call` (WebMCP).
+- exports: `WEBMCP_GLOBAL`, `WEBMCP_SHIM_SCRIPT`
+- imported by: `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/nx-angular-inspector/bin/nx-angular-inspector.mjs
 - purpose: the entry the agent runs.

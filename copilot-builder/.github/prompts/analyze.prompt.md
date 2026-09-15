@@ -1,23 +1,21 @@
 ---
-description: 'Analyze: raport spójności spec ↔ plan ↔ stan repozytorium przed implementacją — GO albo NO-GO z blockerami (tylko odczyt)'
+description: 'Analyze: spójność spec, planu i repozytorium przed implementacją; GO albo NO-GO z blockerami (tylko odczyt)'
 agent: orchestrator
 ---
 
-# /analyze — go / no-go przed implementacją (read-only)
+# /analyze
 
-Sprawdź spójność trójki spec ↔ plan ↔ stan repozytorium dla podanego sluga. NIC nie edytuj.
+Wejście od człowieka: slug. Wykonujesz krok 5 procedury orkiestratora. Nic nie edytujesz.
 
-1. Każde AC ma pokrycie w zadaniach planu; każde zadanie planu służy jakiemuś AC.
-2. Kolumna `agent` zgodna z `npm run route -- <ścieżki>` (ścieżka wyznacza właściciela); tier zgodny z rosterem
-   (`.github/models-registry.json`) — praca fast nie siedzi w zadaniach base.
-3. Zgodność ze WSZYSTKIMI ADR-ami z `docs/decisions/` i z `docs/tech-stack.md`; odstępstwo bez ADR-u
-   = blocker. ADR `superseded` nie jest podstawą.
-4. Standardy UI obecne w planie, gdy zmienia się ekran: matryca viewportów, mobile-first, a11y, stany
-   loading / empty / error, `data-testid`.
-5. Granice modułów: nowe zależności między bibliotekami zgodne z kierunkiem feature → ui, data-access,
-   util (`eslint.rules.mjs`); nowa biblioteka ma typ w nazwie.
-6. Otwarte `[?]` w spec albo w planie = automatyczny **NO-GO**.
+Sprawdź po kolei:
+
+1. Każde AC ma zadanie w planie. Każde zadanie planu służy jakiemuś AC.
+2. Kolumna `agent` każdego zadania równa się wynikowi `npm run route -- <paths>`.
+3. Plan zgodny z każdym ADR w `docs/decisions/` (poza `status: superseded`) i z `docs/tech-stack.md`.
+4. Zmienia się ekran: plan ma matrycę viewportów, mobile-first, a11y, stany loading / empty / error, `data-testid`.
+5. Nowa zależność między bibliotekami zgodna z kierunkiem feature → ui, data-access, util. Nowa biblioteka ma typ w nazwie.
+6. Zero `[?]` w spec i w planie.
 7. `npm run sdd:check` i `npm run ai:validate` zielone.
 
-Wyjście: `GO` albo `NO-GO + lista blockerów (plik / linia / dlaczego / kto naprawia)`. Zapisz werdykt
-w run-logu.
+Zwrot: `GO` albo `NO-GO` z listą blockerów `plik / linia / dlaczego / kto naprawia`.
+Wynik zapisz: `npm run sdd -- log RUN --step 4 --agent orchestrator --tier fast --result "<GO|NO-GO>"`.

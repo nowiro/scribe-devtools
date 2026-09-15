@@ -50,6 +50,7 @@ import {
   sensitiveRefs,
 } from './snapshot.mjs';
 import { MODIFIERS, isRef } from './steps.schema.mjs';
+import { WEBMCP_GLOBAL } from './webmcp.mjs';
 
 /** @typedef {import('./types.js').StepContext} StepContext */
 /** @typedef {import('./types.js').Step} Step */
@@ -104,6 +105,21 @@ export function fileContent(ctx, name) {
   if (sent?.base64) return Buffer.from(sent.base64, 'base64');
   if (sent?.path) return readFileSync(sent.path);
   return readFileSync(path.resolve(ctx.cwd ?? process.cwd(), name));
+}
+
+/**
+ * What a WebMCP tool answered, as one line: the `content[].text` parts of an MCP-shaped result joined,
+ * anything else as JSON. The whole result is in `calls/NNN-<tool>.json`; this is the stdout glance.
+ * @param {unknown} result
+ * @returns {string}
+ */
+function toolResultText(result) {
+  const content = /** @type {any} */ (result)?.content;
+  if (Array.isArray(content)) {
+    const texts = content.filter((c) => c && typeof c.text === 'string').map((c) => String(c.text));
+    if (texts.length > 0) return texts.join(' ');
+  }
+  return result === undefined ? 'undefined' : JSON.stringify(result);
 }
 
 /**
@@ -1213,6 +1229,68 @@ export const RUNNERS = {
     }
     lines.push(inFrame ? `${selector}${SEP}inside an iframe — a config needs a "frame" step first` : selector);
     return selector;
+  },
+  tools: async (ctx, s) => {
+    const lines = sessionLines(ctx, 'tools');
+    const list = await withDeadline(
+      ctx.page.evaluate((/** @type {string} */ key) => {
+        const registry = /** @type {any} */ (globalThis)[key];
+        return registry ? registry.list() : null;
+      }, WEBMCP_GLOBAL),
+      ctx.timeoutMs,
+      'tools',
+    );
+    if (!Array.isArray(list)) {
+      throw new Error(
+        'tools: no WebMCP registry on this document — it is installed on open; reload the page in this session',
+      );
+    }
+    const file = await writeSessionText(ctx, 'tools.json', JSON.stringify(list, null, 2));
+    lines.push(`${String(list.length)} tools${SEP}${rel(ctx, file)}`);
+    for (const tool of list) {
+      const parts = [String(tool.name), truncate(String(tool.description ?? ''), 100)];
+      if (s.schema === true) parts.push(JSON.stringify(tool.inputSchema ?? {}));
+      lines.push(truncate(parts.join(SEP)));
+    }
+    return list;
+  },
+  call: async (ctx, s) => {
+    const lines = sessionLines(ctx, 'call');
+    const name = String(s.name);
+    const input = typeof s.file === 'string' ? JSON.parse(fileContent(ctx, s.file).toString('utf8')) : (s.input ?? {});
+    const timeoutMs = typeof s.timeout === 'number' ? s.timeout : ctx.timeoutMs;
+    const outcome = await withDeadline(
+      ctx.page.evaluate(
+        async (/** @type {[string, string, unknown]} */ [key, toolName, args]) => {
+          const registry = /** @type {any} */ (globalThis)[key];
+          return registry ? registry.call(toolName, args) : { ok: false, error: 'no WebMCP registry on this document' };
+        },
+        [WEBMCP_GLOBAL, name, input],
+      ),
+      timeoutMs,
+      `call ${name}`,
+    );
+    const session = sessionOf(ctx);
+    session.callSeq = (session.callSeq ?? 0) + 1;
+    const base =
+      name
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/gu, '-')
+        .replaceAll(/^-+|-+$/gu, '') || 'tool';
+    const record = {
+      tool: name,
+      input,
+      at: new Date().toISOString(),
+      ...(outcome.ok ? { result: outcome.result } : { error: outcome.error }),
+    };
+    const file = await writeSessionText(
+      ctx,
+      path.posix.join('calls', `${String(session.callSeq).padStart(3, '0')}-${base}.json`),
+      JSON.stringify(record, null, 2),
+    );
+    if (!outcome.ok) throw new Error(`${String(outcome.error)}${SEP}${rel(ctx, file)}`);
+    lines.push(truncate(ctx.redact(toolResultText(outcome.result)), 100), rel(ctx, file));
+    return outcome.result;
   },
   run: async (ctx, s) => {
     const lines = sessionLines(ctx, 'run');

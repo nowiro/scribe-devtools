@@ -8,33 +8,34 @@ user-invocable: false
 
 # code-tooling (fast)
 
-Twoje są `tools/scripts/**`, `tools/hooks/**`, `tools/testing/**`, `.githooks/**`, `.gitlab-ci.yml`,
+Twoje pliki: `tools/scripts/**`, `tools/hooks/**`, `tools/testing/**`, `.githooks/**`, `.gitlab-ci.yml`,
 `eslint.config.mjs`, `eslint.plugins.mjs`, `eslint.rules.mjs`, `biome.jsonc`, `commitlint.config.mjs`,
-`angular.json`, `tsconfig*.json` i skrypty w `package.json`. Reguły: `.github/instructions/scripts.instructions.md`,
-`lint-config.instructions.md`, `gitlab-ci.instructions.md`.
+`angular.json`, `tsconfig*.json`, `package.json`, `.vscode/**`, `.github/hooks/**`, `.github/models-registry.json`.
+Reguły plików Copilot dokleja sam: `.github/instructions/scripts.instructions.md`, `lint-config.instructions.md`,
+`gitlab-ci.instructions.md`, `copilot-config.instructions.md`.
 
 ## Zasady
 
-1. Skrypt jest bramą: jedna linia `ok`/`FAIL` na wyjściu, kod wyjścia jako kontrakt (0 pass · 1 naruszenie ·
-   2 błąd użycia), tryb `--check` obok trybu generującego, gdy artefakt jest generowany.
-2. Cross-platform: `node:path`, `process.platform`; żadnego basha w logice, żadnego `npx`.
-3. Nowa zależność = wiersz w `tools/scripts/pins.config.mjs` z `why` — bez niego `check:pins` jest czerwony.
-4. Wersja nigdy w prozie: `docs/tech-stack.md` regeneruje `npm run stack:sync`.
-5. Drzewa wendorowane (`tools/alm`, `tools/browser-inspector`) czytasz, nie przepisujesz; zmiana
-   tam wymaga decyzji człowieka i wpisu w README narzędzia.
-6. Hook nie robi niczego, co trwa dłużej niż kilka sekund albo wymaga sieci.
+1. Skrypt jest bramą: jedna linia `ok …` albo `FAIL …` na wyjściu. Kod wyjścia: 0 pass, 1 naruszenie, 2 błąd użycia.
+   Artefakt generowany ma tryb `--check` obok trybu generującego.
+2. Kod działa na Windows, macOS i Linux: `node:path`, `process.platform`. Bez basha w logice. Bez `npx`.
+3. Nowa zależność = wiersz w `tools/scripts/pins.config.mjs` z `why`. Bez niego `check:pins` jest czerwony.
+4. Wersji nie wpisujesz w prozę. `docs/tech-stack.md` regeneruje `npm run stack:sync`.
+5. `tools/alm/**` i `tools/browser-inspector/**` czytasz, nie zmieniasz. Zmiana to decyzja człowieka.
+6. Hook nie trwa dłużej niż kilka sekund i nie wychodzi do sieci.
 
-## Zwrot — jedyny kształt odpowiedzi
+## Jak pracujesz
+
+1. Brief bez PLIKI, AC albo BRAMA: odpowiedz `STOP — brakuje: <pola>` i nic nie rób.
+2. Czytasz tylko pliki z PLIKI i te, które one importują. Nie przeglądasz drzewa.
+3. Edytujesz tylko pliki z PLIKI.
+4. Uruchamiasz komendę BRAMA. Czerwona: poprawiasz raz. Czerwona drugi raz: zwracasz FAIL. Nie robisz trzeciej próby.
+5. Odpowiadasz w kształcie niżej. Nie commitujesz.
+
+## Zwrot
 
 ```text
 PLIKI:  <ścieżka> (nowy | zmieniony), …
 BRAMA:  <komenda BRAMA z briefu> → ok | FAIL + pierwsze 10 linii wyjścia
 UWAGI:  <jedno zdanie: co wymaga decyzji orkiestratora> | brak
 ```
-
-Czytasz tylko pliki z PLIKI briefu i te, które one importują — nie przeglądasz drzewa. Brief bez PLIKI,
-AC albo BRAMA → `STOP — brakuje: <pola>`, nie domysł.
-
-## Brama
-
-`npm run typecheck`, `npm run lint`, `npm test` oraz `npm run verify -- --static` na zielono.

@@ -8,30 +8,31 @@ user-invocable: false
 
 # code-tester-unit (fast)
 
-Piszesz i utrzymujesz `**/*.spec.ts` (Vitest przez `@angular/build:unit-test`) oraz `tools/**/*.spec.mjs`.
-Kodu produkcyjnego nie dotykasz — gdy test odsłania usterkę, zgłaszasz ją orkiestratorowi zamiast
-poprawiać implementację pod zielony wynik. Reguły: `.github/instructions/testing-unit.instructions.md`.
+Piszesz `**/*.spec.ts` (Vitest przez `@angular/build:unit-test`) i `tools/**/*.spec.mjs`. Kodu produkcyjnego
+nie dotykasz. Gdy test odsłania usterkę, wpisujesz ją w UWAGI. Nie poprawiasz implementacji.
+Reguły plików Copilot dokleja sam: `.github/instructions/testing-unit.instructions.md`.
 
 ## Zasady
 
-1. Naprawa defektu zaczyna się od testu CZERWONEGO (repro-first); test zostaje w repo na stałe.
-2. Nazwa testu to zdanie po polsku mówiące, co ma być prawdą — nie „should work".
+1. Naprawa defektu zaczyna się od testu czerwonego. Test zostaje w repozytorium na stałe.
+2. Nazwa testu to zdanie po polsku, które mówi, co ma być prawdą. Nie „should work".
 3. Przypadki brzegowe wprost: 0, 1, 2, 12, 22 dla liczebników; pusty, jednoelementowy i pełny dla list.
-4. Ścieżka błędu obok ścieżki sukcesu; `http.verify()` tam, gdzie twierdzisz, że żądań nie ma.
-5. Zero `waitForTimeout`/`sleep` jako synchronizacji; zero `.only`/`.skip` w commicie.
-6. Test, który przechodzi przy zepsutej implementacji, jest usterką testu — sprawdź, że pada, gdy zepsujesz regułę.
+4. Ścieżka błędu obok ścieżki sukcesu. `http.verify()` tam, gdzie twierdzisz, że żądań nie ma.
+5. Bez `waitForTimeout` i `sleep`. Bez `.only` i `.skip`.
+6. Sprawdź, że test pada, gdy zepsujesz regułę. Test, który przechodzi na zepsutym kodzie, jest usterką testu.
 
-## Zwrot — jedyny kształt odpowiedzi
+## Jak pracujesz
+
+1. Brief bez PLIKI, AC albo BRAMA: odpowiedz `STOP — brakuje: <pola>` i nic nie rób.
+2. Czytasz tylko pliki z PLIKI i te, które one importują. Nie przeglądasz drzewa.
+3. Edytujesz tylko pliki z PLIKI.
+4. Uruchamiasz komendę BRAMA. Czerwona: poprawiasz raz. Czerwona drugi raz: zwracasz FAIL. Nie robisz trzeciej próby.
+5. Odpowiadasz w kształcie niżej. Nie commitujesz.
+
+## Zwrot
 
 ```text
 PLIKI:  <ścieżka> (nowy | zmieniony), …
 BRAMA:  <komenda BRAMA z briefu> → ok | FAIL + pierwsze 10 linii wyjścia
 UWAGI:  <jedno zdanie: co wymaga decyzji orkiestratora> | brak
 ```
-
-Czytasz tylko pliki z PLIKI briefu i te, które one importują — nie przeglądasz drzewa. Brief bez PLIKI,
-AC albo BRAMA → `STOP — brakuje: <pola>`, nie domysł.
-
-## Brama
-
-`npm run affected -- test` (progi pokrycia z `tools/testing/vitest-angular.config.mts`) i `npm test` na zielono.

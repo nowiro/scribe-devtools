@@ -49,6 +49,14 @@ e45 button "Otwórz koszyk" [data-testid=header-cart-button]
 $ browser-inspector click e45
 ok click e45 · url /cart "Koszyk" · el 63→23
 
+$ browser-inspector tools
+2 tools · .scribe-devtools/browser-inspector/session/default/tools.json
+addToCart · Dodaje produkt do koszyka
+registerUser · Rejestruje użytkownika
+
+$ browser-inspector call addToCart '{"sku":"A-1"}'
+ok call addToCart · Dodano A-1 · session/default/calls/001-addtocart.json · dom Δ
+
 $ browser-inspector export flows/koszyk.json
 ok export 3 steps → flows/koszyk.json (refs → data-testid/#id/role=)
 ```

@@ -42,6 +42,7 @@ import {
 import { makeStepContext, runStep } from './steps.ctx.mjs';
 import { durableSelector } from './steps.run.mjs';
 import { STEPS, describeStep, refFieldsOf, resolveStepName } from './steps.schema.mjs';
+import { WEBMCP_SHIM_SCRIPT } from './webmcp.mjs';
 
 /** @typedef {import('./types.js').PageLike} PageLike */
 /** @typedef {import('./types.js').CdpLike} CdpLike */
@@ -251,6 +252,8 @@ export function createSessions(input) {
     const pair = await pool.freshContext({ video: videoDir });
     const recorder = attachRecorder(pair.page);
     await pair.context.addInitScript?.(DOM_COUNTER_SCRIPT).catch?.(() => {});
+    // The WebMCP registry (`tools` / `call`) must exist before the page's first script registers a tool.
+    await pair.context.addInitScript?.(WEBMCP_SHIM_SCRIPT).catch?.(() => {});
     /** @type {Session} */
     const session = {
       name,
@@ -615,6 +618,10 @@ export function createSessions(input) {
           snapPath,
         }),
       ];
+    } else if (canonical === 'call') {
+      // The runner leaves the tool's answer and the record file in `ctx.lines`; the deltas say what the
+      // call did to the page (a navigation, a DOM change, a new console error).
+      lines = [formatOk(head, [...ctx.lines, ...deltas])];
     } else if (canonical === 'screenshot') {
       const shot = ctx.lastShot;
       const file = shot ? relPath(path.join(session.dir, shot.file), cmd.cwd) : '';

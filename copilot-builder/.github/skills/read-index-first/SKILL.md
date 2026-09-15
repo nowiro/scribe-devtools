@@ -5,18 +5,13 @@ description: Zanim zaczniesz szukać w drzewie repozytorium, przeczytaj CODE-IND
 
 # Najpierw indeks, potem drzewo
 
-Użyj tej procedury na starcie każdego zadania dotykającego więcej niż jednego pliku albo pytania
-„gdzie jest X".
+Użyj na starcie każdego zadania, które dotyka więcej niż jednego pliku, i przy każdym pytaniu „gdzie jest X".
 
-1. Przeczytaj `CODE-INDEX.md` — sekcja per moduł: po co jest, co eksportuje (z wejściem i wyjściem
-   funkcji), co importuje i kto importuje jego. Rozmiar jest podany w `AGENTS.md`, żebyś mógł
-   zdecydować, czy czytasz całość.
-2. Gdy nie znasz nazwy, sięgnij do `GLOSSARY.md` — proza jest po polsku, identyfikatory po
-   angielsku, więc szukanie słowa wprost często nic nie daje; słownik mapuje w obie strony.
-3. Otwórz wyłącznie pliki nazwane przez indeks albo słownik. Wróć do wyszukiwania dopiero wtedy,
-   gdy żaden z nich nie odpowiada — indeks ma oszczędzić przeszukiwanie, nie zastąpić je, gdy wiesz,
-   czego szukasz.
-4. Dla aplikacji i bibliotek indeks pokazuje poziom mapy (`public-api.ts`, `app.routes.ts`); w głąb
-   projektu schodzisz od tych plików, nie od `grep` po `apps/**`.
+1. Przeczytaj `CODE-INDEX.md`. Jedna sekcja na moduł: po co jest, co eksportuje, co importuje, kto go importuje.
+2. Nie znasz nazwy: przeczytaj `GLOSSARY.md`. Proza jest po polsku, identyfikatory po angielsku.
+   Słownik mapuje słowo na nazwę w kodzie i odwrotnie.
+3. Otwórz tylko pliki, które indeks albo słownik nazwał. Szukaj w drzewie dopiero wtedy, gdy żaden z nich
+   nie odpowiada.
+4. W aplikacji i bibliotece zacznij od `public-api.ts` albo `app.routes.ts`. Nie od `grep` po `apps/**`.
 
-Nie edytuj `CODE-INDEX.md` ręcznie — jest generowany (`npm run code-index`, hook pre-commit).
+Nie edytuj `CODE-INDEX.md` ręcznie. Generuje go `npm run code-index` (hook pre-commit).

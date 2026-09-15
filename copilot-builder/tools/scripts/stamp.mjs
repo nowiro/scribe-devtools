@@ -11,6 +11,7 @@
  * the process timezone. Moving the author to another zone is a change to this constant,
  * not a riddle in the CI log.
  */
+import { isMain } from './lib/repo.mjs';
 
 /** Timezone the artifact stamps of this repository are written in. */
 export const STAMP_TIMEZONE = 'Europe/Warsaw';
@@ -90,3 +91,6 @@ export function nowStamp(now = new Date(), timeZone = STAMP_TIMEZONE) {
   const hour = String(Number(at.hour) % 24).padStart(2, '0');
   return `${at.year}-${at.month}-${at.day}_${hour}-${at.minute}`;
 }
+
+// `npm run stamp`: the current stamp on stdout, so an agent never types a node -e one-liner for it.
+if (isMain(import.meta.url)) process.stdout.write(`${nowStamp()}\n`);

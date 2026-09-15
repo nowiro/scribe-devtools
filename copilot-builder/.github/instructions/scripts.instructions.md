@@ -7,15 +7,16 @@ applyTo: 'tools/scripts/**,tools/hooks/**,tools/testing/**,.githooks/**'
 
 Właściciel: `code-tooling`. Brama: `npm run typecheck` (tsc `--checkJs` z JSDoc), `npm run lint`, `npm test`.
 
-- Node `.mjs`, cross-platform (Windows 11 + macOS/Linux): `node:path`, `process.platform`; zero
-  basha/PowerShella/`npx` w logice; żadnych wywołań LLM ze skryptów.
-- Skrypt jest bramą: jedna linia `ok …`/`FAIL …` z prefiksem, kody wyjścia 0 pass · 1 naruszenie · 2 błąd
-  użycia/środowiska; tryb `--check` obok trybu generującego, gdy artefakt jest generowany
-  (`index-code`, `stack`).
-- Typy przez JSDoc (`@param`, `@returns`, `@typedef`), komentarz nagłówkowy mówi PO CO i DLACZEGO —
-  `index-code` bierze z niego pierwszy akapit jako `purpose` w `CODE-INDEX.md`.
-- Nowa zależność = wiersz w `tools/scripts/pins.config.mjs` z `why`; wersja nigdy w prozie.
-- Hook (`tools/hooks/*.mjs`) czyta payload ze stdin, odpowiada JSON-em na stdout, nigdy nie blokuje
-  dłużej niż kilka sekund i nie wychodzi do sieci. `.githooks/*` to `#!/bin/sh` z `set -e`.
-- Testy `*.spec.mjs` obok skryptu (Vitest, `vitest.tools.config.mts`); dane jawne, bez sieci.
-- `tools/alm/**` i `tools/browser-inspector/**` są wendorowane — mają własne README i zasady.
+## Reguły
+
+1. Node `.mjs`. Działa na Windows, macOS i Linux: `node:path`, `process.platform`. Bez basha, PowerShella
+   i `npx` w logice. Bez wywołań LLM ze skryptów.
+2. Skrypt jest bramą: jedna linia `ok …` albo `FAIL …` z prefiksem. Kody wyjścia: 0 pass, 1 naruszenie,
+   2 błąd użycia lub środowiska. Artefakt generowany ma tryb `--check` obok trybu generującego.
+3. Typy przez JSDoc (`@param`, `@returns`, `@typedef`). Komentarz nagłówkowy mówi, po co skrypt jest
+   i dlaczego. `index-code` bierze z niego pierwszy akapit do `CODE-INDEX.md`.
+4. Nowa zależność = wiersz w `tools/scripts/pins.config.mjs` z `why`. Wersji nie wpisujesz w prozę.
+5. Hook (`tools/hooks/*.mjs`) czyta payload ze stdin, odpowiada JSON-em na stdout, trwa najwyżej kilka sekund,
+   nie wychodzi do sieci. `.githooks/*` to `#!/bin/sh` z `set -e`.
+6. Test `*.spec.mjs` leży obok skryptu (Vitest, `vitest.tools.config.mts`). Dane jawne, bez sieci.
+7. `tools/alm/**` i `tools/browser-inspector/**` są wendorowane. Mają własne README i zasady. Nie zmieniasz ich.

@@ -1,24 +1,17 @@
 ---
-description: 'Intake zgłoszenia: klasyfikacja (verb, slug), kompletność kryteriów akceptacji, lista [?] — start drabiny SDD'
+description: 'Intake zgłoszenia: klasyfikacja (verb, slug), kompletność AC, lista [?]; start drabiny SDD'
 agent: orchestrator
 ---
 
-# /intake — ustrukturyzowany intake zgłoszenia
+# /intake
 
-Prowadzisz operatora przez intake nowego zadania. Zbierz KOMPLET przed scaffoldem; braki to pytania
-teraz, nie założenia później.
+Wejście od człowieka: tekst zgłoszenia, iid issue GitLaba albo klucz zadania Jiry. Wykonujesz krok 1 procedury
+orkiestratora.
 
-1. **Źródło**: issue GitLaba (`npm run alm:read -- gitlab`, potem `.alm/gitlab/<stempel>/…/issue-<iid>.md`),
-   zadanie Jiry (`npm run alm:read -- jira`) albo prompt operatora. Snapshot czytasz wybiórczo.
-2. **Klasyfikacja** (`doc-intake`): verb ∈ `feature | fix | refactor | deps | chore | security | docs`,
-   slug kebab-case ≤ 5 słów, klasa ryzyka (auth, rozliczenia, migracja, współbieżność, dane osobowe).
-3. **Cel biznesowy** (1–2 zdania) i użytkownik końcowy.
-4. **Kryteria akceptacji** — numerowane, mierzalne, testowalne; brak = `[?]`.
-5. **Zakres i poza zakresem** — lista numerowana; MR i review odwołują się do „punktu 2".
-6. **Ekrany / dane / kontrakty** — makiety (ścieżki), źródła danych (API, mock), encje, walidacje.
-7. **Próg ceremonii**: ≥ 2 pliki albo zmiana zachowania → pełna drabina; inaczej ścieżka bezpośrednia
-   (powiedz to wprost i zakończ).
-
-Wyjście: blok intake (kształt z `doc-intake`) + komenda do wykonania przez operatora albo Ciebie:
-`npm run workflow:specify -- --verb=<verb> --slug=<slug> --title="<tytuł>"`. Niejednoznaczna klasyfikacja
-= STOP z listą pytań i rekomendacją.
+1. Issue GitLaba: `npm run alm:read -- gitlab`, potem plik `.alm/gitlab/<stempel>/…/issue-<iid>.md`.
+   Zadanie Jiry: `npm run alm:read -- jira`, potem plik zadania. Prompt człowieka: bierzesz tekst wprost.
+2. Brief do `doc-intake` z treścią albo ścieżką pliku. Dostajesz blok intake.
+3. Blok ma sekcję STOP: krok S. Zakończ turę.
+4. Blok bez STOP: podaj człowiekowi blok i komendę
+   `npm run workflow:specify -- --verb=<verb> --slug=<slug> --title="<cel>"`. Przejdź do kroku 2.
+5. Zmiana jednego pliku bez zmiany zachowania: powiedz to wprost i idź ścieżką bezpośrednią (krok 0).

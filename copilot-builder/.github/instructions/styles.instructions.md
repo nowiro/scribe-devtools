@@ -5,19 +5,20 @@ applyTo: 'apps/**/*.css,libs/**/*.css'
 
 # Style (`*.css`)
 
-Właściciel: `code-angular`. Format: Biome (`npm run format`). Preprocesor nie jest używany — natywny
-CSS ma zagnieżdżanie, zmienne i `@layer`; SCSS wprowadza drugi język i drugi formater.
+Właściciel: `code-angular`. Format: Biome (`npm run format`). Preprocesora nie ma. Natywny CSS ma zagnieżdżanie,
+zmienne i `@layer`.
 
-- **Tokeny, nie wartości.** Kolory, odstępy, promienie, typografia przez zmienne CSS (`var(--cb-*)`)
-  zdefiniowane raz w stylach globalnych aplikacji albo w `libs/shared/ui`. Literał w komponencie to
-  dług szukany po całym repo przy zmianie motywu.
-- **Mobile-first:** reguła bazowa opisuje najwęższy ekran, `@media` wyłącznie `min-width`, progi ze
-  skali `.github/models-registry.json` → `ui.viewports` (360 / 768 / 1024 / 1440 / 1920). `var()` nie
-  działa w `@media` — progi stoją jako literały.
-- Motyw jasny i ciemny naraz: `prefers-color-scheme` jako domyślny sygnał plus jawne nadpisanie
-  atrybutem z korzenia (przełącznik w aplikacji wygrywa z systemem).
-- Kontrast ≥ 4,5:1 dla tekstu, ≥ 3:1 dla elementów interaktywnych; widoczny focus — nigdy
-  `outline: none` bez zamiennika.
-- Bez `!important` poza nadpisaniem biblioteki zewnętrznej (z komentarzem czego dotyczy i kiedy zniknie);
-  maksymalnie 3 poziomy zagnieżdżenia.
-- `:host { display: block }` jest domyślne (`displayBlock` w `angular.json`).
+## Reguły
+
+1. Tokeny, nie wartości. Kolory, odstępy, promienie, typografia przez zmienne CSS (`var(--cb-*)`) zdefiniowane
+   raz w stylach globalnych aplikacji albo w `libs/shared/ui`.
+2. Mobile-first: reguła bazowa opisuje najwęższy ekran. `@media` tylko z `min-width`. Progi z `ui.viewports`
+   w `.github/models-registry.json` (360, 768, 1024, 1440, 1920), wpisane jako liczby, bo `var()` nie działa
+   w `@media`.
+3. Motyw jasny i ciemny: `prefers-color-scheme` jako domyślny sygnał plus nadpisanie atrybutem z korzenia
+   (przełącznik w aplikacji wygrywa z systemem).
+4. Kontrast co najmniej 4,5:1 dla tekstu i 3:1 dla elementów interaktywnych. Widoczny focus. Nigdy
+   `outline: none` bez zamiennika.
+5. Bez `!important`. Wyjątek: nadpisanie biblioteki zewnętrznej, z komentarzem, czego dotyczy.
+6. Najwyżej 3 poziomy zagnieżdżenia.
+7. `:host { display: block }` jest domyślne (`displayBlock` w `angular.json`).

@@ -23,7 +23,9 @@
 
   // ───────────────────────────── Pętla agenta i punkty kontrolne
   // Roster jest płaski: `orchestrator` deleguje jeden poziom w dół i nikt nie deleguje dalej.
-  "chat.agent.maxRequests": 25,
+  // Limit żądań na turę: jedna pętla implement to kilkadziesiąt wywołań `npm run sdd` i briefów;
+  // 25 przerywało ją pytaniem o kontynuację w połowie zadania.
+  "chat.agent.maxRequests": 60,
   "chat.subagents.allowInvocationsFromSubagents": false,
   "chat.checkpoints.enabled": true,
   "chat.checkpoints.showFileChanges": true,
@@ -41,7 +43,10 @@
     "cursor-workspace": false
   },
 
-  // ───────────────────────────── Zatwierdzanie narzędzi: bramy i odczyt gita bez kliknięcia
+  // ───────────────────────────── Zatwierdzanie narzędzi: bramy, skrypty SDD i odczyt gita bez kliknięcia
+  // Każda komenda z tej listy jest deterministyczna, nie wychodzi do sieci i nie zmienia niczego poza
+  // artefaktami SDD w docs/ albo cache'em. Komendy, które dotykają sieci albo przeglądarki (alm:read,
+  // browser-inspector, check:upstream), zostają za kliknięciem człowieka.
   "chat.tools.global.autoApprove": false,
   "chat.tools.terminal.autoApprove": {
     "npm run verify": true,
@@ -53,8 +58,20 @@
     "npm run format:check": true,
     "npm run ai:validate": true,
     "npm run sdd:check": true,
+    "npm run sdd": true,
+    "npm run route": true,
+    "npm run review:draw": true,
+    "npm run review:merge": true,
+    "npm run workflow:specify": true,
+    "npm run stamp": true,
+    "npm run check:pins": true,
+    "npm run check:instructions": true,
+    "npm run check:glossary": true,
+    "npm run guard:forbidden": true,
+    "npm run stack:check": true,
     "npm run code-index": true,
     "npm run affected": true,
+    "npm run doctor": true,
     "git status": true,
     "git diff": true,
     "git log": true
@@ -121,7 +138,6 @@
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/dist/**": true,
-    "**/coverage/**": true,
     "**/.angular/**": true,
     "**/.cache/**": true,
     "**/.alm/**": true,

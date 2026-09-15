@@ -1,30 +1,22 @@
 ---
-description: 'Plan: tabela zadań | id | title | agent | paths | done_when | status | AC | commit | z agentem wyznaczonym przez route dla paths, triadą testową i commitem per zadanie'
+description: 'Plan: tabela zadań | id | title | agent | paths | done_when | status | AC | commit | z agentem z route, zadaniem testowym per AC i commitem per zadanie'
 agent: orchestrator
 ---
 
-# /plan — plan zadań ze spec
+# /plan
 
-Wejście: spec `clarified` (`docs/specs/<slug>/spec.md`). Wyjście: wypełniona tabela w
-`docs/plans/<stempel>_<verb>-<slug>.md` (`doc-spec`).
+Wejście od człowieka: slug. Warunek: spec `clarified`. Wykonujesz krok 4 procedury orkiestratora.
 
-1. Jedno zadanie na obszar, nie jedno na wszystko: kolumnę `agent` wyznacza ŚCIEŻKA dotykanego pliku —
-   `npm run route -- <ścieżki>` odpowiada z `tools/scripts/routing.config.mjs` (0 kredytów); „—" albo brak
-   reguły to STOP-AND-ASK, nie zgadywanie właściciela. Te ścieżki wpisujesz w kolumnę `paths` — z niej
-   `npm run sdd -- brief` buduje brief, a `npm run sdd:check` (C5) sprawdza, że `agent` równa się `route`.
-2. Każde zadanie służy jakiemuś AC (traceability `plan.<verb>.<slug>` ↔ `spec.<slug>`); zadanie bez AC to
-   YAGNI, AC bez zadania to dziura.
-3. Triada testowa obowiązkowa przy zmianie zachowania: scenariusze z AC, unit (Vitest), e2e (Playwright,
-   matryca viewportów) — trzy wiersze, nie jeden.
-4. `done_when` jest komendą albo obserwowalnym stanem (`npm run affected -- test` zielone; plik istnieje),
-   nie przymiotnikiem.
-5. Zadania klasy ryzyka (auth, rozliczenia, migracja, współbieżność, dane osobowe) dostają wiersz review
-   PRZED implementacją: kolumna `agent` = miejsca wylosowane przez
-   `npm run review:draw -- docs/runs/<stempel>_review-<slug>-pre` (agenci z wyniku połączeni ` + `;
-   `review.seatsPerReview` rodzin z puli `review.seats`), nie lista na pamięć.
-6. Nowa biblioteka/aplikacja w planie ma wiersz z komendą `npm run new:lib|new:app`, nigdy „utwórz ręcznie".
-7. Kolumna `commit` startuje pusta (`—`); zadanie `done` dostaje SHA commita wykonanego przez `scm-git`
-   (`/implement`) — plan jest listą zadań ze statusem i śladem w historii.
-
-Sprawdź `npm run sdd:check` (kolumny tabeli, nazwy agentów z rosteru) i zapisz krok w run-logu.
-Następny krok: `/analyze <slug>`.
+1. Wypisz ścieżki plików, które zmieni zadanie. `npm run route -- <ścieżki>`. Linia `—`: STOP.
+2. Brief do `doc-spec` z wynikiem `route`: wypełnij tabelę zadań w `docs/plans/<stempel>_<verb>-<slug>.md`.
+   Zasady dla tabeli:
+   - jedno zadanie na agenta z wyniku `route`; `paths` = jego ścieżki; `agent` = jego nazwa;
+   - każde zadanie służy jakiemuś AC; każde AC ma zadanie testowe (`code-tester-unit`; zmiana ekranu: także
+     `code-tester-e2e`);
+   - `done_when` to komenda albo obserwowalny stan, np. `npm run affected -- test zielone`;
+   - nowa aplikacja lub biblioteka: wiersz z komendą `npm run new:app` / `new:lib`;
+   - kolumna `commit` = `—`.
+3. Klasa ryzyka inna niż „brak": `npm run review:draw -- docs/runs/<stempel>_review-<slug>-pre`. Zadanie
+   „review przed implementacją" z kolumną `agent` = agenci z wyniku połączeni ` + `.
+4. `npm run sdd:check`. `npm run sdd -- log RUN --step 3 --agent doc-spec --tier base --result "plan"`.
+5. Następny krok: `/analyze <slug>`.

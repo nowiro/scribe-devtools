@@ -1,18 +1,19 @@
 ---
-description: 'Publikacja do ALM przez skrypty alm:*: spec → issue/MR GitLab albo zadanie Jira z pliku Markdown; dry-run domyślny, --yes tylko na polecenie'
+description: 'Publikacja do ALM przez skrypty alm:*: spec jako issue/MR GitLab, zadanie Jira albo strona Confluence z pliku Markdown; dry-run domyślny, --yes tylko na polecenie'
 agent: orchestrator
 ---
 
-# /alm-publish — spec jako issue, zadanie albo strona
+# /alm-publish
 
-1. Plik wejściowy to Markdown z front matter wg szablonu z `tools/alm/templates/`
-   (`gitlab-issue.md`, `gitlab-mr.md`, `jira-issue.md`, `confluence-page.md`) — `doc-spec` składa go ze spec:
-   Kontekst, Zakres (lista numerowana), Kryteria akceptacji (checkboxy), Przypadki brzegowe, Poza zakresem,
-   Założenia. Niejasność jako `[DO WYJAŚNIENIA: pytanie]`, nigdy domysł.
-2. Front matter decyduje, czym plik JEST: `key:` / `iid:` / `id:` = aktualizacja, brak = nowy element,
-   `comment: true` = komentarz. Komenda musi się z tym zgadzać (`alm:create` vs `alm:update`).
-3. Dry-run: `npm run alm:create -- gitlab ./issue.md` (albo `alm:update`) — pokaż operatorowi wynik
-   (przy aktualizacji diff względem żywego elementu).
-4. `--yes` dodajesz WYŁĄCZNIE po wyraźnym, bieżącym poleceniu człowieka. Zapis dokleja linię
-   proweniencji; kasowania nie ma.
-5. Po zapisie: `npm run alm:read -- gitlab` i zapisz w run-logu identyfikator utworzonego elementu.
+Wejście od człowieka: co opublikować (spec, opis MR) i gdzie (`gitlab`, `jira`, `confluence`).
+
+1. Brief do `doc-spec`: złóż plik Markdown z front matterem według szablonu z `tools/alm/templates/`
+   (`gitlab-issue.md`, `gitlab-mr.md`, `jira-issue.md`, `confluence-page.md`). Sekcje: Kontekst, Zakres (lista
+   numerowana), Kryteria akceptacji (checkboxy), Przypadki brzegowe, Poza zakresem, Założenia. Niejasność
+   jako `[DO WYJAŚNIENIA: pytanie]`.
+2. Front matter mówi, czym plik jest: `key:` / `iid:` / `id:` = aktualizacja (`alm:update`), brak = nowy element
+   (`alm:create`), `comment: true` = komentarz.
+3. Dry-run: `npm run alm:create -- <źródło> <plik.md>` albo `npm run alm:update -- <źródło> <plik.md>`.
+   Pokaż człowiekowi wynik (przy aktualizacji diff).
+4. `--yes` dodajesz tylko po wyraźnym poleceniu człowieka w tej rozmowie. Usuwania nie ma.
+5. Po zapisie: `npm run alm:read -- <źródło>` i wiersz w run-logu z identyfikatorem utworzonego elementu.

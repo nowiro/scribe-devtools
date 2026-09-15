@@ -2,7 +2,7 @@
 
 Patrzenie na aplikację webową przez **systemowy Chrome/Edge** bez serwera MCP: flow batch z configu JSON
 (zrzuty, konsola, sieć, mapa elementów, nazwane ekstrakty → `report.md`) albo sesja interaktywna na refach
-`eN` (`open`, `find`, `click e45`, `fill`, `snap`, `export flow.json`) — jedna linia stdout na komendę
+`eN` (`open`, `find`, `click e45`, `fill`, `snap`, `tools`, `call`, `export flow.json`) — jedna linia stdout na komendę
 (`ok` / `FAIL`), całość na dysku w `.browser-inspector/`. Ciepła przeglądarka żyje
 w lokalnym **keeperze**, który startuje sam i gaśnie po bezczynności; na CI (`CI`, `GITLAB_CI`, …) keepera
 nie ma — komendy biegną w procesie.
@@ -14,6 +14,8 @@ npm run browser-inspector -- read.config.browser-inspector.json --stamp smoke
 npm run browser-inspector -- open http://localhost:4200/
 npm run browser-inspector -- find koszyk             # e45 button "Otwórz koszyk" [data-testid=…]
 npm run browser-inspector -- click e45
+npm run browser-inspector -- tools                   # narzędzia WebMCP strony (build dev), całość w tools.json
+npm run browser-inspector -- call addToCart {"sku":"A-1"}   # wynik w calls/001-addtocart.json
 npm run browser-inspector -- export flows/koszyk.json
 ```
 

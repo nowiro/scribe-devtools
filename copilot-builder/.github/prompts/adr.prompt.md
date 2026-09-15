@@ -1,18 +1,21 @@
 ---
-description: 'ADR: zapis decyzji architektonicznej (kontekst, decyzja, odrzucone alternatywy, konsekwencje) z nazwą ze stemplem i wierszem w docs/INDEX.md'
+description: 'ADR: zapis decyzji, której nie cofa się bez śladu (kontekst, decyzja, odrzucone alternatywy, konsekwencje); nazwa ze stemplem i wiersz w docs/INDEX.md'
 agent: orchestrator
 ---
 
-# /adr — decyzja, której się nie cofa bez śladu
+# /adr
 
-Powód ADR-u: wybór zamykający drogę odwrotu (biblioteka, format danych, kształt kontraktu, proces),
-odstępstwo od istniejącego ADR-u albo zmiana niezmiennika z `copilot-instructions.md`.
+Wejście od człowieka: decyzja do zapisania. ADR piszesz dla wyboru, który zamyka drogę odwrotu (biblioteka,
+format danych, kontrakt, proces), dla odstępstwa od istniejącego ADR i dla zmiany zasady
+z `.github/copilot-instructions.md`.
 
-1. Stempel z realnego zegara: `node -e "import('./tools/scripts/stamp.mjs').then(m=>console.log(m.nowStamp()))"`.
-2. `doc-spec` pisze `docs/decisions/<stempel>_adr-<slug>.md` z front matterem
-   (`type: decision`, `id: adr.<slug>`, `status: accepted`, `date`) i sekcjami: **Kontekst** (co wymusza decyzję),
-   **Decyzja** (jedno zdanie wytłuszczone, potem szczegóły), **Odrzucone alternatywy** (tabela z powodem),
-   **Konsekwencje** (co się zmienia w repozytorium, kto pilnuje — brama, jeśli istnieje).
-3. Decyzji się nie kasuje: zastępowany ADR dostaje `status: superseded` i pole `superseded_by`.
-4. `doc-intake` dopisuje wiersz w `docs/INDEX.md`; `npm run sdd:check` zielony.
-5. Jeśli decyzja zmienia niezmiennik — zmiana w `.github/copilot-instructions.md` w tym samym MR.
+1. `npm run stamp`.
+2. Brief do `doc-spec`: napisz `docs/decisions/<stempel>_adr-<slug>.md` z front matterem (`type: decision`,
+   `id: adr.<slug>`, `status: accepted`, `date`, `stamp`, `title`) i sekcjami: Kontekst, Decyzja (jedno zdanie
+   wytłuszczone, potem szczegóły), Odrzucone alternatywy (tabela z powodem), Konsekwencje (co się zmienia
+   i która brama tego pilnuje).
+3. Nowy ADR zastępuje starszy: w starszym `status: superseded` i pole `superseded_by`. ADR nie kasujesz.
+4. Brief do `doc-intake`: wiersz do `docs/INDEX.md`. Brief do `doc-spec`: wpisz ten wiersz.
+5. `npm run sdd:check`.
+6. Decyzja zmienia zasadę z `.github/copilot-instructions.md`: brief do `doc-spec` na zmianę tej zasady
+   w tym samym zadaniu.
