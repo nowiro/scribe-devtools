@@ -1,8 +1,14 @@
-# Dependencies and build output
+# Dependencies and build output. `node_modules/` and `dist/` are unanchored on purpose — no project
+# keeps hand-written code in a folder of either name. The rest are ANCHORED to the repository root,
+# because that is the only place this template writes them (tools/testing/vitest-angular.config.mts
+# → `coverage/<projekt>`, tools/scripts/new-project.mjs → `../../test-results/<nazwa>`), while
+# `coverage`, `out-tsc`, `reports`, `tmp` and `test-results` are ordinary FEATURE folder names deeper
+# inside `src/`. Unanchored, they silently kept such a folder out of git — and a file git never sees
+# is a file `affected` never selects, whatever the dependency graph says.
 node_modules/
 dist/
-out-tsc/
-coverage/
+/out-tsc/
+/coverage/
 *.log
 *.tsbuildinfo
 .DS_Store
@@ -16,10 +22,10 @@ Thumbs.db
 .vitest/
 
 # Test artefacts (Playwright reports, traces, screenshots of failed runs)
-playwright-report/
-test-results/
-reports/
-blob-report/
+/playwright-report/
+/test-results/
+/reports/
+/blob-report/
 
 # Output of every `npm run alm:read` and `npm run browser-inspector` run: what lands there is
 # upstream customer data (issue descriptions, comments, page bodies) or somebody's application
@@ -44,8 +50,8 @@ docs/plans/*
 docs/runs/*
 !docs/runs/.gitkeep
 
-# Scratch space of hooks and agents (handoff notes, ledgers)
-tmp/
+# Scratch space of hooks and agents (handoff notes, ledgers). Anchored for the reason above.
+/tmp/
 
 # Other assistants' configuration: this repository supports GitHub Copilot only (guard:forbidden
 # fails on any of these, the ignore just keeps a local experiment out of `git add .`).

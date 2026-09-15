@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -336,6 +336,20 @@ describe('changedFiles against real git history', () => {
     git(repo, ['mv', 'libs/shared/util/src/lib/staged.ts', 'apps/demo/src/staged.ts']);
 
     expect(changedFiles('main', repo)).toEqual(['apps/demo/src/staged.ts', 'libs/shared/util/src/lib/staged.ts']);
+  });
+
+  it('reports both paths of a worktree move that was never staged', () => {
+    write(repo, 'libs/shared/util/src/lib/loose.ts', "export const loose = 'trzecia tresc unikalna';\n");
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'seed']);
+    git(repo, ['branch', 'main']);
+    git(repo, ['checkout', '-q', '-b', 'feature']);
+    // no `git add`: the old path shows up as an unstaged deletion, the new one as untracked, and the
+    // two halves come from DIFFERENT git invocations — `diff` and `ls-files --others`. Nothing else
+    // in the suite exercises that pair, so a change to the `ls-files` line would go unnoticed.
+    renameSync(path.join(repo, 'libs/shared/util/src/lib/loose.ts'), path.join(repo, 'apps/demo/src/loose.ts'));
+
+    expect(changedFiles('main', repo)).toEqual(['apps/demo/src/loose.ts', 'libs/shared/util/src/lib/loose.ts']);
   });
 
   it('keeps non-ASCII paths readable so they still match a project root', () => {

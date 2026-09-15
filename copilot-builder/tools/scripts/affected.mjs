@@ -59,9 +59,12 @@ const SKIP_ANYWHERE = new Set(['node_modules', 'dist']);
  * project root in `aliasEdges` and for the dependency roots of `taskHash`, and additionally the
  * `tools/testing/` root trigger, the one caller that walks something else.
  *
- * The depth distinction is not pedantry. `coverage/` and `.angular/` are written by generators next
- * to the project they belong to, whereas `reports`, `tmp` and `test-results` are perfectly ordinary
- * FEATURE folder names deeper inside `src/`. Matching them by NAME at every depth hid
+ * The depth distinction is not pedantry. In THIS template every one of these is written at the
+ * WORKSPACE ROOT, never inside a project (`tools/testing/vitest-angular.config.mts` →
+ * `coverage/<projekt>`, `tools/scripts/new-project.mjs` → `../../test-results/<nazwa>`), so at
+ * depth 0 of a project walk the set is a cheap guard rather than a rule that fires — while
+ * `reports`, `tmp` and `test-results` are perfectly ordinary FEATURE folder names deeper inside
+ * `src/`. Matching them by NAME at every depth hid
  * `apps/<app>/src/app/reports/**` from the dependency graph AND from the task hash at once, so an
  * edit there landed on an unchanged cache marker and the task reported `hit … cached` without ever
  * running. Being wrong here is silent in both directions, so the rule is deliberately the narrow
