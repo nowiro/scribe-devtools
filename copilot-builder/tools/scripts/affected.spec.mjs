@@ -6,6 +6,7 @@ import process from 'node:process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ROOT_TRIGGERS,
+  expectedEmpty,
   TARGETS,
   affectedProjects,
   buildGraph,
@@ -274,6 +275,72 @@ describe('an application rooted at the repository itself ("root": "")', () => {
     // a real source change still moves it
     write(repo, 'src/app/app.ts', 'export const x = 2;\n');
     expect(taskHash(portal, graph, workspace, 'lint', repo)).not.toBe(before);
+  });
+});
+
+describe('expectedEmpty — a target that is designedly absent vs one that is missing', () => {
+  /** @param {string} name @param {'application'|'library'} projectType */
+  const p = (name, projectType) => ({ name, projectType, root: 'x', sourceRoot: 'x/src', architect: {} });
+
+  it('treats the three designed cases as absent on purpose', () => {
+    // a <app>-e2e project is generated with `architect: {}` and runs Playwright off its own config
+    expect(expectedEmpty(p('demo-e2e', 'application'), 'test')).toBe(true);
+    expect(expectedEmpty(p('demo-e2e', 'application'), 'build')).toBe(true);
+    // a library's ng-packagr build is for publishing; CI consumes libraries from source (ADR)
+    expect(expectedEmpty(p('shared-ui', 'library'), 'build')).toBe(true);
+    // e2e asked of anything that is not an e2e project
+    expect(expectedEmpty(p('demo', 'application'), 'e2e')).toBe(true);
+    expect(expectedEmpty(p('shared-ui', 'library'), 'e2e')).toBe(true);
+  });
+
+  it('treats everything else as a hole in angular.json', () => {
+    expect(expectedEmpty(p('demo', 'application'), 'test')).toBe(false);
+    expect(expectedEmpty(p('demo', 'application'), 'build')).toBe(false);
+    expect(expectedEmpty(p('shared-ui', 'library'), 'test')).toBe(false);
+    expect(expectedEmpty(p('demo-e2e', 'application'), 'e2e')).toBe(false);
+    expect(expectedEmpty(p('demo', 'application'), 'lint')).toBe(false);
+    expect(expectedEmpty(p('shared-ui', 'library'), 'typecheck')).toBe(false);
+  });
+});
+
+describe('a missing target fails instead of reporting skip', () => {
+  /** @type {string} */
+  let repo;
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(os.tmpdir(), 'cb-affected-missing-'));
+    const angular = structuredClone(ANGULAR);
+    // the typo this guards against: the application's test target simply is not there
+    delete angular.projects.demo.architect.test;
+    write(repo, 'angular.json', JSON.stringify(angular));
+    write(repo, 'tsconfig.json', JSON.stringify(TSCONFIG));
+    write(repo, 'apps/demo/src/main.ts', 'export {};\n');
+    write(repo, 'libs/shared/ui/src/public-api.ts', 'export {};\n');
+    write(repo, 'libs/shared/util/src/public-api.ts', 'export {};\n');
+    // every <app>-e2e project the generator makes carries this (new-project.mjs); without it the
+    // project would run no end-to-end test at all, which is a hole, not a design decision
+    write(repo, 'apps/demo-e2e/playwright.config.ts', 'export default {};\n');
+  });
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('exits 1 when an application carries no architect.test', () => {
+    // Before the fix this printed `skip test demo · no such target` and exited 0, which turns the
+    // project's test gate permanently green: the coverage thresholds never fire and junit is never
+    // written, with nothing comparing the absence to anything.
+    expect(main(['test', '--all', '--dry-run'], repo)).toBe(1);
+  });
+
+  it('still exits 0 for the targets that are absent by design', () => {
+    // shared-ui is a library: its ng-packagr build is deliberately not a CI target, and demo has a
+    // build target, so nothing here is missing.
+    expect(main(['build', '--all', '--dry-run'], repo)).toBe(0);
+    expect(main(['e2e', '--all', '--dry-run'], repo)).toBe(0);
+  });
+
+  it('exits 1 for an e2e project with no Playwright config — a hole, not a decision', () => {
+    rmSync(path.join(repo, 'apps/demo-e2e/playwright.config.ts'));
+    expect(main(['e2e', '--all', '--dry-run'], repo)).toBe(1);
   });
 });
 

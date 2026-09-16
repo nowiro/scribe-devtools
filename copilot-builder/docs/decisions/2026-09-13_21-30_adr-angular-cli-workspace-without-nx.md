@@ -28,7 +28,7 @@ było naprawdę używane, jest odtworzone małymi skryptami bez zależności:
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | graf projektów        | `tools/scripts/affected.mjs` czyta `angular.json` i aliasy `tsconfig.json` (`paths`); import aliasu = krawędź; `<app>-e2e` → `<app>`; `styles`/`assets`/`scripts` builda wskazujące inny projekt = krawędź |
 | `affected`            | zmiany względem merge-base (`git diff`) + working tree; zmiana pliku korzenia (manifest, lockfile, konfiguracje) = wszystkie projekty; brak bazy do porównania (świeży klon, inna gałąź domyślna) = wszystkie projekty, a nieistniejący `--base` to błąd (exit 2), nigdy „nic do zrobienia” |
-| cache zadań           | dla `lint`, `typecheck`, `test` (bez outputów): hash treści projektu, jego zależności, plików korzenia i samej linii komendy → marker w `.cache/tasks/`; GitLab CI przenosi `.cache/` per job i gałąź |
+| cache zadań           | dla `lint` i `typecheck` (bez outputów): hash treści projektu, jego zależności, plików korzenia i samej linii komendy → marker w `.cache/tasks/`; GitLab CI przenosi `.cache/` per job i gałąź. `test` jest wyłączony: `ng test --coverage` pisze junit i coverage, a trafienie w marker nie odtwarza żadnego z nich |
 | cache builda          | natywny cache Angular CLI (`.angular/cache`, `cli.cache.environment: all`) — również w CI                                          |
 | cache lintera / tsc   | `eslint --cache` (`.cache/eslint`), `tsc --incremental` (`.cache/tsc`), cache Vite (`.cache/vite`)                                  |
 | generatory            | `npm run new:app` / `new:lib` (`tools/scripts/new-project.mjs`) nad `ng generate` z post-procesingiem                              |
@@ -49,8 +49,10 @@ było naprawdę używane, jest odtworzone małymi skryptami bez zależności:
 - Dodanie projektu to `npm run new:app|new:lib`, nigdy `ng generate` wprost ani ręczna edycja `angular.json`.
 - `npm run affected -- <target>` jest komendą pierwszego wyboru lokalnie (pre-push: `verify:affected`)
   i w pipeline'ach MR; gałąź domyślna weryfikuje wszystko (`--all`).
-- Cache zadań nie przywraca outputów — dlatego `build` i `e2e` nigdy nie są cache'owane, a `dist/`
-  przechodzi między jobami jako artefakt.
+- Cache zadań nie przywraca outputów — dlatego `build`, `e2e` i `test` nigdy nie są cache'owane, a `dist/`
+  przechodzi między jobami jako artefakt. `test` był tu przez pomyłkę wpisany jako cel „bez outputów";
+  trafienie w marker gasiło `reports/junit-<projekt>.xml` i `coverage/<projekt>/`, a GitLab nie czerwieni
+  joba za brak raportu.
 - Gdyby zespół kiedyś zdecydował inaczej, `nx init` adoptuje istniejący `angular.json`; ten ADR wtedy
   dostaje `status: superseded`.
 

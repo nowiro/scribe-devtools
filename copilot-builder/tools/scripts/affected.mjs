@@ -19,11 +19,19 @@
 //
 // The task cache
 // --------------
-// `lint`, `typecheck` and `test` produce no outputs, so a run that already succeeded on identical
-// inputs need not run again: the inputs (every file of the project and of its dependencies, the root
-// triggers, the target name, the Node major) are hashed, and a marker in `.cache/tasks/` records the
-// green run. GitLab CI carries `.cache/` between jobs and branches, so the cache is shared without any
-// remote service. `build` (Angular has its own cache in .angular/cache) and `e2e` are never cached.
+// `lint` and `typecheck` produce no outputs, so a run that already succeeded on identical inputs need
+// not run again: the inputs (every file of the project and of its dependencies, the root triggers, the
+// target name, the Node major) are hashed, and a marker in `.cache/tasks/` records the green run.
+// GitLab CI carries `.cache/` between jobs and branches, so the cache is shared without any remote
+// service. `build` (Angular has its own cache in .angular/cache) and `e2e` are never cached.
+//
+// `test` is NOT cached, although it used to be. `ng test … --coverage` writes
+// `reports/junit-<project>.xml` and `coverage/<project>/cobertura-coverage.xml`, which the
+// `test-projects` job publishes as GitLab reports — and a marker hit returned 0 without producing
+// either, while GitLab does not fail a job for a missing report. The hit was also worth little:
+// taskHash covers the project's files, its dependencies' files and the root triggers, so a marker only
+// ever matched on a pipeline re-run or an `--all` pass on the default branch — exactly the runs the
+// coverage report is read from.
 // `--no-cache` or `CB_TASK_CACHE=0` bypasses the markers.
 //
 // Exit codes: 0 pass (also when nothing is affected) · 1 a task failed · 2 usage error.
@@ -35,7 +43,7 @@ import { displayCommand } from './display-command.mjs';
 import { REPO, isMain, readJsonc } from './lib/repo.mjs';
 
 export const TARGETS = Object.freeze(['lint', 'typecheck', 'test', 'build', 'e2e']);
-const CACHED_TARGETS = new Set(['lint', 'typecheck', 'test']);
+const CACHED_TARGETS = new Set(['lint', 'typecheck']);
 const CACHE_DIR = path.join(REPO, '.cache', 'tasks');
 /** Files whose change affects EVERY project. */
 export const ROOT_TRIGGERS = Object.freeze([
@@ -454,18 +462,67 @@ export function parseArgs(argv) {
  */
 
 /**
+ * Whether an empty command list is the DESIGNED answer for this pair rather than a hole in
+ * `angular.json`. Three cases, each of them a decision somebody made on purpose:
+ *
+ *   * a `<app>-e2e` project is generated with `architect: {}` (new-project.mjs) — it carries neither
+ *     `test` nor `build`, and runs Playwright off its own config instead;
+ *   * a library's `build` is ng-packagr, which exists for publishing: libraries are consumed from
+ *     source, so CI never builds them (the ADR says this outright);
+ *   * `e2e` asked of anything that is not an `<app>-e2e` project.
+ *
+ * Everything else empty is a MISSING target, and the difference matters: a typo in `architect.test`
+ * used to print `skip` and exit 0, which turns that project's test gate permanently green — the 80 %
+ * coverage thresholds never fire, `reports/junit-<project>.xml` is simply never written, and nothing
+ * compares the absence to anything. The header line counts projects SELECTED, not run, so it reports
+ * the full number either way.
+ * @param {Project} project
+ * @param {string} target
+ * @returns {boolean}
+ */
+export function expectedEmpty(project, target) {
+  const isE2eProject = project.name.endsWith('-e2e');
+  if (target === 'e2e') return !isE2eProject;
+  if (isE2eProject) return target === 'test' || target === 'build';
+  return target === 'build' && project.projectType === 'library';
+}
+
+/**
+ * What the reader has to add for this target to run. Only `lint`, `test` and `build` live in
+ * `architect`; `e2e` hangs off the project's own Playwright config and `typecheck` off its tsconfigs,
+ * so one generic sentence would send them to the wrong file.
+ * @param {Project} project
+ * @param {string} target
+ * @returns {string}
+ */
+function missingInput(project, target) {
+  if (target === 'e2e') return `${project.root}/playwright.config.ts`;
+  if (target === 'typecheck') return `a tsconfig under ${project.root}/`;
+  return `architect.${target} in angular.json`;
+}
+
+/**
  * Run one project's commands for the target, honouring the task cache.
  * @param {string} name
  * @param {RunContext} ctx
- * @returns {number} exit code — 0 also when the project has no such target or the cache hit
+ * @returns {number} exit code — 0 also when the target is designedly absent or the cache hit, 1 when
+ *   the target is MISSING
  */
 function runProject(name, ctx) {
   const { target, workspace, graph, repo } = ctx;
   const project = /** @type {Project} */ (workspace.projects.get(name));
   const commands = commandsFor(project, target, repo);
   if (commands.length === 0) {
-    process.stdout.write(`skip ${target} ${name} · no such target\n`);
-    return 0;
+    if (expectedEmpty(project, target)) {
+      process.stdout.write(`skip ${target} ${name} · no such target\n`);
+      return 0;
+    }
+    const missing = missingInput(project, target);
+    process.stderr.write(
+      `FAIL ${target} ${name} · nothing to run — this ${project.projectType} needs ${missing}; ` +
+        `running nothing is not the same as passing\n`,
+    );
+    return 1;
   }
   const marker =
     ctx.cache && CACHED_TARGETS.has(target)

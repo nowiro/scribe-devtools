@@ -407,7 +407,7 @@ Modules: 96.
 
 ## tools/scripts/affected.mjs
 - purpose: run one target for the projects a change touches: the `nx affected` this repository deliberately does not have, in one dependency-free scri…
-- exports: `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `mergeBaseFor(base, repo) → string | null`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
+- exports: `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `expectedEmpty(project, target) → boolean`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `mergeBaseFor(base, repo) → string | null`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
 - env: `CB_TASK_CACHE`
 - imports: `tools/scripts/display-command.mjs`, `tools/scripts/lib/repo.mjs`
 - imported by: `tools/scripts/route.mjs`
