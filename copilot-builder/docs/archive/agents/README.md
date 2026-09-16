@@ -25,6 +25,17 @@ Używają też słownika tierów `T2` / `T3`, którego repozytorium już nie ma 
 | `code-reviewer.agent.md` | cztery miejsca rodzinowe: `code-reviewer-anthropic`, `code-reviewer-openai`, `code-reviewer-moonshot`, `code-reviewer-google` — review jest krzyżową weryfikacją kilku rodzin modeli, nie jednym czytaniem, a `review:draw` losuje z tej puli |
 | `orchestrator-sdd.agent.md` | `orchestrator.agent.md` — ten sam przepływ SDD, roster po zmianie tierów i po rozbiciu review |
 
+## Jedna zmiana redakcyjna
+
+`code-reviewer.agent.md` jest kopią bajt w bajt. W `orchestrator-sdd.agent.md` podmienione są
+**dwa** wystąpienia dawnej, upstreamowej nazwy katalogu narzędzia ALM — na obecne `tools/alm/**`
+i `.alm/`. Plik pochodzi sprzed ADR `neutral-tool-names`, a `guard:forbidden` (część
+`npm run verify`) nie przepuszcza tamtej nazwy w ŻADNYM śledzonym pliku, także archiwalnym —
+również w tym akapicie, dlatego nie jest tu zacytowana dosłownie.
+To ta sama decyzja, która przemianowała te katalogi w całym repozytorium: drzewo ma nieść nazwę
+tego, co narzędzie ROBI, nie marki miejsca, z którego przyszło. Poza tymi dwoma ścieżkami treść
+jest nietknięta.
+
 Żadna zdolność nie została utracona przy tej zamianie; te pliki są zapisem drogi, nie
 materiałem do przywrócenia. Gdyby kiedyś miały wrócić do `.github/agents/`, wymagają
 wpisania do rosteru i naprawy A9 oraz A13 — czyli świadomej decyzji o cofnięciu
