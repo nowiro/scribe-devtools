@@ -78,7 +78,7 @@ describe('affected.mjs on a small workspace', () => {
     write(repo, 'apps/demo/tsconfig.spec.json', '{}');
     write(repo, 'apps/demo/src/main.ts', "import './app/app';\n");
     write(repo, 'apps/demo/src/app/app.ts', "import { SharedUi } from '@cb/shared/ui';\nexport const x = SharedUi;\n");
-    // a declaration file and a dependency folder do not create edges
+    // a declaration file IS compiled, so its alias import is a real edge; a dependency folder is not
     write(repo, 'apps/demo/src/types.d.ts', "import type { Y } from '@cb/shared/util';\nexport type Z = Y;\n");
     write(repo, 'apps/demo/node_modules/pkg/index.ts', "import '@cb/shared/util';\n");
     write(repo, 'apps/demo-e2e/tsconfig.json', '{}');
@@ -112,7 +112,8 @@ describe('affected.mjs on a small workspace', () => {
   });
 
   it('builds the dependency graph from alias imports and the <app>-e2e convention', () => {
-    expect([...(graph.get('demo') ?? [])]).toEqual(['shared-ui']);
+    // shared-ui from app.ts, shared-util from the type-only import inside src/types.d.ts
+    expect([...(graph.get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
     expect([...(graph.get('shared-ui') ?? [])]).toEqual(['shared-util']);
     expect([...(graph.get('demo-e2e') ?? [])]).toEqual(['demo']);
     expect([...(graph.get('shared-util') ?? [])]).toEqual([]);
@@ -197,7 +198,9 @@ describe('affected.mjs on a small workspace', () => {
     const files = listFiles(repo, 'apps/demo');
     expect(files.some((file) => file.includes('/coverage/'))).toBe(false);
     expect(files.some((file) => file.includes('/.angular/'))).toBe(false);
-    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])]).toEqual(['shared-ui']);
+    // shared-ui and shared-util are the fixture's real edges (app.ts and src/types.d.ts); what this
+    // asserts is that the alias imports planted inside the generated folders added nothing to them.
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
   });
 
   // AC3 — `import '@cb/x';` is how a polyfill, a global stylesheet side-effect or a registration
@@ -275,6 +278,44 @@ describe('an application rooted at the repository itself ("root": "")', () => {
     // a real source change still moves it
     write(repo, 'src/app/app.ts', 'export const x = 2;\n');
     expect(taskHash(portal, graph, workspace, 'lint', repo)).not.toBe(before);
+  });
+});
+
+describe('a declaration file carries edges like any other source', () => {
+  /** @type {string} */
+  let repo;
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(os.tmpdir(), 'cb-affected-dts-'));
+    write(repo, 'angular.json', JSON.stringify(ANGULAR));
+    write(repo, 'tsconfig.json', JSON.stringify(TSCONFIG));
+    // the ONLY link from demo to shared-util runs through a declaration file
+    write(repo, 'apps/demo/src/types.d.ts', "import type { Y } from '@cb/shared/util';\nexport type Z = Y;\n");
+    write(repo, 'libs/shared/ui/src/public-api.ts', 'export {};\n');
+    write(repo, 'libs/shared/util/src/public-api.ts', 'export type Y = { id: string };\n');
+  });
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('marks the application when a library it uses only from a .d.ts changes', () => {
+    // Measured before the fix: `tsc -p apps/demo/tsconfig.app.json` failed with TS2305 after the
+    // library dropped the exported type, while affected answered ['shared-util'] alone.
+    const workspace = readWorkspace(repo);
+    const graph = buildGraph(workspace, repo);
+    expect([...(graph.get('demo') ?? [])]).toContain('shared-util');
+    expect(affectedProjects(['libs/shared/util/src/public-api.ts'], workspace, graph).affected).toContain('demo');
+  });
+
+  it('treats .d.mts the same way, which the old exclusion never did', () => {
+    rmSync(path.join(repo, 'apps/demo/src/types.d.ts'));
+    write(repo, 'apps/demo/src/types.d.mts', "import type { Y } from '@cb/shared/util';\nexport type Z = Y;\n");
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])]).toContain('shared-util');
+  });
+
+  it('still ignores a dependency folder, whatever it declares', () => {
+    write(repo, 'apps/demo/node_modules/pkg/index.d.ts', "import type { Y } from '@cb/shared/util';\n");
+    rmSync(path.join(repo, 'apps/demo/src/types.d.ts'));
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])]).not.toContain('shared-util');
   });
 });
 

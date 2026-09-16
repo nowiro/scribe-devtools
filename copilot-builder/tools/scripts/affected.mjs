@@ -41,6 +41,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { displayCommand } from './display-command.mjs';
 import { REPO, isMain, readJsonc } from './lib/repo.mjs';
+import { skipDirectory } from './lib/scan.mjs';
 
 export const TARGETS = Object.freeze(['lint', 'typecheck', 'test', 'build', 'e2e']);
 const CACHED_TARGETS = new Set(['lint', 'typecheck']);
@@ -57,33 +58,6 @@ export const ROOT_TRIGGERS = Object.freeze([
   'eslint.rules.mjs',
   'tools/testing/',
 ]);
-/**
- * Directories that are never source, wherever they appear. All three are unambiguous: no Angular
- * project keeps hand-written code in a folder called `node_modules`, `dist` or `.git`.
- *
- * `.git` matters only for a project whose `root` is the repository root (`"root": ""`, which a
- * migrated workspace brings in and which `readWorkspace` also defaults to). The walk then started at
- * the repository itself and read the whole object store into `taskHash` — measured: an EMPTY commit
- * changed the hash, so the task cache could never hit for that project.
- */
-const SKIP_ANYWHERE = new Set(['node_modules', 'dist', '.git']);
-/**
- * Generated directories, skipped ONLY among the DIRECT CHILDREN of the walk root — which is a
- * project root in `aliasEdges` and for the dependency roots of `taskHash`, and additionally the
- * `tools/testing/` root trigger, the one caller that walks something else.
- *
- * The depth distinction is not pedantry. In THIS template every one of these is written at the
- * WORKSPACE ROOT, never inside a project (`tools/testing/vitest-angular.config.mts` →
- * `coverage/<projekt>`, `tools/scripts/new-project.mjs` → `../../test-results/<nazwa>`), so at
- * depth 0 of a project walk the set is a cheap guard rather than a rule that fires — while
- * `reports`, `tmp` and `test-results` are perfectly ordinary FEATURE folder names deeper inside
- * `src/`. Matching them by NAME at every depth hid
- * `apps/<app>/src/app/reports/**` from the dependency graph AND from the task hash at once, so an
- * edit there landed on an unchanged cache marker and the task reported `hit … cached` without ever
- * running. Being wrong here is silent in both directions, so the rule is deliberately the narrow
- * one: skip only where a generator actually writes.
- */
-const SKIP_AT_ROOT = new Set(['.angular', '.cache', 'coverage', 'playwright-report', 'test-results', 'reports', 'tmp']);
 
 /**
  * @typedef {object} Project
@@ -152,8 +126,7 @@ export function listFiles(repo, dir) {
       // so every comparison downstream silently failed.
       const childRel = rel === '' ? entry.name : `${rel}/${entry.name}`;
       if (entry.isDirectory()) {
-        if (SKIP_ANYWHERE.has(entry.name)) continue;
-        if (depth === 0 && SKIP_AT_ROOT.has(entry.name)) continue;
+        if (skipDirectory(entry.name, depth)) continue;
         walk(childRel, depth + 1);
       } else out.push(childRel);
     }
@@ -229,7 +202,16 @@ function aliasEdges(project, workspace, repo) {
   const pattern = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/gu;
   const deps = new Set();
   for (const file of listFiles(repo, project.root)) {
-    if (!/\.(?:ts|mts)$/u.test(file) || /\.d\.ts$/u.test(file)) continue;
+    // `.d.ts` is scanned like any other source. It used to be excluded, and that exclusion was a
+    // defect, not a decision: a declaration file is compiled (`tsconfig.app.json` includes
+    // `src/**/*.d.ts`), so an alias import inside one is a real typecheck dependency. Measured on a
+    // fixture whose ONLY link ran through `src/types.d.ts`: removing the exported type from the
+    // library made `tsc -p apps/demo/tsconfig.app.json` fail with TS2305, while `affected` answered
+    // `['shared-util']` and left the broken application out. The exclusion was also inconsistent —
+    // `/\.d\.ts$/` never matched `.d.mts`, which passes the `.mts` test and WAS scanned — and
+    // pointless as a filter, because only workspace aliases are matched below, so an ambient
+    // `declare module 'third-party'` could never have produced an edge anyway.
+    if (!/\.(?:ts|mts)$/u.test(file)) continue;
     const source = readFileSync(path.join(repo, file), 'utf8');
     for (const match of source.matchAll(pattern)) {
       const specifier = match[1];

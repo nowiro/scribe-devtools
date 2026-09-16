@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 96.
+Modules: 97.
 
 ## tools/alm/integrations/browser-inspector/read-browser-inspector.ts
 - purpose: web pages through a real browser, as a script instead of the Playwright MCP server.
@@ -409,7 +409,7 @@ Modules: 96.
 - purpose: run one target for the projects a change touches: the `nx affected` this repository deliberately does not have, in one dependency-free scri…
 - exports: `ROOT_TRIGGERS`, `TARGETS`, `affectedProjects(changed, workspace, graph) → { affected: string[], reason: string }`, `buildGraph(workspace, repo) → Map<string, Set<string>>`, `changedFiles(base, repo) → string[] | null`, `commandsFor(project, target, repo) → string[][]`, `expectedEmpty(project, target) → boolean`, `listFiles(repo, dir) → string[]`, `main(argv, repo) → number`, `mergeBaseFor(base, repo) → string | null`, `parseArgs(argv) → { target?: string, all: boolean, base?: string, cache: bool…`, `readWorkspace(repo) → Workspace`, `taskHash(project, graph, workspace, target, repo) → string`
 - env: `CB_TASK_CACHE`
-- imports: `tools/scripts/display-command.mjs`, `tools/scripts/lib/repo.mjs`
+- imports: `tools/scripts/display-command.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/lib/scan.mjs`
 - imported by: `tools/scripts/route.mjs`
 
 ## tools/scripts/check-glossary.mjs
@@ -425,7 +425,7 @@ Modules: 96.
 ## tools/scripts/check-pins.mjs
 - purpose: Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of `npm run verify`, next to `biome format .`.
 - exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root)`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `tagProblems(pin, version, root) → string[]`, `walkText(root, frozen) → string[]`, `workspacePatterns(root) → string[]`
-- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/pins.config.mjs`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/lib/scan.mjs`, `tools/scripts/pins.config.mjs`
 - types only: `tools/scripts/pins.config.mjs`
 - imported by: `tools/scripts/check-upstream.mjs`
 
@@ -459,7 +459,7 @@ Modules: 96.
 ## tools/scripts/index-code.mjs
 - purpose: the repository's dependency index, for LLM-driven development.
 - exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `insideStringLiteral(code, index) → boolean`, `insideTemplateLiteral(code, index) → boolean`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
-- imports: `tools/scripts/lib/repo.mjs`
+- imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/lib/scan.mjs`
 
 ## tools/scripts/lib/md-table.mjs
 - purpose: one markdown table reader for the scripts that read or edit SDD tables (plan, run-log, review reports).
@@ -470,6 +470,11 @@ Modules: 96.
 - purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
 - exports: `COMMITTED_DOCS`, `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
 - imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-draw.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
+
+## tools/scripts/lib/scan.mjs
+- purpose: which directories a tree walk must not enter, and at what depth.
+- exports: `SKIP_ANYWHERE`, `SKIP_AT_ROOT`, `skipDirectory(name, depth, alsoAnywhere) → boolean`
+- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/index-code.mjs`
 
 ## tools/scripts/new-project.mjs
 - purpose: the ONE way an application or a library is added to this workspace (0 credits).
