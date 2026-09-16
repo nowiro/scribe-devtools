@@ -207,6 +207,76 @@ describe('affected.mjs on a small workspace', () => {
   });
 });
 
+describe('an application rooted at the repository itself ("root": "")', () => {
+  /** @type {string} */
+  let repo;
+  /** @type {ReturnType<typeof readWorkspace>} */
+  let workspace;
+  /** @type {Map<string, Set<string>>} */
+  let graph;
+
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(os.tmpdir(), 'cb-affected-rootless-'));
+    // What a migrated Angular workspace brings in, and what readWorkspace also defaults to: the
+    // original application keeps `"root": ""` and the libraries move under libs/.
+    write(
+      repo,
+      'angular.json',
+      JSON.stringify({
+        projects: {
+          portal: project('', 'application', { build: {}, test: unitTest }),
+          'shared-ui': project('libs/shared/ui', 'library', { test: unitTest }),
+        },
+      }),
+    );
+    write(repo, 'tsconfig.json', JSON.stringify(TSCONFIG));
+    write(repo, 'src/app/app.ts', "import { SharedUi } from '@cb/shared/ui';\nexport const x = SharedUi;\n");
+    write(repo, 'libs/shared/ui/src/public-api.ts', 'export const SharedUi = 1;\n');
+    // not a real repository — the walk only ever looks at the NAME of the directory
+    write(repo, '.git/objects/ab/cdef', 'binary-ish\n');
+    write(repo, '.git/HEAD', 'ref: refs/heads/main\n');
+    workspace = readWorkspace(repo);
+    graph = buildGraph(workspace, repo);
+  });
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('walks the repository without descending into .git and without leading slashes', () => {
+    const files = listFiles(repo, '');
+    expect(files.some((file) => file.startsWith('/'))).toBe(false);
+    expect(files.some((file) => file.includes('.git/'))).toBe(false);
+    expect(files).toContain('src/app/app.ts');
+    expect(files).toContain('libs/shared/ui/src/public-api.ts');
+  });
+
+  it('marks the project when its OWN source changes', () => {
+    // Before the fix this answered [] — the prefix comparison asked whether the path equals '' or
+    // starts with '/', which is false for every path git reports, so the application was invisible.
+    expect(affectedProjects(['src/app/app.ts'], workspace, graph).affected).toContain('portal');
+  });
+
+  it('contains every file, because its root IS the repository', () => {
+    expect(affectedProjects(['libs/shared/ui/src/public-api.ts'], workspace, graph).affected).toEqual([
+      'portal',
+      'shared-ui',
+    ]);
+    expect(affectedProjects(['README.md'], workspace, graph).affected).toEqual(['portal']);
+  });
+
+  it('keeps the task hash blind to .git, so an unrelated git write cannot invalidate it', () => {
+    const portal = /** @type {NonNullable<ReturnType<typeof workspace.projects.get>>} */ (
+      workspace.projects.get('portal')
+    );
+    const before = taskHash(portal, graph, workspace, 'lint', repo);
+    write(repo, '.git/objects/ab/beef', 'another object\n');
+    expect(taskHash(portal, graph, workspace, 'lint', repo)).toBe(before);
+    // a real source change still moves it
+    write(repo, 'src/app/app.ts', 'export const x = 2;\n');
+    expect(taskHash(portal, graph, workspace, 'lint', repo)).not.toBe(before);
+  });
+});
+
 describe('parseArgs', () => {
   const saved = process.env.CB_TASK_CACHE;
   afterEach(() => {

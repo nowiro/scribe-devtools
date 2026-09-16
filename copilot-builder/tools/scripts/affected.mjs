@@ -50,10 +50,15 @@ export const ROOT_TRIGGERS = Object.freeze([
   'tools/testing/',
 ]);
 /**
- * Directories that are never source, wherever they appear. Both are unambiguous: no Angular project
- * keeps hand-written code in a folder called `node_modules` or `dist`.
+ * Directories that are never source, wherever they appear. All three are unambiguous: no Angular
+ * project keeps hand-written code in a folder called `node_modules`, `dist` or `.git`.
+ *
+ * `.git` matters only for a project whose `root` is the repository root (`"root": ""`, which a
+ * migrated workspace brings in and which `readWorkspace` also defaults to). The walk then started at
+ * the repository itself and read the whole object store into `taskHash` — measured: an EMPTY commit
+ * changed the hash, so the task cache could never hit for that project.
  */
-const SKIP_ANYWHERE = new Set(['node_modules', 'dist']);
+const SKIP_ANYWHERE = new Set(['node_modules', 'dist', '.git']);
 /**
  * Generated directories, skipped ONLY among the DIRECT CHILDREN of the walk root — which is a
  * project root in `aliasEdges` and for the dependency roots of `taskHash`, and additionally the
@@ -134,7 +139,10 @@ export function listFiles(repo, dir) {
     const abs = path.join(repo, rel);
     if (!existsSync(abs)) return;
     for (const entry of readdirSync(abs, { withFileTypes: true })) {
-      const childRel = `${rel}/${entry.name}`;
+      // `rel` is '' when the walk root is the repository itself; joining blindly would emit
+      // `/apps/demo/src/main.ts`, a path with a leading slash that matches nothing git ever reports,
+      // so every comparison downstream silently failed.
+      const childRel = rel === '' ? entry.name : `${rel}/${entry.name}`;
       if (entry.isDirectory()) {
         if (SKIP_ANYWHERE.has(entry.name)) continue;
         if (depth === 0 && SKIP_AT_ROOT.has(entry.name)) continue;
@@ -294,6 +302,21 @@ export function changedFiles(base, repo = REPO) {
 }
 
 /**
+ * Whether `file` lies inside `root`, both repository-relative POSIX paths.
+ *
+ * The empty root is the case that has to be spelled out rather than fall out of the arithmetic: a
+ * project whose `root` is `''` IS the repository, so it contains every file. Comparing by prefix
+ * without this branch asked whether the path equals `''` or starts with `/` — false for every path
+ * git reports — so such a project was never marked, and a change to its OWN source answered
+ * `affected: []`. Measured on a fixture: editing `src/app/app.ts` of a `"root": ""` application
+ * marked nothing at all. Over-marking is the safe direction here; silent green is not.
+ * @param {string} root
+ * @param {string} file
+ * @returns {boolean}
+ */
+const contains = (root, file) => root === '' || file === root || file.startsWith(`${root}/`);
+
+/**
  * @param {string[]} changed
  * @param {{ projects: Map<string, Project> }} workspace
  * @param {Map<string, Set<string>>} graph
@@ -307,7 +330,7 @@ export function affectedProjects(changed, workspace, graph) {
   if (rootHit) return { affected: all, reason: `root trigger changed: ${rootHit}` };
   const marked = new Set();
   for (const project of workspace.projects.values()) {
-    if (changed.some((file) => file === project.root || file.startsWith(`${project.root}/`))) marked.add(project.name);
+    if (changed.some((file) => contains(project.root, file))) marked.add(project.name);
   }
   // dependents, transitively
   let grew = true;
