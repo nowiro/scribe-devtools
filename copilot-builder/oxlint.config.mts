@@ -24,19 +24,22 @@ export default defineConfig({
   plugins: [],
   categories: { correctness: 'off' },
   options: { typeAware: true, denyWarnings: true, reportUnusedDisableDirectives: 'error' },
+  // Anchored like .gitignore: `coverage`, `out-tsc`, `tmp`, `test-results` and `playwright-report` are
+  // written only at the repository root, while the same words are ordinary feature-folder names inside
+  // `src/` — ignored at every depth, such a folder would never be linted.
   ignorePatterns: [
     '**/node_modules/**',
     '**/dist/**',
-    '**/out-tsc/**',
-    '**/coverage/**',
+    'out-tsc/**',
+    'coverage/**',
     '**/.angular/**',
     '**/.cache/**',
     '**/.alm/**',
     '**/.browser-inspector/**',
     '**/.mcp-artifacts/**',
-    '**/tmp/**',
-    '**/playwright-report/**',
-    '**/test-results/**',
+    'tmp/**',
+    'playwright-report/**',
+    'test-results/**',
     'tools/alm/**',
     'tools/browser-inspector/**',
   ],

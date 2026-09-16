@@ -20,27 +20,11 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { FROZEN_ALWAYS, PINS } from './pins.config.mjs';
 import { REPO, isMain } from './lib/repo.mjs';
+import { skipDirectory } from './lib/scan.mjs';
 
 /** @typedef {import('./pins.config.mjs').Pin} Pin */
 /** @typedef {Map<string, {spec: string, where: string}[]>} Declarations */
 
-/** Never walked: generated, installed, or not this repository's text. */
-const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.angular',
-  '.cache',
-  'coverage',
-  'dist',
-  'out-tsc',
-  'tmp',
-  '.alm',
-  '.browser-inspector',
-  '.mcp-artifacts',
-  '.vitest',
-  'playwright-report',
-  'test-results',
-]);
 const SKIP_FILES = new Set(['package-lock.json']);
 const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.mts', '.ts', '.json', '.yml', '.yaml', '.txt']);
 
@@ -158,13 +142,13 @@ export function walkText(root, frozen) {
   /** @type {string[]} */
   const out = [];
   const isFrozen = (/** @type {string} */ rel) => frozen.some((f) => (f.endsWith('/') ? rel.startsWith(f) : rel === f));
-  const walk = (/** @type {string} */ dir) => {
+  const walk = (/** @type {string} */ dir, /** @type {number} */ depth) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const abs = path.join(dir, entry.name);
       const rel = path.relative(root, abs).split(path.sep).join('/');
       if (entry.isDirectory()) {
-        if (SKIP_DIRS.has(entry.name) || isFrozen(`${rel}/`)) continue;
-        walk(abs);
+        if (skipDirectory(entry.name, depth) || isFrozen(`${rel}/`)) continue;
+        walk(abs, depth + 1);
         continue;
       }
       if (SKIP_FILES.has(entry.name) || isFrozen(rel)) continue;
@@ -173,7 +157,7 @@ export function walkText(root, frozen) {
       out.push(rel);
     }
   };
-  walk(root);
+  walk(root, 0);
   return out.sort();
 }
 

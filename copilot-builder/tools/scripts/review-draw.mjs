@@ -16,12 +16,18 @@
 // nothing: the briefs may already be out, and a new draw would make the reports and the expectation
 // disagree. To draw again, remove the file — a decision for a human.
 //
+// The target must NOT be a committed docs category (docs/decisions, docs/reviews): those are policed
+// by sdd:check (C1) and a directory can never satisfy its `<stamp>_<slug>.md` naming, so the draw is
+// refused up front instead of failing later in a gate that talks about naming rather than the draw.
+// The working directory belongs in docs/runs/, and review:merge --out writes the merged report into
+// docs/reviews/ (orchestrator.agent.md).
+//
 // Exit codes: 0 drawn (or the recorded draw reprinted) · 2 usage error, or a registry `ai:validate`
 // (A18 / A20) would refuse.
 import { randomInt } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { REPO, isMain } from './lib/repo.mjs';
+import { COMMITTED_DOCS, REPO, isMain } from './lib/repo.mjs';
 import { nowStamp } from './stamp.mjs';
 
 /** The record of one draw, written next to the seat reports. */
@@ -128,6 +134,19 @@ export function formatDraw(draw) {
 }
 
 /**
+ * The committed `docs/` category a target directory would land in, or null when it lands anywhere
+ * else. Exact segment match, so `docs/reviewsomething` is not `docs/reviews`, and a path outside the
+ * repository answers null because `path.relative` then starts with `..`.
+ * @param {string} dir as typed on the command line
+ * @param {string} [repo]
+ * @returns {string | null}
+ */
+export function committedCategoryFor(dir, repo = REPO) {
+  const [docs, category] = path.relative(repo, path.resolve(repo, dir)).replaceAll('\\', '/').split('/');
+  return docs === 'docs' && COMMITTED_DOCS.includes(category) ? category : null;
+}
+
+/**
  * @param {string[]} argv
  * @returns {number} exit code
  */
@@ -139,6 +158,22 @@ export function runCli(argv) {
   }
   if (existsSync(dir) && !statSync(dir).isDirectory()) {
     process.stderr.write(`review:draw: ${dir} is not a directory\n`);
+    return 2;
+  }
+  // A draw directory under docs/decisions or docs/reviews is accepted by every step here and then
+  // fails two steps later, in a gate that talks about something else: sdd:check (C1) requires every
+  // entry of those directories to be named `YYYY-MM-DD_HH-MM_<slug>.md`, which a directory can never
+  // be, so the message names the naming rule and says nothing about the draw. Refusing up front, at
+  // the moment the wrong path is typed, is the difference between one honest error and a confusing
+  // one — and the seat reports are not written yet, so nothing is lost by stopping here.
+  const committed = committedCategoryFor(dir);
+  if (committed !== null) {
+    process.stderr.write(
+      `review:draw: docs/${committed}/ holds committed artefacts that sdd:check (C1) requires to be named ` +
+        `YYYY-MM-DD_HH-MM_<slug>.md, so a draw directory there cannot pass. Draw into ` +
+        `docs/runs/<stempel>_review-<slug> and let review:merge --out write the merged report into ` +
+        `docs/${committed}/.\n`,
+    );
     return 2;
   }
   try {
