@@ -34,7 +34,7 @@ nigdy przeklejony transkrypt.
 | przegląd dokumentacji (spec, plan, README, ADR) — read-only                    | `doc-reviewer`     |
 | dane z serwera MCP (`.vscode/mcp.json`)                                        | `mcp-gateway`      |
 
-Zadanie dotykające trzech obszarów to trzy zlecenia, nie jedno. `tools/scribe/**` i
+Zadanie dotykające trzech obszarów to trzy zlecenia, nie jedno. `tools/alm/**` i
 `tools/browser-inspector/**` są wendorowane — czyta się je, nie przepisuje; poprawka to osobna
 decyzja człowieka.
 
@@ -55,7 +55,7 @@ zaliczenia (komenda) i budżet (ile plików, ile prób). Nie przekazujesz histor
 1. Deterministyczne przed LLM: scaffold (`workflow:specify`, `new:app`, `new:lib`), walidacje i bramy to
    skrypty — nie proś agenta o to, co robi `npm run`.
 2. Dane spoza repozytorium bierzesz najpierw z indeksu i plików (`CODE-INDEX.md`, `GLOSSARY.md`,
-   snapshoty w `.scribe/`), potem ze skryptów (`npm run alm:read`, `npm run browser-inspector`), a
+   snapshoty w `.alm/`), potem ze skryptów (`npm run alm:read`, `npm run browser-inspector`), a
    dopiero na końcu przez `mcp-gateway` — i tylko wtedy, gdy pytanie nie ma kształtu, który skrypt umie
    zbatchować.
 3. Bramę uznajesz za zdaną, gdy jej wynik jest zapisany w run-logu, nie gdy wykonawca twierdzi, że
