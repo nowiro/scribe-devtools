@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ROOT_TRIGGERS,
+  expectedEmpty,
   TARGETS,
   affectedProjects,
   buildGraph,
@@ -77,7 +78,7 @@ describe('affected.mjs on a small workspace', () => {
     write(repo, 'apps/demo/tsconfig.spec.json', '{}');
     write(repo, 'apps/demo/src/main.ts', "import './app/app';\n");
     write(repo, 'apps/demo/src/app/app.ts', "import { SharedUi } from '@cb/shared/ui';\nexport const x = SharedUi;\n");
-    // a declaration file and a dependency folder do not create edges
+    // a declaration file IS compiled, so its alias import is a real edge; a dependency folder is not
     write(repo, 'apps/demo/src/types.d.ts', "import type { Y } from '@cb/shared/util';\nexport type Z = Y;\n");
     write(repo, 'apps/demo/node_modules/pkg/index.ts', "import '@cb/shared/util';\n");
     write(repo, 'apps/demo-e2e/tsconfig.json', '{}');
@@ -111,7 +112,8 @@ describe('affected.mjs on a small workspace', () => {
   });
 
   it('builds the dependency graph from alias imports and the <app>-e2e convention', () => {
-    expect([...(graph.get('demo') ?? [])]).toEqual(['shared-ui']);
+    // shared-ui from app.ts, shared-util from the type-only import inside src/types.d.ts
+    expect([...(graph.get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
     expect([...(graph.get('shared-ui') ?? [])]).toEqual(['shared-util']);
     expect([...(graph.get('demo-e2e') ?? [])]).toEqual(['demo']);
     expect([...(graph.get('shared-util') ?? [])]).toEqual([]);
@@ -165,6 +167,221 @@ describe('affected.mjs on a small workspace', () => {
       'apps/demo-e2e/playwright.config.ts',
     ]);
     expect(commandsFor(demo, 'lint', repo)[0]?.slice(2, 4)).toEqual(['apps/demo', '--max-warnings=0']);
+  });
+
+  // AC2 — a folder whose NAME collides with a generated one, but which sits inside the project's
+  // sources, is a functional folder. Skipping it by name at every depth hid its imports from the
+  // graph AND its bytes from the task hash, so an edit landed on an unchanged cache marker.
+  it('scans a functional folder whose name collides with a generated one', () => {
+    write(
+      repo,
+      'apps/demo/src/app/reports/report.ts',
+      "import { sharedUtil } from '@cb/shared/util';\nexport const report = sharedUtil;\n",
+    );
+    expect(listFiles(repo, 'apps/demo')).toContain('apps/demo/src/app/reports/report.ts');
+
+    const scoped = readWorkspace(repo);
+    const edges = buildGraph(scoped, repo);
+    expect([...(edges.get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
+
+    const demo = /** @type {NonNullable<ReturnType<typeof scoped.projects.get>>} */ (scoped.projects.get('demo'));
+    const before = taskHash(demo, edges, scoped, 'lint', repo);
+    write(repo, 'apps/demo/src/app/reports/report.ts', "export const report = 'zmienione';\n");
+    expect(taskHash(demo, edges, scoped, 'lint', repo)).not.toBe(before);
+  });
+
+  // The other half of the same decision: a generated folder still disappears, as long as it sits
+  // where generators put it — directly under the project root.
+  it('still skips a generated folder directly under the project root', () => {
+    write(repo, 'apps/demo/coverage/lcov-report/x.ts', "import '@cb/shared/util';\n");
+    write(repo, 'apps/demo/.angular/cache/y.ts', "import '@cb/shared/util';\n");
+    const files = listFiles(repo, 'apps/demo');
+    expect(files.some((file) => file.includes('/coverage/'))).toBe(false);
+    expect(files.some((file) => file.includes('/.angular/'))).toBe(false);
+    // shared-ui and shared-util are the fixture's real edges (app.ts and src/types.d.ts); what this
+    // asserts is that the alias imports planted inside the generated folders added nothing to them.
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
+  });
+
+  // AC3 — `import '@cb/x';` is how a polyfill, a global stylesheet side-effect or a registration
+  // module is pulled in. It has no `from`, so the old pattern could not see it at all.
+  it('creates an edge for a side-effect import of a workspace alias', () => {
+    write(repo, 'apps/demo/src/polyfills.ts', "import '@cb/shared/util';\n");
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])].sort()).toEqual(['shared-ui', 'shared-util']);
+  });
+});
+
+describe('an application rooted at the repository itself ("root": "")', () => {
+  /** @type {string} */
+  let repo;
+  /** @type {ReturnType<typeof readWorkspace>} */
+  let workspace;
+  /** @type {Map<string, Set<string>>} */
+  let graph;
+
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(os.tmpdir(), 'cb-affected-rootless-'));
+    // What a migrated Angular workspace brings in, and what readWorkspace also defaults to: the
+    // original application keeps `"root": ""` and the libraries move under libs/.
+    write(
+      repo,
+      'angular.json',
+      JSON.stringify({
+        projects: {
+          portal: project('', 'application', { build: {}, test: unitTest }),
+          'shared-ui': project('libs/shared/ui', 'library', { test: unitTest }),
+        },
+      }),
+    );
+    write(repo, 'tsconfig.json', JSON.stringify(TSCONFIG));
+    write(repo, 'src/app/app.ts', "import { SharedUi } from '@cb/shared/ui';\nexport const x = SharedUi;\n");
+    write(repo, 'libs/shared/ui/src/public-api.ts', 'export const SharedUi = 1;\n');
+    // not a real repository — the walk only ever looks at the NAME of the directory
+    write(repo, '.git/objects/ab/cdef', 'binary-ish\n');
+    write(repo, '.git/HEAD', 'ref: refs/heads/main\n');
+    workspace = readWorkspace(repo);
+    graph = buildGraph(workspace, repo);
+  });
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('walks the repository without descending into .git and without leading slashes', () => {
+    const files = listFiles(repo, '');
+    expect(files.some((file) => file.startsWith('/'))).toBe(false);
+    expect(files.some((file) => file.includes('.git/'))).toBe(false);
+    expect(files).toContain('src/app/app.ts');
+    expect(files).toContain('libs/shared/ui/src/public-api.ts');
+  });
+
+  it('marks the project when its OWN source changes', () => {
+    // Before the fix this answered [] — the prefix comparison asked whether the path equals '' or
+    // starts with '/', which is false for every path git reports, so the application was invisible.
+    expect(affectedProjects(['src/app/app.ts'], workspace, graph).affected).toContain('portal');
+  });
+
+  it('contains every file, because its root IS the repository', () => {
+    expect(affectedProjects(['libs/shared/ui/src/public-api.ts'], workspace, graph).affected).toEqual([
+      'portal',
+      'shared-ui',
+    ]);
+    expect(affectedProjects(['README.md'], workspace, graph).affected).toEqual(['portal']);
+  });
+
+  it('keeps the task hash blind to .git, so an unrelated git write cannot invalidate it', () => {
+    const portal = /** @type {NonNullable<ReturnType<typeof workspace.projects.get>>} */ (
+      workspace.projects.get('portal')
+    );
+    const before = taskHash(portal, graph, workspace, 'lint', repo);
+    write(repo, '.git/objects/ab/beef', 'another object\n');
+    expect(taskHash(portal, graph, workspace, 'lint', repo)).toBe(before);
+    // a real source change still moves it
+    write(repo, 'src/app/app.ts', 'export const x = 2;\n');
+    expect(taskHash(portal, graph, workspace, 'lint', repo)).not.toBe(before);
+  });
+});
+
+describe('a declaration file carries edges like any other source', () => {
+  /** @type {string} */
+  let repo;
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(os.tmpdir(), 'cb-affected-dts-'));
+    write(repo, 'angular.json', JSON.stringify(ANGULAR));
+    write(repo, 'tsconfig.json', JSON.stringify(TSCONFIG));
+    // the ONLY link from demo to shared-util runs through a declaration file
+    write(repo, 'apps/demo/src/types.d.ts', "import type { Y } from '@cb/shared/util';\nexport type Z = Y;\n");
+    write(repo, 'libs/shared/ui/src/public-api.ts', 'export {};\n');
+    write(repo, 'libs/shared/util/src/public-api.ts', 'export type Y = { id: string };\n');
+  });
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('marks the application when a library it uses only from a .d.ts changes', () => {
+    // Measured before the fix: `tsc -p apps/demo/tsconfig.app.json` failed with TS2305 after the
+    // library dropped the exported type, while affected answered ['shared-util'] alone.
+    const workspace = readWorkspace(repo);
+    const graph = buildGraph(workspace, repo);
+    expect([...(graph.get('demo') ?? [])]).toContain('shared-util');
+    expect(affectedProjects(['libs/shared/util/src/public-api.ts'], workspace, graph).affected).toContain('demo');
+  });
+
+  it('treats .d.mts the same way, which the old exclusion never did', () => {
+    rmSync(path.join(repo, 'apps/demo/src/types.d.ts'));
+    write(repo, 'apps/demo/src/types.d.mts', "import type { Y } from '@cb/shared/util';\nexport type Z = Y;\n");
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])]).toContain('shared-util');
+  });
+
+  it('still ignores a dependency folder, whatever it declares', () => {
+    write(repo, 'apps/demo/node_modules/pkg/index.d.ts', "import type { Y } from '@cb/shared/util';\n");
+    rmSync(path.join(repo, 'apps/demo/src/types.d.ts'));
+    expect([...(buildGraph(readWorkspace(repo), repo).get('demo') ?? [])]).not.toContain('shared-util');
+  });
+});
+
+describe('expectedEmpty — a target that is designedly absent vs one that is missing', () => {
+  /** @param {string} name @param {'application'|'library'} projectType */
+  const p = (name, projectType) => ({ name, projectType, root: 'x', sourceRoot: 'x/src', architect: {} });
+
+  it('treats the three designed cases as absent on purpose', () => {
+    // a <app>-e2e project is generated with `architect: {}` and runs Playwright off its own config
+    expect(expectedEmpty(p('demo-e2e', 'application'), 'test')).toBe(true);
+    expect(expectedEmpty(p('demo-e2e', 'application'), 'build')).toBe(true);
+    // a library's ng-packagr build is for publishing; CI consumes libraries from source (ADR)
+    expect(expectedEmpty(p('shared-ui', 'library'), 'build')).toBe(true);
+    // e2e asked of anything that is not an e2e project
+    expect(expectedEmpty(p('demo', 'application'), 'e2e')).toBe(true);
+    expect(expectedEmpty(p('shared-ui', 'library'), 'e2e')).toBe(true);
+  });
+
+  it('treats everything else as a hole in angular.json', () => {
+    expect(expectedEmpty(p('demo', 'application'), 'test')).toBe(false);
+    expect(expectedEmpty(p('demo', 'application'), 'build')).toBe(false);
+    expect(expectedEmpty(p('shared-ui', 'library'), 'test')).toBe(false);
+    expect(expectedEmpty(p('demo-e2e', 'application'), 'e2e')).toBe(false);
+    expect(expectedEmpty(p('demo', 'application'), 'lint')).toBe(false);
+    expect(expectedEmpty(p('shared-ui', 'library'), 'typecheck')).toBe(false);
+  });
+});
+
+describe('a missing target fails instead of reporting skip', () => {
+  /** @type {string} */
+  let repo;
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(os.tmpdir(), 'cb-affected-missing-'));
+    const angular = structuredClone(ANGULAR);
+    // the typo this guards against: the application's test target simply is not there
+    delete angular.projects.demo.architect.test;
+    write(repo, 'angular.json', JSON.stringify(angular));
+    write(repo, 'tsconfig.json', JSON.stringify(TSCONFIG));
+    write(repo, 'apps/demo/src/main.ts', 'export {};\n');
+    write(repo, 'libs/shared/ui/src/public-api.ts', 'export {};\n');
+    write(repo, 'libs/shared/util/src/public-api.ts', 'export {};\n');
+    // every <app>-e2e project the generator makes carries this (new-project.mjs); without it the
+    // project would run no end-to-end test at all, which is a hole, not a design decision
+    write(repo, 'apps/demo-e2e/playwright.config.ts', 'export default {};\n');
+  });
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('exits 1 when an application carries no architect.test', () => {
+    // Before the fix this printed `skip test demo · no such target` and exited 0, which turns the
+    // project's test gate permanently green: the coverage thresholds never fire and junit is never
+    // written, with nothing comparing the absence to anything.
+    expect(main(['test', '--all', '--dry-run'], repo)).toBe(1);
+  });
+
+  it('still exits 0 for the targets that are absent by design', () => {
+    // shared-ui is a library: its ng-packagr build is deliberately not a CI target, and demo has a
+    // build target, so nothing here is missing.
+    expect(main(['build', '--all', '--dry-run'], repo)).toBe(0);
+    expect(main(['e2e', '--all', '--dry-run'], repo)).toBe(0);
+  });
+
+  it('exits 1 for an e2e project with no Playwright config — a hole, not a decision', () => {
+    rmSync(path.join(repo, 'apps/demo-e2e/playwright.config.ts'));
+    expect(main(['e2e', '--all', '--dry-run'], repo)).toBe(1);
   });
 });
 
@@ -267,6 +484,50 @@ describe('changedFiles against real git history', () => {
       'apps/demo/src/new.ts',
       'libs/shared/util/src/lib/x.ts',
     ]);
+  });
+
+  // AC1 — git reports a renamed file only under its NEW path while rename detection is on, so the
+  // project that LOST the file never entered the seed set and dropped out of the answer silently.
+  it('reports both paths of a committed rename so the source project stays affected', () => {
+    write(repo, 'libs/shared/util/src/lib/moved.ts', "export const moved = 'tresc unikalna dla wykrywania rename';\n");
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'seed']);
+    git(repo, ['branch', 'main']);
+    git(repo, ['checkout', '-q', '-b', 'feature']);
+    git(repo, ['mv', 'libs/shared/util/src/lib/moved.ts', 'apps/demo/src/moved.ts']);
+    git(repo, ['commit', '-q', '-m', 'move']);
+
+    expect(changedFiles('main', repo)).toEqual(['apps/demo/src/moved.ts', 'libs/shared/util/src/lib/moved.ts']);
+    const workspace = readWorkspace(repo);
+    const graph = buildGraph(workspace, repo);
+    expect(affectedProjects(/** @type {string[]} */ (changedFiles('main', repo)), workspace, graph).affected).toContain(
+      'shared-util',
+    );
+  });
+
+  it('reports both paths of a staged rename, so the pre-commit gate sees it too', () => {
+    write(repo, 'libs/shared/util/src/lib/staged.ts', "export const staged = 'inna tresc unikalna';\n");
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'seed']);
+    git(repo, ['branch', 'main']);
+    git(repo, ['checkout', '-q', '-b', 'feature']);
+    git(repo, ['mv', 'libs/shared/util/src/lib/staged.ts', 'apps/demo/src/staged.ts']);
+
+    expect(changedFiles('main', repo)).toEqual(['apps/demo/src/staged.ts', 'libs/shared/util/src/lib/staged.ts']);
+  });
+
+  it('reports both paths of a worktree move that was never staged', () => {
+    write(repo, 'libs/shared/util/src/lib/loose.ts', "export const loose = 'trzecia tresc unikalna';\n");
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'seed']);
+    git(repo, ['branch', 'main']);
+    git(repo, ['checkout', '-q', '-b', 'feature']);
+    // no `git add`: the old path shows up as an unstaged deletion, the new one as untracked, and the
+    // two halves come from DIFFERENT git invocations — `diff` and `ls-files --others`. Nothing else
+    // in the suite exercises that pair, so a change to the `ls-files` line would go unnoticed.
+    renameSync(path.join(repo, 'libs/shared/util/src/lib/loose.ts'), path.join(repo, 'apps/demo/src/loose.ts'));
+
+    expect(changedFiles('main', repo)).toEqual(['apps/demo/src/loose.ts', 'libs/shared/util/src/lib/loose.ts']);
   });
 
   it('keeps non-ASCII paths readable so they still match a project root', () => {

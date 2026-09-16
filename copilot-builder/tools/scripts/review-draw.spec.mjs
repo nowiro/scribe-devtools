@@ -3,7 +3,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DRAW_FILE, drawForDirectory, drawSeats, formatDraw, readDraw, reviewPool } from './review-draw.mjs';
+import {
+  DRAW_FILE,
+  committedCategoryFor,
+  drawForDirectory,
+  drawSeats,
+  formatDraw,
+  readDraw,
+  reviewPool,
+  runCli,
+} from './review-draw.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -33,6 +42,64 @@ describe('drawSeats', () => {
       expect(new Set(drawn).size).toBe(3);
       expect(drawn).toEqual([...drawn].sort());
     }
+  });
+});
+
+describe('committedCategoryFor', () => {
+  it('names the committed category a target would land in', () => {
+    expect(committedCategoryFor('docs/reviews/x')).toBe('reviews');
+    expect(committedCategoryFor('docs/decisions/x')).toBe('decisions');
+    expect(committedCategoryFor('docs/reviews')).toBe('reviews');
+    expect(committedCategoryFor('./docs/reviews/x')).toBe('reviews');
+    expect(committedCategoryFor('docs/reviews/a/b/c')).toBe('reviews');
+    expect(committedCategoryFor(path.join(REPO, 'docs', 'reviews', 'x'))).toBe('reviews');
+  });
+
+  it('answers null for every directory that is not one of them', () => {
+    // the documented target: local-only, gitignored, and where the draw belongs
+    expect(committedCategoryFor('docs/runs/2026-01-01_10-00_review-x')).toBeNull();
+    expect(committedCategoryFor('docs/specs/x')).toBeNull();
+    expect(committedCategoryFor('docs')).toBeNull();
+    // exact SEGMENT match, not a prefix: this is a different directory and must be allowed
+    expect(committedCategoryFor('docs/reviewsomething')).toBeNull();
+    expect(committedCategoryFor('tmp/x')).toBeNull();
+    // outside the repository: path.relative then starts with `..`, so there is no `docs` segment
+    expect(committedCategoryFor(path.join(os.tmpdir(), 'docs', 'reviews'))).toBeNull();
+  });
+});
+
+describe('runCli refuses a committed docs category', () => {
+  /** @type {string[]} */
+  let errors;
+  /** @type {typeof process.stderr.write} */
+  let original;
+  beforeEach(() => {
+    errors = [];
+    original = process.stderr.write.bind(process.stderr);
+    process.stderr.write = /** @type {typeof process.stderr.write} */ (
+      (chunk) => {
+        errors.push(String(chunk));
+        return true;
+      }
+    );
+  });
+  afterEach(() => {
+    process.stderr.write = original;
+  });
+
+  it('exits 2 and points at docs/runs instead of writing a draw', () => {
+    const dir = path.join(REPO, 'docs', 'reviews', 'cb-guard-spec-should-not-exist');
+    expect(runCli([dir])).toBe(2);
+    expect(existsSync(path.join(dir, DRAW_FILE))).toBe(false);
+    expect(existsSync(dir)).toBe(false);
+    const message = errors.join('');
+    expect(message).toContain('docs/reviews/');
+    expect(message).toContain('docs/runs/');
+  });
+
+  it('refuses docs/decisions for the same reason', () => {
+    expect(runCli([path.join(REPO, 'docs', 'decisions', 'cb-guard-spec')])).toBe(2);
+    expect(errors.join('')).toContain('docs/decisions/');
   });
 });
 

@@ -224,7 +224,12 @@ export function runCli(argv) {
       process.stderr.write('route --changed: no merge base to compare against — pass the paths explicitly\n');
       return 2;
     }
-    wanted = changed;
+    // Only paths that still EXIST can be routed. `changedFiles` reports both sides of a rename (it
+    // passes --no-renames, so the project that lost the file is not silently dropped from `affected`),
+    // and it reports deletions — but an executor is an owner of a file to edit, and a path that is
+    // gone has none. Without this filter a `git mv` out of a vendored tree answered exit 1 while
+    // naming a file that is no longer on disk.
+    wanted = changed.filter((rel) => existsSync(path.join(REPO, rel)));
   }
   if (wanted.length === 0) {
     process.stderr.write(USAGE);

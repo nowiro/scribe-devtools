@@ -19,6 +19,7 @@ import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { REPO, isMain } from './lib/repo.mjs';
+import { skipDirectory } from './lib/scan.mjs';
 
 export const INDEX_FILE = 'CODE-INDEX.md';
 
@@ -38,7 +39,13 @@ const TOOL_DIRS = [
 /** Public-API files of workspace projects: the map level of applications and libraries. */
 const PUBLIC_API =
   /^(?:libs\/.*\/src\/public-api\.ts|libs\/.*\/src\/index\.ts|apps\/[^/]+\/src\/app\/app\.routes\.ts)$/u;
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'fixtures', 'test', 'out-tsc', 'templates', 'examples']);
+/**
+ * This script's OWN policy, on top of the shared rule in lib/scan.mjs: a directory of tests,
+ * fixtures, templates or examples is not a MODULE of the dependency map, whatever depth it sits at.
+ * That is a decision about what the index is for, not a claim about what those directories are —
+ * which is why it lives here and not in the shared list.
+ */
+const NOT_A_MODULE = Object.freeze(['fixtures', 'test', 'templates', 'examples']);
 
 /**
  * Declaration names from `export [async] function|const|let|class NAME` and the names in
@@ -386,22 +393,22 @@ export function parseSubscriptions(source) {
 export function listSourceFiles(root) {
   /** @type {string[]} */
   const files = [];
-  /** @param {string} dir @param {(rel: string) => boolean} accept */
-  const walk = (dir, accept) => {
+  /** @param {string} dir @param {(rel: string) => boolean} accept @param {number} depth */
+  const walk = (dir, accept, depth) => {
     const abs = path.join(root, dir);
     if (!existsSync(abs)) return;
     for (const entry of readdirSync(abs, { withFileTypes: true })) {
       const rel = path.posix.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (!SKIP_DIRS.has(entry.name)) walk(rel, accept);
+        if (!skipDirectory(entry.name, depth, NOT_A_MODULE)) walk(rel, accept, depth + 1);
         continue;
       }
       if (/\.(?:test|spec)\.(?:mjs|ts)$/u.test(entry.name) || entry.name.endsWith('.d.ts')) continue;
       if (accept(rel)) files.push(rel);
     }
   };
-  for (const dir of TOOL_DIRS) walk(dir, (rel) => /\.(?:mjs|mts|ts)$/u.test(rel));
-  for (const dir of ['apps', 'libs']) walk(dir, (rel) => PUBLIC_API.test(rel));
+  for (const dir of TOOL_DIRS) walk(dir, (rel) => /\.(?:mjs|mts|ts)$/u.test(rel), 0);
+  for (const dir of ['apps', 'libs']) walk(dir, (rel) => PUBLIC_API.test(rel), 0);
   return files.sort();
 }
 

@@ -20,13 +20,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { stampToEpoch } from './stamp.mjs';
 import { listCell, parseTable } from './lib/md-table.mjs';
-import { REPO, frontmatter as readFrontmatter, isMain } from './lib/repo.mjs';
+import { COMMITTED_DOCS, REPO, frontmatter as readFrontmatter, isMain } from './lib/repo.mjs';
 import { routePath } from './route.mjs';
 
 /** @param {string} text */
 export const frontmatter = (text) => readFrontmatter(text, { unquote: true });
 
-const COMMITTED = ['decisions', 'reviews'];
 const NAME_RE = /^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})_[a-z0-9][a-z0-9-]*\.md$/u;
 const SPEC_STATUSES = new Set(['draft', 'clarified', 'done']);
 const PLAN_COLUMNS = ['id', 'title', 'agent', 'done_when', 'status'];
@@ -262,7 +261,7 @@ export function validateSdd(repo = REPO) {
   const roster = new Set(Object.keys(JSON.parse(readFileSync(registryPath, 'utf8')).agents?.roster ?? {}));
 
   let committedCount = 0;
-  for (const category of COMMITTED) committedCount += checkCommitted(repo, category, index, problems);
+  for (const category of COMMITTED_DOCS) committedCount += checkCommitted(repo, category, index, problems);
   checkTemplates(repo, problems);
   let localCount = checkSpecs(repo, problems);
   const plansDir = path.join(repo, 'docs', 'plans');

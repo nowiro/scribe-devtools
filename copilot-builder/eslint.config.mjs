@@ -29,18 +29,22 @@ import { PREFIX } from './tools/scripts/workspace.config.mjs';
 
 export default defineConfig(
   globalIgnores([
+    // Anchored exactly like .gitignore, and for the same reason: `coverage`, `out-tsc`, `tmp`,
+    // `test-results` and `playwright-report` are written only at the repository root, while the same
+    // words are ordinary feature-folder names inside `src/`. Ignoring them at every depth left
+    // `apps/<app>/src/app/tmp/**` unlinted forever while `affected lint` still reported `ok`.
     '**/node_modules/**',
     '**/dist/**',
-    '**/out-tsc/**',
-    '**/coverage/**',
+    'out-tsc/**',
+    'coverage/**',
     '**/.angular/**',
     '**/.cache/**',
     '**/.alm/**',
     '**/.browser-inspector/**',
     '**/.mcp-artifacts/**',
-    '**/tmp/**',
-    '**/playwright-report/**',
-    '**/test-results/**',
+    'tmp/**',
+    'playwright-report/**',
+    'test-results/**',
     'tools/alm/**',
     'tools/browser-inspector/**',
   ]),

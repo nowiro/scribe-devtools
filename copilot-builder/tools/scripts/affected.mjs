@@ -19,11 +19,19 @@
 //
 // The task cache
 // --------------
-// `lint`, `typecheck` and `test` produce no outputs, so a run that already succeeded on identical
-// inputs need not run again: the inputs (every file of the project and of its dependencies, the root
-// triggers, the target name, the Node major) are hashed, and a marker in `.cache/tasks/` records the
-// green run. GitLab CI carries `.cache/` between jobs and branches, so the cache is shared without any
-// remote service. `build` (Angular has its own cache in .angular/cache) and `e2e` are never cached.
+// `lint` and `typecheck` produce no outputs, so a run that already succeeded on identical inputs need
+// not run again: the inputs (every file of the project and of its dependencies, the root triggers, the
+// target name, the Node major) are hashed, and a marker in `.cache/tasks/` records the green run.
+// GitLab CI carries `.cache/` between jobs and branches, so the cache is shared without any remote
+// service. `build` (Angular has its own cache in .angular/cache) and `e2e` are never cached.
+//
+// `test` is NOT cached, although it used to be. `ng test … --coverage` writes
+// `reports/junit-<project>.xml` and `coverage/<project>/cobertura-coverage.xml`, which the
+// `test-projects` job publishes as GitLab reports — and a marker hit returned 0 without producing
+// either, while GitLab does not fail a job for a missing report. The hit was also worth little:
+// taskHash covers the project's files, its dependencies' files and the root triggers, so a marker only
+// ever matched on a pipeline re-run or an `--all` pass on the default branch — exactly the runs the
+// coverage report is read from.
 // `--no-cache` or `CB_TASK_CACHE=0` bypasses the markers.
 //
 // Exit codes: 0 pass (also when nothing is affected) · 1 a task failed · 2 usage error.
@@ -33,9 +41,10 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { displayCommand } from './display-command.mjs';
 import { REPO, isMain, readJsonc } from './lib/repo.mjs';
+import { skipDirectory } from './lib/scan.mjs';
 
 export const TARGETS = Object.freeze(['lint', 'typecheck', 'test', 'build', 'e2e']);
-const CACHED_TARGETS = new Set(['lint', 'typecheck', 'test']);
+const CACHED_TARGETS = new Set(['lint', 'typecheck']);
 const CACHE_DIR = path.join(REPO, '.cache', 'tasks');
 /** Files whose change affects EVERY project. */
 export const ROOT_TRIGGERS = Object.freeze([
@@ -48,17 +57,6 @@ export const ROOT_TRIGGERS = Object.freeze([
   'eslint.plugins.mjs',
   'eslint.rules.mjs',
   'tools/testing/',
-]);
-const SKIP_DIRS = new Set([
-  'node_modules',
-  'dist',
-  '.angular',
-  '.cache',
-  'coverage',
-  'playwright-report',
-  'test-results',
-  'reports',
-  'tmp',
 ]);
 
 /**
@@ -119,17 +117,21 @@ export function readWorkspace(repo = REPO) {
 export function listFiles(repo, dir) {
   /** @type {string[]} */
   const out = [];
-  const walk = (/** @type {string} */ rel) => {
+  const walk = (/** @type {string} */ rel, /** @type {number} */ depth) => {
     const abs = path.join(repo, rel);
     if (!existsSync(abs)) return;
     for (const entry of readdirSync(abs, { withFileTypes: true })) {
-      const childRel = `${rel}/${entry.name}`;
+      // `rel` is '' when the walk root is the repository itself; joining blindly would emit
+      // `/apps/demo/src/main.ts`, a path with a leading slash that matches nothing git ever reports,
+      // so every comparison downstream silently failed.
+      const childRel = rel === '' ? entry.name : `${rel}/${entry.name}`;
       if (entry.isDirectory()) {
-        if (!SKIP_DIRS.has(entry.name)) walk(childRel);
+        if (skipDirectory(entry.name, depth)) continue;
+        walk(childRel, depth + 1);
       } else out.push(childRel);
     }
   };
-  walk(dir.replace(/\/$/u, ''));
+  walk(dir.replace(/\/$/u, ''), 0);
   return out.sort();
 }
 
@@ -192,10 +194,24 @@ export function buildGraph(workspace, repo = REPO) {
  * @returns {Set<string>}
  */
 function aliasEdges(project, workspace, repo) {
-  const pattern = /(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/gu;
+  // Three shapes, and the third is the one that used to be invisible: `import '@cb/x';` — a polyfill,
+  // a global stylesheet side-effect, a locale or an interceptor registration. It has no `from`, so a
+  // pattern anchored on `from` could not see it, and the importing project silently lost the edge.
+  // `import\s+` must come last and requires the quote to follow directly, so it never swallows
+  // `import x from '…'` (already covered by the `from` branch) or `import('…')`.
+  const pattern = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/gu;
   const deps = new Set();
   for (const file of listFiles(repo, project.root)) {
-    if (!/\.(?:ts|mts)$/u.test(file) || /\.d\.ts$/u.test(file)) continue;
+    // `.d.ts` is scanned like any other source. It used to be excluded, and that exclusion was a
+    // defect, not a decision: a declaration file is compiled (`tsconfig.app.json` includes
+    // `src/**/*.d.ts`), so an alias import inside one is a real typecheck dependency. Measured on a
+    // fixture whose ONLY link ran through `src/types.d.ts`: removing the exported type from the
+    // library made `tsc -p apps/demo/tsconfig.app.json` fail with TS2305, while `affected` answered
+    // `['shared-util']` and left the broken application out. The exclusion was also inconsistent —
+    // `/\.d\.ts$/` never matched `.d.mts`, which passes the `.mts` test and WAS scanned — and
+    // pointless as a filter, because only workspace aliases are matched below, so an ambient
+    // `declare module 'third-party'` could never have produced an edge anyway.
+    if (!/\.(?:ts|mts)$/u.test(file)) continue;
     const source = readFileSync(path.join(repo, file), 'utf8');
     for (const match of source.matchAll(pattern)) {
       const specifier = match[1];
@@ -256,10 +272,16 @@ export function changedFiles(base, repo = REPO) {
   // -z and quotePath=false: a path with a non-ASCII character would otherwise come back quoted and
   // octal-escaped ("apps/x/src/za\305\274.ts") and match no project root.
   const quiet = ['-c', 'core.quotePath=false'];
+  // --no-renames, and it is not optional. git's `diff.renames` defaults to ON, and a renamed file is
+  // then reported ONLY under its NEW path — so the project that LOST the file never enters the seed
+  // set and drops out of the answer without a word. Measured: moving a file out of a library to a
+  // path outside every project answered `[]`, fully green, while that library's build was broken.
+  // `ls-files --others` lists untracked paths and knows nothing about renames, so it stays as is.
+  const named = [...quiet, 'diff', '-z', '--name-only', '--no-renames'];
   const outputs = [
-    git([...quiet, 'diff', '-z', '--name-only', mergeBase, 'HEAD'], repo),
-    git([...quiet, 'diff', '-z', '--name-only'], repo),
-    git([...quiet, 'diff', '-z', '--name-only', '--cached'], repo),
+    git([...named, mergeBase, 'HEAD'], repo),
+    git([...named], repo),
+    git([...named, '--cached'], repo),
     git([...quiet, 'ls-files', '-z', '--others', '--exclude-standard'], repo),
   ];
   const files = new Set();
@@ -268,6 +290,21 @@ export function changedFiles(base, repo = REPO) {
   }
   return [...files].sort();
 }
+
+/**
+ * Whether `file` lies inside `root`, both repository-relative POSIX paths.
+ *
+ * The empty root is the case that has to be spelled out rather than fall out of the arithmetic: a
+ * project whose `root` is `''` IS the repository, so it contains every file. Comparing by prefix
+ * without this branch asked whether the path equals `''` or starts with `/` — false for every path
+ * git reports — so such a project was never marked, and a change to its OWN source answered
+ * `affected: []`. Measured on a fixture: editing `src/app/app.ts` of a `"root": ""` application
+ * marked nothing at all. Over-marking is the safe direction here; silent green is not.
+ * @param {string} root
+ * @param {string} file
+ * @returns {boolean}
+ */
+const contains = (root, file) => root === '' || file === root || file.startsWith(`${root}/`);
 
 /**
  * @param {string[]} changed
@@ -283,7 +320,7 @@ export function affectedProjects(changed, workspace, graph) {
   if (rootHit) return { affected: all, reason: `root trigger changed: ${rootHit}` };
   const marked = new Set();
   for (const project of workspace.projects.values()) {
-    if (changed.some((file) => file === project.root || file.startsWith(`${project.root}/`))) marked.add(project.name);
+    if (changed.some((file) => contains(project.root, file))) marked.add(project.name);
   }
   // dependents, transitively
   let grew = true;
@@ -407,18 +444,67 @@ export function parseArgs(argv) {
  */
 
 /**
+ * Whether an empty command list is the DESIGNED answer for this pair rather than a hole in
+ * `angular.json`. Three cases, each of them a decision somebody made on purpose:
+ *
+ *   * a `<app>-e2e` project is generated with `architect: {}` (new-project.mjs) — it carries neither
+ *     `test` nor `build`, and runs Playwright off its own config instead;
+ *   * a library's `build` is ng-packagr, which exists for publishing: libraries are consumed from
+ *     source, so CI never builds them (the ADR says this outright);
+ *   * `e2e` asked of anything that is not an `<app>-e2e` project.
+ *
+ * Everything else empty is a MISSING target, and the difference matters: a typo in `architect.test`
+ * used to print `skip` and exit 0, which turns that project's test gate permanently green — the 80 %
+ * coverage thresholds never fire, `reports/junit-<project>.xml` is simply never written, and nothing
+ * compares the absence to anything. The header line counts projects SELECTED, not run, so it reports
+ * the full number either way.
+ * @param {Project} project
+ * @param {string} target
+ * @returns {boolean}
+ */
+export function expectedEmpty(project, target) {
+  const isE2eProject = project.name.endsWith('-e2e');
+  if (target === 'e2e') return !isE2eProject;
+  if (isE2eProject) return target === 'test' || target === 'build';
+  return target === 'build' && project.projectType === 'library';
+}
+
+/**
+ * What the reader has to add for this target to run. Only `lint`, `test` and `build` live in
+ * `architect`; `e2e` hangs off the project's own Playwright config and `typecheck` off its tsconfigs,
+ * so one generic sentence would send them to the wrong file.
+ * @param {Project} project
+ * @param {string} target
+ * @returns {string}
+ */
+function missingInput(project, target) {
+  if (target === 'e2e') return `${project.root}/playwright.config.ts`;
+  if (target === 'typecheck') return `a tsconfig under ${project.root}/`;
+  return `architect.${target} in angular.json`;
+}
+
+/**
  * Run one project's commands for the target, honouring the task cache.
  * @param {string} name
  * @param {RunContext} ctx
- * @returns {number} exit code — 0 also when the project has no such target or the cache hit
+ * @returns {number} exit code — 0 also when the target is designedly absent or the cache hit, 1 when
+ *   the target is MISSING
  */
 function runProject(name, ctx) {
   const { target, workspace, graph, repo } = ctx;
   const project = /** @type {Project} */ (workspace.projects.get(name));
   const commands = commandsFor(project, target, repo);
   if (commands.length === 0) {
-    process.stdout.write(`skip ${target} ${name} · no such target\n`);
-    return 0;
+    if (expectedEmpty(project, target)) {
+      process.stdout.write(`skip ${target} ${name} · no such target\n`);
+      return 0;
+    }
+    const missing = missingInput(project, target);
+    process.stderr.write(
+      `FAIL ${target} ${name} · nothing to run — this ${project.projectType} needs ${missing}; ` +
+        `running nothing is not the same as passing\n`,
+    );
+    return 1;
   }
   const marker =
     ctx.cache && CACHED_TARGETS.has(target)

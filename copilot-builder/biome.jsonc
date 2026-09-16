@@ -61,15 +61,15 @@
       "**",
       "!**/node_modules/**",
       "!**/dist/**",
-      "!**/coverage/**",
+      "!coverage/**",
       "!**/.angular/**",
       "!**/.cache/**",
       "!**/.alm/**",
       "!**/.browser-inspector/**",
       "!**/.mcp-artifacts/**",
-      "!**/tmp/**",
-      "!**/playwright-report/**",
-      "!**/test-results/**",
+      "!tmp/**",
+      "!playwright-report/**",
+      "!test-results/**",
       "!package-lock.json"
     ]
   }
