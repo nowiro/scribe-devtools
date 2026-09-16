@@ -57,9 +57,9 @@ const LANE_BASE_COST = 100;
  */
 export function planLanes(snapshots, parallel) {
   const lanes = Math.max(1, Math.min(Math.trunc(parallel) || 1, snapshots.length || 1));
-  const plan = new Array(snapshots.length).fill(0);
+  const plan = Array.from({ length: snapshots.length }, () => 0);
   if (lanes === 1) return plan;
-  const load = new Array(lanes).fill(0);
+  const load = Array.from({ length: lanes }, () => 0);
   const order = snapshots
     .map((snapshot, index) => ({ index, cost: LANE_BASE_COST + estimateSnapshot(snapshot) }))
     // Stable on ties (by index), so the plan is a function of the config and nothing else.

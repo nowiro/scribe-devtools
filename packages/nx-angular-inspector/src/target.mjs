@@ -55,7 +55,9 @@ const ERROR_NOISE = [
  * truncated hyperlink is enough — swallowed everything up to the next BEL anywhere in the log,
  * compiler errors included, and `run` then reported a failure with zero errors found.
  */
+// oxlint-disable-next-line no-control-regex -- matching ESC and BEL is what these two expressions are for
 const OSC = /\u001B\][^\u0007\u001B\n]*(?:\u0007|\u001B\u005C)/gu;
+// oxlint-disable-next-line no-control-regex -- as above
 const CSI = /\u001B[@-Z\u005C-_]|\u001B\[[0-?]*[ -/]*[@-~]/gu;
 
 /**

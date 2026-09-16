@@ -215,7 +215,7 @@ const PURPOSE_CAP = 140;
  * them, and stopping at the first `}` printed half a type and called it a signature. Continuation
  * markers (`\n * `) are folded away, and anything longer than the cap is cut with an ellipsis —
  * the index says which function to open, the file says the rest.
- * @param {string} block one JSDoc comment, `/**` to `*​/`
+ * @param {string} block one JSDoc comment, `/**` to `*\/`
  * @returns {string} the type, or an empty string when the block declares none
  */
 export function returnType(block) {

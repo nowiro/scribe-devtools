@@ -48,12 +48,20 @@ export const PINS = [
     links: ['https://www.npmjs.com/package/playwright-core/v/1.62.1'],
   },
   {
-    id: '@biomejs/biome',
+    id: 'oxfmt',
     owner: 'package.json#devDependencies',
     policy: 'caret',
     prose: [],
-    staleDays: 180,
-    why: 'THE ONLY devDependency that runs on every change: `biome format .` is the first step of `pnpm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. It replaced prettier on code: on this tree the two disagreed about exactly ONE line out of 62 files (a space before `)` in an empty `for` update clause), so the switch was a change of tool, not of style. What it does NOT do is Markdown: the 2.x configuration schema has no markdown section, and a plugin cannot add one (plugins are GritQL patterns over a tree Biome parsed, and `.md` never reaches the parser). Prettier was brought back for prose for exactly one commit and then removed again with the tokenizer — the repository would rather have prose on review than a second formatter, a second config and a second editor extension for nine files. A major that adds a markdown formatter closes that gap for free; that is what this row is for.',
+    staleDays: 90,
+    why: "`oxfmt --check` is the first step of `pnpm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate, which is why caret is fine. On 0.x a caret admits patches only: every minor is a deliberate one-line bump, and a minor is where formatting output may move. It replaced Biome (which had replaced prettier) with the same numbers; the switch rewrote ONE line of code — the space before `)` in an empty `for` update clause went back to prettier's shape. Markdown is ignored by choice in .oxfmtrc.jsonc, not for lack of support: table padding made AGENTS.md 48 % bigger. `sortPackageJson` is off; a release that flips a default shows up as a red `--check`, not as a silent rewrite.",
+  },
+  {
+    id: 'oxlint',
+    owner: 'package.json#devDependencies',
+    policy: 'caret',
+    prose: [],
+    staleDays: 90,
+    why: 'A bare `oxlint` is the second step of `pnpm run verify` (`categories.correctness: error`, `denyWarnings`, unused disable directives are errors). A release that adds a correctness rule turns the gate red on existing code — visible, never silent. The first run found six unused imports/variables and 23 other findings; the deliberate exceptions carry `oxlint-disable-next-line <rule> -- <reason>`.',
   },
   {
     id: 'typescript',

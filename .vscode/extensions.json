@@ -1,6 +1,7 @@
 {
-  // Minimum, które odtwarza bramki repo w edytorze: formatter z biome.jsonc, Copilot Chat
-  // z prompt files (.github/prompts) i instrukcjami (.github/instructions). Biome nie formatuje
-  // Markdownu — EditorConfig pilnuje w nim przynajmniej LF, spacji i finalnej nowej linii.
-  "recommendations": ["biomejs.biome", "GitHub.copilot", "GitHub.copilot-chat", "EditorConfig.EditorConfig"]
+  // Minimum, które odtwarza bramki repo w edytorze: oxc (oxfmt z .oxfmtrc.jsonc, oxlint z
+  // .oxlintrc.json), Copilot Chat z prompt files (.github/prompts) i instrukcjami
+  // (.github/instructions). Markdownu oxfmt z wyboru nie formatuje — EditorConfig pilnuje w nim
+  // przynajmniej LF, spacji i finalnej nowej linii.
+  "recommendations": ["oxc.oxc-vscode", "GitHub.copilot", "GitHub.copilot-chat", "EditorConfig.EditorConfig"]
 }

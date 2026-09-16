@@ -174,7 +174,7 @@ function uploadPayload(ctx, name) {
  * @returns {RegExp}
  */
 export function globToRegExp(pattern) {
-  const escaped = new Set([...'$^+.*()|\\?{}[]']);
+  const escaped = new Set('$^+.*()|\\?{}[]');
   const tokens = ['^'];
   let inGroup = false;
   for (let i = 0; i < pattern.length; i += 1) {

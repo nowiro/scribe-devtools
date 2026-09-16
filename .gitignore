@@ -11,8 +11,9 @@ Thumbs.db
 
 # Output of every `nx-angular-inspector` run: digests of somebody's workspace. Short on purpose —
 # the path is printed on every line of stdout, and `.ws/projects.md` is 3 o200k tokens against 10
-# for the long form (measured back when this repository still had a tokenizer). Its twin is the
-# `!.ws/**` entry in biome.jsonc: one run of the tool would otherwise turn `biome format .` red.
+# for the long form (measured back when this repository still had a tokenizer). oxfmt and oxlint
+# read this file themselves, so this one line also keeps a run of the tool from turning
+# `oxfmt --check` red.
 .ws/
 
 # `npm run portable` output. On this branch it is an on-demand build, not a tracked release

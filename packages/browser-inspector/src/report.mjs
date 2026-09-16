@@ -248,7 +248,7 @@ export function buildReport(input) {
           },
         }
       : {}),
-    files: { ...(input.files ?? {}) },
+    files: { ...input.files },
     timing: { ...input.timing },
     engine: { ...input.engine },
     ...(input.final !== undefined ? { final: input.final } : {}),

@@ -13,7 +13,6 @@
 // The engine is reached through a small interface (`docs/handoff/WP5.md`) so a fake engine can
 // drive every test on a real pipe without a browser: `BROWSER_INSPECTOR_ENGINE_MODULE` names the module.
 
-import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -445,6 +444,7 @@ export function createContext(options = {}) {
   const sweepSessions = async () => {
     const now = Date.now();
     let expired = 0;
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a snapshot: the loop deletes from `sessions` and awaits closeSession
     for (const [name, s] of [...sessions]) {
       if (now - s.lastUsedAt < sessionTtlMs) continue;
       sessions.delete(name);

@@ -9,11 +9,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "verify": "biome format . && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all && node scripts/check-claims.mjs",
+    "verify": "oxfmt --check --disable-nested-config && oxlint --disable-nested-config && node scripts/check-pins.mjs && tsc --noEmit && node scripts/index-code.mjs --check && node scripts/check-instruction-sync.mjs --require-all && node scripts/check-claims.mjs",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint --disable-nested-config",
     "claims": "node scripts/check-claims.mjs",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
+    "format": "oxfmt --disable-nested-config",
+    "format:check": "oxfmt --check --disable-nested-config",
     "code-index": "node scripts/index-code.mjs",
     "portable": "node scripts/portable-zip.mjs",
     "prepare": "git config core.hooksPath .githooks || exit 0",
@@ -21,8 +22,9 @@
     "nx-angular-inspector": "node packages/nx-angular-inspector/bin/nx-angular-inspector.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
     "@types/node": "^26.5.1",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "typescript": "^7.0.2"
   }
 }

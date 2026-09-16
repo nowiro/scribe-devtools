@@ -82,7 +82,7 @@ const ENGINE_OPTION_KEYS = [
  */
 function normalizeOptions(first, hooks) {
   if (hooks === undefined && ENGINE_OPTION_KEYS.some((key) => key in first)) return first;
-  return { browser: first, ...(hooks ?? {}) };
+  return { browser: first, ...hooks };
 }
 
 /**

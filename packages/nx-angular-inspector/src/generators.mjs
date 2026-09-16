@@ -84,7 +84,7 @@ export function scanGenerators(root) {
     }
     // `generators` is the Nx spelling, `schematics` the Angular one; a collection may carry both,
     // and `@schematics/angular` in an Nx workspace is exactly that case.
-    const entries = { ...(parsed.schematics ?? {}), ...(parsed.generators ?? {}) };
+    const entries = { ...parsed.schematics, ...parsed.generators };
     const names = Object.keys(entries);
     if (names.length === 0) continue;
     collections += 1;

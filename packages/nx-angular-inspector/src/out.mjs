@@ -18,6 +18,7 @@ import path from 'node:path';
  * quoting). Spelled with `\u` escapes rather than literal bytes — a control character in a source
  * file is invisible in a diff.
  */
+// oxlint-disable-next-line no-control-regex -- the control range IS the point, see above
 const UNSAFE = /[<>:"/\\|?*\u0000-\u001F ]/gu;
 
 /**

@@ -268,7 +268,7 @@ export function oauthStorageState(store, accessToken) {
  * @returns {{ values: Record<string, string>, secretValues: string[], missing: string[] }}
  */
 export function resolveAuthValues(auth, source = {}) {
-  const values = { ...(source.values ?? {}) };
+  const values = { ...source.values };
   const env = source.env ?? {};
   /** @type {string[]} */
   const secretValues = [];
@@ -361,7 +361,6 @@ export async function ensureSession(auth, options = {}) {
   const now = options.now ?? Date.now;
   const statePath = resolveStatePath(auth, options.baseDir);
   const maxAgeMinutes = auth.maxAgeMinutes ?? MAX_AGE_MINUTES_DEFAULT;
-  const method = auth.oauth ? 'oauth' : 'login';
 
   const saved = await stat(statePath).catch(() => undefined);
   let verdict = sessionUsable(saved, now(), maxAgeMinutes);

@@ -6,7 +6,7 @@
 // saying it does not know that word. The line names the verb's `help` instead of printing it: the
 // full table after a missing argument cost ~150 tokens per mistake. `CliError.exit` is 2 for every
 // parsing failure, so an agent can tell "you typed it wrong" (2) from "the answer is no" (1).
-import { findVerb, GLOBAL_FLAGS, usage, VERB_NAMES } from './verbs.schema.mjs';
+import { findVerb, GLOBAL_FLAGS, VERB_NAMES } from './verbs.schema.mjs';
 
 export class CliError extends Error {
   /** @param {string} message @param {number} [exit] */

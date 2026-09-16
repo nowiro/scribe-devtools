@@ -1,0 +1,20 @@
+{
+  // .oxlintrc.json — the linter of this repository (JSONC: oxlint accepts comments here).
+  //
+  // Only the `correctness` category — code that is outright wrong or useless — with oxlint's default
+  // plugins (eslint, typescript, unicorn, oxc). Types stay the job of `tsc --checkJs`; style is
+  // oxfmt's. A finding is an error or it is not reported: `denyWarnings` makes a bare `oxlint` the
+  // gate, so `pnpm run verify` and an editor show the same thing.
+  //
+  // A deliberate exception is a line comment with a reason, e.g.
+  //   // oxlint-disable-next-line no-control-regex -- matching ESC is the point
+  // and a directive that no longer silences anything is an error too.
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error" },
+  "options": { "denyWarnings": true, "reportUnusedDisableDirectives": "error" },
+  // `.gitignore` is read by oxlint itself; this is what it cannot know. copilot-builder/ carries its own
+  // oxlint.config.mts, which oxlint would load as a nested config even for ignored files (and reject:
+  // `options.typeAware` is root-only) — hence `--disable-nested-config` in package.json and
+  // `oxc.disableNestedConfig` in .vscode/settings.json.
+  "ignorePatterns": ["copilot-builder/**"]
+}

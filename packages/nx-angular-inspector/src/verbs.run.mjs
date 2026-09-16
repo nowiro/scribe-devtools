@@ -21,12 +21,10 @@ import {
   alive,
   DEFAULT_READY,
   DEFAULT_WAIT_MS,
-  lastLines,
   logFile,
   readState,
   startServe,
   stopServe,
-  tail,
   waitForServe,
 } from './serve.mjs';
 import { errorSummary, parseTargetSpec, runTarget } from './target.mjs';
@@ -158,9 +156,10 @@ export function projects(ctx) {
     const file = writeOut(
       ctx.outDir,
       'projects.md',
-      document({ title: `Projekty pasujące do \`${pattern}\``, source: model.source, freshness: verdict(model) }, [
-        ...matches.map(projectRow),
-      ]),
+      document(
+        { title: `Projekty pasujące do \`${pattern}\``, source: model.source, freshness: verdict(model) },
+        matches.map(projectRow),
+      ),
     );
     return {
       line: formatOk(`projects ${pattern}`, [

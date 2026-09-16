@@ -120,7 +120,7 @@ Modules: 53.
 ## packages/browser-inspector/src/redact.mjs
 - purpose: ONE function for every place a secret could surface (DESIGN.md §2.6).
 - exports: `MASK`, `maskSnapshotEntries(entries, options) → E[]`, `maskSnapshotValues(text, options) → string`, `redact(text, secretValues) → string`, `redactDeep(value, secretValues) → T`, `redactWith(text, forms) → string`, `secretForms(secretValues) → string[]`
-- imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/snapshot.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
+- imported by: `packages/browser-inspector/src/auth.mjs`, `packages/browser-inspector/src/flow.mjs`, `packages/browser-inspector/src/keeper.mjs`, `packages/browser-inspector/src/keeper.requests.mjs`, `packages/browser-inspector/src/session-log.mjs`, `packages/browser-inspector/src/session.mjs`, `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
 ## packages/browser-inspector/src/report.mjs
 - purpose: report.md / report.json, elements.md, JUnit, the two manifests and the artifact writer (DESIGN.md §5).
@@ -159,7 +159,7 @@ Modules: 53.
 ## packages/browser-inspector/src/snapshot.mjs
 - purpose: pure functions over the FULL `page.ariaSnapshot({ mode: 'ai' })` (DESIGN.md §4.2–§4.3).
 - exports: `CONTEXT_ROLES`, `FIND_MAX`, `INTERACTIVE_ROLES`, `REF_PATTERN`, `RefNotFoundError`, `SEMANTIC_ROLES`, `aroundRef(aiYaml, ref, options) → string[]`, `boxJoin(boxesYaml, walk) → { entries: SidecarEntry[], interactive: number, matched: nu…`, `compactLines(aiYaml, options) → string[]`, `compactSnapshot(aiYaml, options) → string`, `diffSnapshot(prev, next) → { added: string[], removed: string[] }`, `findInSnapshot(aiYaml, text, options) → { lines: string[], total: number }`, `implicitRole(e) → string`, `locatorFor(e, unique) → string | undefined`, `locatorForElement(el) → string | undefined`, `namesContext(nodes, node) → string | undefined`, `parseSnapshot(yaml) → SnapNode[]`, `resolveRef(page, ref, options) → Promise<{ selector: string, refreshed: boolean, snapshot?: …`, `sensitiveRefs(entries) → string[]`, `sidecarFromPage(page, boxesYaml) → Promise<SidecarEntry[]>`, `textUnder(nodes, node, max) → string`, `uniqueIn(walk) → (kind: 'testid'|'id'|'nameAttr'|'href', value: string) => b…`, `valueOf(nodes, node) → string | undefined`, `walkInteractive() → WalkEntry[]`
-- imports: `packages/browser-inspector/src/print.mjs`, `packages/browser-inspector/src/redact.mjs`
+- imports: `packages/browser-inspector/src/print.mjs`
 - types only: `packages/browser-inspector/src/types.d.ts`
 - imported by: `packages/browser-inspector/src/steps.ctx.mjs`, `packages/browser-inspector/src/steps.run.mjs`
 
@@ -305,7 +305,7 @@ Modules: 53.
 - imported by: `scripts/check-claims.mjs`
 
 ## scripts/check-pins.mjs
-- purpose: Offline, deterministic gate over scripts/pins.config.mjs — the first step of `pnpm run verify`, next to `biome format .`.
+- purpose: Offline, deterministic gate over scripts/pins.config.mjs — the first step of `pnpm run verify`, right after `oxfmt --check` and `oxlint`.
 - exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root)`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `walkText(root, frozen) → string[]`, `workspacePatterns(root) → string[]`
 - imports: `scripts/pins.config.mjs`
 - imported by: `scripts/check-upstream.mjs`

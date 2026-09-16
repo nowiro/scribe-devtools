@@ -292,13 +292,13 @@ export function parseConfig(raw, options = {}) {
     outputDir: resolveOutputDir(config.outputDir, baseDir),
     parallel: config.parallel ?? DEFAULTS.parallel,
     settleMs: config.settleMs ?? DEFAULTS.settleMs,
-    browser: { ...DEFAULTS.browser, ...(config.browser ?? {}) },
+    browser: { ...DEFAULTS.browser, ...config.browser },
     ...(config.auth ? { auth: { ...DEFAULTS.auth, ...config.auth } } : {}),
     snapshots: config.snapshots.map((/** @type {any} */ snapshot) => ({
       ...DEFAULTS.snapshot,
       settleMs: config.settleMs ?? DEFAULTS.settleMs,
       ...snapshot,
-      viewport: { ...DEFAULTS.snapshot.viewport, ...(snapshot.viewport ?? {}) },
+      viewport: { ...DEFAULTS.snapshot.viewport, ...snapshot.viewport },
       render: [...(snapshot.render ?? DEFAULTS.snapshot.render)],
       // Anchored HERE, like `outputDir` and `auth.storageState`: the raw string went straight to
       // `newContext({ storageState })`, which resolves it against the cwd of the process holding

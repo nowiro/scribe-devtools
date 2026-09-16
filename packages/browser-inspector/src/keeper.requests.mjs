@@ -525,7 +525,7 @@ async function settleFlow(r, input) {
     };
   }
   const summary = /** @type {FlowResult} */ (r);
-  const manifestReport = manifestReportOf(summary.completed, { totalMs: summary.ms ?? 0, ...(summary.timing ?? {}) });
+  const manifestReport = manifestReportOf(summary.completed, { totalMs: summary.ms ?? 0, ...summary.timing });
   return {
     name: snapshot.name,
     dir,
@@ -590,7 +590,7 @@ async function runSession(parsed, request, ctx, secretValues) {
     const exit = parsed.options.soft && result.exit === 1 ? 0 : result.exit;
     return done(exit, (result.lines ?? []).map(redactor), result.files ?? [], {
       mode,
-      timing: { ...(result.timing ?? {}), mode, queuedMs, totalMs: Math.round(performance.now() - t0) },
+      timing: { ...result.timing, mode, queuedMs, totalMs: Math.round(performance.now() - t0) },
     });
   });
   return engineOr(job);
@@ -651,7 +651,7 @@ async function runScript(parsed, request, ctx, secretValues) {
     if (engine.session && engine.session(name) === undefined) ctx.dropSession(name);
     return done(result.exit, (result.lines ?? []).map(redactor), result.files ?? [], {
       mode,
-      timing: { ...(result.timing ?? {}), mode, queuedMs, totalMs: Math.round(performance.now() - t0) },
+      timing: { ...result.timing, mode, queuedMs, totalMs: Math.round(performance.now() - t0) },
     });
   });
   return engineOr(job);

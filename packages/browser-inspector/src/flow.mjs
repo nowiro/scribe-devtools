@@ -508,7 +508,7 @@ export function createFlowRunner(input) {
       totalMs: r.ms ?? 0,
       cacheHits: 0,
       cacheHitsDocument: 0,
-      ...(r.timing ?? {}),
+      ...r.timing,
     };
     return {
       name: r.name,

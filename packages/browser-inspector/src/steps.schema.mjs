@@ -1182,7 +1182,7 @@ export const STEPS = Object.freeze({
     config: { schema: 'bool?' },
     describe: () => 'tools',
     help: 'tools [--schema]     (WebMCP: the tools the page registered on navigator.modelContext; all of them → tools.json)',
-    fromArgv: (_, flags) => ({ ...(flags.schema ? { schema: true } : {}) }),
+    fromArgv: (_, flags) => (flags.schema ? { schema: true } : {}),
   },
   call: {
     kind: 'action',

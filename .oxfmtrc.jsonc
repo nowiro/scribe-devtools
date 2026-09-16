@@ -1,0 +1,35 @@
+{
+  // .oxfmtrc.jsonc — THE formatting configuration of this repository, and the only one. The numbers
+  // are the ones Biome and prettier used before it (120 columns, LF, single quotes, trailing commas
+  // everywhere), so replacing Biome with oxfmt was a change of TOOL, not of style: on this tree the
+  // switch rewrote exactly one line of code (`for (…; …; )` lost the space before `)`, which is
+  // prettier's shape again — oxfmt passes prettier's JS/TS conformance suite).
+  //
+  // `$schema` points at the copy inside node_modules on purpose: a published schema URL would be a
+  // SECOND place where the oxfmt version is declared — and scripts/pins.config.mjs exists precisely
+  // so that there is only one.
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "tabWidth": 2,
+  "useTabs": false,
+  "endOfLine": "lf",
+  "singleQuote": true,
+  "trailingComma": "all",
+  // oxfmt sorts package.json keys by default (`type` and `engines` move). That is a style change
+  // nobody asked for and a diff in every manifest — off.
+  "sortPackageJson": false,
+  // Ignored on top of `.gitignore`, which oxfmt reads by itself (so `.ws/`, `.scribe-devtools/`,
+  // `download/` and `node_modules/` need no second entry here).
+  "ignorePatterns": [
+    // Markdown is left unformatted BY CHOICE: oxfmt can format it, but it pads every table to its
+    // widest cell — AGENTS.md grew from 11,349 to 16,761 bytes (+48 %), tokens every agent session
+    // pays — and it inserts blank lines inside the INSTRUCTION blocks that
+    // check-instruction-sync.mjs counts in bytes. Prose width stays a matter of review.
+    "**/*.md",
+    "pnpm-lock.yaml",
+    // A self-contained template tree with its own .oxfmtrc.jsonc and its own gates. oxfmt would still
+    // pick that file up as a NESTED config and check the template with it — hence
+    // `--disable-nested-config` in package.json and `oxc.fmt.disableNestedConfig` in .vscode/settings.json.
+    "copilot-builder/**",
+  ],
+}

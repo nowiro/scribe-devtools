@@ -81,7 +81,7 @@ export function formatStamp(date) {
  * @param {string} a @param {string} b
  */
 function distance(a, b) {
-  const rows = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+  const rows = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array.from({ length: b.length }, () => 0)]);
   for (let j = 1; j <= b.length; j += 1) rows[0][j] = j;
   for (let i = 1; i <= a.length; i += 1) {
     for (let j = 1; j <= b.length; j += 1) {

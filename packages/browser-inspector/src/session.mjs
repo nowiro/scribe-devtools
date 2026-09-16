@@ -794,6 +794,7 @@ export function createSessions(input) {
     endSession,
     /** Close every open session — the pool calls this before the browser goes away. */
     closeAll: async () => {
+      // oxlint-disable-next-line unicorn/no-useless-spread -- a snapshot: endSession deletes from `sessions` and awaits, and a session opened during that await is not ours to close
       for (const name of [...sessions.keys()]) await endSession(name).catch(() => {});
     },
   };
