@@ -138,7 +138,7 @@ Po ostatnim zadaniu: brief do `code-verifier` z `npm run verify:affected`. `ok`:
 | `apps/*-e2e/**` — Playwright | `code-tester-e2e` |
 | `**/*.spec.ts`, `**/*.spec.mjs` — testy jednostkowe Vitest | `code-tester-unit` |
 | `apps/**`, `libs/**` — kod aplikacji i bibliotek (`.ts`, `.html`, `.css`) | `code-angular` |
-| `tools/**`, `.githooks/**`, `.gitlab-ci.yml`, `.gitlab/**`, `eslint.*.mjs`, `biome.jsonc`, `angular.json`, `tsconfig*.json`, `vitest.tools.config.mts`, `package.json`, `package-lock.json`, `commitlint.config.mjs`, `.npmrc`, `.nvmrc`, `.gitignore`, `.gitattributes`, `.editorconfig`, `.vscode/**`, `.github/hooks/**`, `.github/models-registry.json` — skrypty, hooki, konfiguracje lintów i workspace, CI, rejestr modeli | `code-tooling` |
+| `tools/**`, `.githooks/**`, `.gitlab-ci.yml`, `.gitlab/**`, `eslint.config.mjs`, `oxlint.*.mts`, `.oxfmtrc.jsonc`, `angular.json`, `tsconfig*.json`, `vitest.tools.config.mts`, `package.json`, `package-lock.json`, `commitlint.config.mjs`, `.npmrc`, `.nvmrc`, `.gitignore`, `.gitattributes`, `.editorconfig`, `.vscode/**`, `.github/hooks/**`, `.github/models-registry.json` — skrypty, hooki, konfiguracje lintów i workspace, CI, rejestr modeli | `code-tooling` |
 | `.github/**` — treść promptów, agentów, instrukcji i skilli (mechanika front matteru — `applyTo`, `tools:` — to zlecenie dla `code-tooling`) | `doc-spec` |
 | `docs/**`, `README.md`, `GLOSSARY.md`, `CHANGELOG.md`, `AGENTS.md` — spec, plan, run-log, ADR, raporty review, proza dla ludzi | `doc-spec` |
 | uruchamianie bram i triaż ich wyniku | `code-verifier` |

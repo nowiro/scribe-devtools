@@ -6,7 +6,9 @@
 #   2. CODE-INDEX.md and the tech-stack canon are regenerated FROM THE STAGED TREE and staged, so the
 #      commit carries an index of the code it contains — not of half-staged edits in the working tree.
 #      (`npm run verify` fails on a stale one; this makes staleness impossible.)
-#   3. Biome checks the STAGED files only — formatting is a rule a machine enforces, not a review remark.
+#   3. oxfmt checks the STAGED files only — formatting is a rule a machine enforces, not a review remark.
+#      oxfmt has no `--staged`: git lists the files, NUL-separated so a space in a name survives, and
+#      oxfmt skips what .oxfmtrc.jsonc ignores or cannot parse.
 #   4. The Copilot configuration is validated — a typo in `applyTo` or a model name outside the
 #      registry is invisible in a diff and visible only when an agent misbehaves.
 #
@@ -17,5 +19,5 @@ node tools/scripts/index-code.mjs --staged
 git add CODE-INDEX.md
 node tools/scripts/stack.mjs sync
 git add docs/tech-stack.md
-node_modules/.bin/biome format --staged --no-errors-on-unmatched
+git diff --cached --name-only --diff-filter=ACMR -z | xargs -0 -r node node_modules/oxfmt/bin/oxfmt --check --no-error-on-unmatched-pattern
 node tools/scripts/validate-ai-config.mjs

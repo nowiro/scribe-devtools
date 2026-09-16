@@ -11,7 +11,8 @@ Cztery decyzje, z których wynika reszta (każda ma ADR w [`docs/decisions/`](do
 1. **Bez Nx.** Workspace Angular CLI (`angular.json`, `apps/`, `libs/`); `affected` i cache zadań to jeden
    skrypt (`tools/scripts/affected.mjs`), cache builda to natywny cache Angular CLI, a GitLab przenosi
    `.cache/` między jobami. Żadnej usługi zewnętrznej.
-2. **Bez Prettiera.** Biome formatuje TS/JS/JSON/CSS; Markdown i szablony HTML — nikt (świadomie).
+2. **oxc zamiast Prettiera i większości ESLint.** oxfmt formatuje TS/JS/JSON/CSS/YAML i szablony HTML;
+   Markdown — nikt (świadomie). oxlint trzyma reguły kodu, ESLint tylko reguły Angulara.
 3. **Skrypty zamiast serwerów MCP.** `npm run alm:read` robi snapshot Jiry/GitLaba/Confluence na dysk,
    `npm run browser-inspector` ogląda aplikację w systemowym Chrome; MCP zostaje wyłącznie za ukrytym
    subagentem `mcp-gateway`.
@@ -25,7 +26,7 @@ Wymagania: **Node 24** (`.nvmrc`), git, dla `browser-inspector` — systemowy Ch
 ```bash
 npm ci               # .npmrc: ignore-scripts=true, engine-strict=true
 npm run prepare      # uzbraja hooki gita (instalacja ich NIE uruchamia — ignore-scripts)
-npm run doctor       # Node, hooki, Biome, przeglądarka, poświadczenia ALM
+npm run doctor       # Node, hooki, oxfmt i oxlint, przeglądarka, poświadczenia ALM
 npm run verify       # wszystkie bramy — definicja ukończenia
 ```
 
@@ -40,10 +41,9 @@ node node_modules/@angular/cli/bin/ng.js serve portal
 ```
 
 Jak zbudować z tego nowe repozytorium firmy: skopiuj drzewo (bez `node_modules/`), `git init`, ustaw
-`PREFIX`, `ALIAS_SCOPE` i `DEFAULT_BRANCH` w `tools/scripts/workspace.config.mjs` (ESLint, generator i
-`affected` czytają stąd) oraz te same wartości w dwóch plikach, które nie importują JS-a: `angular.json`
-(`schematics.*.prefix`) i `biome.jsonc` (`vcs.defaultBranch`); `git grep -n "cb\b\|@cb/"` pokazuje resztę
-wystąpień w prozie i instrukcjach. Potem `policy.enabled` i `tiers` w `.github/models-registry.json` pod
+`PREFIX`, `ALIAS_SCOPE` i `DEFAULT_BRANCH` w `tools/scripts/workspace.config.mjs` (lintery, generator i
+`affected` czytają stąd) oraz prefiks w pliku, który nie importuje JS-a: `angular.json`
+(`schematics.*.prefix`); `git grep -n "cb\b\|@cb/"` pokazuje resztę wystąpień w prozie i instrukcjach. Potem `policy.enabled` i `tiers` w `.github/models-registry.json` pod
 plan Copilota organizacji, `tags:` runnerów w `.gitlab-ci.yml`, `npm run verify`, pierwszy commit.
 
 ## Komendy
@@ -162,12 +162,12 @@ wydanie jest ręczne, po tagu. Konfiguracja projektu GitLab: [`docs/dev-setup.md
 
 - **Nx** — [ADR](docs/decisions/2026-09-13_21-30_adr-angular-cli-workspace-without-nx.md): Nx Cloud zabroniony,
   a to, co z Nx było używane, robi jeden skrypt nad `angular.json` (`tools/scripts/affected.mjs`).
-- **Prettier** — [ADR](docs/decisions/2026-09-13_21-31_adr-biome-instead-of-prettier.md).
+- **Prettier i Biome** — [ADR](docs/decisions/2026-09-16_10-27_adr-oxc-oxfmt-and-oxlint.md).
 - **Husky, lint-staged, GitHub Actions** — [ADR](docs/decisions/2026-09-13_21-32_adr-native-git-hooks-and-gitlab-ci.md).
 - **Serwery MCP ALM i Playwright w sesji** — [ADR](docs/decisions/2026-09-13_21-33_adr-scripts-instead-of-mcp-servers.md).
 - **Aplikacje** — repozytorium jest szablonem; pierwszą tworzy `npm run new:app`.
 - **Angular Material / biblioteka komponentów** — decyzja zespołu; gdy padnie, Material importuje wyłącznie
-  `libs/shared/ui` (reguła już stoi w `eslint.rules.mjs`).
+  `libs/shared/ui` (reguła już stoi w `oxlint.rules.mts`).
 
 ## Licencja
 

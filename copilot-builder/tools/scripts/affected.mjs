@@ -13,7 +13,7 @@
 //    library whose root contains the alias target) plus one convention: `<app>-e2e` depends on `<app>`.
 // 3. Changed files = `git diff --name-only <merge-base(base, HEAD)>` plus the working tree (staged,
 //    unstaged, untracked). A changed file under a project root marks the project; a change to a
-//    ROOT TRIGGER (package.json, lockfile, angular.json, tsconfig.json, the ESLint/Biome configs,
+//    ROOT TRIGGER (package.json, lockfile, angular.json, tsconfig.json, the lint and format configs,
 //    tools/testing/**) marks every project, because every project depends on it.
 // 4. Dependents of a marked project are marked transitively.
 //
@@ -43,10 +43,11 @@ export const ROOT_TRIGGERS = Object.freeze([
   'package-lock.json',
   'angular.json',
   'tsconfig.json',
-  'biome.jsonc',
+  '.oxfmtrc.jsonc',
+  'oxlint.config.mts',
+  'oxlint.plugins.mts',
+  'oxlint.rules.mts',
   'eslint.config.mjs',
-  'eslint.plugins.mjs',
-  'eslint.rules.mjs',
   'tools/testing/',
 ]);
 const SKIP_DIRS = new Set([
@@ -195,7 +196,7 @@ function aliasEdges(project, workspace, repo) {
   const pattern = /(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/gu;
   const deps = new Set();
   for (const file of listFiles(repo, project.root)) {
-    if (!/\.(?:ts|mts)$/u.test(file) || /\.d\.ts$/u.test(file)) continue;
+    if (!/\.(?:ts|mts)$/u.test(file) || file.endsWith('.d.ts')) continue;
     const source = readFileSync(path.join(repo, file), 'utf8');
     for (const match of source.matchAll(pattern)) {
       const specifier = match[1];
@@ -353,11 +354,16 @@ export function commandsFor(project, target, repo = REPO) {
   const node = process.execPath;
   const ng = path.join(repo, 'node_modules', '@angular', 'cli', 'bin', 'ng.js');
   const tsc = path.join(repo, 'node_modules', 'typescript', 'bin', 'tsc');
+  const oxlint = path.join(repo, 'node_modules', 'oxlint', 'bin', 'oxlint');
   const eslint = path.join(repo, 'node_modules', 'eslint', 'bin', 'eslint.js');
   const playwright = path.join(repo, 'node_modules', '@playwright', 'test', 'cli.js');
   switch (target) {
     case 'lint':
-      return [[node, eslint, project.root, '--max-warnings=0', '--cache', '--cache-location', '.cache/eslint/']];
+      // oxlint first (every rule but Angular's), then angular-eslint (templates and inline templates).
+      return [
+        [node, oxlint, project.root],
+        [node, eslint, project.root, '--max-warnings=0', '--cache', '--cache-location', '.cache/eslint/'],
+      ];
     case 'typecheck':
       // apps and libraries carry app/lib + spec tsconfigs; an e2e project has a single tsconfig.json.
       return ['tsconfig.app.json', 'tsconfig.lib.json', 'tsconfig.spec.json', 'tsconfig.json']

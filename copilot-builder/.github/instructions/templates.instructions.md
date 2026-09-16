@@ -6,7 +6,7 @@ applyTo: 'apps/**/*.html,libs/**/*.html'
 # Szablony (`*.html`)
 
 Właściciel: `code-angular`. Brama: `npm run affected -- lint` (angular-eslint template + accessibility).
-Formatera dla szablonów nie ma. Wcięcia po 2 spacje trzymasz sam.
+Format: oxfmt (`npm run format`) — rozumie `@if`, `@for`, `@switch`, `@defer` i `@let`.
 
 ## Reguły
 

@@ -94,8 +94,8 @@ static:
   script:
     - npm run verify -- --static
 
-# Both halves of the lint gate: the repository's own tooling and configuration (`eslint .`), then
-# the workspace projects the change touches.
+# Both halves of the lint gate: the repository's own tooling and configuration (`oxlint`, then
+# `eslint .` for the Angular rules), then the workspace projects the change touches.
 lint:
   <<: *mr-affected
   stage: verify

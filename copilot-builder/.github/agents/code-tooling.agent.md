@@ -1,6 +1,6 @@
 ---
 name: code-tooling
-description: 'fast · Pisze skrypty bram, hooki i konfiguracje: tools/**, .githooks/**, eslint / biome / commitlint, angular.json, tsconfig*.json, package.json, .gitlab-ci.yml, .github/hooks, rejestr modeli. Wejście: brief. Wyjście: lista zmienionych plików + wynik `npm run typecheck`, `lint`, `test`. Nigdy: apps/**, libs/**, drzewa wendorowane, commit.'
+description: 'fast · Pisze skrypty bram, hooki i konfiguracje: tools/**, .githooks/**, oxlint / eslint / oxfmt / commitlint, angular.json, tsconfig*.json, package.json, .gitlab-ci.yml, .github/hooks, rejestr modeli. Wejście: brief. Wyjście: lista zmienionych plików + wynik `npm run typecheck`, `lint`, `test`. Nigdy: apps/**, libs/**, drzewa wendorowane, commit.'
 model: GPT-5.6 Luna
 tools: ['read', 'search', 'edit', 'execute']
 user-invocable: false
@@ -9,8 +9,9 @@ user-invocable: false
 # code-tooling (fast)
 
 Twoje pliki: `tools/scripts/**`, `tools/hooks/**`, `tools/testing/**`, `.githooks/**`, `.gitlab-ci.yml`,
-`eslint.config.mjs`, `eslint.plugins.mjs`, `eslint.rules.mjs`, `biome.jsonc`, `commitlint.config.mjs`,
-`angular.json`, `tsconfig*.json`, `package.json`, `.vscode/**`, `.github/hooks/**`, `.github/models-registry.json`.
+`oxlint.config.mts`, `oxlint.plugins.mts`, `oxlint.rules.mts`, `eslint.config.mjs`, `.oxfmtrc.jsonc`,
+`commitlint.config.mjs`, `angular.json`, `tsconfig*.json`, `package.json`, `.vscode/**`, `.github/hooks/**`,
+`.github/models-registry.json`.
 Reguły plików Copilot dokleja sam: `.github/instructions/scripts.instructions.md`, `lint-config.instructions.md`,
 `gitlab-ci.instructions.md`, `copilot-config.instructions.md`.
 

@@ -3,7 +3,7 @@
 //
 // Each entry is a decision recorded in docs/decisions/, not a taste: a second assistant's config
 // doubles the always-on context; GitHub Actions would be a second CI next to GitLab; Nx and Prettier
-// were weighed and declined; Husky is replaced by .githooks; a live `.mcp.json` would put tool
+// were weighed and declined, Biome was replaced by oxfmt; Husky is replaced by .githooks; a live `.mcp.json` would put tool
 // schemas into every session; and a vendored tool carries the name of what it DOES, not the brand of
 // where it came from — a company adopts this tree as its own, and an upstream name in a path, a
 // Vitest project or a provenance line stamped into its Jira is noise to them and a leak of origin.
@@ -30,11 +30,13 @@ export const FORBIDDEN_PATHS = Object.freeze([
   ['nx.json', 'no Nx by decision (docs/decisions) — Angular CLI workspace plus tools/scripts/affected.mjs'],
   ['.nx', 'no Nx by decision'],
   ['.husky', 'native hooks in .githooks/, armed by npm run prepare'],
-  ['.prettierrc', 'Biome is the only formatter (biome.jsonc)'],
-  ['.prettierrc.json', 'Biome is the only formatter (biome.jsonc)'],
-  ['prettier.config.mjs', 'Biome is the only formatter (biome.jsonc)'],
-  ['prettier.config.js', 'Biome is the only formatter (biome.jsonc)'],
-  ['.prettierignore', 'Biome is the only formatter (biome.jsonc)'],
+  ['.prettierrc', 'oxfmt is the only formatter (.oxfmtrc.jsonc)'],
+  ['.prettierrc.json', 'oxfmt is the only formatter (.oxfmtrc.jsonc)'],
+  ['prettier.config.mjs', 'oxfmt is the only formatter (.oxfmtrc.jsonc)'],
+  ['prettier.config.js', 'oxfmt is the only formatter (.oxfmtrc.jsonc)'],
+  ['.prettierignore', 'oxfmt is the only formatter (.oxfmtrc.jsonc)'],
+  ['biome.json', 'oxfmt replaced Biome (docs/decisions) — a second formatter would fight it over the same files'],
+  ['biome.jsonc', 'oxfmt replaced Biome (docs/decisions) — a second formatter would fight it over the same files'],
   ['pnpm-lock.yaml', 'npm is the package manager — one lockfile, package-lock.json'],
   ['yarn.lock', 'npm is the package manager — one lockfile, package-lock.json'],
 ]);
@@ -45,6 +47,7 @@ export const FORBIDDEN_PACKAGES = Object.freeze([
   'nx-cloud',
   '@nx/workspace',
   'prettier',
+  '@biomejs/biome',
   'husky',
   'lint-staged',
 ]);

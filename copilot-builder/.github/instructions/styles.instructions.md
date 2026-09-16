@@ -5,7 +5,7 @@ applyTo: 'apps/**/*.css,libs/**/*.css'
 
 # Style (`*.css`)
 
-Właściciel: `code-angular`. Format: Biome (`npm run format`). Preprocesora nie ma. Natywny CSS ma zagnieżdżanie,
+Właściciel: `code-angular`. Format: oxfmt (`npm run format`). Preprocesora nie ma. Natywny CSS ma zagnieżdżanie,
 zmienne i `@layer`.
 
 ## Reguły

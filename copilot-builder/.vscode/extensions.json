@@ -1,10 +1,11 @@
 {
-  // Minimum, które odtwarza bramki repo w edytorze: formatter z biome.jsonc, ESLint z flat config,
-  // Angular Language Service, Vitest i Playwright, Copilot Chat z plikami promptów i agentów oraz
-  // EditorConfig dla plików, których nie formatuje Biome (Markdown, szablony HTML) i podgląd diagramów
+  // Minimum, które odtwarza bramki repo w edytorze: oxc (oxfmt z .oxfmtrc.jsonc i oxlint z
+  // oxlint.config.mts), ESLint dla reguł Angulara, Angular Language Service, Vitest i Playwright,
+  // Copilot Chat z plikami promptów i agentów oraz EditorConfig dla Markdownu (oxfmt go z wyboru nie
+  // formatuje) i podgląd diagramów
   // Mermaid w Markdownie (GitLab renderuje je natywnie, edytor potrzebuje rozszerzenia).
   "recommendations": [
-    "biomejs.biome",
+    "oxc.oxc-vscode",
     "dbaeumer.vscode-eslint",
     "angular.ng-template",
     "vitest.explorer",
@@ -14,6 +15,6 @@
     "editorconfig.editorconfig",
     "bierner.markdown-mermaid"
   ],
-  // Drugi formater walczyłby z Biome o ten sam plik; wtyczki Nx nie mają tu czego pokazać.
-  "unwantedRecommendations": ["esbenp.prettier-vscode", "nrwl.angular-console"]
+  // Drugi formater walczyłby z oxfmt o ten sam plik; wtyczki Nx nie mają tu czego pokazać.
+  "unwantedRecommendations": ["esbenp.prettier-vscode", "biomejs.biome", "nrwl.angular-console"]
 }

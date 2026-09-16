@@ -28,7 +28,7 @@ describe('globToRegExp', () => {
     ['tsconfig*.json', 'apps/x/tsconfig.app.json', false],
     ['apps/*-e2e/**', 'apps/portal-e2e/tests/login.spec.ts', true],
     ['apps/*-e2e/**', 'apps/portal/tests/login.spec.ts', false],
-    ['eslint.*.mjs', 'eslint.rules.mjs', true],
+    ['oxlint.*.mts', 'oxlint.rules.mts', true],
     ['CODE-INDEX.md', 'CODE-INDEX.md', true],
     ['CODE-INDEX.md', 'docs/CODE-INDEX.md', false],
   ])('%s vs %s → %s', (glob, file, expected) => {

@@ -2,7 +2,7 @@
 // doctor.mjs — environment diagnostics (0 credits, NOT part of `npm run verify`).
 //
 // Answers "why does it not work on my machine" before anyone opens an issue: the Node major, whether
-// the hooks are armed, whether the Biome binary for this platform is installed, whether a system
+// the hooks are armed, whether the oxfmt and oxlint binaries for this platform are installed, whether a system
 // Chrome/Edge exists for browser-inspector, whether Playwright browsers were installed for e2e, and
 // whether the ALM credentials file exists. Warnings never fail the run; only a wrong toolchain does.
 //
@@ -45,15 +45,13 @@ if (existsSync(path.join(REPO, '.git'))) {
 if (!existsSync(path.join(REPO, 'node_modules'))) {
   errors.push('node_modules missing — run `npm ci`');
 } else {
-  const biome = spawnSync(
-    process.execPath,
-    [path.join(REPO, 'node_modules', '@biomejs', 'biome', 'bin', 'biome'), '--version'],
-    {
+  for (const tool of ['oxfmt', 'oxlint']) {
+    const run = spawnSync(process.execPath, [path.join(REPO, 'node_modules', tool, 'bin', tool), '--version'], {
       encoding: 'utf8',
-    },
-  );
-  if (biome.status === 0) oks.push(`biome ${biome.stdout.trim().replace(/^Version:\s*/u, '')}`);
-  else warnings.push('biome binary for this platform is missing — reinstall (`npm ci`)');
+    });
+    if (run.status === 0) oks.push(`${tool} ${run.stdout.trim().replace(/^Version:\s*/u, '')}`);
+    else warnings.push(`${tool} binary for this platform is missing — reinstall (\`npm ci\`)`);
+  }
 }
 
 /** Where the system browsers live per platform — browser-inspector uses them, never a download. */

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * format-on-edit.mjs — PostToolUse hook: runs Biome on the file an EDIT tool just wrote.
+ * format-on-edit.mjs — PostToolUse hook: runs oxfmt on the file an EDIT tool just wrote.
  *
  * Formatting is a rule a machine enforces, so it does not stand in the always-on context. Only the
  * edit tools trigger it — a hook that formatted on `read_file` rewrote files a reviewer was merely
  * looking at, and a "read-only" session must leave the working tree as it found it. Paths are
- * resolved against the repository root and passed to Biome absolute, so a file named `--write.js`
+ * resolved against the repository root and passed to oxfmt absolute, so a file named `--check.js`
  * cannot become an option. Never blocks, prints nothing on success.
  */
 import { spawnSync } from 'node:child_process';
@@ -24,12 +24,13 @@ export const EDIT_TOOLS = Object.freeze([
   'inserteditintofile',
   'applypatch',
 ]);
-const FORMATTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/iu;
+/** What .oxfmtrc.jsonc formats — Markdown is excluded there by choice, so it is not here either. */
+const FORMATTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css|html|ya?ml)$/iu;
 /** Build output, caches and the vendored dist are not the agent's edits. */
 const SKIP = [/^dist\//u, /^node_modules\//u, /^\.angular\//u, /^\.cache\//u, /^tools\/alm\/dist\//u];
 
 /**
- * The absolute file Biome should format after this tool call, or null when nothing should happen.
+ * The absolute file oxfmt should format after this tool call, or null when nothing should happen.
  * @param {string} tool
  * @param {unknown} file the path the tool reported
  * @param {string} [root]
@@ -50,13 +51,9 @@ if (isMain(import.meta.url)) {
   const { tool, input } = toolCall(parsePayload(await readStdin()));
   const target = formatTarget(tool, input.filePath ?? input.file_path ?? input.path ?? '');
   if (target && existsSync(target)) {
-    spawnSync(
-      process.execPath,
-      [path.join(ROOT, 'node_modules', '@biomejs', 'biome', 'bin', 'biome'), 'format', '--write', target],
-      {
-        cwd: ROOT,
-        stdio: 'ignore',
-      },
-    );
+    spawnSync(process.execPath, [path.join(ROOT, 'node_modules', 'oxfmt', 'bin', 'oxfmt'), target], {
+      cwd: ROOT,
+      stdio: 'ignore',
+    });
   }
 }

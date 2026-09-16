@@ -22,7 +22,7 @@ export type AdfDoc = AdfNode & { readonly version: 1 };
 
 /** Index of a run of EXACTLY `length` backticks in `text` (not part of a longer run), or -1. */
 function findEqualBacktickRun(text: string, length: number): number {
-  for (let idx = 0; idx < text.length; ) {
+  for (let idx = 0; idx < text.length;) {
     if (text[idx] !== '`') {
       idx += 1;
       continue;

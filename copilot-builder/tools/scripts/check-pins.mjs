@@ -1,5 +1,5 @@
 // Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of
-// `npm run verify`, next to `biome format .`. It answers four questions a green test suite does not:
+// `npm run verify`, next to `oxfmt --check`. It answers four questions a green test suite does not:
 //
 //   1. META  — does every dependency in every manifest have a row? A check that does not know
 //              what it is not checking reads as coverage while covering nothing, so a package

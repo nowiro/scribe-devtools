@@ -2,7 +2,7 @@
 #
 # The repository is developed on Windows, macOS and Linux and its content is plain text that gets
 # compared, hashed and diffed. Without this, git writes CRLF into the working tree on Windows,
-# every diff shows whole files as changed, and `biome format` disagrees with what is committed.
+# every diff shows whole files as changed, and `oxfmt --check` disagrees with what is committed.
 # One `text=auto eol=lf` rule removes the entire class of problem.
 
 * text=auto eol=lf

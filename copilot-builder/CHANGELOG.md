@@ -28,6 +28,11 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
 
 ### Changed
 
+- oxc zamiast Biome i większości ESLint: oxfmt formatuje także szablony HTML i YAML (Markdown z wyboru
+  nie), oxlint trzyma wszystkie reguły poza Angularem (presety czytane z pakietów, sonarjs/regexp/security/n/
+  eslint-comments/playwright jako `jsPlugins`, reguły z typami przez oxlint-tsgolint), ESLint zostaje tylko
+  dla angular-eslint. Generator dopisuje `rootDir` do tsconfigów biblioteki (TypeScript 7) i dodaje import
+  `ChangeDetectionStrategy` także przy podwójnych cudzysłowach schematów. ADR w `docs/decisions/`.
 - browser-inspector: komendy sesyjne `tools` (narzędzia WebMCP zarejestrowane przez stronę, całość w `tools.json`)
   i `call <tool> {json}` (wykonanie narzędzia, wynik w `calls/NNN-<tool>.json`) przez własny rejestr
   `navigator.modelContext` instalowany w sesji; w aplikacjach narzędzia WebMCP tylko za `isDevMode()`

@@ -387,7 +387,7 @@ Modules: 97.
 - imports: `tools/hooks/lib/payload.mjs`
 
 ## tools/hooks/format-on-edit.mjs
-- purpose: PostToolUse hook: runs Biome on the file an EDIT tool just wrote.
+- purpose: PostToolUse hook: runs oxfmt on the file an EDIT tool just wrote.
 - exports: `EDIT_TOOLS`, `formatTarget(tool, file, root) → string | null`
 - imports: `tools/hooks/lib/payload.mjs`
 
@@ -428,7 +428,7 @@ Modules: 97.
 - imports: `tools/scripts/lib/repo.mjs`
 
 ## tools/scripts/check-pins.mjs
-- purpose: Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of `npm run verify`, next to `biome format .`.
+- purpose: Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of `npm run verify`, next to `oxfmt --check`.
 - exports: `bareVersion(spec) → string | null`, `checkPins(root) → { ok: boolean, message: string, problems: string[] }`, `compareVersions(a, b) → number`, `discoverManifests(root)`, `proseLag(text, id, pinned) → {line: number, found: string}[]`, `readDeclarations(root, manifests) → Map<string, {spec: string, where: string}[]>`, `tagProblems(pin, version, root) → string[]`, `walkText(root, frozen) → string[]`, `workspacePatterns(root) → string[]`
 - imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/pins.config.mjs`
 - types only: `tools/scripts/pins.config.mjs`

@@ -19,7 +19,7 @@ Reguły plików Copilot dokleja sam: `.github/instructions/angular.instructions.
 2. Stan trzymasz w sygnałach: `signal`, `computed`, `linkedSignal`, `resource`. RxJS tylko na granicy I/O.
 3. Formularz to Signal Forms: `form(model, schema)` z `@angular/forms/signals`, w szablonie `[formField]`.
 4. Import z innego projektu tylko przez alias `@cb/<zakres>/<typ>[-<nazwa>]`. Kierunek zależności pilnuje
-   `eslint.rules.mjs`. Brakujący komponent współdzielony dodajesz w `libs/shared/ui`.
+   `oxlint.rules.mts`. Brakujący komponent współdzielony dodajesz w `libs/shared/ui`.
 5. Nową bibliotekę tworzy `npm run new:lib -- <zakres>/<typ>-<nazwa>`, nową aplikację `npm run new:app -- <nazwa>`.
    Nigdy ręcznie.
 6. Zmiana zachowania ma test (zlecenie dla `code-tester-unit`). Element interaktywny ma `data-testid`

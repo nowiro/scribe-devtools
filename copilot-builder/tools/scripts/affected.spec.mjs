@@ -164,7 +164,8 @@ describe('affected.mjs on a small workspace', () => {
       '--config',
       'apps/demo-e2e/playwright.config.ts',
     ]);
-    expect(commandsFor(demo, 'lint', repo)[0]?.slice(2, 4)).toEqual(['apps/demo', '--max-warnings=0']);
+    expect(commandsFor(demo, 'lint', repo)[0]?.slice(2)).toEqual(['apps/demo']);
+    expect(commandsFor(demo, 'lint', repo)[1]?.slice(2, 4)).toEqual(['apps/demo', '--max-warnings=0']);
   });
 });
 

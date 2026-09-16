@@ -1,0 +1,39 @@
+{
+  // .oxfmtrc.jsonc — THE formatting configuration of this repository, and the only one.
+  //
+  // 120 columns, LF, single quotes, trailing commas everywhere: the same numbers Prettier would have
+  // used, and oxfmt's output IS Prettier's shape (it passes Prettier's JS/TS conformance suite), so a
+  // team coming from Prettier sees no diff. Prettier itself is absent on purpose: one formatter, one
+  // config, one editor extension, and a binary that checks the whole tree in tens of milliseconds, so
+  // `format:check` can be the first step of `npm run verify`.
+  //
+  // `$schema` points at the copy inside node_modules on purpose: a published schema URL would be a
+  // SECOND place where the oxfmt version is declared — and tools/scripts/pins.config.mjs exists
+  // precisely so that there is only one.
+  //
+  // What it formats: TypeScript, JavaScript, JSON/JSONC, CSS, YAML and Angular templates (`.html` —
+  // the control-flow blocks `@if` / `@for` / `@switch` / `@defer` / `@let` come out nested, not
+  // flattened). What it does NOT format, by choice: Markdown (below). Both decisions are recorded in
+  // docs/decisions/ (ADR "oxc: oxfmt and oxlint").
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "tabWidth": 2,
+  "useTabs": false,
+  "endOfLine": "lf",
+  "singleQuote": true,
+  "trailingComma": "all",
+  // oxfmt sorts package.json keys by default. That is a style change nobody asked for and a diff in
+  // every manifest a generator touches — off.
+  "sortPackageJson": false,
+  // Ignored on top of `.gitignore`, which oxfmt reads by itself (node_modules, dist, caches and tool
+  // output need no second entry here).
+  "ignorePatterns": [
+    // Markdown is left unformatted BY CHOICE: oxfmt pads every table to its widest cell and inserts
+    // blank lines around HTML-comment markers. On this tree that is 56 files and +24.5 kB, most of it
+    // in files read every session (orchestrator.agent.md +7.6 kB, whose routing table `route --sync`
+    // generates unpadded; GLOSSARY.md +6.6 kB), and 27 of the files are vendored skill references.
+    // Prose is kept by review and by .editorconfig (LF, spaces, final newline).
+    "**/*.md",
+    "package-lock.json",
+  ],
+}

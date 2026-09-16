@@ -17,7 +17,7 @@
 //     never runs it (`affected build` builds applications only) — publishing is a later, explicit step;
 //   - components get `changeDetection: OnPush` (the lint rule requires it) and the 20 kB placeholder
 //     page becomes a minimal template that the generated spec still passes;
-//   - the result is run through `eslint --fix` and `biome format` so that it satisfies the
+//   - the result is run through `oxlint --fix`, `eslint --fix` and `oxfmt` so that it satisfies the
 //     repository's own rules on day one (the schematics know neither);
 //   - an application gets an e2e project (`apps/<name>-e2e`) with a Playwright config that serves the
 //     BUILT application through tools/testing/serve-static.mjs and a smoke test over the viewport matrix
@@ -27,7 +27,7 @@
 //     starts clean instead of hitting "already exists".
 //
 // The library <type> is one of feature, ui, data-access, util — it is the first segment of the name
-// and it is what eslint.rules.mjs uses to enforce the dependency direction.
+// and it is what oxlint.rules.mts uses to enforce the dependency direction.
 //
 // Exit codes: 0 done · 1 the generator or a post-processing step failed · 2 usage error.
 import { spawnSync } from 'node:child_process';
@@ -108,7 +108,8 @@ function addOnPush(rel) {
   if (!existsSync(abs)) return;
   let text = readFileSync(abs, 'utf8');
   if (text.includes('ChangeDetectionStrategy.OnPush')) return;
-  text = text.replace(/import \{ ([^}]*)\} from '@angular\/core';/u, (_, names) => {
+  // The schematics write double quotes (no Prettier in the workspace); oxfmt makes them single later.
+  text = text.replace(/import \{ ([^}]*)\} from ['"]@angular\/core['"];/u, (_, names) => {
     const list = names
       .split(',')
       .map((/** @type {string} */ n) => n.trim())
@@ -182,33 +183,27 @@ function rollback(snapshot, roots, error) {
 }
 
 /**
- * The generated code through the repository's own tools: `eslint --fix` (type imports, catch
- * variables, void expressions the schematics do not care about) and then `biome format`. A problem
- * ESLint cannot fix is reported as a warning — the files are already on disk, the gate will say the rest.
+ * The generated code through the repository's own tools: `oxlint --fix` (type imports, catch
+ * variables, void expressions the schematics do not care about), `eslint --fix` (the Angular rules)
+ * and then `oxfmt`. A problem the linters cannot fix is reported as a warning — the files are already
+ * on disk, the gate will say the rest.
  * @param {string[]} roots repository-relative project roots
  * @returns {string | null} a warning line, or null when the result is clean
  */
 function polish(roots) {
-  const eslint = spawnSync(
-    process.execPath,
+  const linters = [
+    [path.join(REPO, 'node_modules', 'oxlint', 'bin', 'oxlint'), ...roots, '--fix'],
     [path.join(REPO, 'node_modules', 'eslint', 'bin', 'eslint.js'), ...roots, '--fix', '--max-warnings=0'],
-    { cwd: REPO, encoding: 'utf8' },
-  );
-  // the workspace files the generator rewrote (JSON.stringify layout ≠ Biome layout) are formatted too
+  ].map((args) => spawnSync(process.execPath, args, { cwd: REPO, encoding: 'utf8' }));
+  // the workspace files the generator rewrote (JSON.stringify layout ≠ oxfmt layout) are formatted too
   spawnSync(
     process.execPath,
-    [
-      path.join(REPO, 'node_modules', '@biomejs', 'biome', 'bin', 'biome'),
-      'format',
-      '--write',
-      ...roots,
-      'angular.json',
-      'tsconfig.json',
-    ],
+    [path.join(REPO, 'node_modules', 'oxfmt', 'bin', 'oxfmt'), ...roots, 'angular.json', 'tsconfig.json'],
     { cwd: REPO, stdio: 'ignore' },
   );
-  if (eslint.status === 0) return null;
-  const summary = `${eslint.stdout}${eslint.stderr}`.trim().split('\n').slice(-2).join(' ');
+  const failed = linters.filter((run) => run.status !== 0);
+  if (failed.length === 0) return null;
+  const summary = failed.map((run) => `${run.stdout}${run.stderr}`.trim().split('\n').slice(-2).join(' ')).join(' · ');
   return `warn lint still reports problems in ${roots.join(', ')} — ${summary} · fix them before pushing (npm run affected -- lint)`;
 }
 
@@ -477,6 +472,18 @@ function finishLibrary({ root, projectName, alias, type, scope }) {
   };
   writeJson('angular.json', angular);
 
+  // TypeScript 7 — the type-aware lint runs on it (oxlint-tsgolint) — refuses an `outDir` without an
+  // explicit `rootDir`; TypeScript 6 only deprecated it. Both configs keep their sources under `src`.
+  // A text edit, not a JSON round trip: the files carry comments, and `src/**/*.ts` in a string is
+  // exactly what a comment stripper mistakes for one.
+  for (const file of ['tsconfig.lib.json', 'tsconfig.spec.json']) {
+    const abs = path.join(REPO, root, file);
+    const text = readFileSync(abs, 'utf8');
+    if (!text.includes('"rootDir"')) {
+      writeFileSync(abs, text.replace('"compilerOptions": {', '"compilerOptions": {\n    "rootDir": "src",'), 'utf8');
+    }
+  }
+
   // the placeholder: a component for ui/feature libraries, a function for util/data-access
   const fileBase = `${root}/src/lib/${projectName}`;
   if (type === 'ui' || type === 'feature') {
@@ -503,7 +510,7 @@ function finishLibrary({ root, projectName, alias, type, scope }) {
       '',
       'Target `build` (ng-packagr) służy wyłącznie publikacji — `npm run affected -- build` buduje tylko aplikacje, a builder testów czyta z niego opcje kompilacji.',
       '',
-      'Kierunek zależności (pilnuje `eslint.rules.mjs`): feature → ui, data-access, util · ui → ui, util · data-access → data-access, util · util → util.',
+      'Kierunek zależności (pilnuje `oxlint.rules.mts`): feature → ui, data-access, util · ui → ui, util · data-access → data-access, util · util → util.',
       '',
       `Testy: \`npm run affected -- test\` (Vitest przez \`@angular/build:unit-test\`, progi pokrycia w \`${RUNNER_CONFIG}\`).`,
       '',

@@ -77,12 +77,12 @@
     "git log": true
   },
   // Odmowa dla wszystkiego, co auto-zatwierdzona komenda terminala WYKONUJE jako kod (konfiguracje
-  // ESLint/Vitest/Biome/commitlint, angular.json, tools/**) i dla plików, które definiują same kontrole
+  // oxlint/ESLint/Vitest/oxfmt/commitlint, angular.json, tools/**) i dla plików, które definiują same kontrole
   // (.vscode, .github, hooki, manifest, lockfile). Zasada: plik ładowany przez komendę z listy powyżej
   // nigdy nie jest edytowany bez kliknięcia człowieka. Ryzyko rezydualne, zapisane świadomie: pliki
   // `*.spec.ts` w apps/ i libs/ (tester musi je pisać) — `npm run test` je wykonuje.
   "chat.tools.edits.autoApprove": {
-    // Everything an auto-approved terminal command EXECUTES (ESLint, Vitest, Biome, commitlint and
+    // Everything an auto-approved terminal command EXECUTES (oxlint, ESLint, Vitest, oxfmt, commitlint and
     // Angular read their configuration as code) and everything that DEFINES the controls themselves.
     "**/tools/hooks/**": false,
     "**/tools/scripts/**": false,
@@ -99,11 +99,12 @@
     ".gitattributes": false,
     ".gitlab-ci.yml": false,
     "angular.json": false,
-    "biome.jsonc": false,
+    ".oxfmtrc.jsonc": false,
     "commitlint.config.mjs": false,
     "eslint.config.mjs": false,
-    "eslint.plugins.mjs": false,
-    "eslint.rules.mjs": false,
+    "oxlint.config.mts": false,
+    "oxlint.plugins.mts": false,
+    "oxlint.rules.mts": false,
     "tsconfig.json": false,
     "tsconfig.tools.json": false,
     "vitest.tools.config.mts": false
@@ -147,31 +148,32 @@
   "typescript.tsc.autoDetect": "off",
 
   // ───────────────────────────── Higiena edytora: sformatowany plik nie wywraca bramy
-  // Biome formatuje TS/JS/JSON/CSS. Markdown i szablony HTML zostają bez formatera (biome.jsonc
-  // mówi dlaczego) — dla nich obowiązuje tylko EditorConfig: LF, spacje, finalna nowa linia.
+  // oxfmt formatuje TS/JS/JSON/CSS/YAML i szablony HTML. Markdown zostaje bez formatera z wyboru
+  // (.oxfmtrc.jsonc mówi dlaczego) — dla niego obowiązuje tylko EditorConfig: LF, spacje, finalna nowa linia.
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "biomejs.biome",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
   "[markdown]": {
     "editor.defaultFormatter": null,
     "editor.formatOnSave": false,
     "files.trimTrailingWhitespace": false
   },
-  "[html]": { "editor.defaultFormatter": null, "editor.formatOnSave": false },
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "files.trimFinalNewlines": true,
 
-  // ───────────────────────────── TypeScript i ESLint z repozytorium, nie z edytora
+  // ───────────────────────────── TypeScript, oxlint i ESLint z repozytorium, nie z edytora
   // Angular 22 wymaga TypeScript 6.0.x; edytor ma pokazywać to samo, co bramka `tsc`.
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.includePackageJsonAutoImports": "off",
   "js/ts.implicitProjectConfig.checkJs": true,
+  // oxlint czyta oxlint.config.mts (typeAware stamtąd); ESLint ma tylko reguły Angulara, więc
+  // sprawdza wyłącznie TypeScript i szablony.
   "eslint.useFlatConfig": true,
-  "eslint.validate": ["javascript", "typescript", "html"],
+  "eslint.validate": ["typescript", "html"],
   "eslint.options": { "cache": true, "cacheLocation": ".cache/eslint/" },
-  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+  "editor.codeActionsOnSave": { "source.fixAll.oxc": "explicit", "source.fixAll.eslint": "explicit" },
 
   // ───────────────────────────── Testy siedzą obok modułów — zagnieżdżaj je w eksploratorze
   "explorer.fileNesting.enabled": true,
@@ -181,6 +183,6 @@
     "*.mjs": "${capture}.spec.mjs",
     "package.json": "package-lock.json, .npmrc, .nvmrc",
     "tsconfig.json": "tsconfig.*.json",
-    "angular.json": "biome.jsonc, commitlint.config.mjs, eslint.config.mjs, eslint.plugins.mjs, eslint.rules.mjs, vitest.tools.config.mts"
+    "angular.json": ".oxfmtrc.jsonc, commitlint.config.mjs, eslint.config.mjs, oxlint.config.mts, oxlint.plugins.mts, oxlint.rules.mts, vitest.tools.config.mts"
   }
 }

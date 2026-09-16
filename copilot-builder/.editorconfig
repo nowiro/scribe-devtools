@@ -12,15 +12,10 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 [*.md]
-# No formatter touches Markdown here (Biome has none and Prettier is deliberately absent), so this
-# file is the only thing keeping LF, spaces and a final newline in prose. No hard width limit: it
+# No formatter touches Markdown here (oxfmt ignores `**/*.md` by choice, see .oxfmtrc.jsonc), so
+# this file is the only thing keeping LF, spaces and a final newline in prose. No hard width limit: it
 # would fight tables that were narrowed by hand. Trailing whitespace is trimmed on purpose: the
 # markdown "two trailing spaces = line break" is invisible in review.
-max_line_length = off
-
-[*.html]
-# Angular templates are formatted by nobody either (Biome's HTML formatter does not understand the
-# control-flow blocks `@if` / `@for`); angular-eslint template rules cover correctness and a11y.
 max_line_length = off
 
 [Makefile]

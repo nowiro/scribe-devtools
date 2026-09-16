@@ -42,7 +42,7 @@ wiersz tutaj.
 | dyspozytory uruchamiają pipeline w katalogu WYWOŁANIA (`process.cwd()`), nie w `tools/alm/` | ścieżka względna configu znaczy to, co ma na myśli człowiek w korzeniu repozytorium        |
 | usunięte `scripts/gh-fetch.mjs` (GitHub CLI) i `scripts/portable-zip.mjs`  | platformą jest GitLab (źródło `gitlab`); wydanie portable nie dotyczy szablonu                 |
 | usunięte `CHANGELOG.md`, `PROMPT-INSTALACJA.md`, `demo/`                  | historia i instalacja samodzielnego repozytorium — bezprzedmiotowe wewnątrz monorepo           |
-| formatowanie Biome zamiast Prettiera                                      | jeden formater w repozytorium (`biome.jsonc`)                                                  |
+| formatowanie oxfmt zamiast Prettiera                                      | jeden formater w repozytorium (`.oxfmtrc.jsonc`)                                               |
 | nazwa narzędzia `alm`: katalog `tools/alm/`, dane w `.alm/<źródło>/`, projekty Vitest `alm-*`, blok `INSTRUCTION:alm`, linia proweniencji „za pomocą narzędzia alm v…" (tooling `2.3.0`) | szablon nie niesie nazwy własnej narzędzia źródłowego ani jego autora — `npm run guard:forbidden` (`FORBIDDEN_WORDS`), ADR w `docs/decisions/` |
 
 Niezmienione celowo: katalog poświadczeń `~/.config/extract`, zmienne `EXTRACT_*`, nagłówki `X-Extract-*`

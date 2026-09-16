@@ -5,7 +5,7 @@
 1. **Node 24** — wersja z `.nvmrc`; `nvm use` / `fnm use` / `volta pin` czytają ten plik. `engine-strict=true`
    w `.npmrc` zatrzymuje instalację na starszym Node zamiast pozwolić na błąd składni w cudzym pliku.
 2. `npm ci` — instalacja z lockfile'a; `ignore-scripts=true` oznacza, że żadna zależność nie uruchamia
-   skryptu instalacyjnego (binaria natywne Biome, esbuild i lightningcss przychodzą jako pakiety platformowe).
+   skryptu instalacyjnego (binaria natywne oxfmt, oxlint, esbuild i lightningcss przychodzą jako pakiety platformowe).
 3. `npm run prepare` — **raz po klonie**: ustawia `core.hooksPath = .githooks` (pre-commit, commit-msg,
    pre-push). `npm install` tego nie zrobi (ignore-scripts); `npm run doctor` przypomina.
 4. Playwright (e2e lokalnie): `node node_modules/@playwright/test/cli.js install chromium` — raz na maszynę,
@@ -16,7 +16,7 @@
    `%USERPROFILE%\.config\extract\config.json`) albo zmienne `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_TOKEN`,
    `GITLAB_BASE_URL` / `GITLAB_TOKEN`, `CONFLUENCE_*`, `SONAR_*`. Nigdy w repozytorium. Szczegóły i tokeny
    o minimalnym zakresie: `tools/alm/INSTRUKCJA.md`.
-7. VS Code: zainstaluj rozszerzenia polecane w `.vscode/extensions.json` (Biome, ESLint, Angular Language
+7. VS Code: zainstaluj rozszerzenia polecane w `.vscode/extensions.json` (oxc, ESLint, Angular Language
    Service, Vitest, Playwright, Copilot Chat, EditorConfig). Ustawienia workspace'u są w repozytorium;
    preferencje osobiste trzymaj w profilu użytkownika.
 
@@ -72,7 +72,7 @@
 - **`tsconfig.json`** — plik „solution": `files` jest puste celowo, `references` wskazuje tsconfigi każdego
   projektu (`tsconfig.app.json`, `tsconfig.spec.json`, `tsconfig.lib.json`), a `compilerOptions.paths` to
   mapa granic monorepo — jeden alias na bibliotekę, zawsze do jej **źródeł** (`src/public-api.ts`), nigdy do
-  `dist/`. Kształt aliasu `@cb/<zakres>/<typ>[-<nazwa>]` egzekwuje `eslint.rules.mjs` (kierunek zależności
+  `dist/`. Kształt aliasu `@cb/<zakres>/<typ>[-<nazwa>]` egzekwuje `oxlint.rules.mts` (kierunek zależności
   feature → ui/data-access/util). Plik jest czystym JSON-em bez komentarzy: Angular CLI przepisuje go przy
   każdym generatorze i komentarze by zgubił.
 - **`CODE-INDEX.md`**, **`docs/tech-stack.md`** (blok AUTOGEN) — generowane; `npm run verify` pilnuje świeżości.

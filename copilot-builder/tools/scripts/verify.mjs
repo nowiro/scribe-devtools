@@ -24,7 +24,7 @@ const bin = (/** @type {string} */ rel) => path.join(REPO, 'node_modules', rel);
 
 /** @type {Step[]} */
 export const STATIC = [
-  { label: 'format:check', command: [node, bin('@biomejs/biome/bin/biome'), 'format', '.'] },
+  { label: 'format:check', command: [node, bin('oxfmt/bin/oxfmt'), '--check'] },
   { label: 'check:pins', command: [node, 'tools/scripts/check-pins.mjs'] },
   { label: 'guard:forbidden', command: [node, 'tools/scripts/guard-forbidden.mjs'] },
   { label: 'ai:validate', command: [node, 'tools/scripts/validate-ai-config.mjs'] },
@@ -42,8 +42,10 @@ export const CODE = [
     label: 'typecheck (alm)',
     command: [node, bin('typescript/bin/tsc'), '-p', 'tools/alm/integrations/tsconfig.test.json'],
   },
+  // oxlint for every code file, then angular-eslint for what oxlint cannot parse (templates).
+  { label: 'lint', command: [node, bin('oxlint/bin/oxlint')] },
   {
-    label: 'lint',
+    label: 'lint (angular)',
     command: [
       node,
       bin('eslint/bin/eslint.js'),

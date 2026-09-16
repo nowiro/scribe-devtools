@@ -1,13 +1,15 @@
 ---
 type: decision
 id: 'adr.biome-instead-of-prettier'
-status: accepted
+status: superseded
 date: '2026-09-13'
 stamp: '2026-09-13_21-31'
 title: 'ADR — Biome jako jedyny formater; Markdown i szablony HTML bez formatera'
 ---
 
 # ADR: Biome zamiast Prettiera
+
+Zastąpiony przez [ADR — oxc: oxfmt i oxlint](2026-09-16_10-27_adr-oxc-oxfmt-and-oxlint.md).
 
 ## Kontekst
 

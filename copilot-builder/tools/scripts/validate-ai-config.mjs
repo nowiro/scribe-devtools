@@ -40,7 +40,7 @@ import { extractRoutingBlock, renderRoutingTable } from './route.mjs';
 
 /** Files of other assistants — the same list guard:forbidden enforces, read once. */
 const FORBIDDEN = FORBIDDEN_PATHS.map(([file]) => file).filter(
-  (file) => !file.includes('/') && !/^(?:nx|\.nx|\.husky|pnpm|yarn|\.prettier|prettier)/u.test(file),
+  (file) => !file.includes('/') && !/^(?:nx|\.nx|\.husky|pnpm|yarn|\.prettier|prettier|biome)/u.test(file),
 );
 
 /**

@@ -517,7 +517,7 @@ function renderTree(nodes, ctx) {
     }
     // Only children that render at least one line take part in a run; empty ones are transparent.
     const sigs = children.map((c) => signature(c));
-    for (let i = 0; i < children.length; ) {
+    for (let i = 0; i < children.length;) {
       if (sigs[i] === '') {
         i += 1;
         continue;

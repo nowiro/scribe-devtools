@@ -179,58 +179,63 @@ export const PINS = [
   },
   // ── Formatter and linters ─────────────────────────────────────────────────────────────────
   {
-    id: '@biomejs/biome',
+    id: 'oxfmt',
     owner: DEV,
     policy: 'exact',
-    staleDays: 120,
+    staleDays: 60,
     prose: [],
-    why: 'THE formatter: `biome format .` is the first step of `npm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate. No Markdown and no Angular-template formatting in this version (biome.jsonc explains); a release adding either is the reason to bump.',
+    why: 'THE formatter: `oxfmt --check` is the first step of `npm run verify`, so a formatting change turns the whole gate red before anything else runs — loud and immediate. 0.x with weekly releases: a bump may move output, so it is its own commit with `npm run format` in it. Markdown is ignored by choice (.oxfmtrc.jsonc), `sortPackageJson` is off.',
   },
   lint(
-    'eslint',
-    'Flat config only (eslint.config.mjs). Every plugin below declares a peer range including ^10 — verify the ranges before a major.',
+    'oxlint',
+    'THE linter for every code file (oxlint.config.mts). A release that adds a rule to a preset it implements, or renames one, turns the config red ("Rule not found") — loud. `jsPlugins` are alpha and not under semver: after a bump run `npm run lint` and read the JS-plugin errors first. 1.83 drops a native rule\'s options in a layer that does not enable its plugin — `layer()` in oxlint.plugins.mts exists for that.',
+    60,
   ),
-  lint('@eslint/js', 'The `recommended` base layer for every file.'),
+  lint(
+    'oxlint-tsgolint',
+    'Type-aware rules of oxlint (strictTypeChecked + stylisticTypeChecked on apps/libs) on TypeScript 7, independent of the TypeScript 6 the Angular compiler needs. TypeScript 7 refuses an `outDir` without `rootDir` — new-project.mjs writes it into library tsconfigs.',
+    60,
+  ),
+  lint(
+    'eslint',
+    'Angular only (eslint.config.mjs): oxlint has no template parser. The plugins below that run in oxlint declare a peer range including ^10 — verify the ranges before a major.',
+  ),
+  lint(
+    '@eslint/js',
+    'Read by oxlint.plugins.mts: its `recommended` preset is the JavaScript base layer oxlint runs natively.',
+  ),
   lint(
     'typescript-eslint',
-    'Typed linting of applications and libraries (strictTypeChecked + stylisticTypeChecked). Peer range typescript <6.1 must cover the pinned TypeScript.',
+    'The parser angular-eslint runs on, and the source of the strictTypeChecked + stylisticTypeChecked rule lists oxlint.plugins.mts reads. Peer range typescript <6.1 must cover the pinned TypeScript.',
   ),
   lint(
     'angular-eslint',
-    'Angular rules for TypeScript and templates, including the accessibility set and inline-template processing. Its major follows the Angular major.',
+    'Angular rules for TypeScript and templates, including the accessibility set and inline-template processing — the part of the lint oxlint cannot do. Its major follows the Angular major.',
   ),
-  lint('eslint-plugin-unicorn', 'Curated rule set in eslint.plugins.mjs (not `recommended`); peer eslint >=10.4.'),
   lint(
     'eslint-plugin-sonarjs',
-    'SonarQube rules (cognitive complexity 15, identical functions, dead branches) so the local lint says what the Sonar server says.',
+    'SonarQube rules (cognitive complexity 15, identical functions, dead branches) so the local lint says what the Sonar server says. Runs as an oxlint JS plugin and is its most expensive part (about 2 s of the lint).',
   ),
-  lint('eslint-plugin-promise', 'Unhandled and nested promises.'),
-  lint('eslint-plugin-regexp', 'Regex correctness: catastrophic backtracking, useless escapes, duplicate classes.'),
+  lint(
+    'eslint-plugin-regexp',
+    'Regex correctness: catastrophic backtracking, useless escapes, duplicate classes (oxlint JS plugin).',
+  ),
   lint(
     'eslint-plugin-security',
-    'OWASP patterns for the Node code in tools/ (eval, child_process, non-literal paths).',
-  ),
-  lint(
-    'eslint-plugin-import-x',
-    'Import hygiene without module resolution (first, no-duplicates, no-self-import) — module boundaries are enforced with no-restricted-imports patterns in eslint.rules.mjs.',
+    'OWASP patterns for the Node code in tools/ (eval, child_process, non-literal paths); oxlint JS plugin.',
   ),
   lint(
     'eslint-plugin-n',
-    'Node rules for tools/ driven by engines.node: unsupported built-ins, process.exit, sync fs calls.',
+    'Node rules for tools/ driven by engines.node: unsupported built-ins, process.exit, sync fs calls. An oxlint JS plugin — the native `node` plugin carries one rule of this preset.',
   ),
   lint(
     '@eslint-community/eslint-plugin-eslint-comments',
-    'Every eslint-disable needs a description and a matching enable; unlimited disables are forbidden.',
-  ),
-  lint(
-    '@vitest/eslint-plugin',
-    'Test hygiene on *.spec.ts: no focused or disabled tests, expect in every test, valid titles.',
+    'Every disable needs a matching enable; unlimited disables are forbidden (oxlint JS plugin; `no-unlimited-disable` reports a wrong location in oxlint 1.83, the gate is red anyway).',
   ),
   lint(
     'eslint-plugin-playwright',
-    'E2E hygiene: web-first assertions, no waitForTimeout, no networkidle, no focused tests.',
+    'E2E hygiene: web-first assertions, no waitForTimeout, no networkidle, no focused tests (oxlint JS plugin).',
   ),
-  lint('globals', 'Global variable sets (node, browser) for the language options of the flat config.', 365),
   // ── Commit convention ─────────────────────────────────────────────────────────────────────
   lint(
     '@commitlint/cli',

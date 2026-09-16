@@ -53,7 +53,7 @@ Co pilnuje każda z nich, mówi nagłówek jej skryptu w `tools/scripts/`.
 - `.github/models-registry.json` (roster, tiery, `review.seats`), pliki `.github/agents/*.agent.md` i tabela rosteru niżej;
 - serwery w `.vscode/mcp.json` i lista `tools:` agenta `mcp-gateway`;
 - wersja `@playwright/test` i tag obrazu Playwrighta w `.gitlab-ci.yml`;
-- `tools/scripts/workspace.config.mjs` (`PREFIX`, `ALIAS_SCOPE`, `DEFAULT_BRANCH`), `angular.json` (`schematics.*.prefix`) i `biome.jsonc` (`vcs.defaultBranch`);
+- `tools/scripts/workspace.config.mjs` (`PREFIX`, `ALIAS_SCOPE`, `DEFAULT_BRANCH`) i `angular.json` (`schematics.*.prefix`);
 - `.nvmrc`, `engines.node`, obraz `node:` w `.gitlab-ci.yml`, `@types/node`.
 
 ## Roster
