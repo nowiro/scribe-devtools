@@ -12,6 +12,18 @@ import { fileURLToPath } from 'node:url';
 export const REPO = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 
 /**
+ * The `docs/` categories whose artefacts are COMMITTED, and therefore policed by `sdd:check` (C1):
+ * every entry must be named `YYYY-MM-DD_HH-MM_<slug>.md` and have a row in `docs/INDEX.md`.
+ * `docs/specs`, `docs/plans` and `docs/runs` are deliberately absent — they are local-only working
+ * material and gitignored.
+ *
+ * Declared here rather than inside the gate because two scripts now need the same answer: the gate
+ * that enforces the naming, and `review-draw.mjs`, which refuses to write a working directory into
+ * one of these. A second copy of this list is exactly the drift `lib/repo.mjs` exists to prevent.
+ */
+export const COMMITTED_DOCS = Object.freeze(['decisions', 'reviews']);
+
+/**
  * Whether the module at `metaUrl` is the script node was started with — the guard that keeps every
  * script importable by its tests without running.
  * @param {string} metaUrl `import.meta.url` of the caller

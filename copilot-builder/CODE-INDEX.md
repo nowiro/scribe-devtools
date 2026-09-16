@@ -468,7 +468,7 @@ Modules: 96.
 
 ## tools/scripts/lib/repo.mjs
 - purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
-- exports: `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
+- exports: `COMMITTED_DOCS`, `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
 - imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-draw.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/new-project.mjs
@@ -483,7 +483,7 @@ Modules: 96.
 
 ## tools/scripts/review-draw.mjs
 - purpose: which seats read THIS change: `review.seatsPerReview` seats of the `review.seats` pool, drawn at random (0 credits).
-- exports: `DRAW_FILE`, `drawForDirectory(dir, {…}) → { draw: Draw, recorded: boolean }`, `drawSeats(items, count, random) → T[]`, `formatDraw(draw) → string`, `readDraw(file) → Draw | null`, `reviewPool(repo) → { seats: [string, string][], seatsPerReview: number }`, `runCli(argv) → number`
+- exports: `DRAW_FILE`, `committedCategoryFor(dir, repo) → string | null`, `drawForDirectory(dir, {…}) → { draw: Draw, recorded: boolean }`, `drawSeats(items, count, random) → T[]`, `formatDraw(draw) → string`, `readDraw(file) → Draw | null`, `reviewPool(repo) → { seats: [string, string][], seatsPerReview: number }`, `runCli(argv) → number`
 - imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/stamp.mjs`
 - imported by: `tools/scripts/review-merge.mjs`
 
