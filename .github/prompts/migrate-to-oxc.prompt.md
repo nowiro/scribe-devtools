@@ -230,3 +230,6 @@ ESLint z `--cache`; porównuj ten sam zakres plików.
   żadnych zastępczych skryptów ani `--no-verify` bez zgody.
 - `typescript-eslint` ogranicza wersję TypeScriptu (np. `<6.1.0`) — sprawdź peer range przed podbiciem TS.
 - oxlint na zielono nic nie wypisuje — liczby plików/reguł bierz z `-f json`.
+- Brama `build` czerwona na `ENOENT lstat/copyfile …/chunk-….js` w plikach **innego** projektu = wyścig
+  kopiowania assetów z `dist/` sąsiadów podczas równoległych buildów, nie skutek migracji lintu: zawęź glob
+  do konsumowanych katalogów i dodaj `dependsOn` na producentów (patrz `/perf-optimize`, sekcja Nx).

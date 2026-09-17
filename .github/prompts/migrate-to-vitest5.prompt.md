@@ -187,5 +187,8 @@ przebiegi: root 3,5 → 3,4 s, `nx run-many -t test` 37,8 → 37,4 s), lockfile 
 - `git grep -c` liczy per plik; rozbicie po wzorcu: `git grep -h -o … | sort | uniq -c`, suma: `… | wc -l`.
 - Skrypt liczący graf Nx poza taskiem startuje daemona, który trzyma potok wyjścia — `NX_DAEMON=false`
   przy pomiarach i w skryptach.
+- Brama `build` (jeśli ją uruchamiasz) czerwona na `ENOENT lstat/copyfile …/chunk-….js` w plikach **innego**
+  projektu = wyścig kopiowania assetów z `dist/` sąsiadów, nie skutek bumpu — zawężony glob + `dependsOn`
+  na producentów (patrz `/perf-optimize`, sekcja Nx).
 - Narzędzie zablokowane przez politykę systemu (np. `pnpm.exe`): stop i pytanie, żadnych zastępczych
   skryptów ani `--no-verify` bez zgody.
