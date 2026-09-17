@@ -107,7 +107,8 @@ Bez menedżera pakietów, bez builda: `pnpm run portable` pakuje oba narzędzia 
   (Nx monorepo) z serwera MCP Playwrighta na `browser-inspector`; `/browser-session` to pętla
   „spójrz, potem kliknij" dla sesji interaktywnej; `/perf-optimize` to runbook wydajności i DX dla
   repozytorium aplikacji — indeks kodu i słownik pojęć pod ograniczanie kontekstu, cache Nx bez Nx
-  Cloud, `affected`, natywne hooki, pipeline GitLab CI.
+  Cloud, `affected`, natywne hooki, pipeline GitLab CI; `/migrate-to-oxc` przenosi lint i formatowanie
+  z ESLint / Prettier / Biome na oxlint + oxfmt (Nx + Angular, z pomiarem przed i po).
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
   `.vscode/settings.json` włącza oxc (oxfmt jako formater, oxlint), prompt files, instrukcje
   i `AGENTS.md`; `.vscode/extensions.json` poleca oxc i Copilot Chat.
