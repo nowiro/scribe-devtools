@@ -5,13 +5,15 @@ Pracujesz w repozytorium TypeScript (często **Nx monorepo z Angularem**, `pnpm`
 i tylko jeśli właściciel tak zdecyduje. Pracuj krok po kroku; po każdym kroku uruchom to, co zmieniłeś.
 Nie zgaduj: gdy czegoś brakuje albo narzędzie nie działa, zatrzymaj się i zapytaj. **Nie commituj i nie
 pushuj bez zgody.** Ścieżki `apps/`, `libs/`, `@scope` i prefiks selektora to przykłady — weź je z repo.
+Komendy są w składni POSIX — na Windows uruchamiaj je w Git Bash (PowerShell nie ma `grep`, a
+`NX_DAEMON=false cmd` to błąd składni; tam `$env:NX_DAEMON='false'`).
 
 Zasada nadrzędna: każda reguła starego lintu kończy jako (a) ta sama reguła w nowym configu, (b) świadomie
 zmieniona z powodem w komentarzu, albo (c) wpis na liście utraconych reguł. Nic nie znika po cichu.
 
 ## 0. Rozpoznanie i pomiar bazowy (nic nie edytuj)
 
-1. Spis: `git ls-files | grep -E 'eslint\.config|\.eslint(rc|ignore)|prettier|biome|\.oxfmtrc|\.oxlintrc'`
+1. Spis: `git ls-files | grep -E 'eslint\.config|\.eslint(rc|ignore)|prettier|biome|\.oxfmtrc|\.oxlintrc|oxlint\.'`
    (też configi zagnieżdżone w projektach), pluginy i presety w `package.json`, `lint-staged`, `.husky/*`,
    `nx.json` (`@nx/eslint/plugin`, `targetDefaults.lint`, `namedInputs`), `project.json` z `@nx/eslint:lint`,
    `.vscode`/`.idea`, CI, skrypty w `tools/` czytające configi lintu, kod generowany z nagłówkiem
@@ -44,9 +46,10 @@ Pokaż odpowiedzi i czekaj na „dalej".
 ## 2. Formatter: oxfmt
 
 - Dodaj `oxfmt` z **dokładną** wersją (0.x — format może się zmieniać między wersjami).
-- `.oxfmtrc.json`: start od `oxfmt --migrate=prettier` (albo `biome`), potem sprawdź opcje (`printWidth`,
+- `.oxfmtrc.json`: start od `oxfmt --migrate=prettier` (albo `biome`) w katalogu każdego `.prettierrc`; wyniki
+  scal do jednego `.oxfmtrc.json` w korzeniu (różnice jako `overrides`), potem sprawdź opcje (`printWidth`,
   `singleQuote`, `trailingComma`, `endOfLine`…), `"sortPackageJson": false`, `ignorePatterns` z
-  `.prettierignore`, `overrides` dla bibliotek z innym stylem.
+  `.prettierignore`.
 - Kolejność importów: `sortImports` (`groups`, `customGroups` np. `@angular/**`, `internalPattern`,
   `newlinesBetween`) zamiast pluginu Prettiera / `import/order`; zawsze sortuje alfabetycznie w grupie. Po
   włączeniu policz pliki zmienione tylko przez sortowanie; > 0 = pokaż liczbę i czekaj (naiwne mapowanie
@@ -55,12 +58,16 @@ Pokaż odpowiedzi i czekaj na „dalej".
   przy każdym uruchomieniu, a sortowanie nie zna utility Tailwinda ani motywu. Motyw przenieś do wspólnego
   `tailwind-theme.css`, ładowanego przez wejście Sass i przez `tailwind.css` tylko dla formatera. Dowód: CSS
   po buildzie identyczny bajt w bajt.
-- Skrypty: `oxfmt --disable-nested-config …` / `oxfmt --check --disable-nested-config …`.
+- Skrypty (nazwy jak w repo): `"format": "oxfmt --disable-nested-config …"`,
+  `"format:check": "oxfmt --check --disable-nested-config …"`.
 - `prettier-ignore` w `.md`, `.html` i inline `template:` zostaje pod tą nazwą (oxfmt nie zna tam
   `oxfmt-ignore`).
 - Uruchom raz na całym repo, policz zmienione pliki, przejrzyj próbkę diffu. Od razu przełącz formatowe
   komendy `lint-staged` na oxfmt (inaczej hook cofa formatowanie). Prettiera i pluginy usuń, gdy
-  `git grep -l -E "['\"]prettier['\"]|eslint-(config|plugin)-prettier"` nic nie zwraca.
+  `git ls-files | grep -i prettier` nic nie zwraca, a
+  `git grep -n -i prettier -- package.json '*/package.json' '*.config.*' '*.m[jt]s' .husky .vscode` zwraca tylko
+  komentarze (powód przy regule); `cd lib && prettier --write` w skryptach liczy się jako użycie. Docs i
+  lockfile pomiń.
 
 Pokaż liczbę zmienionych plików + próbkę diffu i czekaj na „dalej".
 
@@ -70,8 +77,9 @@ Pokaż liczbę zmienionych plików + próbkę diffu i czekaj na „dalej".
    nie TypeScript projektu — różnice są możliwe, np. `outDir` bez `rootDir` to błąd: dopisz `rootDir`
    w tsconfigach projektów i szablonach generatora).
 2. **Jeden config w korzeniu** (`oxlint.config.mts`), zawsze `--disable-nested-config` w skryptach — oxlint
-   i oxfmt ładują zagnieżdżone configi nawet pod `ignorePatterns`, a `options.typeAware` działa tylko
-   w korzeniu.
+   i oxfmt ładują zagnieżdżone configi nawet pod `ignorePatterns`, a `reportUnusedDisableDirectives` i
+   `respectEslintDisableDirectives` są tylko dla configu głównego (schemat); `options.typeAware` w zagnieżdżonym
+   oxlint odrzuca (sprawdzone).
 3. Układ plików: `oxlint.config.mts` (options, ignorePatterns, lista warstw) + `oxlint.plugins.mts` (zbiory
    plików, `layer()`, `NOT_IN_OXLINT`, `LOST_WITH_ESLINT`) + `oxlint.presets.mts` (**same dane**: presety
    przepisane z `@eslint/js`, `typescript-eslint`… z wersją źródła) + `oxlint.rules.mts` (strojenie zespołu,
@@ -87,12 +95,12 @@ Pokaż liczbę zmienionych plików + próbkę diffu i czekaj na „dalej".
    o tej nazwie).
 6. Pluginy JS (`jsPlugins`, alpha) tylko po teście poza repo (katalog scratch: `oxlint` + plugin, bez
    `eslint`, jedna reguła, plik z posianym naruszeniem): wynik = zgłoszenie tej reguły, samo załadowanie nie
-   wystarcza. Sprawdzone: `eslint-plugin-sonarjs`, `-playwright`, `-security`. Wymagają `eslint`:
-   `@angular-eslint/eslint-plugin`, `eslint-plugin-jsdoc`. vitest, jsdoc, import, unicorn, promise są natywne
-   w oxlint: preset przepisz, braki (jsdoc: 15 reguł) wpisz do `NOT_IN_OXLINT`. Reguły sonarjs wymagające typów
-   (ok. 56 z 217 włączonych) działają w oxlint bez typów — wyłącz je albo opisz; nazwa się zgadza, więc strata
-   jest niewidoczna.
-7. Reguła z presetu, której oxlint nie ma, psuje config („Rule not found”): wpisz ją do `NOT_IN_OXLINT` z
+   wystarcza. Sprawdzone: `eslint-plugin-sonarjs`, `-playwright`, `-security`. Jako jsPlugin wymagają `eslint`
+   (odpada): `@angular-eslint/eslint-plugin`, `eslint-plugin-jsdoc`. Zamiast nich natywne pluginy oxlint:
+   vitest, jsdoc, import, unicorn, promise — preset przepisz na nie, braki (jsdoc: ok. 15 reguł) wpisz do
+   `NOT_IN_OXLINT`. Reguły sonarjs wymagające typów (ok. 56 z 217 włączonych) działają w oxlint bez typów —
+   wyłącz je albo opisz; nazwa się zgadza, więc strata jest niewidoczna.
+7. Reguła z presetu, której oxlint nie ma, psuje config („Rule not found"): wpisz ją do `NOT_IN_OXLINT` z
    powodem; moduł rzuca błąd, gdy wpis przestaje być używany. Ta sama nazwa ≠ te same opcje domyślne
    (`no-unused-vars` z samą ważnością ignoruje w oxlint `^_`) — w presetach podawaj jawne opcje ESLinta
    (`['error', { args: 'after-used' }]`).
@@ -102,9 +110,11 @@ Pokaż liczbę zmienionych plików + próbkę diffu i czekaj na „dalej".
    `<!-- eslint-enable … -->` (`-next-line` nie trafia w atrybut w osobnej linii). Usuń te, które nic już
    nie wyciszają. Kod generowany: ten sam wpis ignore w oxlint, ESLint i oxfmt albo wycinanie nagłówka
    `/* eslint-disable */` w skrypcie generacji.
-9. Parytet: jednorazowy skrypt w scratch — dla każdego pliku z 0.2 scal `rules` z warstw, których `files`
-   pasuje, a `excludeFiles` nie (picomatch), i porównaj z `rules` zrzutu ESLint (po `@typescript-eslint/` →
-   `typescript/`). Każda różnica → (a)/(b)/(c).
+9. Parytet: jednorazowy skrypt w scratch (tam `npm i picomatch` — z korzenia pnpm go nie rozwiąże) — dla
+   każdego pliku z 0.2 scal `rules` z warstw, których `files` pasuje, a `excludeFiles` nie, i porównaj z `rules`
+   zrzutu ESLint po mapowaniu prefiksów (`@typescript-eslint/`→`typescript/`, `import-x/`→`import/`,
+   `n/`→`node/`…; nazwa nieznana po mapowaniu → sprawdź `oxlint --rules`, zanim trafi na listę utraconych).
+   Każda różnica → (a)/(b)/(c).
 
 Pokaż listę utraconych reguł i czekaj na „dalej".
 
@@ -128,6 +138,7 @@ Pokaż listę utraconych reguł i czekaj na „dalej".
 ## 5. Jedna brama: `tools/scripts/lint.mjs`
 
 `node tools/scripts/lint.mjs [--fix] [--cache] [--no-boundaries] [ścieżki…]` — bez ścieżek całe repo.
+`--cache` = tylko cache ESLinta (`.cache/eslint/`); oxlint go nie ma, w wariancie B flaga zbędna.
 Do kroku 7 uruchamiaj z `--no-boundaries`.
 - Zawsze wszystkie części: oxlint (proces potomny), ESLint (Node API, filtr z kroku 4), granice (krok 7).
   Nigdy `oxlint && eslint` — to chowa błędy szablonów, dopóki oxlint nie jest zielony.
@@ -145,7 +156,7 @@ Do kroku 7 uruchamiaj z `--no-boundaries`.
 - `@nx/oxlint` (23.2) wciąga `eslint` i zakłada configi per projekt — zamiast tego lokalny plugin
   `tools/nx/lint-plugin.mjs` (`createNodes` na plikach definiujących projekty: `project.json` i/lub
   `package.json`) z jedną komendą `node tools/scripts/lint.mjs {projectRoot}` (bez `--cache`: równoległe
-  taski pisałyby jeden plik cache).
+  taski pisałyby jeden plik cache ESLinta).
 - `targetDefaults.lint.inputs`: `default`, `^production`, configi oxlint (z presetami) i ESLint,
   `lint.mjs`, skrypty i dane granic, `tsconfig.base.json`, `.gitignore`, `externalDependencies` (oxlint,
   oxlint-tsgolint, pluginy JS, eslint, angular-eslint, typescript-eslint, typescript, @nx/devkit). Wyczyść
@@ -163,19 +174,23 @@ Bez Nx: granice = warstwy `no-restricted-imports` w `oxlint.rules.mts` na kszta�
   go też reguła Nx). Opcja nieobsłużona (np. `banTransitiveDependencies`, `checkNestedExternalImports`) → lista
   utraconych reguł.
 - Graf: `process.env.NX_TASK_TARGET_PROJECT` → `readCachedProjectGraph()` (w `try`), inaczej albo przy błędzie
-  `createProjectGraphAsync({ exitOnError })`. Tryb per projekt dla targetu `lint`; osobny krok w bramie repo
-  usuń, gdy lint pokrywa wszystko. Sprawdź, że każdy projekt ma tag objęty regułą (inaczej granica milczy).
+  `createProjectGraphAsync({ exitOnError: false })` — z `NX_DAEMON=false` ustawionym w skrypcie (daemon
+  uruchomiony przez skrypt trzyma potok wyjścia). Tryb per projekt dla targetu `lint`; osobny krok w bramie
+  repo usuń, gdy lint pokrywa wszystko. Sprawdź, że każdy projekt ma tag objęty regułą (inaczej granica milczy).
 
 ## 8. Hooki, edytor, CI, generator
 
 - `lint-staged`: `"*.{ts,mts,js,mjs,cjs,html}": ["node tools/scripts/lint.mjs --fix --no-boundaries",
-  "oxfmt --disable-nested-config --no-error-on-unmatched-pattern"]`, osobno json/md/yml i css (stylelint);
-  hook: `lint-staged --config package.json` (lint-staged 17 czyta też zagnieżdżone `package.json`).
+  "oxfmt --disable-nested-config --no-error-on-unmatched-pattern"]`, osobno json/md/yml i css (stylelint,
+  jeśli repo go ma; inaczej tylko oxfmt); hook: `lint-staged --concurrent false --config package.json`
+  (lint-staged 17 czyta też zagnieżdżone `package.json`; bez `--concurrent false` dwa zapisy naraz).
 - `.vscode`: polecaj `oxc.oxc-vscode`, niepolecane `esbenp.prettier-vscode`; `editor.defaultFormatter:
   oxc.oxc-vscode`, `oxc.disableNestedConfig`, `oxc.fmt.disableNestedConfig`, `source.fixAll.oxc`; wariant A:
   `dbaeumer.vscode-eslint` + `eslint.validate: ["html", "typescript"]`.
-- Generator: emituje `.oxlintrc.json` (JSON, bez pluginów JS, chyba że je instaluje) i `.oxfmtrc.json`,
-  przypięte wersje; test stabilności formatu przez API `format(fileName, sourceText, options)` z `oxfmt`.
+- Generator nowego workspace'u: emituje `.oxlintrc.json` (JSON, bez pluginów JS, chyba że je instaluje)
+  i `.oxfmtrc.json` w korzeniu generowanego repo, przypięte wersje; test stabilności formatu przez API
+  `format(fileName, sourceText, options)` z `oxfmt`. Generator projektu w tym repo: `linter: 'none'`, żadnego
+  configu lintu (najwyżej `rootDir` w tsconfig).
 - Sprzątanie: usuń pakiety ESLint/Prettiera, których nic nie ładuje, martwe wpisy `allowBuilds`
   (np. `unrs-resolver`), `pnpm install --frozen-lockfile` musi przejść.
 
@@ -185,7 +200,7 @@ Bez Nx: granice = warstwy `no-restricted-imports` w `oxlint.rules.mts` na kszta�
   Historycznych zapisów (stare ADR, runy, plany, stare wpisy CHANGELOG) nie przepisuj; zmienia się najwyżej
   linia statusu.
 - Pliki agentów krótkie i proceduralne: komendy, tabela „zgłoszenie z oxlint / eslint / granic → który plik
-  edytować”, składnia dyrektyw w jednej linii na narzędzie, odnośnik do ADR zamiast historii.
+  edytować", składnia dyrektyw w jednej linii na narzędzie, odnośnik do ADR zamiast historii.
   `applyTo` instrukcji lintu wskazuje nowe configi i `lint.mjs`.
 
 ## 10. Weryfikacja i raport
@@ -197,9 +212,10 @@ Bez Nx: granice = warstwy `no-restricted-imports` w `oxlint.rules.mts` na kszta�
 3. Pomiar po tym samym protokołem co w kroku 0.3; raport: tabela przed/po (czasy, bajty wyjścia, rozmiary
    plików agentów), lista utraconych i odzyskanych reguł, ryzyka.
 
-Orientacyjnie (Nx + Angular, 80 projektów, laptop i7, pomiar A/B z 2026-09-17): lint całego repo 197 s →
-ok. 12 s, `nx run-many -t lint` bez cache 174 s → ok. 55 s, pojedynczy projekt 2–3× szybciej. oxlint nie ma
-cache — ciepły lint w małym repo bywa wolniejszy niż ESLint z `--cache`; porównuj ten sam zakres plików.
+Orientacyjnie (Nx + Angular, 80 projektów, laptop i7; „po" z ADR repo wzorcowego, „przed" z notatki sesji
+2026-09-17 — nie ma go w repo): lint całego repo 197 s → ok. 12 s, `nx run-many -t lint` bez cache 174 s →
+ok. 55 s, pojedynczy projekt 2–3× szybciej. oxlint nie ma cache — ciepły lint w małym repo bywa wolniejszy niż
+ESLint z `--cache`; porównuj ten sam zakres plików.
 
 ## Kryteria ukończenia
 

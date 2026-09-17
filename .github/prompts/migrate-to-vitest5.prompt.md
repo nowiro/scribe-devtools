@@ -1,11 +1,13 @@
 # /migrate-to-vitest5 — podnieś Vitest 4 → 5 w repozytorium Nx + Angular
 
 Pracujesz w repozytorium TypeScript (**Nx monorepo z Angularem**, `pnpm`), które testuje Vitestem 4.
-Podnieś runner do **Vitest 5** razem z każdą paczką `@vitest/*` z repo (`@vitest/coverage-v8`, `@vitest/ui`…
-— każda ma peer `vitest` **dokładnie** tej samej wersji, para nierozdzielna). Pracuj krok po kroku; po każdym
-kroku uruchom to, co zmieniłeś. Nie zgaduj: gdy czegoś brakuje albo narzędzie nie działa, zatrzymaj się
-i zapytaj. **Nie commituj i nie pushuj bez zgody.** Nazwy `apps/`, `libs/`, `@scope`, `versions.ts` to
-przykłady — weź je z repo. W PowerShellu zmienną ustaw osobno: `$env:NX_DAEMON='false'; pnpm exec nx …`.
+Podnieś runner do **Vitest 5** razem z paczkami `@vitest/*`, które `vitest@<cel>` wymienia we własnych
+`peerDependencies` z dokładną wersją (`@vitest/coverage-v8`, `@vitest/coverage-istanbul`, `@vitest/ui`,
+`@vitest/browser-*` — para nierozdzielna). Pracuj krok po kroku; po każdym kroku uruchom to, co zmieniłeś.
+Nie zgaduj: gdy czegoś brakuje albo narzędzie nie działa, zatrzymaj się i zapytaj. **Nie commituj i nie
+pushuj bez zgody.** Nazwy `apps/`, `libs/`, `@scope`, `versions.ts` to przykłady — weź je z repo. Komendy
+`git grep` są w składni bash (`\"` w wzorcu to ucieczka bash, w PowerShellu błąd parsera) — uruchamiaj je
+w Git Bash; zmienną środowiskową w PowerShellu ustaw osobno: `$env:NX_DAEMON='false'; pnpm exec nx …`.
 
 Zasada nadrzędna: każda różnica w liczbie testów, w pokryciu albo w zachowaniu runnera ma wybrzmieć
 w run-logu z `plik:linia` i naprawą. „Przeszło" bez liczb nie jest wynikiem.
@@ -15,39 +17,45 @@ w run-logu z `plik:linia` i naprawą. „Przeszło" bez liczb nie jest wynikiem.
 1. Runnery — jak repo uruchamia Vitest (każdy rodzaj osobno):
    `git grep -n -E "vitest( run|\")|@nx/vitest|@angular/build:unit-test" -- package.json nx.json project.json '**/project.json' .github .gitlab-ci.yml`
    oraz `git ls-files | grep -E 'vitest\.config\.'`. Rodzaje: skrypty w korzeniu (`vitest.config.mts`, progi
-   coverage), biblioteki z własnym configiem (`cd lib && vitest run`), projekty Nx przez `nx:run-commands` →
-   `vitest run` (config per projekt, `@analogjs/vite-plugin-angular`), executor `@nx/vitest:test` / plugin
-   `@nx/vitest/plugin`, appki Angulara przez executor **`@angular/build:unit-test`** z `runner: 'vitest'`
-   (własne `setupFiles`), generator/szablony emitujące piny i `vitest.config`.
-2. Wersje i peery (`npm view <pakiet>@<zainstalowana> peerDependencies engines --json`): cel =
-   `npm view vitest dist-tags` → `latest`; **każda** paczka `@vitest/*` z repo
-   (`git grep -h -o -E '"@vitest/[a-z0-9-]+"' -- package.json '*/package.json' | sort -u`) ma peer `vitest`
-   dokładny; `@angular/build` (22.1 deklaruje `^4.0.8`, dopiero 22.2 dodaje `^5`); `@nx/vitest` (23.2
-   deklaruje `^3 || ^4`); `@analogjs/vite-plugin-angular` / `@analogjs/vitest-angular`; `vitest-axe`; `vite`
-   (Vitest 5 wymaga `^6.4 || ^7 || ^8`) i `node` z `engines` (`^22.12 || ^24 || >=26`). Gdzie siedzi pin:
-   `package.json`, `catalog:` / `overrides` w `pnpm-workspace.yaml`; `minimumReleaseAge` /
-   `minimumReleaseAgeExclude` — świeże `vitest@5.x` może być blokowane. Tryb pnpm:
-   `strict-peer-dependencies` / `peerDependencyRules` w `.npmrc` lub `pnpm-workspace.yaml` — odmowa czy tylko
-   ostrzeżenie.
+   coverage), biblioteki z własnym skryptem korzenia (`cd lib && vitest run`), projekty Nx przez
+   `nx:run-commands` → `vitest run` (config per projekt, `@analogjs/vite-plugin-angular`), executor
+   `@nx/vitest:test` / plugin `@nx/vitest/plugin`, appki Angulara przez executor **`@angular/build:unit-test`**
+   z `runner: 'vitest'` (własne `setupFiles`), generator/szablony emitujące piny i `vitest.config`.
+2. Wersje i peery: cel = `npm view vitest dist-tags` → `latest`; jego wymagania
+   `npm view vitest@latest peerDependencies engines --json` (`vite` i `node` muszą zgadzać się z repo; stan na
+   5.0.1: `^6.4 || ^7 || ^8`, `^22.12 || ^24 || >=26` — potwierdź komendą). **Każda** paczka `@vitest/*` z repo
+   (`git grep -h -o -E '"@vitest/[a-z0-9-]+"' -- package.json '*/package.json' | sort -u`): jeśli jest w
+   `peerDependencies` celu → pin dokładny = wersja vitesta (`browser-webdriverio` ma zakres `^5` i własny
+   `latest`); `@vitest/expect|runner|snapshot|utils|pretty-format|mocker|spy` jako bezpośrednia zależność = do
+   usunięcia (scalone do `vitest`; `@vitest/runner` nie ma wydania 5.x → pin = E404, stop). Konsumenci po
+   **zainstalowanej** wersji: `npm view <pakiet>@<zainstalowana> peerDependencies --json` — `@angular/build`
+   (22.1 deklaruje `^4.0.8`, dopiero `22.2.0-rc.0` dodaje `^5`; stabilne 22.2 jeszcze nie wyszło), `@nx/vitest`
+   (23.2 deklaruje `^3 || ^4`), `@analogjs/vite-plugin-angular` / `@analogjs/vitest-angular`, `vitest-axe`. Gdzie
+   siedzi pin: `package.json`, `catalog:` / `overrides` w `pnpm-workspace.yaml`; `minimumReleaseAge` /
+   `minimumReleaseAgeExclude` — świeże `vitest@5.x` może być blokowane. Tryb pnpm: `strict-peer-dependencies`
+   (`.npmrc` lub `pnpm-workspace.yaml`); `peerDependencyRules` — tylko `pnpm-workspace.yaml` (lub pole `pnpm`
+   w `package.json`) — odmowa czy tylko ostrzeżenie.
 3. Grep pod zmiany łamiące Vitest 5 — zapisz trafienia, to lista kontrolna kroku 3. Domyślny pathspec
    każdej komendy: `-- '*.spec.*' '*.test.*' '*vitest.config.*'` (pomija docs/ i run-logi), chyba że punkt
    podaje inny.
    - `clearMocks` domyślnie `true` (historia mocków czyszczona przed testem) — skala ryzyka:
-     `git grep -h -o -E "toHaveBeenCalledTimes|\.mock\.calls|toHaveBeenCalledOnce" … | sort | uniq -c`;
-     mocki modułowe: `git grep -l -E "^vi\.(mock|hoisted)\(" …` → czy `beforeEach` woła `vi.clearAllMocks()`
-     albo mock powstaje w teście.
-   - niezaczekane `.resolves` / `.rejects` teraz **failują**: `git grep -n -B2 -E "\.(resolves|rejects)\b" …`
-     → każde trafienie bez `await` / `return` w tej linii ani 2 wyżej = do naprawy (forma wieloliniowa:
-     `).rejects` bez `expect(` w linii).
+     `git grep -h -o -E "toHaveBeenCalledTimes|\.mock\.calls|toHaveBeenCalledOnce" -- '*.spec.*' '*.test.*' | sort | uniq -c`;
+     mocki modułowe: `git grep -l -E "^vi\.(mock|hoisted)\(" -- '*.spec.*' '*.test.*'` → czy `beforeEach` woła
+     `vi.clearAllMocks()` albo mock powstaje w teście.
+   - niezaczekane `.resolves` / `.rejects` teraz **failują**: `git grep -n -E "\.(resolves|rejects)\b" …` →
+     trafienie z `expect(` w tej samej linii: brak `await` / `return` w tej linii = do naprawy; trafienie
+     zaczynające się od `)` (forma wieloliniowa): otwórz plik, cofnij się do linii z otwierającym `expect(`
+     (bywa 2–7 linii wyżej) i tam wymagaj `await` / `return` — dopiero brak = do naprawy.
    - usunięte `test.sequential` / `describe.sequential`: `(describe|test|it)\.sequential`.
    - zagnieżdżone `vi.mock` / `vi.unmock` / `vi.hoisted` rzucają: `^\s+vi\.(mock|unmock|hoisted)\(`.
    - `expect.poll` odrzuca po timeoucie; `bench` przepisany: `expect\.poll|\bbench\(`.
    - `VITEST_POOL_ID` / `VITEST_WORKER_ID` liczone od 1: `VITEST_(POOL|WORKER)_ID`.
-   - usunięte wejścia `vitest/*`; `@vitest/expect` / `@vitest/runner` przestarzałe (scalone do `vitest`) →
+   - usunięte wejścia `vitest/*`; `@vitest/{expect,runner,snapshot,utils,pretty-format}` scalone do `vitest` →
      import z `vitest`:
-     `git grep -n -E "from ['\"](vitest/(coverage|reporters|environments|snapshot|runners|suite|mocker|internal/module-runner)|@vitest/(expect|runner))['\"]" -- '*.ts' '*.mts' '*.js' '*.mjs'`.
+     `git grep -n -E "(from|import|require\()\s*\(?['\"](vitest/(coverage|reporters|environments|snapshot|runners|suite|mocker|internal/module-runner)|@vitest/(expect|runner|snapshot|utils|pretty-format))['\"]" -- '*.ts' '*.mts' '*.js' '*.mjs'`.
    - reportery: domyślny katalog `.vitest/` (json/junit), html `outputDir` zamiast `outputFile`:
-     `reporters|outputFile|outputDir` w configach.
+     `reporters|outputFile|outputDir` — pathspec `-- '*vitest.config.*' '*/templates/*'` (configi + szablony
+     generatora z kroku 0.1).
    - `testNamePattern` po pełnej nazwie z separatorem ` > `:
      `git grep -n -E "testNamePattern|vitest[^&|]* -t " -- package.json '**/project.json' .gitlab-ci.yml .github`
      (w Nx `-t` = `--targets`, ignoruj).
@@ -59,12 +67,20 @@ w run-logu z `plik:linia` i naprawą. „Przeszło" bez liczb nie jest wynikiem.
      `git grep -n -A4 "coverage:" -- '*vitest.config.*'` → wpisy `include` / `exclude`.
    - `toThrow('')` pasuje do każdego komunikatu: `toThrow\(''\)` → `/^$/`.
    - Node API (`resolveConfig` zwraca config Vite): `resolveConfig|startVitest|createVitest` w `tools/`.
-4. Baseline na Vitest 4 — **każdy runner osobno, raz**, zapisz liczbę plików i testów, coverage (tam, gdzie są
-   progi — tabela „All files"), czas i `RUN vX.Y.Z` z wyjścia: skrypty korzenia (`test`, `test:cov`), każda
-   biblioteka z własnym configiem, `NX_DAEMON=false pnpm exec nx run-many -t test --skip-nx-cache`, każda appka
-   na `@angular/build:unit-test` osobno (`pnpm exec nx run <app>:test --skip-nx-cache`), specy generatora (tylko
-   jeśli mają osobną bramę poza rootem). Świeży worktree: skopiuj git-ignorowane fixture'y i katalogi wyjściowe
-   (`test-results/`) **przed** baseline'em, inaczej porównanie jest fałszywe.
+4. Baseline na Vitest 4 — **każdy runner osobno, raz**, zapisz liczbę plików i testów, czas i `RUN vX.Y.Z`
+   z wyjścia; coverage tylko z runnerów, które przekazują `--coverage`
+   (`git grep -n -e '--coverage' -- package.json '**/project.json' .github`; `nx run-many -t test --coverage`
+   przekazuje flagę do każdego `nx:run-commands`) — tabela „All files" per taki runner; progi w configu, którego
+   nic nie uruchamia z `--coverage`, wypisz jako martwe i idź dalej. Runnery: skrypty korzenia (`test`,
+   `test:cov`), każda biblioteka z **własnym skryptem korzenia** (`cd lib && vitest run`, krok 0.1) — projekty
+   z `nx run-many` liczy sam run-many, nie mierz ich osobno;
+   `pnpm exec nx run-many -t test --skip-nx-cache --outputStyle=static` (daemon wyłączony wg nagłówka: bash
+   `NX_DAEMON=false …`, PowerShell `$env:NX_DAEMON='false'; …`) — z wyjścia zapisz per projekt `RUN vX.Y.Z`,
+   `Test Files N`, `Tests N` (`… 2>&1 | grep -E "RUN v|Test Files|^\s*Tests\s"`); appki na
+   `@angular/build:unit-test` są w tym przebiegu — osobno (`pnpm exec nx run <app>:test --skip-nx-cache`) tylko
+   gdy ich liczb w wyjściu nie widać; specy generatora (tylko jeśli mają osobną bramę poza rootem). Świeży
+   worktree: skopiuj git-ignorowane fixture'y i katalogi wyjściowe (`test-results/`) **przed** baseline'em,
+   inaczej porównanie jest fałszywe.
 
 Wyjście kroku 0: tabela `runner | jak uruchamiany | config | pliki/testy | coverage | czas` + lista trafień
 z kroku 3 + lista peerów poza zakresem. Pokaż i czekaj na „dalej".
@@ -73,7 +89,7 @@ z kroku 3 + lista peerów poza zakresem. Pokaż i czekaj na „dalej".
 
 | Pytanie | Opcje | Domyślnie |
 |---|---|---|
-| Appki na `@angular/build:unit-test`, gdy `@angular/build` deklaruje peer `vitest ^4` | A: zostają na builderze, jeśli przejdą na v5 (ostrzeżenie peera do Angulara 22.2); B: przepiąć na `vitest run` + `@analogjs/vite-plugin-angular` jak biblioteki; C: czekać na Angular 22.2 | A |
+| Appki na `@angular/build:unit-test`, gdy `@angular/build` deklaruje peer `vitest ^4` | A: zostają na builderze, jeśli przejdą na v5 (ostrzeżenie peera do stabilnego Angulara 22.2); B: przepiąć na `vitest run` + `@analogjs/vite-plugin-angular` jak biblioteki; C: czekać na stabilne Angular 22.2 | A |
 | Projekty na `@nx/vitest:test` / `@nx/vitest/plugin`, gdy `@nx/vitest` deklaruje peer `vitest ^3 \|\| ^4` | A: zostają, jeśli przejdą na v5; B: przepiąć na `nx:run-commands` + `vitest run`; C: czekać na `@nx/vitest` z `^5` | A |
 | pnpm odmawia przez peery | `peerDependencyRules.allowedVersions` najwęższy wpis z komentarzem **albo** stop | tylko przy odmowie |
 | Generator | piny generowanych projektów też na 5 | tak |
@@ -83,19 +99,21 @@ Pokaż odpowiedzi i czekaj na „dalej".
 
 ## 2. Bump
 
-- Piny **dokładne** `vitest` i **każdej** paczki `@vitest/*` z kroku 0.2 na tę samą wersję, w korzeniu i w każdym
-  zagnieżdżonym `package.json` (albo w `catalog:` / `overrides`, jeśli tam siedzi pin). `pnpm install`
-  (aktualizuje lockfile) → `node -p "require('vitest/package.json').version"` musi dać `5.x.y` (tak samo
-  `@vitest/coverage-v8`) → `pnpm install --frozen-lockfile` musi przejść. `RUN v4…` w kroku 3 = pin nie
-  zadziałał, stop.
+- Piny **dokładne** `vitest` i każdej paczki `@vitest/*` z dokładnym peerem (krok 0.2) na tę samą wersję;
+  scalone `@vitest/*` usuń z `package.json`; w korzeniu i w każdym zagnieżdżonym `package.json` (albo w
+  `catalog:` / `overrides`, jeśli tam siedzi pin). `pnpm install` (aktualizuje lockfile) →
+  `node -p "require('vitest/package.json').version"` musi dać `5.x.y` (tak samo `@vitest/coverage-v8`) →
+  `pnpm install --frozen-lockfile` musi przejść. `RUN v4…` w kroku 3 = pin nie zadziałał, stop.
 - Diff lockfile: tylko rodzina vitest i jej zależności tranzytywne — w górę `vitest`, `@vitest/coverage-v8`,
   `@vitest/mocker`, `@vitest/spy`; **wypadają** `@vitest/{expect,runner,snapshot,utils,pretty-format}` (scalone
-  do `vitest`); `istanbul-lib-*` → `@vitest/istanbul-lib-*` (wypadają `html-escaper`, `make-dir`, `pathe`);
-  nowe/podbite `tinybench`, `tinyexec`, `magic-string`, `picomatch`, `magicast`, `tinyrainbow`,
-  `es-module-lexer`. Cokolwiek spoza tego grafu = stop. Klucze peer-resolucji `(vitest@…)` przepięte,
-  **wersje tych paczek bez zmian** — sprawdź i zapisz.
-- Ostrzeżenie „unmet peer" jest oczekiwane tylko od `@angular/build` i od `@nx/vitest` tylko zainstalowanego,
-  nieużywanego jako executor (krok 0.1); **nie podbijaj** Angulara ani `@angular/build` do rc w tym runie.
+  do `vitest`); `istanbul-lib-*` → `@vitest/istanbul-lib-*` (wypadają `istanbul-reports`, `html-escaper`,
+  `make-dir`, `pathe`); nowe/podbite `tinybench`, `tinyexec`, `magic-string` (+ `@jridgewell/sourcemap-codec`),
+  `picomatch`, `magicast`, `tinyrainbow`, `es-module-lexer`. To przykład z bumpu 4.1.11 → 5.0.1 bez
+  `@vitest/ui`/browser; reguła: każda zmieniona tożsamość musi być zależnością rodziny vitest
+  (`pnpm why <pakiet>`) — inaczej stop. Klucze peer-resolucji `(vitest@…)` przepięte, **wersje tych paczek bez
+  zmian** — sprawdź i zapisz.
+- Ostrzeżenie „unmet peer" jest oczekiwane od `@angular/build` i `@nx/vitest` (decyzje A z kroku 1); od
+  czegokolwiek innego = stop; **nie podbijaj** Angulara ani `@angular/build` do rc w tym runie.
 
 Pokaż diff lockfile, wersje po instalacji i ostrzeżenia peerów; czekaj na „dalej".
 
@@ -109,7 +127,7 @@ globalne `clearMocks: false` / `mockReset: false` tylko z dowodem, że cały zes
 | liczba wywołań mocka inna niż oczekiwana | `clearMocks=true`, test liczył na historię z poprzedniego testu | mock tworzony w teście albo `vi.clearAllMocks()` w `beforeEach` + poprawna asercja |
 | „assertion was not awaited", test zielony na v4, czerwony na v5 | `.resolves` / `.rejects` bez `await` | dopisz `await` (także w formach wieloliniowych) |
 | `sequential is not a function` | usunięte `*.sequential` | `{ concurrent: false }` |
-| `vi.mock … must be at top level` | zagnieżdżone `vi.mock` / `vi.hoisted` | wynieś na poziom modułu |
+| `was defined outside of the module's top level scope` | zagnieżdżone `vi.mock` / `vi.hoisted` | wynieś na poziom modułu |
 | reporter pisze do `.vitest/` albo brak pliku w CI | nowe domyślne katalogi | jawny `outputFile` (json/junit) / `outputDir` (html) |
 | `-t` nie trafia | pełna nazwa z ` > ` | popraw wzorzec |
 | `expect.poll` odrzuca | timeout był maskowany | popraw warunek oczekiwania, nie wydłużaj na ślepo |
@@ -139,8 +157,8 @@ Pokaż tabelę baseline vs po bumpie (co do jednego testu) i listę naprawionych
 
 ## 5. Weryfikacja i raport
 
-1. Brama repo (np. `pnpm verify`), `NX_DAEMON=false pnpm exec nx run-many -t test,typecheck --skip-nx-cache`,
-   verify każdej biblioteki z własnymi bramami, `pnpm install --frozen-lockfile`.
+1. Brama repo (np. `pnpm verify`), `pnpm exec nx run-many -t test,typecheck --skip-nx-cache` (daemon wyłączony
+   jw.), verify każdej biblioteki z własnymi bramami, `pnpm install --frozen-lockfile`.
 2. Run-log + plan (jeśli repo prowadzi parę SDD; inaczej run-log w miejscu przyjętym w repo): tabela peerów,
    tabela zmian łamiących `grep → trafienia → wynik na v5`, sekcja buildera Angulara z **oboma faktami**
    (działa / poza deklarowanym peerem), bramy, pomiary przed/po per runner, decyzje. Commity wg konwencji
@@ -149,14 +167,14 @@ Pokaż tabelę baseline vs po bumpie (co do jednego testu) i listę naprawionych
 
 Orientacyjnie (Nx + Angular, 80 projektów, 36 runnerów, 2026-09-17): bump 4.1.11 → 5.0.1 bez zmiany żadnego
 testu ani configu poza jednym jawnym timeoutem na ciężkim imporcie (sprzed migracji, patrz krok 3), appki na
-`@angular/build:unit-test` 22.1.7 zielone z `RUN v5.0.1`, coverage co do setnych, czasy w szumie (mediany z 3:
-root 3,9 → 3,6 s, `nx run-many -t test` 43 s w obie strony), lockfile +19 / −24 paczki.
+`@angular/build:unit-test` 22.1.7 zielone z `RUN v5.0.1`, coverage co do setnych, czasy w szumie (pojedyncze
+przebiegi: root 3,5 → 3,4 s, `nx run-many -t test` 37,8 → 37,4 s), lockfile +19 / −24 paczki.
 
 ## Kryteria ukończenia
 
-- Każdy runner: liczba plików i testów równa baseline'owi (liczby po kroku 4; różnice opisane w run-logu
-  z `plik:linia`).
-- Coverage w każdym miejscu z progami: delta zapisana, progi nietknięte.
+- Każdy runner (dla `run-many`: każdy projekt): liczba plików i testów równa baseline'owi (liczby po kroku 4;
+  różnice opisane w run-logu z `plik:linia`).
+- Coverage z każdego runnera z `--coverage`: delta zapisana, progi nietknięte.
 - `pnpm install --frozen-lockfile` zielony; ostrzeżenia peerów wypisane świadomie w run-logu.
 - Kanon generatora, bloki stacku i docs mówią „5"; run-log zapisany (para SDD w INDEX, jeśli repo ją prowadzi).
 
@@ -164,9 +182,9 @@ root 3,9 → 3,6 s, `nx run-many -t test` 43 s w obie strony), lockfile +19 / �
 
 - `pnpm exec vitest run` z katalogu biblioteki **bez** `package.json` pada od drugiego uruchomienia
   (`ERR_PNPM_RECURSIVE_EXEC_NO_PACKAGE`), bo Vitest tworzy tam `node_modules/.vite` — używaj targetu Nx albo
-  `node ../../node_modules/vitest/vitest.mjs run` (binarka jest tylko w korzeniu). Skrypty korzenia
-  `cd libs/x && vitest run` działają — pułapka dotyczy `pnpm exec`.
-- `git grep -c` liczy per plik; sumę daj przez `git grep -h -o … | sort | uniq -c`.
+  `node <ścieżka-do-korzenia>/node_modules/vitest/vitest.mjs run` (dla `libs/x` to `../../`; binarka jest tylko
+  w korzeniu). Skrypty korzenia `cd libs/x && vitest run` działają — pułapka dotyczy `pnpm exec`.
+- `git grep -c` liczy per plik; rozbicie po wzorcu: `git grep -h -o … | sort | uniq -c`, suma: `… | wc -l`.
 - Skrypt liczący graf Nx poza taskiem startuje daemona, który trzyma potok wyjścia — `NX_DAEMON=false`
   przy pomiarach i w skryptach.
 - Narzędzie zablokowane przez politykę systemu (np. `pnpm.exe`): stop i pytanie, żadnych zastępczych
