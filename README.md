@@ -110,7 +110,9 @@ Bez menedżera pakietów, bez builda: `pnpm run portable` pakuje oba narzędzia 
   Cloud, `affected`, natywne hooki, pipeline GitLab CI; `/migrate-to-oxc` przenosi lint i formatowanie
   z ESLint / Prettier / Biome na oxlint + oxfmt (Nx + Angular, z pomiarem przed i po);
   `/migrate-to-vitest5` podnosi Vitest 4 → 5 (grep zmian łamiących, baseline per runner, appki na
-  `@angular/build:unit-test`, para SDD plan + run-log).
+  `@angular/build:unit-test`, para SDD plan + run-log); `/rewrite-to-native` rozstrzyga liczbami, czy
+  skrypt narzędziowy (np. indeksowanie) warto przepisać na Rust lub inny język — rozkład ściany na
+  start runtime'u, git i obliczenia, progi decyzji, tańsze opcje w kolejności.
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
   `.vscode/settings.json` włącza oxc (oxfmt jako formater, oxlint), prompt files, instrukcje
   i `AGENTS.md`; `.vscode/extensions.json` poleca oxc i Copilot Chat.

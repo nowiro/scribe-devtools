@@ -213,9 +213,14 @@ Bez Nx: granice = warstwy `no-restricted-imports` w `oxlint.rules.mts` na kszta�
    plików agentów), lista utraconych i odzyskanych reguł, ryzyka.
 
 Orientacyjnie (Nx + Angular, 80 projektów, laptop i7; „po" z ADR repo wzorcowego, „przed" z notatki sesji
-2026-09-17 — nie ma go w repo): lint całego repo 197 s → ok. 12 s, `nx run-many -t lint` bez cache 174 s →
-ok. 55 s, pojedynczy projekt 2–3× szybciej. oxlint nie ma cache — ciepły lint w małym repo bywa wolniejszy niż
-ESLint z `--cache`; porównuj ten sam zakres plików.
+2026-09-17 — nie ma go w repo): lint całego repo 197 s → ok. 12 s (−94%, ok. 16×; 9,4 s po zrównolegleniu
+oxlint + ESLint + granic w jednym skrypcie), `nx run-many -t lint` bez cache 174 s → ok. 55 s (−68%, ok. 3×),
+pojedynczy projekt 2–3× szybciej, `verify` jako całość bez zmian (lint to ułamek bramy). Małe repo (appka +
+3 biblioteki, ADR copilot-builder): format check 1,7 → 0,4 s (−76%), lint na zimno 10,4 → 5,4 s (−48%), lint
+na ciepło 2,6 → 5,3 s (**+104%**, wolniej). Cały zysk to typowany ESLint → natywny oxlint; format nie był
+kosztem bramy, a Prettier → oxfmt nie ma bezpośredniego pomiaru (−76% to Biome → oxfmt). oxlint nie ma
+cache, wtyczka sonarjs w JS to ok. 2 s — ciepły lint w małym repo bywa wolniejszy niż ESLint z `--cache`;
+porównuj ten sam zakres plików i podawaj zimno/ciepło osobno.
 
 ## Kryteria ukończenia
 

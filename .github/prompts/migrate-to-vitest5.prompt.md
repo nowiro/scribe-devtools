@@ -170,6 +170,13 @@ testu ani configu poza jednym jawnym timeoutem na ciężkim imporcie (sprzed mig
 `@angular/build:unit-test` 22.1.7 zielone z `RUN v5.0.1`, coverage co do setnych, czasy w szumie (pojedyncze
 przebiegi: root 3,5 → 3,4 s, `nx run-many -t test` 37,8 → 37,4 s), lockfile +19 / −24 paczki.
 
+Nie oczekuj przyspieszenia i nie traktuj jego braku jako regresji. Blog wydania (`vitest.dev/blog/vitest-5`,
+5.0 vs 4.1.10, syntetyczne aplikacje referencyjne) deklaruje −8…−25% (do −53% na `vmThreads` z ciężkimi
+zależnościami), ale zysk siedzi w pulach `vmThreads`/`vmForks`, Browser Mode i dużych izolowanych suitach;
+forks + jsdom + izolacja (biblioteki Angulara z TestBed) zostaje w ±3%, a `nx run-many` dokłada narzut Nx
+i spawn procesu per projekt, który rozmywa resztę. Realne dźwignie są poza bumpem (`isolate: false` po
+pomiarze, cache Nx, lżejszy setup) — nie w tym runie.
+
 ## Kryteria ukończenia
 
 - Każdy runner (dla `run-many`: każdy projekt): liczba plików i testów równa baseline'owi (liczby po kroku 4;
