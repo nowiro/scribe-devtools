@@ -65,7 +65,7 @@ pytania i czeka na odpowiedź operatora — bez delegacji i edycji do tego czasu
    zapisana w spec.
 3. Poprawka minimalna (KISS) przez właściciela ścieżki.
 4. Regresja: failing test zielony + `npm run verify`; test zostaje w repozytorium na stałe.
-5. Ta sama brama czerwona dwa razy → eskalacja do `code-reviewer-anthropic` (main-anthropic) i operatora, nie trzecia próba.
+5. Ta sama brama czerwona dwa razy → eskalacja do `code-reviewer-google` (main-google) i operatora, nie trzecia próba.
 
 ## Zadanie `done` = commit przez `scm-git`
 
