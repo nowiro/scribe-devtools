@@ -76,6 +76,13 @@ i `rm` ok. 95 ms. Trzy poprawki z kroku 2.3: obliczenia 90 → 47 ms, ściana 19
 zielonych. Szacunek Rusta: ok. 20 ms ściany, czyli 0,13–0,18 s oszczędności na commit za drugi toolchain,
 binarki per platforma i port testów. Werdykt: nie.
 
+Skala (ten sam indekser na app-factory: 15 aplikacji + e2e, 51 bibliotek, 2068 plików w repo, ten sam dzień):
+jak zaprojektowano (narzędzia + poziom mapy apps/libs) 113 modułów (49 tools, 15 apps, 49 libs), 0,42 MB,
+obliczenia 37 ms; najgorszy przypadek — każdy plik `.ts/.mts/.mjs` bez speców pod `apps/`, `libs/`, `tools/`
+— 725 plików, 2,96 MB, wszystkie parsery 50 ms. Aplikacja to jeden `app.routes.ts`, biblioteka jeden
+`public-api.ts`; koszt liniowy, ok. 17 ms/MB, próg 5 s z kroku 1 wypada przy ok. 300 MB źródeł. Wcześniej
+urywa się budżet kontekstu czytelnika (indeks 725 modułów ma setki kB), nie czas generowania.
+
 ## Kryteria ukończenia
 
 - Tabela składników ściany z procentami; kwadraty nazwane `plik:funkcja`.
