@@ -108,7 +108,9 @@ Bez menedżera pakietów, bez builda: `pnpm run portable` pakuje oba narzędzia 
   „spójrz, potem kliknij" dla sesji interaktywnej; `/perf-optimize` to runbook wydajności i DX dla
   repozytorium aplikacji — indeks kodu i słownik pojęć pod ograniczanie kontekstu, cache Nx bez Nx
   Cloud, `affected`, natywne hooki, pipeline GitLab CI; `/migrate-to-oxc` przenosi lint i formatowanie
-  z ESLint / Prettier / Biome na oxlint + oxfmt (Nx + Angular, z pomiarem przed i po).
+  z ESLint / Prettier / Biome na oxlint + oxfmt (Nx + Angular, z pomiarem przed i po);
+  `/migrate-to-vitest5` podnosi Vitest 4 → 5 (grep zmian łamiących, baseline per runner, appki na
+  `@angular/build:unit-test`, para SDD plan + run-log).
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
   `.vscode/settings.json` włącza oxc (oxfmt jako formater, oxlint), prompt files, instrukcje
   i `AGENTS.md`; `.vscode/extensions.json` poleca oxc i Copilot Chat.
