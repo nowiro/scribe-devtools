@@ -87,7 +87,13 @@ export function stripBlockComments(source) {
   // Whole-line `//` comments go first: a header that mentions `tools/testing/**` would otherwise open
   // a block comment that never closes where the author meant and swallow the imports below it.
   // Both kinds are blanked, not cut, so line numbers stay put.
-  const blank = (/** @type {string} */ text) => text.replaceAll(/[^\n]/gu, ' ');
+  // A run of spaces per line, not a regex replacement per character: measured on this tree, the
+  // per-character version cost twice as much, and every source file goes through here.
+  const blank = (/** @type {string} */ text) =>
+    text
+      .split('\n')
+      .map((line) => ' '.repeat(line.length))
+      .join('\n');
   return source.replaceAll(/^\s*\/\/.*$/gmu, blank).replaceAll(/\/\*[\s\S]*?\*\//gu, blank);
 }
 
@@ -147,10 +153,10 @@ export function parsePurpose(source) {
  * list. A name read some fourth way is a missing row, never a wrong one — the same bargain the
  * rest of this file makes by being a regex.
  * @param {string} source
+ * @param {string} [code] `source` with comments blanked — passed in when the caller already has it
  * @returns {string[]} sorted, deduplicated
  */
-export function parseEnvKnobs(source) {
-  const code = stripBlockComments(source);
+export function parseEnvKnobs(source, code = stripBlockComments(source)) {
   const out = new Set();
   const patterns = [
     /(?:process\.)?env\.([A-Z][A-Z0-9_]{2,})\b/gu,
@@ -202,6 +208,24 @@ export function insideTemplateLiteral(code, index) {
 }
 
 /**
+ * The same parity for EVERY index of `code` in one pass: `map[i]` is 1 when index `i` lies inside a
+ * template literal. The parsers use this instead of `insideTemplateLiteral` per match, which
+ * rescanned the file from the start for each of the few hundred matches a large module has —
+ * measured, a third of the whole index's parse time.
+ * @param {string} code
+ * @returns {Uint8Array}
+ */
+export function templateLiteralMap(code) {
+  const map = new Uint8Array(code.length);
+  let inside = 0;
+  for (let i = 0; i < code.length; i += 1) {
+    map[i] = inside;
+    if (code[i] === '`' && code[i - 1] !== '\\') inside ^= 1;
+  }
+  return map;
+}
+
+/**
  * Whether `index` lies inside a single- or double-quoted string on its line: an odd number of
  * unescaped quotes of one kind precede it. A generator that writes `"import { App } from './app/app';"`
  * as a string is not importing anything.
@@ -229,16 +253,19 @@ export function insideStringLiteral(code, index) {
  * dependency map of THIS repository and are dropped.
  * @param {string} source
  * @param {string} fromFile repository-relative POSIX path of the importing file
+ * @param {string} [code] `source` with comments blanked — passed in when the caller already has it
  * @returns {string[]}
  */
-export function parseImports(source, fromFile) {
+export function parseImports(source, fromFile, code = stripBlockComments(source)) {
   const out = new Set();
-  const code = stripBlockComments(source);
   const patterns = [/\bfrom\s+['"](\.[^'"]+)['"]/gu, /\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gu];
+  /** @type {Uint8Array | null} */
+  let inTemplate = null;
   for (const pattern of patterns) {
     for (const match of code.matchAll(pattern)) {
-      if (match[1].includes('${') || insideTemplateLiteral(code, match.index) || insideStringLiteral(code, match.index))
-        continue;
+      if (match[1].includes('${')) continue;
+      inTemplate ??= templateLiteralMap(code);
+      if (inTemplate[match.index] === 1 || insideStringLiteral(code, match.index)) continue;
       const resolved = path.posix.join(path.posix.dirname(fromFile), match[1]);
       // TypeScript sources (tools/alm) write `./x.js` (NodeNext) for a file that is `./x.ts` on disk.
       out.add(fromFile.endsWith('.ts') ? resolved.replace(/\.js$/u, '.ts') : resolved);
@@ -370,16 +397,29 @@ export function parseSignatures(source) {
  * with the page is a list of events, and `keeper.mjs` decides its own lifetime from process
  * signals. Neither is visible in an import list, and both are the first thing a reader looks for.
  * @param {string} source
+ * @param {string} [code] `source` with comments blanked — passed in when the caller already has it
  * @returns {string[]} `receiver:event`, sorted and deduplicated
  */
-export function parseSubscriptions(source) {
+export function parseSubscriptions(source, code = stripBlockComments(source)) {
   const out = new Set();
-  const code = stripBlockComments(source);
-  const pattern = /([A-Za-z_$][\w$.]*)\s*\.\s*(?:on|once|addListener)\s*\(\s*['"]([\w:.-]+)['"]/gu;
+  // Anchored on the CALL, not on the receiver: a pattern that opens with an identifier is tried at
+  // every identifier in the file and backtracks out of almost all of them — measured, the slowest
+  // parser here by far. `.on(` is rare, and the receiver is read backwards from it.
+  const pattern = /\.\s*(?:on|once|addListener)\s*\(\s*['"]([\w:.-]+)['"]/gu;
+  /** @type {Uint8Array | null} */
+  let inTemplate = null;
   for (const match of code.matchAll(pattern)) {
-    if (insideTemplateLiteral(code, match.index)) continue;
-    const receiver = match[1].split('.').pop() ?? match[1];
-    out.add(`${receiver}:${match[2]}`);
+    let end = match.index;
+    while (end > 0 && /\s/u.test(code[end - 1])) end -= 1;
+    let start = end;
+    while (start > 0 && /[\w$.]/u.test(code[start - 1])) start -= 1;
+    // A receiver chain starts at a letter, `_` or `$` — what the receiver-first pattern required.
+    while (start < end && !/[A-Za-z_$]/u.test(code[start])) start += 1;
+    if (start === end) continue;
+    inTemplate ??= templateLiteralMap(code);
+    if (inTemplate[start] === 1) continue;
+    const receiver = code.slice(start, end).split('.').pop() ?? '';
+    out.add(`${receiver}:${match[1]}`);
   }
   return [...out].sort();
 }
@@ -493,17 +533,19 @@ export function resolveTypeImport(root, spec) {
 export function generateIndex(root) {
   const files = listSourceFiles(root).map((rel) => {
     const source = readFileSync(path.join(root, rel), 'utf8');
+    // Comments blanked once per file; three parsers read the result.
+    const code = stripBlockComments(source);
     return {
       path: rel,
       purpose: parsePurpose(source),
       exports: parseExports(source),
-      imports: parseImports(source, rel).map((spec) =>
+      imports: parseImports(source, rel, code).map((spec) =>
         existsSync(path.join(root, spec)) ? spec : `${spec} (unresolved)`,
       ),
       typeImports: parseTypeImports(source, rel).map((spec) => resolveTypeImport(root, spec)),
-      env: parseEnvKnobs(source),
+      env: parseEnvKnobs(source, code),
       signatures: parseSignatures(source),
-      subscriptions: parseSubscriptions(source),
+      subscriptions: parseSubscriptions(source, code),
     };
   });
   return buildIndex(files);

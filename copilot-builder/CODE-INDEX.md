@@ -463,7 +463,7 @@ Modules: 98.
 
 ## tools/scripts/index-code.mjs
 - purpose: the repository's dependency index, for LLM-driven development.
-- exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `insideStringLiteral(code, index) → boolean`, `insideTemplateLiteral(code, index) → boolean`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
+- exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `insideStringLiteral(code, index) → boolean`, `insideTemplateLiteral(code, index) → boolean`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source, code) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile, code) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source, code) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`, `templateLiteralMap(code) → Uint8Array`
 - imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/lib/scan.mjs`
 
 ## tools/scripts/lib/md-table.mjs
