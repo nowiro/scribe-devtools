@@ -34,14 +34,59 @@ export function isMain(metaUrl) {
 }
 
 /**
- * JSON with comments (tsconfig.json, .vscode/*.json) as plain JSON text: block comments and
- * whole-line `//` comments removed. Not a full JSONC parser — a `//` inside a string on its own line
- * would be eaten — which is exactly what the CLI-written files here never contain.
+ * JSON with comments (tsconfig.json, .vscode/*.json) as plain JSON text: `//` line comments and
+ * `/* *\/` block comments removed, string literals left alone.
+ *
+ * A scanner, not a pair of regular expressions: the regex version read `/*` inside a string — the glob
+ * `"**\/tools/hooks/**"` in .vscode/settings.json, a path alias `"@cb/*": ["libs/*"]` — as the start
+ * of a comment, ate everything up to the next `*\/` and made `JSON.parse` throw or silently drop keys.
+ * A block comment keeps its newlines, so a parse error still points at the right line. An unterminated
+ * block comment is left in place for `JSON.parse` to reject, rather than swallowing the rest of the file
+ * into a shorter document that parses. Trailing commas stay invalid, as before: no file read here has one.
  * @param {string} text
  * @returns {string}
  */
 export function stripJsonComments(text) {
-  return text.replaceAll(/\/\*[\s\S]*?\*\//gu, '').replaceAll(/^\s*\/\/.*$/gmu, '');
+  let out = '';
+  let copied = 0;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === '"') {
+      i = endOfString(text, i);
+      continue;
+    }
+    if (ch === '/' && text[i + 1] === '/') {
+      out += text.slice(copied, i);
+      const newline = text.indexOf('\n', i);
+      i = newline === -1 ? text.length : newline;
+      copied = i;
+      continue;
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      const close = text.indexOf('*/', i + 2);
+      if (close === -1) break;
+      out += text.slice(copied, i) + text.slice(i, close + 2).replaceAll(/[^\n]/gu, '');
+      i = close + 2;
+      copied = i;
+      continue;
+    }
+    i += 1;
+  }
+  return out + text.slice(copied);
+}
+
+/**
+ * Index just past the string literal that opens at `start` (a `"`), honouring backslash escapes; the
+ * end of the text when the string never closes.
+ * @param {string} text
+ * @param {number} start
+ * @returns {number}
+ */
+function endOfString(text, start) {
+  let i = start + 1;
+  while (i < text.length && text[i] !== '"') i += text[i] === '\\' ? 2 : 1;
+  return Math.min(i + 1, text.length);
 }
 
 /**

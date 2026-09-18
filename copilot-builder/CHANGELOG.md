@@ -28,6 +28,8 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
 
 ### Changed
 
+- `readJsonc` (`tools/scripts/lib/repo.mjs`) pomija komentarze tylko poza stringami: glob `"**/tools/**"`
+  w `.vscode/settings.json` i alias `"@cb/*"` przed globem `src/**/*.ts` nie psują już parsowania.
 - oxc zamiast Biome i większości ESLint: oxfmt formatuje także szablony HTML i YAML (Markdown z wyboru
   nie), oxlint trzyma wszystkie reguły poza Angularem (presety czytane z pakietów, sonarjs/regexp/security/n/
   eslint-comments/playwright jako `jsPlugins`, reguły z typami przez oxlint-tsgolint), ESLint zostaje tylko
