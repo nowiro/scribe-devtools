@@ -63,7 +63,14 @@ export function parseExports(source) {
  * @returns {string}
  */
 export function stripBlockComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//gu, (block) => block.replace(/[^\n]/gu, ' '));
+  // A run of spaces per line, not a regex replacement per character: measured, the per-character
+  // version cost twice as much, and every source file goes through here.
+  const blank = (/** @type {string} */ block) =>
+    block
+      .split('\n')
+      .map((line) => ' '.repeat(line.length))
+      .join('\n');
+  return source.replace(/\/\*[\s\S]*?\*\//gu, blank);
 }
 
 /**
@@ -113,10 +120,10 @@ export function parsePurpose(source) {
  * list. A name read some fourth way is a missing row, never a wrong one — the same bargain the
  * rest of this file makes by being a regex.
  * @param {string} source
+ * @param {string} [code] `source` with comments blanked — passed in when the caller already has it
  * @returns {string[]} sorted, deduplicated
  */
-export function parseEnvKnobs(source) {
-  const code = stripBlockComments(source);
+export function parseEnvKnobs(source, code = stripBlockComments(source)) {
   const out = new Set();
   const patterns = [
     /(?:process\.)?env\.([A-Z][A-Z0-9_]{2,})\b/gu,
@@ -157,11 +164,11 @@ export function parseTypeImports(source, fromFile) {
  * dependency map of THIS repository and are dropped.
  * @param {string} source
  * @param {string} fromFile repository-relative POSIX path of the importing file
+ * @param {string} [code] `source` with comments blanked — passed in when the caller already has it
  * @returns {string[]}
  */
-export function parseImports(source, fromFile) {
+export function parseImports(source, fromFile, code = stripBlockComments(source)) {
   const out = new Set();
-  const code = stripBlockComments(source);
   const patterns = [/\bfrom\s+['"](\.[^'"]+)['"]/gu, /\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gu];
   for (const pattern of patterns) {
     for (const match of code.matchAll(pattern)) {
@@ -298,10 +305,20 @@ export function parseSignatures(source) {
  */
 export function parseSubscriptions(source) {
   const out = new Set();
-  const pattern = /([A-Za-z_$][\w$.]*)\s*\.\s*(?:on|once|addListener)\s*\(\s*['"]([\w:.-]+)['"]/gu;
+  // Anchored on the CALL, not on the receiver: a pattern that opens with an identifier is tried at
+  // every identifier in the file and backtracks out of almost all of them — measured, the slowest
+  // parser here by far. `.on(` is rare, and the receiver is read backwards from it.
+  const pattern = /\.\s*(?:on|once|addListener)\s*\(\s*['"]([\w:.-]+)['"]/gu;
   for (const match of source.matchAll(pattern)) {
-    const receiver = match[1].split('.').pop() ?? match[1];
-    out.add(`${receiver}:${match[2]}`);
+    let end = match.index;
+    while (end > 0 && /\s/u.test(source[end - 1])) end -= 1;
+    let start = end;
+    while (start > 0 && /[\w$.]/u.test(source[start - 1])) start -= 1;
+    // A receiver chain starts at a letter, `_` or `$` — what the receiver-first pattern required.
+    while (start < end && !/[A-Za-z_$]/u.test(source[start])) start += 1;
+    if (start === end) continue;
+    const receiver = source.slice(start, end).split('.').pop() ?? '';
+    out.add(`${receiver}:${match[1]}`);
   }
   return [...out].sort();
 }
@@ -422,13 +439,15 @@ export function resolveTypeImport(root, spec) {
 export function generateIndex(root) {
   const files = listSourceFiles(root).map((rel) => {
     const source = readFileSync(path.join(root, rel), 'utf8');
+    // Comments blanked once per file; two parsers read the result.
+    const code = stripBlockComments(source);
     return {
       path: rel,
       purpose: parsePurpose(source),
       exports: parseExports(source),
-      imports: parseImports(source, rel),
+      imports: parseImports(source, rel, code),
       typeImports: parseTypeImports(source, rel).map((spec) => resolveTypeImport(root, spec)),
-      env: parseEnvKnobs(source),
+      env: parseEnvKnobs(source, code),
       signatures: parseSignatures(source),
       subscriptions: parseSubscriptions(source),
     };

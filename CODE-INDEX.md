@@ -318,7 +318,7 @@ Modules: 53.
 
 ## scripts/index-code.mjs
 - purpose: the repository's dependency index, for LLM-driven development.
-- exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
+- exports: `INDEX_FILE`, `buildIndex(files) → string`, `condenseParams(raw) → string`, `generateIndex(root) → string`, `listSourceFiles(root) → string[]`, `parseEnvKnobs(source, code) → string[]`, `parseExports(source) → string[]`, `parseImports(source, fromFile, code) → string[]`, `parsePurpose(source) → string`, `parseSignatures(source) → Map<string, string>`, `parseSubscriptions(source) → string[]`, `parseTypeImports(source, fromFile) → string[]`, `resolveTypeImport(root, spec) → string`, `returnType(block) → string`, `stripBlockComments(source) → string`
 - subscribes: `receiver:event`
 - types only: `scripts/types.js (nierozwiązane)`, `scripts/x.js (nierozwiązane)`
 - imported by: `scripts/check-claims.mjs`
