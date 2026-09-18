@@ -49,7 +49,7 @@ ten język; czy oszczędność `X ms × przebiegów dziennie` jest warta tych ko
 1. Nie uruchamiać: w hooku tylko, gdy `git diff --cached --name-only` trafia w indeksowane katalogi;
    `--check` w `verify` zostaje.
 2. Cache po treści: hash plików korpusu → pomiń regenerację, gdy równy.
-3. Kwadraty w JS, bez zmiany API — cztery wzorce, każdy z tym, po czym go poznać i dlaczego działa:
+3. Kwadraty w JS, bez zmiany API — pięć wzorców, każdy z tym, po czym go poznać i dlaczego działa:
 
    | wzorzec | przed | po | dlaczego szybciej |
    |---|---|---|---|
@@ -57,13 +57,17 @@ ten język; czy oszczędność `X ms × przebiegów dziennie` jest warta tych ko
    | zamiana per znak | `block.replace(/[^\n]/gu, ' ')` | `block.split('\n').map((l) => ' '.repeat(l.length)).join('\n')` | jedno dopasowanie i jedno wywołanie maszynerii zamiany na każdy znak komentarza (setki tysięcy na korpus) → kilka operacji na linię, spacje alokowane hurtem |
    | ta sama transformacja w kilku parserach | każdy `parseX` woła `stripBlockComments(source)` | `generateIndex` liczy raz, parsery dostają `parseX(source, code = stripBlockComments(source))` | wartość domyślna parametru zachowuje stare wywołania i testy; koszt spada z N× do 1× na plik |
    | skan od początku pliku per trafienie | `insideTemplateLiteral(code, index)` liczy backticki od 0 do `index` w pętli po `matchAll` | `templateLiteralMap(code)` — jeden przebieg, `Uint8Array` z parzystością dla każdego indeksu, odczyt O(1) | M trafień × N znaków → N + M; zmierzone 249 wywołań skanujących ponownie 1 mln znaków |
+   | kopia prefiksu pliku per trafienie | `source.slice(0, match.index).replace(/\s+$/u, '')` przy każdym eksporcie, potem `endsWith('*/')` i `lastIndexOf('/**')` na kopii | cofanie od `match.index` tylko po białych znakach (`while (end > 0 && /\s/u.test(source[end - 1])) end -= 1`), potem `source.startsWith('*/', end - 2)` i `source.lastIndexOf('/**', end - 3)` na oryginale | kopia całego prefiksu plus regexp `\s+$` bez kotwicy na początku, próbowany przy każdym ciągu białych znaków i odrzucany na `$` — koszt eksportu równy długości pliku do niego; po zmianie równy długości jego bloku JSDoc |
 
    Jak szukać: `matchAll` / `replace` z callbackiem wołanym w pętli po trafieniach; `for (let i = 0; i < index…)`
-   w funkcji wołanej z pętli; `slice(0, index)` w pętli; regexp, którego pierwszy token to klasa znaków, nie
-   literał; ta sama funkcja czysta wołana z kilku miejsc na tym samym wejściu. Po zmianie: stary i nowy moduł
-   zaimportowane obok siebie na tym samym korpusie, zero różniących się linii wyjścia, per parser tabela
-   przed/po. Wynik na korzeniu scribe-devtools (53 moduły, 0,83 MB): subskrypcje 15,1 → 0,5 ms, wygaszanie
-   2 × 3,5 → 1 × 1,4 ms, importy 4,3 → 2,2 ms, env 4,8 → 2,9 ms, całość 46 → 23 ms, ściana 143 → 116 ms.
+   w funkcji wołanej z pętli; `slice(0, index)` albo regexp z `$` bez `^` na wyniku `slice` w pętli; regexp,
+   którego pierwszy token to klasa znaków, nie literał; ta sama funkcja czysta wołana z kilku miejsc na tym
+   samym wejściu. Po zmianie: stary i nowy moduł zaimportowane obok siebie na tym samym korpusie, zero
+   różniących się linii wyjścia, per parser tabela przed/po. Wynik na korzeniu scribe-devtools (53 moduły,
+   0,83 MB, stary i nowy moduł w jednej serii): subskrypcje 15,1 → 0,5 ms, wygaszanie 2 × 3,5 → 1 × 1,4 ms,
+   importy 4,3 → 2,2 ms, env 4,8 → 2,9 ms, sygnatury 9,8 → 1,9 ms, całość w procesie 47 → 17 ms.
+   Funkcja, która po wydzieleniu pętli przekroczy limit złożoności lintera (sonarjs `cognitive-complexity`),
+   dostaje prywatne funkcje pomocnicze — nieeksportowane, więc indeks się nie zmienia.
 4. Natywna biblioteka z npm zamiast własnego Rusta: `oxc-parser` (napi) do AST, `ripgrep` do skanów,
    `@napi-rs/*`. Zero własnej binarki, zero drugiego toolchaina.
 5. Inny runtime (Bun/Deno) tylko gdy start runtime'u dominuje **i** repo już go ma.
@@ -80,19 +84,23 @@ Tabela `wariant | ściana (mediana z 5) | w procesie | oszczędność na przebie
 N przebiegach | koszt`; decyzja jednym zdaniem z liczbą; commity wg konwencji repo (skrypt i zregenerowany
 indeks w jednym).
 
-Orientacyjnie (copilot-builder, 98 modułów, 1,36 MB, Node 26, laptop i7, 2026-09-17): ściana 196 ms =
+Orientacyjnie (copilot-builder, 98 modułów, 1,36 MB, Node 26, laptop i7, 2026-09-17/18): ściana 196 ms =
 start Node 88 + moduł/walk/IO ok. 20 + obliczenia 90; `--staged` dokłada `git checkout-index` ok. 200 ms
-i `rm` ok. 95 ms. Trzy poprawki z kroku 2.3: obliczenia 90 → 47 ms, ściana 196 → 155 ms (−21%),
-`parseSubscriptions` 30 → 1 ms, `stripBlockComments` 3 × 10 → 1 × 6 ms, wyjście identyczne, 10 testów
-zielonych. Szacunek Rusta: ok. 20 ms ściany, czyli 0,13–0,18 s oszczędności na commit za drugi toolchain,
-binarki per platforma i port testów. Werdykt: nie.
+i `rm` ok. 95 ms. Wszystkie pięć wzorców z kroku 2.3: obliczenia 94 → 35 ms (stary i nowy moduł w jednej
+serii), `parseSubscriptions` 30 → 1 ms, `parseSignatures` 13,8 → 2,7 ms, `stripBlockComments` 3 × 10 →
+1 × 6 ms; ściana: pierwsze cztery 196 → 155 ms (−21%), piąty osobno 170 → 162 ms; wyjście identyczne,
+10 testów zielonych. Podłoga w JS: start Node 84–88 ms plus moduł/walk/IO ok. 20 ms, czyli ok. 110 ms
+nawet przy zerowych obliczeniach.
+Szacunek Rusta: ok. 20 ms ściany, czyli ok. 0,11–0,14 s oszczędności na commit za drugi toolchain, binarki
+per platforma i port testów. Werdykt: nie.
 
-Skala (ten sam indekser na app-factory: 15 aplikacji + e2e, 51 bibliotek, 2068 plików w repo, ten sam dzień):
-jak zaprojektowano (narzędzia + poziom mapy apps/libs) 113 modułów (49 tools, 15 apps, 49 libs), 0,42 MB,
-obliczenia 37 ms; najgorszy przypadek — każdy plik `.ts/.mts/.mjs` bez speców pod `apps/`, `libs/`, `tools/`
-— 725 plików, 2,96 MB, wszystkie parsery 50 ms. Aplikacja to jeden `app.routes.ts`, biblioteka jeden
-`public-api.ts`; koszt liniowy, ok. 17 ms/MB, próg 5 s z kroku 1 wypada przy ok. 300 MB źródeł. Wcześniej
-urywa się budżet kontekstu czytelnika (indeks 725 modułów ma setki kB), nie czas generowania.
+Skala (ten sam indekser na app-factory: 15 aplikacji + e2e, 51 bibliotek, 2068 plików w repo, po wszystkich
+pięciu wzorcach): jak zaprojektowano (narzędzia + poziom mapy apps/libs) 113 modułów (49 tools, 15 apps,
+49 libs), 0,42 MB, obliczenia ok. 37 ms; najgorszy przypadek — każdy plik `.ts/.mts/.mjs` bez speców pod
+`apps/`, `libs/`, `tools/` — 725 plików, 2,96 MB, wszystkie parsery 42 ms. Aplikacja to jeden
+`app.routes.ts`, biblioteka jeden `public-api.ts`; koszt liniowy, ok. 14 ms/MB, próg 5 s z kroku 1 wypada
+przy ok. 350 MB źródeł. Wcześniej urywa się budżet kontekstu czytelnika (indeks 725 modułów ma setki kB),
+nie czas generowania.
 
 ## Kryteria ukończenia
 
@@ -108,6 +116,8 @@ urywa się budżet kontekstu czytelnika (indeks 725 modułów ma setki kB), nie 
   pliku w katalogu tymczasowym; import pliku spoza repo na Windows wymaga `file:///D:/…`.
 - A/B starej i nowej wersji: `git stash push -- <skrypt> <indeks>`, pomiar, `git stash pop` — stash
   ograniczony ścieżkami nie rusza innych zmian w drzewie.
+- Ściana z różnych dni i sesji nie jest porównywalna: ten sam kod dał 155 ms jednego dnia i 170 ms
+  następnego. Przed i po zawsze w jednej serii, jedna po drugiej.
 - Test ze `symlinkSync` pada na Windows bez trybu dewelopera (`EPERM`) — środowisko, nie zmiana; zaznacz
   w raporcie zamiast naprawiać.
 - Wpis indeksu dla samego skryptu zmienia się, gdy zmieniasz sygnatury eksportów — oczekiwany diff,
