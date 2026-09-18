@@ -112,7 +112,10 @@ Bez menedżera pakietów, bez builda: `pnpm run portable` pakuje oba narzędzia 
   `/migrate-to-vitest5` podnosi Vitest 4 → 5 (grep zmian łamiących, baseline per runner, appki na
   `@angular/build:unit-test`, para SDD plan + run-log); `/rewrite-to-native` rozstrzyga liczbami, czy
   skrypt narzędziowy (np. indeksowanie) warto przepisać na Rust lub inny język — rozkład ściany na
-  start runtime'u, git i obliczenia, progi decyzji, tańsze opcje w kolejności.
+  start runtime'u, git i obliczenia, progi decyzji, tańsze opcje w kolejności; `/harness-audit` rozstrzyga,
+  czy agent zawodzi przez model, czy przez harness (stały prefiks per agent, frazy bez zysku, awarie przypisane
+  do styków, kontrakt podagenta, konfigurować czy budować); `/add-prefix-gate` przenosi bramę `check:prefix`
+  z copilot-builder do innego repo (VS Code Copilot, Claude Code, Codex CLI).
 - `.vscode/tasks.json` — bramki i komendy narzędzi jako zadania (Terminal → Run Task);
   `.vscode/settings.json` włącza oxc (oxfmt jako formater, oxlint), prompt files, instrukcje
   i `AGENTS.md`; `.vscode/extensions.json` poleca oxc i Copilot Chat.
