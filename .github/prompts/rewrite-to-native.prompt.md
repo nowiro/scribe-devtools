@@ -49,10 +49,21 @@ ten język; czy oszczędność `X ms × przebiegów dziennie` jest warta tych ko
 1. Nie uruchamiać: w hooku tylko, gdy `git diff --cached --name-only` trafia w indeksowane katalogi;
    `--check` w `verify` zostaje.
 2. Cache po treści: hash plików korpusu → pomiń regenerację, gdy równy.
-3. Kwadraty w JS, bez zmiany API: parzystość backticków jednym przebiegiem (`Uint8Array` per plik)
-   zamiast skanu per trafienie; regexp kotwiczony na rzadkim tokenie (`\.\s*on\s*\(`) z odczytem odbiorcy
-   wstecz zamiast od identyfikatora; jedna transformacja na plik przekazywana parametrem
-   (`parseX(source, code = strip(source))`); `' '.repeat(line.length)` zamiast `replaceAll(/[^\n]/gu, ' ')`.
+3. Kwadraty w JS, bez zmiany API — cztery wzorce, każdy z tym, po czym go poznać i dlaczego działa:
+
+   | wzorzec | przed | po | dlaczego szybciej |
+   |---|---|---|---|
+   | regexp od identyfikatora | `/([A-Za-z_$][\w$.]*)\s*\.\s*(?:on\|once)\s*\(…/g` | `/\.\s*(?:on\|once)\s*\(…/g` + odczyt odbiorcy wstecz dwiema pętlami `while` po `[\w$.]`, potem dosunięcie startu do `[A-Za-z_$]` | stary wzorzec jest próbowany przy każdym identyfikatorze w pliku: zjada zachłannie cały łańcuch, nie znajduje `.on(`, cofa się znak po znaku (rzędu k² prób na identyfikator długości k), przesuwa o jeden znak i od nowa; nowy zaczyna od literalnej kropki i odrzuca każdą pozycję po 1–2 znakach, a trafień jest kilkadziesiąt na plik |
+   | zamiana per znak | `block.replace(/[^\n]/gu, ' ')` | `block.split('\n').map((l) => ' '.repeat(l.length)).join('\n')` | jedno dopasowanie i jedno wywołanie maszynerii zamiany na każdy znak komentarza (setki tysięcy na korpus) → kilka operacji na linię, spacje alokowane hurtem |
+   | ta sama transformacja w kilku parserach | każdy `parseX` woła `stripBlockComments(source)` | `generateIndex` liczy raz, parsery dostają `parseX(source, code = stripBlockComments(source))` | wartość domyślna parametru zachowuje stare wywołania i testy; koszt spada z N× do 1× na plik |
+   | skan od początku pliku per trafienie | `insideTemplateLiteral(code, index)` liczy backticki od 0 do `index` w pętli po `matchAll` | `templateLiteralMap(code)` — jeden przebieg, `Uint8Array` z parzystością dla każdego indeksu, odczyt O(1) | M trafień × N znaków → N + M; zmierzone 249 wywołań skanujących ponownie 1 mln znaków |
+
+   Jak szukać: `matchAll` / `replace` z callbackiem wołanym w pętli po trafieniach; `for (let i = 0; i < index…)`
+   w funkcji wołanej z pętli; `slice(0, index)` w pętli; regexp, którego pierwszy token to klasa znaków, nie
+   literał; ta sama funkcja czysta wołana z kilku miejsc na tym samym wejściu. Po zmianie: stary i nowy moduł
+   zaimportowane obok siebie na tym samym korpusie, zero różniących się linii wyjścia, per parser tabela
+   przed/po. Wynik na korzeniu scribe-devtools (53 moduły, 0,83 MB): subskrypcje 15,1 → 0,5 ms, wygaszanie
+   2 × 3,5 → 1 × 1,4 ms, importy 4,3 → 2,2 ms, env 4,8 → 2,9 ms, całość 46 → 23 ms, ściana 143 → 116 ms.
 4. Natywna biblioteka z npm zamiast własnego Rusta: `oxc-parser` (napi) do AST, `ripgrep` do skanów,
    `@napi-rs/*`. Zero własnej binarki, zero drugiego toolchaina.
 5. Inny runtime (Bun/Deno) tylko gdy start runtime'u dominuje **i** repo już go ma.
