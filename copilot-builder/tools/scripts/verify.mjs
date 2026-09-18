@@ -32,6 +32,7 @@ export const STATIC = [
   { label: 'stack:check', command: [node, 'tools/scripts/stack.mjs', 'check'] },
   { label: 'code-index --check', command: [node, 'tools/scripts/index-code.mjs', '--check'] },
   { label: 'check:instructions', command: [node, 'tools/scripts/check-instruction-sync.mjs', '--require-all'] },
+  { label: 'check:prefix', command: [node, 'tools/scripts/check-prefix.mjs'] },
   { label: 'check:glossary', command: [node, 'tools/scripts/check-glossary.mjs'] },
 ];
 

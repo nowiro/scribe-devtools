@@ -7,7 +7,7 @@ what it is **for**, what it **exports** (with the inputs and output of every fun
 **subscribes to**, which **environment** knobs it reads, what it **imports** (runtime edges and
 type-only edges apart) and **who imports it** — read this before grepping.
 
-Modules: 98.
+Modules: 99.
 
 ## tools/alm/integrations/browser-inspector/read-browser-inspector.ts
 - purpose: web pages through a real browser, as a script instead of the Playwright MCP server.
@@ -426,6 +426,7 @@ Modules: 98.
 - purpose: The instruction block quoted in AGENTS.md IS the fixed cost of a tool's side of an agent session: one blockquote that tells the agent how t…
 - exports: `AGENTS_FILE`, `BLOCKS`, `BYTE_LIMIT`, `COPILOT_FILE`, `TOTAL_BYTE_LIMIT`, `checkInstructionSync(root, {…}) → Promise<{ ok: boolean, message: string }>`, `extractInstruction(markdown, name) → string | null`, `sizeInBytes(text) → number`
 - imports: `tools/scripts/lib/repo.mjs`
+- imported by: `tools/scripts/check-prefix.mjs`
 
 ## tools/scripts/check-pins.mjs
 - purpose: Offline, deterministic gate over tools/scripts/pins.config.mjs — one of the first steps of `npm run verify`, next to `oxfmt --check`.
@@ -433,6 +434,11 @@ Modules: 98.
 - imports: `tools/scripts/lib/repo.mjs`, `tools/scripts/lib/scan.mjs`, `tools/scripts/pins.config.mjs`
 - types only: `tools/scripts/pins.config.mjs`
 - imported by: `tools/scripts/check-upstream.mjs`
+
+## tools/scripts/check-prefix.mjs
+- purpose: the FIXED PREFIX of every agent: the bytes GitHub Copilot in VS Code puts into the context window on every request of that agent's session,…
+- exports: `AGENTS_DIR`, `AGENT_CAP`, `CAPS`, `INSTRUCTIONS_DIR`, `REGISTRY_FILE`, `SETTINGS_FILE`, `SHARED_FILES`, `SKILLS_DIR`, `WILDCARDS`, `bodyOf(text) → string`, `checkPrefix(root) → { ok: boolean, message: string }`, `isWildcard(applyTo) → boolean`, `measurePrefix(root) → Measurement`, `renderTable(measurement) → string`, `settingOn(settingsText, key, fallback) → boolean`, `toolSwitches(tools) → { seesIndex: boolean, callsAgents: boolean }`, `unmeasurable(text) → string | null`
+- imports: `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/validate-ai-config.mjs`
 
 ## tools/scripts/check-secrets.mjs
 - purpose: the pre-commit look at STAGED additions for anything that is a credential: Atlassian and GitLab tokens (this repository talks to both), Git…
@@ -474,7 +480,7 @@ Modules: 98.
 ## tools/scripts/lib/repo.mjs
 - purpose: what every script in tools/scripts needs and none should re-implement: the repository root, the entrypoint guard, JSONC reading and the fla…
 - exports: `COMMITTED_DOCS`, `REPO`, `frontmatter(text, options) → Record<string, string> | null`, `isMain(metaUrl) → boolean`, `readJsonc(file) → any`, `stripJsonComments(text) → string`, `unquote(value) → string`
-- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-draw.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/stamp.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
+- imported by: `tools/scripts/affected.mjs`, `tools/scripts/check-glossary.mjs`, `tools/scripts/check-instruction-sync.mjs`, `tools/scripts/check-pins.mjs`, `tools/scripts/check-prefix.mjs`, `tools/scripts/check-secrets.mjs`, `tools/scripts/check-upstream.mjs`, `tools/scripts/doctor.mjs`, `tools/scripts/guard-forbidden.mjs`, `tools/scripts/index-code.mjs`, `tools/scripts/new-project.mjs`, `tools/scripts/review-draw.mjs`, `tools/scripts/review-merge.mjs`, `tools/scripts/route.mjs`, `tools/scripts/sdd.mjs`, `tools/scripts/setup-hooks.mjs`, `tools/scripts/stack.mjs`, `tools/scripts/stamp.mjs`, `tools/scripts/validate-ai-config.mjs`, `tools/scripts/validate-sdd.mjs`, `tools/scripts/verify.mjs`, `tools/scripts/workflow-specify.mjs`
 
 ## tools/scripts/lib/scan.mjs
 - purpose: which directories a tree walk must not enter, and at what depth.
@@ -540,6 +546,7 @@ Modules: 98.
 - purpose: the gate over the GitHub Copilot configuration (0 credits; pre-commit, session-stop hook and `npm run verify`).
 - exports: `mcpServerConfigs(repo) → Record<string, { type?: string, command?: string, args?: st…`, `mcpServers(repo) → string[]`, `parseList(value) → string[]`, `patternHeads(pattern) → string[]`, `validateAiConfig(repo) → { ok: boolean, code: number, problems: string[], summary: s…`
 - imports: `tools/scripts/guard-forbidden.mjs`, `tools/scripts/lib/repo.mjs`, `tools/scripts/route.mjs`
+- imported by: `tools/scripts/check-prefix.mjs`
 
 ## tools/scripts/validate-sdd.mjs
 - purpose: the SDD hygiene gate (0 credits, part of `npm run verify`).

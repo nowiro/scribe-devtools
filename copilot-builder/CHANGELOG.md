@@ -28,6 +28,10 @@ nie przy tagowaniu. Wydanie: podbij `version`, przenieś `Unreleased` do sekcji 
 
 ### Changed
 
+- Brama `check:prefix` (`tools/scripts/check-prefix.mjs`) w `verify`: stały prefiks każdego agenta w bajtach
+  (treść pliku agenta, `copilot-instructions.md`, `AGENTS.md`, indeks instrukcji, karty skilli i podagentów)
+  z limitem 23 000 B, dla orkiestratora 41 000 B; `-- --table` pokazuje rozbicie i instrukcje warunkowe.
+  ADR w `docs/decisions/`.
 - `readJsonc` (`tools/scripts/lib/repo.mjs`) pomija komentarze tylko poza stringami: glob `"**/tools/**"`
   w `.vscode/settings.json` i alias `"@cb/*"` przed globem `src/**/*.ts` nie psują już parsowania.
 - oxc zamiast Biome i większości ESLint: oxfmt formatuje także szablony HTML i YAML (Markdown z wyboru

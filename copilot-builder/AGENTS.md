@@ -33,8 +33,8 @@ Reguła: co może być skryptem, jest skryptem. Agent płaci tylko za treść, k
 ## Bramy
 
 `npm run verify` uruchamia po kolei: `format:check`, `check:pins`, `guard:forbidden`, `ai:validate`, `sdd:check`,
-`stack:check`, `code-index --check`, `check:instructions`, `check:glossary`, `typecheck`, `lint`, `test`,
-`affected typecheck`, `affected test`, `affected build`. Każdą uruchomisz osobno przez `npm run <nazwa>`.
+`stack:check`, `code-index --check`, `check:instructions`, `check:prefix`, `check:glossary`, `typecheck`, `lint`,
+`test`, `affected typecheck`, `affected test`, `affected build`. Każdą uruchomisz osobno przez `npm run <nazwa>`.
 Co pilnuje każda z nich, mówi nagłówek jej skryptu w `tools/scripts/`.
 
 ## Pliki generowane. Nie edytuj ich ręcznie

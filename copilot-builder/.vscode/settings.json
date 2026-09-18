@@ -66,6 +66,7 @@
     "npm run stamp": true,
     "npm run check:pins": true,
     "npm run check:instructions": true,
+    "npm run check:prefix": true,
     "npm run check:glossary": true,
     "npm run guard:forbidden": true,
     "npm run stack:check": true,

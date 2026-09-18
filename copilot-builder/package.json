@@ -31,6 +31,7 @@
     "check:pins": "node tools/scripts/check-pins.mjs",
     "check:upstream": "node tools/scripts/check-upstream.mjs",
     "check:instructions": "node tools/scripts/check-instruction-sync.mjs --require-all",
+    "check:prefix": "node tools/scripts/check-prefix.mjs",
     "check:glossary": "node tools/scripts/check-glossary.mjs",
     "ai:validate": "node tools/scripts/validate-ai-config.mjs",
     "sdd:check": "node tools/scripts/validate-sdd.mjs",

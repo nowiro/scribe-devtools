@@ -46,6 +46,7 @@ Każdy plik w `.github/` czyta tani model. Piszesz tak, żeby nie musiał się d
 8. Instrukcja (`instructions/*.instructions.md`) ma `applyTo` na istniejącą ścieżkę. Prompt (`prompts/*.prompt.md`)
    ma `description`. Hook (`hooks/*.json`) wskazuje skrypt w `tools/hooks/`.
 9. `copilot-instructions.md` i `AGENTS.md` czyta każdy agent przy każdym żądaniu. Reguła dla ścieżki idzie do
-   instrukcji, reguła roli do agenta, procedura do prompta albo skilla.
+   instrukcji, reguła roli do agenta, procedura do prompta albo skilla. Stały prefiks każdego agenta mierzy
+   `npm run check:prefix` (`-- --table` pokazuje rozbicie).
 10. `skills/angular-developer/references/**` to kopia z angular/skills (commit w `SKILL.md`). Czytasz, nie
     zmieniasz. Aktualizacja: nowy commit, te same wykluczenia, decyzja człowieka.
