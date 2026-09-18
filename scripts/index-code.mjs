@@ -269,30 +269,51 @@ export function parseSignatures(source) {
   for (const pattern of [fn, arrow]) {
     for (const match of source.matchAll(pattern)) {
       const open = match.index + match[0].length - 1;
-      let depth = 0;
-      let close = open;
-      for (let i = open; i < source.length; i++) {
-        if (source[i] === '(') depth++;
-        else if (source[i] === ')') {
-          depth--;
-          if (depth === 0) {
-            close = i;
-            break;
-          }
-        }
-      }
-      const params = condenseParams(source.slice(open + 1, close));
-      // The NEAREST preceding JSDoc block, found by scanning backwards rather than with a regex:
-      // a non-greedy `/**…*/` anchored at the declaration matches from the FIRST block in the file
-      // and hands back the wrong `@returns` — measured, every symbol in recorder.mjs inherited the
-      // return type of the first function above it.
-      const before = source.slice(0, match.index).replace(/\s+$/u, '');
-      const start = before.endsWith('*/') ? before.lastIndexOf('/**') : -1;
-      const type = start === -1 ? '' : returnType(before.slice(start));
+      const params = condenseParams(source.slice(open + 1, closingParen(source, open)));
+      const type = returnType(precedingJsDoc(source, match.index));
       out.set(match[1], `${match[1]}(${params})${type === '' ? '' : ` → ${type}`}`);
     }
   }
   return out;
+}
+
+/**
+ * Index of the `)` that balances the `(` at `open`, or `open` itself when the list never closes
+ * (the caller then sees an empty parameter list).
+ * @param {string} source
+ * @param {number} open index of the opening parenthesis
+ * @returns {number}
+ */
+function closingParen(source, open) {
+  let depth = 0;
+  for (let i = open; i < source.length; i++) {
+    if (source[i] === '(') depth++;
+    else if (source[i] === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return open;
+}
+
+/**
+ * The JSDoc block that ends right above `index`, whitespace in between allowed, or an empty string.
+ * The NEAREST block, found by scanning backwards rather than with a regex: a non-greedy `/**…*\/`
+ * anchored at the declaration matches from the FIRST block in the file and hands back the wrong
+ * `@returns` — measured, every symbol in recorder.mjs inherited the return type of the first
+ * function above it. Backwards over whitespace only: `source.slice(0, index)` plus a
+ * trailing-whitespace regex copied and rescanned the whole prefix for every export — measured, the
+ * slowest parser once the others were fixed.
+ * @param {string} source
+ * @param {number} index start of the declaration
+ * @returns {string}
+ */
+function precedingJsDoc(source, index) {
+  let end = index;
+  while (end > 0 && /\s/u.test(source[end - 1])) end -= 1;
+  if (end < 2 || !source.startsWith('*/', end - 2)) return '';
+  const start = source.lastIndexOf('/**', end - 3);
+  return start === -1 ? '' : source.slice(start, end);
 }
 
 /**
